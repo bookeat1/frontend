@@ -3,7 +3,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Clock, Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
@@ -38,7 +38,6 @@ export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: restaurant, isLoading, isError, refetch } = useRestaurant(id);
-  const [activeTab, setActiveTab] = useState(0);
 
   return (
     <View style={styles.root}>
@@ -97,9 +96,12 @@ export default function RestaurantDetailScreen() {
             <View style={styles.section}>
               <SegmentedTabs
                 labels={[t.restaurant.tabOverview, t.restaurant.tabPhotos]}
-                activeIndex={activeTab}
+                // Вкладка «Фото» — это переход на отдельный экран, а не
+                // переключение содержимого. Поэтому активной здесь всегда
+                // остаётся «Обзор»: иначе после возврата назад подсветка
+                // висела бы на «Фото», хотя на экране обзор.
+                activeIndex={0}
                 onChange={(index) => {
-                  setActiveTab(index);
                   if (index === 1) router.push(`/restaurant/${restaurant.id}/photos`);
                 }}
               />
