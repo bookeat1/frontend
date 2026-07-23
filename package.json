@@ -1,0 +1,10 @@
+{
+  "name": "bookeat-frontend",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "scripts": {
+    "mobile": "pnpm --filter @bookeat/mobile",
+    "typecheck": "pnpm -r --filter=./apps/* --filter=./packages/* exec tsc --noEmit",
+    "lint": "pnpm --filter @bookeat/mobile lint"
+  }
+}
