@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
@@ -13,6 +13,8 @@ interface PrimaryButtonProps {
 /**
  * The single button primitive for the app. Never build a bespoke
  * TouchableOpacity+Text button in a screen — extend this component instead.
+ * `primary` matches "Забронировать стол" (brand red pill, white label);
+ * `secondary` matches "Посмотреть меню" (neutral grey pill, dark label).
  */
 export function PrimaryButton({
   label,
@@ -44,19 +46,17 @@ export function PrimaryButton({
 const styles = StyleSheet.create({
   base: {
     minHeight: hitSlop.minTouchTarget,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: 16,
     flexDirection: "row",
   },
   primary: {
     backgroundColor: colors.brand.primary,
   },
   secondary: {
-    backgroundColor: colors.neutral[0],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: colors.background.secondaryButton,
   },
   disabled: {
     opacity: 0.5,
@@ -65,10 +65,10 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    ...typography.button,
-    color: colors.neutral[0],
+    ...typography.labelSemiBold,
+    color: colors.text.onBrand,
   },
   labelSecondary: {
-    color: colors.neutral[900],
+    color: colors.text.primary,
   },
 });

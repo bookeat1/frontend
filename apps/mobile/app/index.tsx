@@ -4,6 +4,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { BottomNavBar } from "../src/components/BottomNavBar";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { FilterChip } from "../src/components/FilterChip";
 import { RestaurantCard } from "../src/components/RestaurantCard";
@@ -50,68 +51,67 @@ export default function SearchScreen() {
   };
 
   return (
-    <ScreenContainer>
-      <View style={styles.searchRow}>
-        <SearchBar value={text} onChangeText={setText} autoFocus />
-      </View>
+    <View style={styles.root}>
+      <ScreenContainer padded={false}>
+        <View style={styles.searchRow}>
+          <SearchBar value={text} onChangeText={setText} autoFocus />
 
-      <View style={styles.chipsRow}>
-        <FilterChip
-          label={t.search.filterOpenNow}
-          selected={filters.openNowOnly}
-          onPress={toggleOpenNow}
-        />
-        {(cuisinesQuery.data ?? []).map((cuisine) => (
-          <FilterChip
-            key={cuisine.id}
-            label={cuisine.name}
-            selected={filters.cuisineIds.includes(cuisine.id)}
-            onPress={() => toggleCuisine(cuisine.id)}
+          <View style={styles.chipsRow}>
+            <FilterChip
+              label={t.search.filterOpenNow}
+              selected={filters.openNowOnly}
+              onPress={toggleOpenNow}
+            />
+            {(cuisinesQuery.data ?? []).map((cuisine) => (
+              <FilterChip
+                key={cuisine.id}
+                label={cuisine.name}
+                selected={filters.cuisineIds.includes(cuisine.id)}
+                onPress={() => toggleCuisine(cuisine.id)}
+              />
+            ))}
+          </View>
+        </View>
+
+        {!hasActiveSearch ? (
+          <IdleContent
+            recent={recentQuery.data ?? []}
+            popular={popularQuery.data ?? []}
+            isLoading={recentQuery.isLoading || popularQuery.isLoading}
+            onPickTerm={setText}
           />
-        ))}
-      </View>
-
-      {!hasActiveSearch ? (
-        <IdleContent
-          recent={recentQuery.data ?? []}
-          popular={popularQuery.data ?? []}
-          isLoading={recentQuery.isLoading || popularQuery.isLoading}
-          onPickTerm={setText}
-        />
-      ) : isTyping || searchQueryResult.isLoading ? (
-        <LoadingState title={t.search.loadingTitle} />
-      ) : searchQueryResult.isError ? (
-        <ErrorState
-          title={t.search.errorTitle}
-          description={t.search.errorDescription}
-          retryLabel={t.common.retry}
-          onRetry={() => searchQueryResult.refetch()}
-        />
-      ) : (searchQueryResult.data?.items.length ?? 0) === 0 ? (
-        <EmptyState
-          title={t.search.emptyTitle}
-          description={t.search.emptyDescription}
-          actionLabel={t.search.emptyResetFilters}
-          onAction={resetFilters}
-        />
-      ) : (
-        <>
-          <Text style={styles.resultsCount}>
-            {t.search.resultsCount(searchQueryResult.data?.total ?? 0)}
-          </Text>
+        ) : isTyping || searchQueryResult.isLoading ? (
+          <LoadingState title={t.search.loadingTitle} />
+        ) : searchQueryResult.isError ? (
+          <ErrorState
+            title={t.search.errorTitle}
+            description={t.search.errorDescription}
+            retryLabel={t.common.retry}
+            onRetry={() => searchQueryResult.refetch()}
+          />
+        ) : (searchQueryResult.data?.items.length ?? 0) === 0 ? (
+          <EmptyState
+            title={t.search.emptyTitle}
+            description={t.search.emptyDescription}
+            actionLabel={t.search.emptyResetFilters}
+            onAction={resetFilters}
+          />
+        ) : (
           <FlatList
             data={searchQueryResult.data?.items ?? []}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <RestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
-            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
-        </>
-      )}
-    </ScreenContainer>
+        )}
+      </ScreenContainer>
+
+      <BottomNavBar active="search" />
+    </View>
   );
 }
 
@@ -134,92 +134,81 @@ function IdleContent({
     <View style={styles.idleContainer}>
       {recent.length > 0 ? (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t.search.recent}</Text>
-          </View>
-          <View style={styles.termsWrap}>
+          <Text style={styles.sectionTitle}>{t.search.recent}</Text>
+          <View style={styles.termsList}>
             {recent.map((term) => (
-              <Pressable
-                key={term}
-                onPress={() => onPickTerm(term)}
-                style={styles.termChip}
-                accessibilityRole="button"
-                accessibilityLabel={term}
-              >
-                <Text style={styles.termText}>{term}</Text>
-              </Pressable>
+              <TermRow key={term} term={term} onPress={() => onPickTerm(term)} />
             ))}
           </View>
         </View>
       ) : null}
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t.search.popular}</Text>
-        <View style={styles.termsWrap}>
-          {popular.map((term) => (
-            <Pressable
-              key={term}
-              onPress={() => onPickTerm(term)}
-              style={styles.termChip}
-              accessibilityRole="button"
-              accessibilityLabel={term}
-            >
-              <Text style={styles.termText}>{term}</Text>
-            </Pressable>
-          ))}
+      {popular.length > 0 ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t.search.popular}</Text>
+          <View style={styles.termsList}>
+            {popular.map((term) => (
+              <TermRow key={term} term={term} onPress={() => onPickTerm(term)} />
+            ))}
+          </View>
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }
 
+function TermRow({ term, onPress }: { term: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={styles.termRow}
+      accessibilityRole="button"
+      accessibilityLabel={term}
+    >
+      <Text style={styles.termText}>{term}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background.surface,
+  },
   searchRow: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  resultsCount: {
-    ...typography.body,
-    color: colors.neutral[500],
-    paddingBottom: spacing.sm,
+    gap: spacing.xs,
   },
   listContent: {
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
   idleContainer: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.xl,
   },
   section: {
     gap: spacing.sm,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
   sectionTitle: {
-    ...typography.h3,
-    color: colors.neutral[900],
+    ...typography.titleLg,
+    color: colors.text.primary,
   },
-  termsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+  termsList: {
+    gap: spacing.xs,
   },
-  termChip: {
+  termRow: {
     minHeight: hitSlop.minTouchTarget,
-    paddingHorizontal: spacing.md,
     justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: colors.neutral[50],
   },
   termText: {
     ...typography.body,
-    color: colors.neutral[700],
+    color: colors.text.primary,
   },
 });

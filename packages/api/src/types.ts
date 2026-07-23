@@ -16,6 +16,10 @@ export interface Photo {
   width: number;
   height: number;
   alt: string;
+  /** Gallery tab this photo belongs to — matches "Все / Еда / Интерьер"
+   * (Figma node 340:2354). Optional so callers that don't need filtering
+   * (e.g. the cover photo) can omit it. */
+  category?: "food" | "interior";
 }
 
 export interface Cuisine {
@@ -30,6 +34,30 @@ export interface RestaurantTable {
   isAvailableNow: boolean;
 }
 
+/** A promo banner card in the horizontal strip under the Обзор/Фото tabs. */
+export interface PromoBanner {
+  id: string;
+  title: string;
+  photo: Photo;
+}
+
+/** A dish shown in the "Популярное в меню" section. */
+export interface MenuHighlight {
+  id: string;
+  name: string;
+  description: string;
+  /** Pre-formatted display price, e.g. "8 990 ₸" — matches the design, which
+   * doesn't localize/format a raw number in the UI layer. */
+  price: string;
+  photo: Photo;
+}
+
+export interface RestaurantSocialLinks {
+  website?: string;
+  whatsapp?: string;
+  instagram?: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -38,10 +66,18 @@ export interface Restaurant {
   rating: number; // 0..5
   reviewsCount: number;
   address: string;
+  /** Short landmark note shown under the address, e.g. "Напротив Меги". */
+  addressNote?: string;
   city: string;
   distanceMeters?: number;
+  phone?: string;
+  social?: RestaurantSocialLinks;
   coverPhoto: Photo;
   photos: Photo[];
+  /** Static map preview shown in the Контакты section. */
+  mapImage?: Photo;
+  promoBanners: PromoBanner[];
+  menuHighlights: MenuHighlight[];
   workingHours: WorkingHoursEntry[];
   tables: RestaurantTable[];
   description: string;

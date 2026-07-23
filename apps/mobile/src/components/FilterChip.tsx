@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
@@ -8,6 +8,12 @@ interface FilterChipProps {
   onPress: () => void;
 }
 
+/**
+ * Matches the search-screen filter chip: unselected chips sit on the light
+ * `chipAlt` fill, the selected chip inverts to a solid black pill with white
+ * text (Figma nodes 347:5773–347:5778) — there is no brand-red selected
+ * state on this screen.
+ */
 export function FilterChip({ label, selected = false, onPress }: FilterChipProps) {
   return (
     <Pressable
@@ -29,26 +35,23 @@ export function FilterChip({ label, selected = false, onPress }: FilterChipProps
 const styles = StyleSheet.create({
   chip: {
     minHeight: hitSlop.minTouchTarget,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 12,
     borderRadius: radius.pill,
-    backgroundColor: colors.neutral[50],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    backgroundColor: colors.background.chipAlt,
     alignItems: "center",
     justifyContent: "center",
   },
   chipSelected: {
-    backgroundColor: colors.brand.primaryLight,
-    borderColor: colors.brand.primary,
+    backgroundColor: colors.background.chipActive,
   },
   pressed: {
     opacity: 0.7,
   },
   label: {
-    ...typography.captionMedium,
-    color: colors.neutral[700],
+    ...typography.labelMedium,
+    color: colors.text.primary,
   },
   labelSelected: {
-    color: colors.brand.primaryDark,
+    color: colors.text.onDark,
   },
 });

@@ -2,50 +2,39 @@ import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { useRef } from "react";
+import { FlatList, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { X } from "../../../../src/components/icons";
 import { IconButton } from "../../../../src/components/IconButton";
 import { ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
+import type { Photo } from "@bookeat/api";
 
 const t = getDictionary();
 
+/**
+ * Figma node 340:2455 shows only a close button and a "N из total" counter
+ * over a full-bleed photo — no visible prev/next chevrons, implying swipe
+ * navigation. This screen pages through photos with a horizontal FlatList
+ * and keeps the route's photoId param in sync with the current page.
+ */
 export default function PhotoViewerScreen() {
   const { id, photoId } = useLocalSearchParams<{ id: string; photoId: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { data: restaurant, isLoading, isError, refetch } = useRestaurant(id);
+  const listRef = useRef<FlatList<Photo>>(null);
 
-  const index = Number(photoId);
-  const photo = useMemo(() => restaurant?.photos[index], [restaurant, index]);
+  const initialIndex = Number(photoId) || 0;
   const total = restaurant?.photos.length ?? 0;
-
-  const goTo = (nextIndex: number) => {
-    if (!restaurant) return;
-    if (nextIndex < 0 || nextIndex >= restaurant.photos.length) return;
-    router.setParams({ photoId: String(nextIndex) });
-  };
 
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <IconButton
-            glyph="✕"
-            tone="onImage"
-            accessibilityLabel={t.a11y.closeButton}
-            onPress={() => router.back()}
-          />
-          {photo ? (
-            <Text style={styles.counter}>{t.restaurant.photoOf(index + 1, total)}</Text>
-          ) : null}
-          <View style={{ width: 44 }} />
-        </View>
-
         {isLoading ? (
           <LoadingState title={t.common.loading} />
-        ) : isError || !restaurant || !photo ? (
+        ) : isError || !restaurant ? (
           <ErrorState
             title={t.search.errorTitle}
             description={t.search.errorDescription}
@@ -53,30 +42,40 @@ export default function PhotoViewerScreen() {
             onRetry={() => refetch()}
           />
         ) : (
-          <>
-            <Image
-              source={{ uri: photo.uri }}
-              style={{ width, height: width }}
-              contentFit="contain"
-              accessibilityLabel={photo.alt}
-              transition={150}
-            />
-            <View style={styles.navRow}>
-              <IconButton
-                glyph="‹"
-                tone="onImage"
-                accessibilityLabel={t.restaurant.previousPhoto}
-                onPress={() => goTo(index - 1)}
-              />
-              <IconButton
-                glyph="›"
-                tone="onImage"
-                accessibilityLabel={t.restaurant.nextPhoto}
-                onPress={() => goTo(index + 1)}
-              />
-            </View>
-          </>
+          <FlatList
+            ref={listRef}
+            data={restaurant.photos}
+            keyExtractor={(photo) => photo.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialIndex}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+            onMomentumScrollEnd={(e) => {
+              const nextIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+              router.setParams({ photoId: String(nextIndex) });
+            }}
+            renderItem={({ item }) => (
+              <View style={{ width, height: width }}>
+                <Image
+                  source={{ uri: item.uri }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="contain"
+                  accessibilityLabel={item.alt}
+                  transition={150}
+                />
+              </View>
+            )}
+          />
         )}
+
+        <View style={styles.header} pointerEvents="box-none">
+          <IconButton icon={X} tone="onImage" accessibilityLabel={t.a11y.closeButton} onPress={() => router.back()} />
+          {restaurant ? (
+            <Text style={styles.counter}>{t.restaurant.photoOf(initialIndex + 1, total)}</Text>
+          ) : null}
+          <View style={{ width: 44 }} />
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -85,12 +84,16 @@ export default function PhotoViewerScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.neutral[900],
+    backgroundColor: colors.background.photoViewer,
   },
   safeArea: {
     flex: 1,
   },
   header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -98,13 +101,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   counter: {
-    ...typography.bodyMedium,
-    color: colors.neutral[0],
-  },
-  navRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.lg,
+    ...typography.titleMd,
+    color: colors.text.onDark,
   },
 });

@@ -4,7 +4,6 @@ import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Rating } from "./Rating";
 
 const t = getDictionary();
 
@@ -13,19 +12,29 @@ interface RestaurantCardProps {
   onPress: (id: string) => void;
 }
 
+const IMAGE_HEIGHT = 148;
+
+function distanceLabel(meters: number): string {
+  return meters < 1000 ? `${meters} м` : `${(meters / 1000).toFixed(1)} км`;
+}
+
 /**
- * Compact card used in search results / popular lists. Restaurant names are
- * clamped to 2 lines with ellipsis so a long Russian name (e.g. "Fusion
- * Rooftop на очень-очень длинной улице имени Абылай хана") never breaks the
- * row height or pushes the price/rating off screen.
+ * Search-result card — matches Figma nodes 347:5716–347:5730. The design has
+ * no rating/star and no status badge overlaid on the photo: open/closed is a
+ * plain text line under the name, and cuisine + price render as chips below
+ * the description.
  */
 export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
   const cuisineLabel = restaurant.cuisines.map((c) => c.name).join(", ");
+  const statusLabel = restaurant.isOpenNow ? t.restaurant.openNow : t.restaurant.closedNow;
+  const nameLine = restaurant.distanceMeters !== undefined
+    ? `${statusLabel} · ${distanceLabel(restaurant.distanceMeters)}`
+    : statusLabel;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${restaurant.name}, ${cuisineLabel}, ${restaurant.rating.toFixed(1)}`}
+      accessibilityLabel={`${restaurant.name}, ${cuisineLabel}`}
       onPress={() => onPress(restaurant.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
@@ -36,42 +45,30 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
         accessibilityLabel={restaurant.coverPhoto.alt}
         transition={150}
       />
-      <View style={styles.statusBadge}>
-        <Text style={styles.statusText}>
-          {restaurant.isOpenNow ? t.restaurant.openNow : t.restaurant.closedNow}
-        </Text>
-      </View>
       <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">
+        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
           {restaurant.name}
         </Text>
-        <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-          {t.restaurant.cuisineAndPrice(cuisineLabel, restaurant.priceLevel)}
-        </Text>
-        <View style={styles.footer}>
-          <Rating value={restaurant.rating} reviewsCount={restaurant.reviewsCount} />
-          {restaurant.distanceMeters !== undefined ? (
-            <Text style={styles.distance}>
-              {restaurant.distanceMeters < 1000
-                ? `${restaurant.distanceMeters} м`
-                : `${(restaurant.distanceMeters / 1000).toFixed(1)} км`}
-            </Text>
-          ) : null}
+        <Text style={styles.status}>{nameLine}</Text>
+        <View style={styles.chipsRow}>
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>{cuisineLabel}</Text>
+          </View>
+          <View style={styles.chip}>
+            {/* NOTE: the mockup shows a tenge price range chip ("12 000-20 000 ₸");
+                the current schema only carries a symbolic tier ($/$$/$$$/$$$$).
+                Flagged in the delivery report as a schema gap for the designer. */}
+            <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
+          </View>
         </View>
       </View>
     </Pressable>
   );
 }
 
-const IMAGE_HEIGHT = 160;
-
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
-    backgroundColor: colors.neutral[0],
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.neutral[100],
+    gap: spacing.lg,
   },
   pressed: {
     opacity: 0.9,
@@ -79,43 +76,35 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: IMAGE_HEIGHT,
-    backgroundColor: colors.neutral[100],
+    borderRadius: radius.card,
+    backgroundColor: colors.background.chip,
   },
-  statusBadge: {
-    position: "absolute",
-    top: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: colors.overlay.scrim,
-    borderRadius: radius.sm,
+  body: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
+  },
+  name: {
+    ...typography.titleSm,
+    color: colors.text.primary,
+  },
+  status: {
+    ...typography.body,
+    color: colors.text.primary,
+  },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginTop: spacing.xxs,
+  },
+  chip: {
+    backgroundColor: colors.background.chipAlt,
+    borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xxs,
   },
-  statusText: {
+  chipText: {
     ...typography.captionMedium,
-    color: colors.neutral[0],
-  },
-  body: {
-    padding: spacing.md,
-    gap: spacing.xxs,
-  },
-  name: {
-    ...typography.h3,
-    color: colors.neutral[900],
-  },
-  meta: {
-    ...typography.body,
-    color: colors.neutral[500],
-  },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.xs,
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  distance: {
-    ...typography.caption,
-    color: colors.neutral[500],
+    color: colors.text.mutedStrong,
   },
 });

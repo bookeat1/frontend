@@ -1,4 +1,5 @@
 import { colors, spacing } from "@bookeat/design-tokens";
+
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -29,7 +30,7 @@ export function ScreenContainer({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.background.surface,
   },
   content: {
     flex: 1,

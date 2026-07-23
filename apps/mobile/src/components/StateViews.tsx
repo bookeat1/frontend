@@ -5,8 +5,12 @@ import { PrimaryButton } from "./PrimaryButton";
 
 /**
  * Shared full-bleed state views used across search / restaurant screens
- * whenever a query is loading, empty, or errored. Styled to match the
- * "Загрузка" screen from the design spec (centered icon/spinner + caption).
+ * whenever a query is loading, empty, or errored — matches the "Загрузка"
+ * screen (Figma node 347:4956). NOTE: the mockup's spinner is a custom
+ * red/white conic-gradient ring; React Native's platform ActivityIndicator
+ * can't reproduce a conic gradient without an extra drawing library, so this
+ * uses the native spinner tinted brand red as the closest faithful
+ * approximation — flagged in the delivery report.
  */
 
 export function LoadingState({ title }: { title: string }) {
@@ -69,13 +73,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    ...typography.h3,
-    color: colors.neutral[900],
+    ...typography.titleMd,
+    color: colors.text.primary,
     textAlign: "center",
   },
   description: {
     ...typography.body,
-    color: colors.neutral[500],
+    color: colors.text.muted,
     textAlign: "center",
   },
 });

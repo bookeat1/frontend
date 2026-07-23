@@ -1,7 +1,8 @@
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { MagnifyingGlass, X } from "./icons";
 
 const t = getDictionary();
 
@@ -15,16 +16,14 @@ interface SearchBarProps {
 export function SearchBar({ value, onChangeText, onSubmit, autoFocus }: SearchBarProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.icon} accessibilityElementsHidden>
-        ⌕
-      </Text>
+      <MagnifyingGlass size={24} color={colors.text.muted} weight="regular" />
       <TextInput
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
         placeholder={t.search.placeholder}
-        placeholderTextColor={colors.neutral[400]}
+        placeholderTextColor={colors.text.muted}
         autoFocus={autoFocus}
         autoCorrect={false}
         returnKeyType="search"
@@ -39,7 +38,7 @@ export function SearchBar({ value, onChangeText, onSubmit, autoFocus }: SearchBa
           hitSlop={12}
           style={styles.clearButton}
         >
-          <Text style={styles.clearGlyph}>✕</Text>
+          <X size={14} color={colors.text.mutedStrong} weight="bold" />
         </Pressable>
       ) : null}
     </View>
@@ -50,32 +49,24 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
-    backgroundColor: colors.neutral[50],
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
-  },
-  icon: {
-    fontSize: 18,
-    color: colors.neutral[400],
+    minHeight: hitSlop.minTouchTarget,
+    backgroundColor: colors.background.chipAlt,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   input: {
     flex: 1,
-    ...typography.bodyLg,
-    color: colors.neutral[900],
-    paddingVertical: spacing.sm,
+    ...typography.body,
+    color: colors.text.primary,
+    paddingVertical: 8,
   },
   clearButton: {
     width: 24,
     height: 24,
+    borderRadius: radius.pill,
+    backgroundColor: colors.text.muted,
     alignItems: "center",
     justifyContent: "center",
-  },
-  clearGlyph: {
-    color: colors.neutral[500],
-    fontSize: 14,
   },
 });

@@ -1,10 +1,11 @@
 import { colors, hitSlop, radius } from "@bookeat/design-tokens";
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import type { IconProps } from "./icons";
 
 interface IconButtonProps {
-  /** Text glyph placeholder (e.g. "←", "✕", "♡") until a real icon set ships. */
-  glyph: string;
+  /** A Phosphor icon component from `./icons`, e.g. `ArrowLeft`. */
+  icon: React.ComponentType<IconProps>;
   onPress: () => void;
   accessibilityLabel: string;
   tone?: "onLight" | "onImage";
@@ -14,7 +15,7 @@ interface IconButtonProps {
  * Minimum 44x44 touch target icon-only button with a mandatory
  * accessibilityLabel — every icon button in the app must go through this.
  */
-export function IconButton({ glyph, onPress, accessibilityLabel, tone = "onLight" }: IconButtonProps) {
+export function IconButton({ icon: Icon, onPress, accessibilityLabel, tone = "onLight" }: IconButtonProps) {
   const onImage = tone === "onImage";
   return (
     <Pressable
@@ -28,7 +29,7 @@ export function IconButton({ glyph, onPress, accessibilityLabel, tone = "onLight
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.glyph, onImage && styles.glyphOnImage]}>{glyph}</Text>
+      <Icon size={24} color={onImage ? colors.text.onDark : colors.text.primary} weight="regular" />
     </Pressable>
   );
 }
@@ -42,19 +43,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   onLight: {
-    backgroundColor: colors.neutral[50],
+    backgroundColor: "transparent",
   },
   onImage: {
     backgroundColor: colors.overlay.scrim,
   },
   pressed: {
     opacity: 0.7,
-  },
-  glyph: {
-    fontSize: 18,
-    color: colors.neutral[900],
-  },
-  glyphOnImage: {
-    color: colors.neutral[0],
   },
 });

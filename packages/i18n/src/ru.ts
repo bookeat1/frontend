@@ -32,8 +32,8 @@ export const ru = {
   restaurant: {
     openNow: "Открыто",
     closedNow: "Закрыто",
-    closesAt: (time: string) => `До ${time}`,
-    opensAt: (time: string) => `Откроется в ${time}`,
+    closesAt: (time: string) => `Открыто до ${time}`,
+    opensAt: (time: string) => `Закрыто до ${time}`,
     cuisineAndPrice: (cuisine: string, price: string) => `${cuisine} · ${price}`,
     reviewsCount: (count: number) => {
       const mod10 = count % 10;
@@ -58,6 +58,21 @@ export const ru = {
     photoOf: (index: number, total: number) => `Фото ${index} из ${total}`,
     previousPhoto: "Предыдущее фото",
     nextPhoto: "Следующее фото",
+    tabOverview: "Обзор",
+    tabPhotos: "Фото",
+    photoAllFilter: "Все",
+    menuHighlights: "Популярное в меню",
+    viewMenu: "Посмотреть меню",
+    contacts: "Контакты",
+    phoneLabel: "Телефон",
+    everydayHours: (opensAt: string, closesAt: string) => `Ежедневно с ${opensAt} до ${closesAt}`,
+  },
+  nav: {
+    overview: "Обзор",
+    search: "Поиск",
+    bookings: "Бронь",
+    favorites: "Избранные",
+    profile: "Профиль",
   },
   weekdays: {
     mon: "Понедельник",
