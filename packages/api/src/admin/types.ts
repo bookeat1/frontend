@@ -286,3 +286,18 @@ export interface AdminListParams {
   page?: number;
   per_page?: number;
 }
+
+// ---- Web push subscriptions ------------------------------------------------
+
+/** The browser PushSubscription reduced to the backend's expected shape
+ * (pushsubscriptions.registerRequest). `p256dh` and `auth` are base64url
+ * (URL-safe, no padding) — the encoding webpush-go decodes with
+ * base64.RawURLEncoding, which is also what the browser produces. */
+export interface PushSubscriptionInput {
+  restaurant_id: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}

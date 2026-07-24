@@ -17,6 +17,7 @@ import type {
   Schedule,
   ScheduleOverrideInput,
   PromoInput,
+  PushSubscriptionInput,
   RestaurantProfile,
   TokenPair,
 } from "./types";
@@ -343,6 +344,23 @@ export class AdminApiClient {
       )}/${action}`,
       { body: body ?? {} },
     );
+  }
+
+  // ---- Web push subscriptions ----------------------------------------------
+
+  /** POST /push/subscriptions — register (or refresh) the caller's browser push
+   * subscription for a restaurant they are staff of. NOTE: this route is NOT
+   * under /admin — it is mounted on the plain authenticated group; membership
+   * of `restaurant_id` is enforced server-side inside the usecase. Idempotent:
+   * re-registering the same endpoint refreshes it. */
+  async registerPushSubscription(input: PushSubscriptionInput): Promise<void> {
+    await this.request<unknown>("POST", "/push/subscriptions", { body: input });
+  }
+
+  /** DELETE /push/subscriptions — remove the caller's own subscription by
+   * endpoint. Idempotent (unknown endpoint still succeeds). */
+  async unregisterPushSubscription(endpoint: string): Promise<void> {
+    await this.request<unknown>("DELETE", "/push/subscriptions", { body: { endpoint } });
   }
 
   // ---- Menu ----------------------------------------------------------------

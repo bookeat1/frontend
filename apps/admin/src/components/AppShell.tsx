@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 
+import { PushToggle } from "./PushToggle";
+
 interface NavItem {
   href: string;
   label: string;
@@ -84,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
           </div>
           <div className="flex items-center gap-md">
+            <PushToggle />
             <span className="hidden max-w-[180px] truncate text-sm text-text-muted sm:inline">
               {user?.email ?? user?.full_name}
             </span>
