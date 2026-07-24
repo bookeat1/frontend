@@ -1,13 +1,22 @@
 import { RepositoryError } from "../repository";
 import type {
   AdminBooking,
+  AdminEvent,
+  AdminGuest,
+  AdminListParams,
   AdminMenuCategory,
   AdminMenuItem,
+  AdminPromo,
   ApiPage,
   AuthUser,
   BookingCancelInput,
   BookingListParams,
   BookingReasonInput,
+  EventInput,
+  MyRestaurant,
+  Schedule,
+  ScheduleOverrideInput,
+  PromoInput,
   RestaurantProfile,
   TokenPair,
 } from "./types";
@@ -149,6 +158,140 @@ export class AdminApiClient {
     return this.request<RestaurantProfile>(
       "GET",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/profile`,
+    );
+  }
+
+  /** GET /admin/my-restaurants — the restaurants the signed-in staff member
+   * manages, for the post-login picker. Returns the raw list (unwraps the
+   * `{restaurants: [...]}` envelope). May be empty (fall back to the manual
+   * restaurant-id gate). */
+  async listMyRestaurants(): Promise<MyRestaurant[]> {
+    const res = await this.request<{ restaurants: MyRestaurant[] }>(
+      "GET",
+      "/admin/my-restaurants",
+    );
+    return res?.restaurants ?? [];
+  }
+
+  // ---- Events --------------------------------------------------------------
+
+  listEvents(restaurantId: string, params: AdminListParams = {}): Promise<ApiPage<AdminEvent>> {
+    return this.request<ApiPage<AdminEvent>>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/events`,
+      {
+        params: {
+          status: params.statuses?.length ? params.statuses.join(",") : undefined,
+          page: params.page,
+          per_page: params.per_page,
+        },
+      },
+    );
+  }
+
+  getEvent(eventId: string): Promise<AdminEvent> {
+    return this.request<AdminEvent>("GET", `/admin/events/${encodeURIComponent(eventId)}`);
+  }
+
+  createEvent(restaurantId: string, input: EventInput): Promise<AdminEvent> {
+    return this.request<AdminEvent>(
+      "POST",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/events`,
+      { body: input },
+    );
+  }
+
+  updateEvent(eventId: string, input: EventInput): Promise<AdminEvent> {
+    return this.request<AdminEvent>("PUT", `/admin/events/${encodeURIComponent(eventId)}`, {
+      body: input,
+    });
+  }
+
+  async deleteEvent(eventId: string): Promise<void> {
+    await this.request<unknown>("DELETE", `/admin/events/${encodeURIComponent(eventId)}`);
+  }
+
+  // ---- Promos --------------------------------------------------------------
+
+  listPromos(restaurantId: string, params: AdminListParams = {}): Promise<ApiPage<AdminPromo>> {
+    return this.request<ApiPage<AdminPromo>>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/promos`,
+      {
+        params: {
+          status: params.statuses?.length ? params.statuses.join(",") : undefined,
+          page: params.page,
+          per_page: params.per_page,
+        },
+      },
+    );
+  }
+
+  getPromo(promoId: string): Promise<AdminPromo> {
+    return this.request<AdminPromo>("GET", `/admin/promos/${encodeURIComponent(promoId)}`);
+  }
+
+  createPromo(restaurantId: string, input: PromoInput): Promise<AdminPromo> {
+    return this.request<AdminPromo>(
+      "POST",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/promos`,
+      { body: input },
+    );
+  }
+
+  updatePromo(promoId: string, input: PromoInput): Promise<AdminPromo> {
+    return this.request<AdminPromo>("PUT", `/admin/promos/${encodeURIComponent(promoId)}`, {
+      body: input,
+    });
+  }
+
+  async deletePromo(promoId: string): Promise<void> {
+    await this.request<unknown>("DELETE", `/admin/promos/${encodeURIComponent(promoId)}`);
+  }
+
+  // ---- Schedule ------------------------------------------------------------
+
+  getSchedule(restaurantId: string): Promise<Schedule> {
+    return this.request<Schedule>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/schedule`,
+    );
+  }
+
+  async setWorkingHours(
+    restaurantId: string,
+    workingHours: Schedule["working_hours"],
+  ): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/working-hours`,
+      { body: { working_hours: workingHours } },
+    );
+  }
+
+  async setScheduleOverride(restaurantId: string, override: ScheduleOverrideInput): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/schedule/overrides`,
+      { body: override },
+    );
+  }
+
+  async deleteScheduleOverride(restaurantId: string, date: string): Promise<void> {
+    await this.request<unknown>(
+      "DELETE",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/schedule/overrides/${encodeURIComponent(
+        date,
+      )}`,
+    );
+  }
+
+  // ---- Guests --------------------------------------------------------------
+
+  listGuests(restaurantId: string): Promise<AdminGuest[]> {
+    return this.request<AdminGuest[]>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/guests`,
     );
   }
 

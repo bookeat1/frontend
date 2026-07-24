@@ -45,3 +45,69 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export function isUuid(value: string): boolean {
   return UUID_RE.test(value.trim());
 }
+
+const dateFmt = new Intl.DateTimeFormat("ru-RU", {
+  day: "2-digit",
+  month: "long",
+  year: "numeric",
+});
+
+/** Full date only, e.g. "5 сентября 2026 г." */
+export function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : dateFmt.format(d);
+}
+
+/** Money helpers. Deposits/ticket prices are stored as integer minor units
+ * (tiyin, 1 ₸ = 100 tiyin). Staff enter and read whole ₸, never a float. */
+
+/** Minor units -> whole ₸ (integer, rounded). */
+export function minorToTenge(minor: number | null | undefined): number {
+  if (minor == null) return 0;
+  return Math.round(minor / 100);
+}
+
+/** Whole ₸ -> integer minor units. */
+export function tengeToMinor(tenge: number): number {
+  return Math.round(tenge) * 100;
+}
+
+/** Whole ₸ amount from minor units, formatted with a ₸ suffix. */
+export function formatMinorTenge(minor: number | null | undefined): string {
+  return `${minorToTenge(minor).toLocaleString("ru-RU")} ₸`;
+}
+
+/**
+ * Convert an RFC3339/ISO instant to the value an <input type="datetime-local">
+ * expects ("YYYY-MM-DDTHH:mm") in the browser's local timezone. Returns "" for
+ * an invalid input so the field stays empty rather than showing "Invalid Date".
+ */
+export function isoToLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
+/** Normalize a stored time-of-day ("09:00", "09:00:00") to the "HH:MM" the
+ * backend regex and <input type="time"> both expect. Returns "" for nullish. */
+export function toHHMM(value: string | null | undefined): string {
+  if (!value) return "";
+  const m = /^(\d{2}):(\d{2})/.exec(value);
+  return m ? `${m[1]}:${m[2]}` : "";
+}
+
+/**
+ * Convert a datetime-local field value (local wall-clock, no zone) to an
+ * RFC3339 UTC instant the backend parses with time.RFC3339. Returns "" when the
+ * value is empty/unparseable so the caller can validate before sending.
+ */
+export function localInputToIso(local: string): string {
+  if (!local.trim()) return "";
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
