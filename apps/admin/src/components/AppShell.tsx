@@ -17,9 +17,10 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: "/bookings", label: t.admin.nav.bookings },
   { href: "/menu", label: t.admin.nav.menu },
-  { href: "/schedule", label: t.admin.nav.schedule, soon: true },
-  { href: "/events", label: t.admin.nav.events, soon: true },
-  { href: "/guests", label: t.admin.nav.guests, soon: true },
+  { href: "/schedule", label: t.admin.nav.schedule },
+  { href: "/events", label: t.admin.nav.events },
+  { href: "/promos", label: t.admin.nav.promos },
+  { href: "/guests", label: t.admin.nav.guests },
   { href: "/settings", label: t.admin.nav.settings, soon: true },
 ];
 

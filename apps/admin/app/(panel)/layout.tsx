@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/AppShell";
-import { RestaurantGate } from "@/components/RestaurantGate";
+import { RestaurantPicker } from "@/components/RestaurantPicker";
 import { LoadingState } from "@/components/StateViews";
 
 /** Auth guard for every panel screen: unauthenticated -> /login;
@@ -26,7 +26,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!restaurant) return <RestaurantGate />;
+  if (!restaurant) return <RestaurantPicker />;
 
   return <AppShell>{children}</AppShell>;
 }

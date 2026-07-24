@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthUser, RestaurantProfile } from "@bookeat/api/admin";
+import type { AuthUser } from "@bookeat/api/admin";
 
 import { apiClient, clearSession, STORAGE_KEYS } from "./api";
 
@@ -32,7 +32,7 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   login(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
-  selectRestaurant(profile: RestaurantProfile): void;
+  selectRestaurant(restaurant: RestaurantContext): void;
   clearRestaurant(): void;
 }
 
@@ -90,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ hydrated: true, token: null, user: null, restaurant: null });
   }, []);
 
-  const selectRestaurant = useCallback((profile: RestaurantProfile) => {
-    const ctx: RestaurantContext = { id: profile.id, name: profile.name };
+  const selectRestaurant = useCallback((restaurant: RestaurantContext) => {
+    const ctx: RestaurantContext = { id: restaurant.id, name: restaurant.name };
     window.localStorage.setItem(STORAGE_KEYS.restaurant, JSON.stringify(ctx));
     setState((prev) => ({ ...prev, restaurant: ctx }));
   }, []);

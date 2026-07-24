@@ -131,3 +131,158 @@ export interface BookingCancelInput {
   reason_code?: string;
   reason?: string;
 }
+
+// ---- My restaurants (post-login picker) ------------------------------------
+
+/** One entry of GET /admin/my-restaurants (myrestaurants.restaurantResponse):
+ * a restaurant the signed-in staff member manages, plus their role there. */
+export interface MyRestaurant {
+  id: string;
+  name: string;
+  /** "owner" | "manager" | "hostess", or "admin" for a superadmin. */
+  role: string;
+}
+
+/** Envelope of GET /admin/my-restaurants (data is `{restaurants: [...]}`). */
+export interface MyRestaurantsResponse {
+  restaurants: MyRestaurant[];
+}
+
+// ---- Events ----------------------------------------------------------------
+
+/** Event publication state (domain.EventStatus). draft -> published -> hidden. */
+export type EventStatus = "draft" | "published" | "hidden";
+
+/** One event as returned by the admin endpoints (events.eventResponse, admin
+ * shape — carries the raw i18n maps). Money is integer minor units, never a
+ * float. `*_i18n`, cover_image_url, ticket_price_minor and capacity are omitted
+ * by the backend when empty. */
+export interface AdminEvent {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  title_i18n?: Record<string, string>;
+  description: string;
+  description_i18n?: Record<string, string>;
+  starts_at: string;
+  ends_at: string;
+  venue?: string;
+  cover_image_url?: string | null;
+  status: EventStatus;
+  ticketed: boolean;
+  ticket_price_minor?: number | null;
+  capacity?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Create/update payload for an event (events.eventRequest). starts_at/ends_at
+ * must be RFC3339. ticket_price_minor is integer minor units. */
+export interface EventInput {
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  venue: string;
+  cover_image_url: string | null;
+  status: EventStatus;
+  ticketed: boolean;
+  ticket_price_minor: number | null;
+  capacity: number | null;
+}
+
+// ---- Promos ----------------------------------------------------------------
+
+/** Promo publication state (domain.PromoStatus). draft -> published -> hidden. */
+export type PromoStatus = "draft" | "published" | "hidden";
+
+/** One promo as returned by the admin endpoints (promos.promoResponse). */
+export interface AdminPromo {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  title_i18n?: Record<string, string>;
+  description: string;
+  description_i18n?: Record<string, string>;
+  starts_at: string;
+  ends_at: string;
+  terms?: string;
+  status: PromoStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Create/update payload for a promo (promos.promoRequest). */
+export interface PromoInput {
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  terms: string;
+  status: PromoStatus;
+}
+
+// ---- Schedule --------------------------------------------------------------
+
+/** One weekday's working hours (admin.workingHoursResponse). day_of_week is
+ * 0..6; the backend does not fix the week-start, so the UI labels 0 as Sunday
+ * (JS Date convention) — confirm against seeded data. Times are "HH:MM" or
+ * "HH:MM:SS" strings, null when closed. */
+export interface WorkingHours {
+  day_of_week: number;
+  is_open: boolean;
+  open_time: string | null;
+  close_time: string | null;
+}
+
+/** A special-day override (admin.scheduleOverrideResponse). A holiday can be
+ * marked as a PAID booking day: booking_payment_required + deposit_amount_minor
+ * (integer minor units — the UI shows/enters whole ₸). */
+export interface ScheduleOverride {
+  date: string; // YYYY-MM-DD
+  is_closed: boolean;
+  open_time: string | null;
+  close_time: string | null;
+  note: string | null;
+  booking_payment_required: boolean;
+  deposit_amount_minor: number | null;
+}
+
+/** GET /admin/restaurants/:id/schedule (admin.scheduleResponse). */
+export interface Schedule {
+  working_hours: WorkingHours[];
+  overrides: ScheduleOverride[];
+}
+
+/** Upsert payload for a single override (admin.scheduleOverrideRequest). */
+export interface ScheduleOverrideInput {
+  date: string; // YYYY-MM-DD
+  is_closed: boolean;
+  open_time: string | null;
+  close_time: string | null;
+  note: string | null;
+  booking_payment_required: boolean;
+  deposit_amount_minor: number | null;
+}
+
+// ---- Guests ----------------------------------------------------------------
+
+/** One aggregated guest row (admin.guestResponse). Read-only. */
+export interface AdminGuest {
+  user_id: string | null;
+  name: string;
+  phone: string;
+  phone_normalized: string;
+  email: string;
+  bookings_count: number;
+  visits_count: number;
+  first_booking_at: string;
+  last_booking_at: string;
+}
+
+/** Filters for the admin event/promo listings. */
+export interface AdminListParams {
+  statuses?: string[];
+  page?: number;
+  per_page?: number;
+}
