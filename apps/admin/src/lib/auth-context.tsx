@@ -6,15 +6,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AuthUser } from "@bookeat/api/admin";
 
 import { apiClient, clearSession, STORAGE_KEYS } from "./api";
 
-/** The restaurant the panel is currently operating on. Derived from a profile
- * the staff member proved access to (see RestaurantGate). */
+/** The restaurant the panel is currently operating on. Picked from
+ * GET /admin/my-restaurants (see RestaurantPicker) and kept in localStorage so
+ * it survives a reload. */
 export interface RestaurantContext {
   id: string;
   name: string;
@@ -50,23 +53,36 @@ function readJson<T>(key: string): T | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // AuthProvider is mounted inside QueryClientProvider (see app/providers.tsx),
+  // so the cache can be dropped whenever the data scope changes.
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({
     hydrated: false,
     token: null,
     user: null,
     restaurant: null,
   });
+  /** Mirrors state.restaurant.id so selectRestaurant can tell a real switch
+   * from a re-select without depending on (and re-creating itself on) state. */
+  const selectedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const restaurant = readJson<RestaurantContext>(STORAGE_KEYS.restaurant);
+    selectedIdRef.current = restaurant?.id ?? null;
     setState({
       hydrated: true,
       token: window.localStorage.getItem(STORAGE_KEYS.accessToken),
       user: readJson<AuthUser>(STORAGE_KEYS.user),
-      restaurant: readJson<RestaurantContext>(STORAGE_KEYS.restaurant),
+      restaurant,
     });
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    // Whoever was signed in before must leave nothing behind: a stale
+    // my-restaurants list would otherwise flash (or auto-select) another
+    // person's venue for the new session.
+    selectedIdRef.current = null;
+    queryClient.clear();
     const pair = await apiClient.login(email.trim(), password);
     window.localStorage.setItem(STORAGE_KEYS.accessToken, pair.access_token);
     window.localStorage.setItem(STORAGE_KEYS.refreshToken, pair.refresh_token);
@@ -74,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = await apiClient.getMe();
     window.localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
     setState((prev) => ({ ...prev, hydrated: true, token: pair.access_token, user }));
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     const refresh = window.localStorage.getItem(STORAGE_KEYS.refreshToken);
@@ -87,16 +103,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     clearSession();
+    selectedIdRef.current = null;
+    queryClient.clear();
     setState({ hydrated: true, token: null, user: null, restaurant: null });
-  }, []);
+  }, [queryClient]);
 
-  const selectRestaurant = useCallback((restaurant: RestaurantContext) => {
-    const ctx: RestaurantContext = { id: restaurant.id, name: restaurant.name };
-    window.localStorage.setItem(STORAGE_KEYS.restaurant, JSON.stringify(ctx));
-    setState((prev) => ({ ...prev, restaurant: ctx }));
-  }, []);
+  const selectRestaurant = useCallback(
+    (restaurant: RestaurantContext) => {
+      const ctx: RestaurantContext = { id: restaurant.id, name: restaurant.name };
+      const previousId = selectedIdRef.current;
+      // Every screen's query key is scoped by restaurant id, so venue B can
+      // never read venue A's entry — but B's screens would still mount while
+      // A's rows sit in the cache. Dropping everything except the venue list on
+      // a real switch makes it show a loading state, never a frame of venue A.
+      // A same-id call (a rename picked up from my-restaurants) keeps the cache.
+      if (previousId && previousId !== ctx.id) {
+        queryClient.removeQueries({
+          predicate: (q) => q.queryKey[0] !== "my-restaurants",
+        });
+      }
+      selectedIdRef.current = ctx.id;
+      window.localStorage.setItem(STORAGE_KEYS.restaurant, JSON.stringify(ctx));
+      setState((prev) =>
+        prev.restaurant?.id === ctx.id && prev.restaurant.name === ctx.name
+          ? prev // no-op: don't re-render (and don't re-trigger the reconcile effect)
+          : { ...prev, restaurant: ctx },
+      );
+    },
+    [queryClient],
+  );
 
   const clearRestaurant = useCallback(() => {
+    selectedIdRef.current = null;
     window.localStorage.removeItem(STORAGE_KEYS.restaurant);
     setState((prev) => ({ ...prev, restaurant: null }));
   }, []);

@@ -1,41 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { MyRestaurant } from "@bookeat/api/admin";
+import { useEffect } from "react";
 
-import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
-import { RestaurantGate } from "./RestaurantGate";
+import { roleLabel, useMyRestaurants } from "@/lib/use-my-restaurants";
 import { ErrorState, LoadingState } from "./StateViews";
+import { Button } from "./ui/Button";
 
 /**
- * Post-login restaurant selection. Calls GET /admin/my-restaurants and shows a
- * picker instead of asking staff to type a UUID:
- *  - exactly one restaurant  -> auto-select and go straight to the panel;
- *  - several                 -> a keyboard-reachable list of buttons;
- *  - none (or "enter manually") -> fall back to the manual-id RestaurantGate.
+ * Post-login venue selection, driven entirely by GET /admin/my-restaurants —
+ * no restaurant UUID is ever typed or hardcoded:
+ *  - exactly one venue -> auto-selected, the picker never appears;
+ *  - several           -> a keyboard-reachable list of buttons;
+ *  - none              -> an honest "you are not staff anywhere yet" screen;
+ *  - request failed    -> an error screen with a retry.
  */
 export function RestaurantPicker() {
   const { user, logout, selectRestaurant } = useAuth();
-  const [manual, setManual] = useState(false);
-
-  const query = useQuery({
-    queryKey: ["my-restaurants"],
-    queryFn: () => apiClient.listMyRestaurants(),
-  });
-
+  const query = useMyRestaurants();
   const list = query.data;
 
-  // Auto-select when the caller manages exactly one restaurant.
+  // Auto-select when the caller manages exactly one venue: a dialog with a
+  // single option is a click that teaches nothing.
   useEffect(() => {
     if (list && list.length === 1) {
       selectRestaurant({ id: list[0].id, name: list[0].name });
     }
   }, [list, selectRestaurant]);
-
-  if (manual) return <RestaurantGate />;
 
   if (query.isPending) {
     return (
@@ -45,36 +37,44 @@ export function RestaurantPicker() {
     );
   }
 
-  if (query.isError) {
+  if (query.isError || !list) {
     return (
       <Screen>
-        <ErrorState onRetry={() => void query.refetch()} />
-        <Footer email={user?.email ?? user?.full_name} onLogout={() => void logout()} />
+        <Card>
+          <ErrorState
+            message={t.admin.restaurant.errorTitle}
+            onRetry={() => void query.refetch()}
+          />
+          <Footer email={user?.email ?? user?.full_name} onLogout={() => void logout()} />
+        </Card>
       </Screen>
     );
   }
 
-  // Empty list -> offer the manual gate straight away.
-  if (!list || list.length === 0) {
+  // No memberships: say so plainly and tell them what unblocks it. Retry stays
+  // available — the owner may be adding them to the team right now.
+  if (list.length === 0) {
     return (
       <Screen>
-        <div className="w-full max-w-[460px] rounded-card bg-surface p-huge text-center shadow-sm">
+        <Card>
           <h1 className="text-xl font-bold text-text">{t.admin.restaurant.emptyTitle}</h1>
           <p className="mt-sm text-sm text-text-muted">{t.admin.restaurant.emptySubtitle}</p>
-          <button
-            type="button"
-            onClick={() => setManual(true)}
-            className="mt-xl min-h-[44px] w-full rounded-pill bg-brand px-lg text-sm font-medium text-white hover:opacity-90"
+          <Button
+            variant="secondary"
+            className="mt-xl w-full"
+            loading={query.isFetching}
+            onClick={() => void query.refetch()}
           >
-            {t.admin.restaurant.manualEntry}
-          </button>
+            {t.admin.common.retry}
+          </Button>
           <Footer email={user?.email ?? user?.full_name} onLogout={() => void logout()} />
-        </div>
+        </Card>
       </Screen>
     );
   }
 
-  // A single restaurant is being auto-selected; show a spinner during the flip.
+  // A single venue is being auto-selected by the effect above; hold a spinner
+  // for that one frame rather than flashing a one-item list.
   if (list.length === 1) {
     return (
       <Screen>
@@ -85,7 +85,7 @@ export function RestaurantPicker() {
 
   return (
     <Screen>
-      <div className="w-full max-w-[460px] rounded-card bg-surface p-huge shadow-sm">
+      <Card>
         <h1 className="text-xl font-bold text-text">{t.admin.restaurant.pickTitle}</h1>
         <p className="mt-sm text-sm text-text-muted">{t.admin.restaurant.pickSubtitle}</p>
 
@@ -95,8 +95,10 @@ export function RestaurantPicker() {
               <button
                 type="button"
                 onClick={() => selectRestaurant({ id: r.id, name: r.name })}
-                className="flex min-h-[56px] w-full items-center justify-between gap-md rounded-card border border-hairline bg-white px-lg py-md text-left transition-colors hover:border-brand"
+                className="flex min-h-[56px] w-full items-center justify-between gap-md rounded-card border border-hairline bg-white px-lg py-md text-left transition-colors hover:border-brand focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
+                {/* min-w-0 + break-words: long Russian venue names must wrap, not
+                    push the role chip off the card. */}
                 <span className="min-w-0 break-words text-sm font-medium text-text">{r.name}</span>
                 <span className="shrink-0 rounded-pill bg-chip px-sm py-xxs text-[11px] text-text-muted">
                   {roleLabel(r.role)}
@@ -106,48 +108,35 @@ export function RestaurantPicker() {
           ))}
         </ul>
 
-        <button
-          type="button"
-          onClick={() => setManual(true)}
-          className="mt-lg text-sm text-brand hover:underline"
-        >
-          {t.admin.restaurant.manualEntry}
-        </button>
-
         <Footer email={user?.email ?? user?.full_name} onLogout={() => void logout()} />
-      </div>
+      </Card>
     </Screen>
   );
 }
 
-function roleLabel(role: MyRestaurant["role"]): string {
-  switch (role) {
-    case "owner":
-      return t.admin.restaurant.roleOwner;
-    case "manager":
-      return t.admin.restaurant.roleManager;
-    case "hostess":
-      return t.admin.restaurant.roleHostess;
-    case "admin":
-      return t.admin.restaurant.roleAdmin;
-    default:
-      return role;
-  }
-}
-
 function Screen({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-lg bg-screen px-lg">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-lg bg-screen px-lg py-huge">
       {children}
     </main>
   );
 }
 
+function Card({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-full max-w-[460px] rounded-card bg-surface p-huge shadow-sm">{children}</div>
+  );
+}
+
 function Footer({ email, onLogout }: { email?: string | null; onLogout: () => void }) {
   return (
-    <div className="mt-lg flex items-center justify-between text-sm text-text-muted">
-      <span className="truncate">{email}</span>
-      <button type="button" onClick={onLogout} className="text-brand hover:underline">
+    <div className="mt-lg flex items-center justify-between gap-md text-sm text-text-muted">
+      <span className="min-w-0 truncate">{email}</span>
+      <button
+        type="button"
+        onClick={onLogout}
+        className="shrink-0 text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
         {t.admin.common.logout}
       </button>
     </div>
