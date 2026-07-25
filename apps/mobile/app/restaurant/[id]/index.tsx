@@ -79,10 +79,14 @@ export default function RestaurantDetailScreen() {
 
             <View style={styles.summary}>
               <Text style={styles.name}>{restaurant.name}</Text>
-              <Text style={styles.addressLine}>
-                {restaurant.address}
-                {restaurant.distanceMeters !== undefined ? ` · ${distanceLabel(restaurant.distanceMeters)}` : ""}
-              </Text>
+              {/* Адрес в каталоге бывает пустым — тогда строка не рисуется
+                  вовсе, а не превращается в « · 3.4 км». */}
+              {restaurant.address ? (
+                <Text style={styles.addressLine}>
+                  {restaurant.address}
+                  {restaurant.distanceMeters !== undefined ? ` · ${distanceLabel(restaurant.distanceMeters)}` : ""}
+                </Text>
+              ) : null}
               <View style={styles.chipsRow}>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>{todaysHoursLabel(restaurant)}</Text>
@@ -90,6 +94,15 @@ export default function RestaurantDetailScreen() {
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
                 </View>
+                {/* Рейтинг показываем только когда отзывы реально есть:
+                    «0,0» у заведения без отзывов читается как плохая оценка. */}
+                {restaurant.reviewsCount > 0 ? (
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>
+                      {`${t.restaurant.rating(restaurant.rating)} · ${t.restaurant.reviewsCount(restaurant.reviewsCount)}`}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </View>
 
@@ -157,20 +170,22 @@ export default function RestaurantDetailScreen() {
                 ) : null}
               </View>
 
-              <View style={styles.contactRow}>
-                <MapPin size={24} color={colors.text.primary} weight="regular" />
-                <View>
-                  <Text style={styles.contactPrimary}>{restaurant.address}</Text>
-                  {restaurant.addressNote ? (
-                    <Text style={styles.contactSecondary}>{restaurant.addressNote}</Text>
-                  ) : null}
+              {restaurant.address ? (
+                <View style={styles.contactRow}>
+                  <MapPin size={24} color={colors.text.primary} weight="regular" />
+                  <View style={styles.contactText}>
+                    <Text style={styles.contactPrimary}>{restaurant.address}</Text>
+                    {restaurant.addressNote ? (
+                      <Text style={styles.contactSecondary}>{restaurant.addressNote}</Text>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
+              ) : null}
 
               {restaurant.phone ? (
                 <View style={styles.contactRow}>
                   <Phone size={24} color={colors.text.primary} weight="regular" />
-                  <View>
+                  <View style={styles.contactText}>
                     <Text style={styles.contactPrimary}>{restaurant.phone}</Text>
                     <Text style={styles.contactSecondary}>{t.restaurant.phoneLabel}</Text>
                   </View>
@@ -207,6 +222,12 @@ export default function RestaurantDetailScreen() {
 }
 
 function ScrollableMenu({ items }: { items: Restaurant["menuHighlights"] }) {
+  // У части заведений меню либо пустое, либо целиком без фотографий —
+  // тогда честнее написать это, чем показать пустую полосу.
+  if (items.length === 0) {
+    return <Text style={styles.sectionEmpty}>{t.restaurant.menuEmpty}</Text>;
+  }
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View style={styles.menuRow}>
@@ -316,6 +337,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
   },
+  sectionEmpty: {
+    ...typography.body,
+    color: colors.text.muted,
+  },
   socialRow: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -332,6 +357,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+  },
+  // Реальные адреса длинные («Проспект Аль-Фараби, 77/8. 1 этаж»); без flex
+  // текст на 360 px уезжает за край вместо переноса.
+  contactText: {
+    flex: 1,
   },
   contactPrimary: {
     ...typography.labelMedium,

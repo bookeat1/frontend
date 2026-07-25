@@ -17,13 +17,17 @@ export function PromoBannerStrip({ banners }: { banners: PromoBanner[] }) {
       <View style={styles.row}>
         {banners.map((banner) => (
           <View key={banner.id} style={styles.banner}>
-            <Image
-              source={{ uri: banner.photo.uri }}
-              style={styles.image}
-              contentFit="cover"
-              accessibilityLabel={banner.photo.alt}
-              transition={150}
-            />
+            {/* Промо из API приходит без картинки — тогда остаётся плитка
+                фирменного цвета с подписью, а не битая ссылка. */}
+            {banner.photo ? (
+              <Image
+                source={{ uri: banner.photo.uri }}
+                style={styles.image}
+                contentFit="cover"
+                accessibilityLabel={banner.photo.alt}
+                transition={150}
+              />
+            ) : null}
             <LinearGradient
               colors={[colors.overlay.bannerGradientTop, colors.overlay.bannerGradientBottom]}
               style={styles.gradient}

@@ -44,10 +44,35 @@ pnpm --filter @bookeat/mobile export   # expo export, headless build check
 
 ## Data layer
 
-All screens read data through `useRepository()` (`apps/mobile/src/lib/repository.tsx`),
-which is currently wired to `MockRestaurantRepository` from `@bookeat/api`. Swapping
-to a real backend means writing a sibling class implementing `RestaurantRepository`
-and changing the `value` passed to `RepositoryProvider` — no screen changes needed.
+All screens read data through `useRepository()` (`apps/mobile/src/lib/repository.tsx`).
+Which implementation is live is decided by one environment variable:
+
+```bash
+# apps/mobile/.env — see .env.example
+EXPO_PUBLIC_API_URL=https://test.backend.book-eat.com/api/v1
+```
+
+- **set** → `HttpRestaurantRepository`, real backend-core data;
+- **unset/blank** → `MockRestaurantRepository`, the app runs with zero backend setup.
+
+Both implement the same `RestaurantRepository` interface, so no screen knows which
+one it's talking to.
+
+What the real backend does and doesn't cover today (see `packages/api/src/unknown-data.ts`
+for the authoritative, per-field list):
+
+| Screen data | Source |
+|---|---|
+| Каталог, поиск, фильтры кухни/города/цены | `GET /restaurants`, `GET /restaurants/search`, `GET /cities` |
+| Карточка заведения, часы, контакты, соцсети | `GET /restaurants/:id` |
+| Рейтинг и число отзывов | `GET /restaurants/:id/reviews/summary` |
+| «Популярное в меню» | `GET /restaurants/:id/menu` |
+| Акции | `GET /restaurants/:id/promos` (без картинок — их нет в API) |
+| Расстояние, превью карты, столики, подсказки поиска | заглушки, полей в API нет |
+
+Cuisines come from the venues' free-text `cuisine_type`, **not** from
+`GET /restaurant-categories` — that endpoint is empty on the live catalog and no
+venue carries a `category_id`.
 
 ## Known gaps (see PR description for full list)
 
