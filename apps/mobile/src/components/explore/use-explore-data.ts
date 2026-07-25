@@ -1,14 +1,12 @@
-import type { RestaurantSummary } from "@bookeat/api";
+import type { EventPage, RestaurantSummary } from "@bookeat/api";
 import { useQuery } from "@tanstack/react-query";
 import { useRepository } from "../../lib/repository";
 import { toDateKey } from "../../lib/format";
 import {
   PLACEHOLDER_CHEFS_PICKS,
-  PLACEHOLDER_EVENTS,
   PLACEHOLDER_GASTROGUIDE,
   PLACEHOLDER_HERO_BANNERS,
   type DishCardData,
-  type EventCardData,
   type HeroBanner,
 } from "./placeholder";
 
@@ -31,6 +29,10 @@ export const EXPLORE_DEFAULT_GUESTS = 2;
  * costs one availability request, so the strip is capped rather than letting
  * a long list quietly fire twenty. */
 const POPULAR_LIMIT = 8;
+
+/** How many events the strip asks for. Same reasoning as POPULAR_LIMIT: the
+ * user swipes a horizontal rail by hand and never reaches card twenty. */
+const EXPLORE_EVENTS_LIMIT = 12;
 
 /** REAL DATA — GET /restaurants?is_popular=true (RestaurantRepository.getPopularRestaurants). */
 export function usePopularRestaurants() {
@@ -78,6 +80,31 @@ export function useTodaySlots(restaurantId: string, enabled: boolean) {
   });
 }
 
+/**
+ * REAL DATA — GET /events (RestaurantRepository.listUpcomingEvents).
+ *
+ * One page is all a horizontal strip can show, so there is no pagination here
+ * — `total` on the answer is what would drive a future «смотреть все» screen.
+ *
+ * `from` is deliberately NOT sent: the server already excludes events that
+ * have finished, and pinning a client clock into the filter would drop events
+ * that started earlier today and are still running on a device whose time is
+ * off.
+ *
+ * An empty page is a legitimate answer (nothing is scheduled), so it must not
+ * be retried harder than any other read — the section renders its empty state.
+ */
+export function useExploreEvents() {
+  const repository = useRepository();
+  return useQuery<EventPage>({
+    queryKey: ["explore-events", EXPLORE_EVENTS_LIMIT],
+    queryFn: () => repository.listUpcomingEvents({ perPage: EXPLORE_EVENTS_LIMIT }),
+    // Events are announced days ahead, not minute by minute; the same
+    // editorial timescale the popular strip assumes.
+    staleTime: 5 * 60_000,
+  });
+}
+
 /** The date the Explore cards preview, as the availability endpoint keys it. */
 export function exploreDateKey(): string {
   return toDateKey(new Date());
@@ -102,9 +129,4 @@ export function useChefsPicks(): DishCardData[] {
 /** PLACEHOLDER — no GET /gastroguide endpoint. */
 export function useGastroguide(): DishCardData[] {
   return PLACEHOLDER_GASTROGUIDE;
-}
-
-/** PLACEHOLDER — no cross-venue GET /events endpoint for guests. */
-export function useExploreEvents(): EventCardData[] {
-  return PLACEHOLDER_EVENTS;
 }

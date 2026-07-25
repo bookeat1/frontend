@@ -23,6 +23,7 @@ import type {
   BookingStatus,
   Cuisine,
   DayAvailability,
+  EventSummary,
   MenuHighlight,
   MenuSection,
   PaymentPurpose,
@@ -696,5 +697,79 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // ASSUMPTION: no per-restaurant bookable flag in the API; every
     // restaurant this endpoint returns is already active. See unknown-data.ts.
     isBookable: ASSUMED_IS_BOOKABLE,
+  };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Events (public cross-venue listing)
+ *
+ * Shape read from backend-core, not guessed:
+ *   internal/transport/rest/events/handler.go
+ *     (eventResponse, eventListItemResponse, eventRestaurantResponse,
+ *      publicListItemResponse)
+ * `venue`, `cover_image_url`, `ticket_price_minor` and `capacity` are
+ * `omitempty` on the Go side, so every one of them can be simply ABSENT from
+ * the JSON — not null, absent.
+ * ------------------------------------------------------------------------ */
+
+/** eventResponse — the guest-facing shape (title/description already resolved
+ * into the requested language server-side; the raw *_i18n maps are stripped
+ * for public callers). */
+export interface ApiEvent {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  venue?: string;
+  cover_image_url?: string | null;
+  status: string;
+  ticketed: boolean;
+  ticket_price_minor?: number | null;
+  capacity?: number | null;
+  tickets_refundable: boolean;
+  ticket_refund_cutoff_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** eventListItemResponse — an event plus the venue that hosts it. */
+export interface ApiEventListItem extends ApiEvent {
+  restaurant?: {
+    id?: string;
+    name?: string;
+    city?: string;
+  };
+}
+
+/**
+ * `status` is deliberately dropped: the public listing only emits published
+ * events, so carrying it into the UI would invite a screen to branch on a
+ * constant. The `restaurant` object is defensive — a listing row without it
+ * degrades to an unclickable card, never to a thrown mapper that blanks the
+ * whole section.
+ */
+export function mapEventSummary(api: ApiEventListItem): EventSummary {
+  return {
+    id: text(api.id),
+    restaurantId: text(api.restaurant_id),
+    title: text(api.title),
+    description: plainText(api.description),
+    startsAt: text(api.starts_at),
+    endsAt: text(api.ends_at),
+    venue: text(api.venue).trim(),
+    coverImageUrl: text(api.cover_image_url).trim() || null,
+    ticketed: api.ticketed === true,
+    ticketPriceMinor: typeof api.ticket_price_minor === "number" ? api.ticket_price_minor : null,
+    capacity: typeof api.capacity === "number" ? api.capacity : null,
+    ticketsRefundable: api.tickets_refundable === true,
+    ticketRefundCutoffMinutes:
+      typeof api.ticket_refund_cutoff_minutes === "number" ? api.ticket_refund_cutoff_minutes : 0,
+    restaurant: {
+      id: text(api.restaurant?.id) || text(api.restaurant_id),
+      name: text(api.restaurant?.name),
+      city: text(api.restaurant?.city),
+    },
   };
 }

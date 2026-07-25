@@ -24,16 +24,15 @@
  *                      cross-venue dish endpoint.
  *   gastroguide      — GET /gastroguide (editorial picks). No such entity in
  *                      the backend at all — not even an admin-side one.
- *   events           — GET /events (platform-wide). Events EXIST server-side
- *                      (admin CRUD + per-venue listings, PR #27), but the
- *                      guest catalog has no cross-venue events route and
- *                      `RestaurantRepository` has no method for it.
  *   favourites       — WIRED UP. GET /favorites + PUT/DELETE
  *                      /favorites/:restaurantId are real and the venue cards'
  *                      heart now uses them (see useFavorites +
- *                      FavoriteButton). The dish and event cards keep an INERT
- *                      heart, because the entity under them is still a
- *                      placeholder and there is nothing to favorite.
+ *                      FavoriteButton). The dish cards keep an INERT heart
+ *                      because the dish under them is still a placeholder;
+ *                      the EVENT card keeps one for a different reason — the
+ *                      events are real now, but /favorites is
+ *                      restaurant-scoped end to end and there is no
+ *                      favourite-an-event endpoint to call.
  *
  * Photos are placehold.co URLs on purpose, matching the convention already
  * used by `packages/api/src/unknown-data.ts`: a stub must LOOK like a stub, so
@@ -56,16 +55,6 @@ export interface DishCardData {
   imageUrl: string;
   /** Venue the dish belongs to, so the card can open its restaurant screen
    * once a real endpoint returns one. Null while placeholder. */
-  restaurantId: string | null;
-}
-
-export interface EventCardData {
-  id: string;
-  title: string;
-  /** Pre-formatted, e.g. "16 мая · 13:00". */
-  whenLabel: string;
-  tags: string[];
-  imageUrl: string;
   restaurantId: string | null;
 }
 
@@ -132,34 +121,6 @@ export const PLACEHOLDER_GASTROGUIDE: DishCardData[] = [
     description: "Сулугуни, сливочное масло, желток",
     price: "3 700 ₸",
     imageUrl: stubPhoto("Guide 3"),
-    restaurantId: null,
-  },
-];
-
-/** MISSING ENDPOINT: GET /events (cross-venue guest listing) */
-export const PLACEHOLDER_EVENTS: EventCardData[] = [
-  {
-    id: "event-1",
-    title: "BBQ Brunch",
-    whenLabel: "16 мая · 13:00",
-    tags: ["Бранч", "Спецсобытие"],
-    imageUrl: stubPhoto("Event 1"),
-    restaurantId: null,
-  },
-  {
-    id: "event-2",
-    title: "Cocktail Wednesday",
-    whenLabel: "Каждую среду · 19:00",
-    tags: ["Коктейли", "Живая музыка"],
-    imageUrl: stubPhoto("Event 2"),
-    restaurantId: null,
-  },
-  {
-    id: "event-3",
-    title: "Ужин с шефом",
-    whenLabel: "24 мая · 19:30",
-    tags: ["Сет-меню", "Спецсобытие"],
-    imageUrl: stubPhoto("Event 3"),
     restaurantId: null,
   },
 ];

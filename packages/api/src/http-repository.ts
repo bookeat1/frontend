@@ -3,6 +3,7 @@ import {
   cuisineIdFor,
   mapAvailability,
   mapBooking,
+  mapEventSummary,
   mapMenuSections,
   mapPayment,
   mapPreorder,
@@ -13,6 +14,7 @@ import {
   priceLevelToPriceCategory,
   type ApiAvailability,
   type ApiBooking,
+  type ApiEventListItem,
   type ApiMenuItem,
   type ApiPayment,
   type ApiPreorder,
@@ -34,6 +36,8 @@ import type {
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
+  EventQuery,
   MenuSection,
   Preorder,
   PreorderLineInput,
@@ -65,6 +69,17 @@ const SEARCH_PAGE_SIZE = 100;
  * offset-paginated and every visible row costs one extra venue request for the
  * name, so a big first page is a burst of requests on a phone connection. */
 const BOOKINGS_PAGE_SIZE = 20;
+/** One page of the Explore events strip. The strip is horizontal and the user
+ * scrolls it by hand, so a page bigger than a handful of cards would download
+ * rows nobody swipes to. The server caps per_page at 100. */
+const EVENTS_PAGE_SIZE = 12;
+/** The server rejects nothing above 100 — it silently clamps — but sending a
+ * value it will not honour makes the response's `per_page` disagree with what
+ * the caller asked for, so the clamp happens here too. */
+function clampPerPage(value: number): number {
+  if (!Number.isFinite(value)) return EVENTS_PAGE_SIZE;
+  return Math.min(100, Math.max(1, Math.trunc(value)));
+}
 
 /** The chip label plus every exact spelling of that cuisine present in the
  * catalog. The server's cuisine filter is a case-sensitive
@@ -217,6 +232,37 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    * not objects with ids — the search filter matches on the name itself. */
   async getCities(): Promise<string[]> {
     return this.client.get<string[]>("/cities");
+  }
+
+  /**
+   * GET /events — published, not-yet-finished events of active venues across
+   * the whole catalog, `starts_at ASC` (ties by id).
+   *
+   * Verified live on 2026-07-25: the route answers 200 with the standard page
+   * envelope and, on the test deployment today, an EMPTY `items` array —
+   * `{"data":{"items":[],"total":0,"pages":0,"page":1,"per_page":20}}`. That is
+   * the normal shape of "nothing scheduled", so callers must render an empty
+   * state, not an error. A malformed `restaurant_id` is a 422
+   * (`restaurant_id must be a uuid`), which surfaces as a RepositoryError with
+   * `isValidation`.
+   */
+  async listUpcomingEvents(query?: EventQuery): Promise<EventPage> {
+    const perPage = clampPerPage(query?.perPage ?? EVENTS_PAGE_SIZE);
+    const page = await this.client.get<ApiPage<ApiEventListItem>>("/events", {
+      city: query?.city,
+      restaurant_id: query?.restaurantId,
+      from: query?.from,
+      to: query?.to,
+      page: query?.page ?? 1,
+      per_page: perPage,
+    });
+    return {
+      items: (page.items ?? []).map(mapEventSummary),
+      total: typeof page.total === "number" ? page.total : 0,
+      page: typeof page.page === "number" ? page.page : 1,
+      pages: typeof page.pages === "number" ? page.pages : 0,
+      perPage: typeof page.per_page === "number" ? page.per_page : perPage,
+    };
   }
 
   /** STUB: no recent/popular search-term endpoint exists — see

@@ -4,6 +4,7 @@ import {
   recentSearches,
   restaurants,
   toSummary,
+  upcomingEvents,
 } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { isCancellableBookingStatus } from "./types";
@@ -18,6 +19,8 @@ import type {
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
+  EventQuery,
   MenuSection,
   Preorder,
   PreorderLineInput,
@@ -115,6 +118,34 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return Array.from(new Set(restaurants.map((r) => r.city))).sort((a, b) =>
       a.localeCompare(b, "ru-RU"),
     );
+  }
+
+  /**
+   * The mock's own upcoming events, filtered and paginated the way the real
+   * endpoint does: `from`/`to` are INCLUSIVE and compared against the event's
+   * START, the order is start time ascending with id as the tie-breaker, and
+   * `pages` is 0 when nothing matches.
+   */
+  async listUpcomingEvents(query?: EventQuery): Promise<EventPage> {
+    await this.simulateNetwork();
+    const perPage = Math.min(100, Math.max(1, query?.perPage ?? 20));
+    const page = Math.max(1, query?.page ?? 1);
+
+    const all = upcomingEvents()
+      .filter((e) => (query?.city ? e.restaurant.city === query.city : true))
+      .filter((e) => (query?.restaurantId ? e.restaurantId === query.restaurantId : true))
+      .filter((e) => (query?.from ? e.startsAt >= query.from : true))
+      .filter((e) => (query?.to ? e.startsAt <= query.to : true))
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+
+    const start = (page - 1) * perPage;
+    return {
+      items: all.slice(start, start + perPage),
+      total: all.length,
+      page,
+      pages: Math.ceil(all.length / perPage),
+      perPage,
+    };
   }
 
   async getRecentSearches(): Promise<string[]> {

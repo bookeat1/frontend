@@ -42,6 +42,19 @@ export const ru = {
     chefsPicksTitle: "Выбор шефа",
     gastroguideTitle: "Гастрогид",
     eventsTitle: "События",
+    eventsLoading: "Загружаем события…",
+    /** Пустая секция — это НОРМАЛЬНЫЙ ответ /events: возвращаются только
+     * опубликованные и ещё не прошедшие события активных заведений, и сегодня
+     * на тестовом бэкенде их ноль. Формулировка объясняет причину, а не
+     * извиняется за поломку. */
+    eventsEmptyTitle: "Ближайших событий нет",
+    eventsEmptyDescription:
+      "Заведения пока не анонсировали ужины, бранчи и вечеринки. Появятся — покажем здесь",
+    eventsErrorTitle: "События не загрузились",
+    eventsErrorDescription: "Проверьте соединение и попробуйте ещё раз",
+    /** Метка карточки для скринридера: «Ужин с шефом, 28 июля, 19:00, Дастархан». */
+    eventCard: (title: string, when: string, restaurant: string) =>
+      restaurant ? `${title}, ${when}, ${restaurant}` : `${title}, ${when}`,
 
     /** Строка под названием заведения на карточке: «Сегодня · 2 гостя». */
     todayGuests: (guests: number) => `Сегодня · ${guests} ${guestsWord(guests)}`,

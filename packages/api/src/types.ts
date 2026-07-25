@@ -365,3 +365,75 @@ export interface AuthUser {
   fullName: string;
   phone: string | null;
 }
+
+/**
+ * One upcoming event of the public cross-venue listing (`GET /events`).
+ *
+ * The guest-facing listing only ever returns PUBLISHED, not-yet-finished
+ * events of active venues — the filter is server-side and cannot be widened
+ * from the client (internal/transport/rest/events/handler.go: listUpcoming),
+ * so there is no `status` field here: it would be the constant "published".
+ *
+ * IMPORTANT — there are NO tags or categories on an event, anywhere in the
+ * backend: no column in `events`, no join table, nothing in domain.Event. The
+ * Explore design shows chips ("Brunch", "Special Event"); they are not
+ * derivable from any field, so the card does not render them (see EventCard).
+ */
+export interface EventSummary {
+  id: string;
+  restaurantId: string;
+  title: string;
+  description: string;
+  /** RFC3339. The card's date line is formatted from this one. */
+  startsAt: string;
+  endsAt: string;
+  /** Room / area inside the venue. Omitted by the server when empty. */
+  venue: string;
+  /** Null when the venue uploaded no cover — the card must handle it, the
+   * backend does not substitute anything. */
+  coverImageUrl: string | null;
+  ticketed: boolean;
+  /** Integer MINOR units (tiyin). Null when the event sells no tickets or the
+   * price is not set. */
+  ticketPriceMinor: number | null;
+  capacity: number | null;
+  /** Refund rules the guest must be able to read before buying a ticket.
+   * Always present server-side: "not refundable" is a rule too. */
+  ticketsRefundable: boolean;
+  ticketRefundCutoffMinutes: number;
+  /** The hosting venue, so a card can open the restaurant screen without a
+   * second request. */
+  restaurant: EventRestaurant;
+}
+
+/** The minimal venue identity carried on an event of the public listing. */
+export interface EventRestaurant {
+  id: string;
+  name: string;
+  city: string;
+}
+
+/** Query surface of `GET /events` — every parameter is optional server-side. */
+export interface EventQuery {
+  /** City of the HOST restaurant, matched by equality on the city enum. */
+  city?: string;
+  /** UUID. A malformed value is a 422, not an empty list. */
+  restaurantId?: string;
+  /** RFC3339, inclusive, compared against the event's START. */
+  from?: string;
+  to?: string;
+  page?: number;
+  /** Server default 20, hard cap 100. */
+  perPage?: number;
+}
+
+/** One page of the public events listing, sorted by start time ascending
+ * (ties broken by id — a stable order across pages). */
+export interface EventPage {
+  items: EventSummary[];
+  total: number;
+  page: number;
+  /** 0 when there is nothing at all, same convention as BookingPage. */
+  pages: number;
+  perPage: number;
+}

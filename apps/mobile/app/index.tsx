@@ -8,7 +8,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { CardStrip } from "../src/components/explore/CardStrip";
 import { DishCard } from "../src/components/explore/DishCard";
-import { EventCard } from "../src/components/explore/EventCard";
+import { EventsSection } from "../src/components/explore/EventsSection";
 import { ExploreSearchField } from "../src/components/explore/ExploreSearchField";
 import { HeroCarousel } from "../src/components/explore/HeroCarousel";
 import { PopularSection } from "../src/components/explore/PopularSection";
@@ -17,7 +17,6 @@ import {
   EXPLORE_DEFAULT_GUESTS,
   exploreDateKey,
   useChefsPicks,
-  useExploreEvents,
   useGastroguide,
   useHeroBanners,
 } from "../src/components/explore/use-explore-data";
@@ -33,9 +32,10 @@ const t = getDictionary();
  * white sheet that overlaps it by 20 and holds a stack of white section
  * blocks separated by the grey screen background.
  *
- * REAL DATA: only «Популярные заведения» (catalog + today's availability).
- * Everything else is driven by `src/components/explore/placeholder.ts`, which
- * names the missing endpoint for each block.
+ * REAL DATA: «Популярные заведения» (catalog + today's availability) and
+ * «События» (GET /events). The remaining blocks are driven by
+ * `src/components/explore/placeholder.ts`, which names the missing endpoint
+ * for each one.
  */
 export default function ExploreScreen() {
   const router = useRouter();
@@ -43,7 +43,6 @@ export default function ExploreScreen() {
   const banners = useHeroBanners();
   const chefsPicks = useChefsPicks();
   const gastroguide = useGastroguide();
-  const events = useExploreEvents();
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
 
@@ -126,15 +125,9 @@ export default function ExploreScreen() {
           </SectionCard>
 
           <SectionCard>
-            <SectionHeader title={t.explore.eventsTitle} />
-            <CardStrip
-              data={events}
-              keyExtractor={(event) => event.id}
-              accessibilityLabel={t.explore.eventsTitle}
-              renderItem={({ item }) => (
-                <EventCard event={item} onOpenRestaurant={openRestaurant} />
-              )}
-            />
+            {/* Owns its own query and all four of its states — see
+                EventsSection. */}
+            <EventsSection onOpenRestaurant={openRestaurant} />
           </SectionCard>
         </View>
       </ScrollView>

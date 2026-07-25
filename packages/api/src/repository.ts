@@ -8,6 +8,8 @@ import type {
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
+  EventQuery,
   MenuSection,
   Preorder,
   PreorderLineInput,
@@ -43,6 +45,21 @@ export interface RestaurantRepository {
   getCuisines(): Promise<Cuisine[]>;
   /** Cities the catalog actually has venues in, for the city filter. */
   getCities(): Promise<string[]>;
+
+  /**
+   * Upcoming events across every venue (`GET /events`) — the Explore
+   * «События» strip.
+   *
+   * Public, no session. Visibility is decided server-side: only PUBLISHED,
+   * not-yet-finished events of ACTIVE restaurants are ever returned, and no
+   * query parameter can widen that — so an empty page is a real answer
+   * ("nothing is scheduled"), not a permissions problem to work around.
+   *
+   * Sorted by start time ascending, ties broken by id, i.e. a stable order
+   * across pages. `pages` is 0 when there is nothing at all (same convention
+   * as listMyBookings).
+   */
+  listUpcomingEvents(query?: EventQuery): Promise<EventPage>;
   getRecentSearches(): Promise<string[]>;
   getPopularSearches(): Promise<string[]>;
 
