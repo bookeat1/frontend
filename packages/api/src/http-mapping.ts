@@ -16,13 +16,21 @@
  * of a screen, never throw inside a mapper and blank the whole screen.
  */
 import type {
+  AuthSession,
+  AuthUser,
+  Booking,
+  BookingStatus,
   Cuisine,
+  DayAvailability,
   MenuHighlight,
+  MenuSection,
   Photo,
+  Preorder,
   PriceLevel,
   PromoBanner,
   Restaurant,
   RestaurantSummary,
+  SlotUnavailableReason,
   Weekday,
 } from "./types";
 import {
@@ -316,6 +324,233 @@ export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined, limit
 /** Promos carry no image server-side, so the banner is caption-only. */
 export function mapPromoBanners(promos: ApiPromo[] | null | undefined): PromoBanner[] {
   return (promos ?? []).map((promo) => ({ id: promo.id, title: text(promo.title) }));
+}
+
+/* ------------------------------------------------------------------------ *
+ * Reservation flow DTOs
+ *
+ * Shapes read from backend-core, not guessed:
+ *   internal/transport/rest/bookings/response.go
+ *     (slotResponse, availabilityResponse, bookingResponse,
+ *      bookingDetailsResponse)
+ *   internal/transport/rest/preorder/dto.go (preorderResponse, itemResponse)
+ *   internal/transport/rest/auth/response.go (tokenPairResponse)
+ *   internal/transport/rest/users/… (the /users/me payload)
+ * ------------------------------------------------------------------------ */
+
+export interface ApiSlot {
+  starts_at: string;
+  ends_at: string;
+  available: boolean;
+  free_tables: number;
+  /** Omitted (`omitempty`) when the slot IS available. */
+  reason?: string;
+}
+
+export interface ApiAvailability {
+  restaurant_id: string;
+  date: string;
+  timezone: string;
+  guests: number;
+  duration_minutes: number;
+  slots: ApiSlot[];
+}
+
+export interface ApiBooking {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  phone: string;
+  guests: number;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  notes: string | null;
+  /** Only on the detail/create payload (bookingDetailsResponse), not on the
+   * plain list rows. */
+  free_cancel_deadline?: string | null;
+}
+
+export interface ApiPreorderItem {
+  id: string;
+  menu_item_id: string | null;
+  name: string;
+  price_minor: number;
+  quantity: number;
+  total_minor: number;
+  status: string;
+  comment: string | null;
+}
+
+export interface ApiPreorder {
+  booking_id: string;
+  items: ApiPreorderItem[];
+  total_minor: number;
+  currency: string;
+}
+
+export interface ApiTokenPair {
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+}
+
+export interface ApiUser {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+}
+
+const SLOT_REASONS: SlotUnavailableReason[] = [
+  "too_soon",
+  "beyond_horizon",
+  "occupied",
+  "capacity",
+];
+
+/** An unavailable slot ALWAYS gets a reason the UI can put a sentence to: a
+ * value the backend grows later collapses to "unknown" rather than leaving
+ * the guest with a greyed-out button and no explanation. */
+function mapSlotReason(available: boolean, raw: string | null | undefined): SlotUnavailableReason | null {
+  if (available) return null;
+  const value = text(raw).trim();
+  return SLOT_REASONS.find((r) => r === value) ?? "unknown";
+}
+
+export function mapAvailability(api: ApiAvailability): DayAvailability {
+  return {
+    restaurantId: text(api.restaurant_id),
+    date: text(api.date),
+    timezone: text(api.timezone) || "Asia/Almaty",
+    guests: typeof api.guests === "number" ? api.guests : 0,
+    durationMinutes: typeof api.duration_minutes === "number" ? api.duration_minutes : 0,
+    slots: (api.slots ?? []).map((slot) => ({
+      startsAt: text(slot.starts_at),
+      endsAt: text(slot.ends_at),
+      available: slot.available === true,
+      freeTables: typeof slot.free_tables === "number" ? slot.free_tables : 0,
+      reason: mapSlotReason(slot.available === true, slot.reason),
+    })),
+  };
+}
+
+const BOOKING_STATUSES: BookingStatus[] = [
+  "pending",
+  "confirmed",
+  "waitlist",
+  "arrived",
+  "completed",
+  "cancelled",
+  "no_show",
+];
+
+/** An unrecognised status is reported as "pending" — the neutral "we have it,
+ * the venue hasn't answered yet" state. Guessing "confirmed" would tell the
+ * guest a table is held when we do not know that. */
+function mapBookingStatus(raw: string | null | undefined): BookingStatus {
+  const value = text(raw).trim();
+  return BOOKING_STATUSES.find((s) => s === value) ?? "pending";
+}
+
+export function mapBooking(api: ApiBooking): Booking {
+  return {
+    id: text(api.id),
+    restaurantId: text(api.restaurant_id),
+    name: text(api.name),
+    phone: text(api.phone),
+    guests: typeof api.guests === "number" ? api.guests : 0,
+    startsAt: text(api.starts_at),
+    endsAt: text(api.ends_at),
+    status: mapBookingStatus(api.status),
+    notes: text(api.notes) || null,
+    freeCancelDeadline: text(api.free_cancel_deadline) || null,
+  };
+}
+
+export function mapPreorder(api: ApiPreorder): Preorder {
+  return {
+    bookingId: text(api.booking_id),
+    items: (api.items ?? []).map((item) => ({
+      id: text(item.id),
+      menuItemId: text(item.menu_item_id) || null,
+      name: text(item.name),
+      priceMinor: typeof item.price_minor === "number" ? item.price_minor : 0,
+      quantity: typeof item.quantity === "number" ? item.quantity : 0,
+      totalMinor: typeof item.total_minor === "number" ? item.total_minor : 0,
+      comment: text(item.comment) || null,
+    })),
+    totalMinor: typeof api.total_minor === "number" ? api.total_minor : 0,
+    currency: text(api.currency) || "KZT",
+  };
+}
+
+export function mapSession(api: ApiTokenPair): AuthSession {
+  return {
+    accessToken: text(api.access_token),
+    refreshToken: text(api.refresh_token),
+    expiresAt: text(api.expires_at),
+  };
+}
+
+export function mapUser(api: ApiUser): AuthUser {
+  return {
+    id: text(api.id),
+    email: text(api.email),
+    fullName: text(api.full_name),
+    phone: text(api.phone) || null,
+  };
+}
+
+/**
+ * `price` is a decimal STRING ("5500.00", sometimes ""). Parsed to minor units
+ * (tiyin) with rounding, because a float multiplied by 100 in JS gives
+ * 351000.00000000006 for "3510.00". An unparseable/absent price stays null —
+ * unknown, not free (see MenuDish.priceMinor).
+ */
+export function parsePriceMinor(raw: string | null | undefined): number | null {
+  const source = text(raw).trim();
+  if (source === "") return null;
+  const value = Number(source);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return Math.round(value * 100);
+}
+
+/**
+ * The full menu grouped by the venue's own `category`, in the venue's own
+ * `display_order`. Unavailable dishes (stop list) are kept and marked rather
+ * than hidden: a guest who saw the dish on the venue screen and cannot find it
+ * here would think the app is broken.
+ *
+ * Categories keep first-seen order, not alphabetical — a real menu is ordered
+ * deliberately (закуски before десерты) and re-sorting it reads as a bug.
+ * Dishes with no category land in one trailing group with an empty title,
+ * which the screen labels itself (i18n lives in the app, not here).
+ */
+export function mapMenuSections(items: ApiMenuItem[] | null | undefined): MenuSection[] {
+  const byCategory = new Map<string, MenuSection>();
+  const sorted = [...(items ?? [])].sort(
+    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0),
+  );
+  for (const item of sorted) {
+    const title = text(item.category).trim();
+    let section = byCategory.get(title);
+    if (!section) {
+      section = { title, dishes: [] };
+      byCategory.set(title, section);
+    }
+    section.dishes.push({
+      id: text(item.id),
+      name: text(item.name),
+      description: plainText(item.description),
+      priceMinor: parsePriceMinor(item.price),
+      imageUrl: text(item.image_url) || null,
+      isAvailable: item.is_available !== false,
+    });
+  }
+  const sections = [...byCategory.values()];
+  // Uncategorised dishes go last so the named sections stay on top.
+  return [...sections.filter((s) => s.title !== ""), ...sections.filter((s) => s.title === "")];
 }
 
 /** Everything the venue screen needs that lives behind its own endpoint.

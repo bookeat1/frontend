@@ -143,10 +143,16 @@ export default function RestaurantDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
               <ScrollableMenu items={restaurant.menuHighlights} />
+              {/* «Посмотреть меню» остаётся невключённой: экран меню сегодня
+                  живёт внутри флоу бронирования и держит корзину предзаказа в
+                  черновике этого флоу. Открыть его отсюда — значит дать гостю
+                  набрать корзину, которая молча пропадёт при выходе. Нужен
+                  отдельный экран меню вне флоу — отдельная задача. */}
               <PrimaryButton
                 label={t.restaurant.viewMenu}
                 variant="secondary"
                 onPress={() => {}}
+                disabled
               />
             </View>
 
@@ -210,7 +216,7 @@ export default function RestaurantDetailScreen() {
             <View style={styles.footer}>
               <PrimaryButton
                 label={restaurant.isBookable ? t.restaurant.bookTable : t.restaurant.bookingUnavailable}
-                onPress={() => {}}
+                onPress={() => router.push(`/restaurant/${restaurant.id}/book`)}
                 disabled={!restaurant.isBookable}
               />
             </View>

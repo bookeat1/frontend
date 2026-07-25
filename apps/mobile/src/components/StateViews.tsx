@@ -11,11 +11,24 @@ import { PrimaryButton } from "./PrimaryButton";
  * can't reproduce a conic gradient without an extra drawing library, so this
  * uses the native spinner tinted brand red as the closest faithful
  * approximation — flagged in the delivery report.
+ *
+ * `compact` drops the `flex: 1` so the same three states can be dropped INTO
+ * a section of a scrolling screen (the reservation screen's slot list, the
+ * pre-order menu) instead of only owning a whole screen. Without it a state
+ * view inside a ScrollView collapses to zero height.
  */
 
-export function LoadingState({ title }: { title: string }) {
+interface StateProps {
+  compact?: boolean;
+}
+
+export function LoadingState({ title, compact }: { title: string } & StateProps) {
   return (
-    <View style={styles.center} accessibilityRole="progressbar" accessibilityLabel={title}>
+    <View
+      style={[styles.center, compact && styles.compact]}
+      accessibilityRole="progressbar"
+      accessibilityLabel={title}
+    >
       <ActivityIndicator size="large" color={colors.brand.primary} />
       <Text style={styles.title}>{title}</Text>
     </View>
@@ -27,14 +40,15 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  compact,
 }: {
   title: string;
   description: string;
   actionLabel?: string;
   onAction?: () => void;
-}) {
+} & StateProps) {
   return (
-    <View style={styles.center}>
+    <View style={[styles.center, compact && styles.compact]}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
       {actionLabel && onAction ? (
@@ -49,14 +63,15 @@ export function ErrorState({
   description,
   retryLabel,
   onRetry,
+  compact,
 }: {
   title: string;
   description: string;
   retryLabel: string;
   onRetry: () => void;
-}) {
+} & StateProps) {
   return (
-    <View style={styles.center} accessibilityRole="alert">
+    <View style={[styles.center, compact && styles.compact]} accessibilityRole="alert">
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
       <PrimaryButton label={retryLabel} onPress={onRetry} />
@@ -71,6 +86,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.xxl,
     gap: spacing.md,
+  },
+  compact: {
+    flex: 0,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.none,
   },
   title: {
     ...typography.titleMd,
