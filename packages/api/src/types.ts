@@ -38,7 +38,10 @@ export interface RestaurantTable {
 export interface PromoBanner {
   id: string;
   title: string;
-  photo: Photo;
+  /** Optional: the backend's promo entity (GET /restaurants/:id/promos) has no
+   * image field at all, so a real promo renders as a caption over the brand
+   * placeholder background. Present only for the mock fixtures. */
+  photo?: Photo;
 }
 
 /** A dish shown in the "Популярное в меню" section. */
@@ -103,6 +106,12 @@ export interface SearchFilters {
   minRating?: number;
   openNowOnly: boolean;
   maxDistanceMeters?: number;
+  /** City name exactly as the catalog spells it ("Алматы"/"Астана") — the
+   * backend's city filter is an equality match on that enum value, there is
+   * no city id. Undefined = every city. */
+  city?: string;
+  /** Single price tier, pushed server-side. Undefined = every tier. */
+  priceLevel?: PriceLevel;
 }
 
 export interface SearchQuery {

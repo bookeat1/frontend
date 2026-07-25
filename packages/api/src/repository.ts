@@ -16,6 +16,8 @@ export interface RestaurantRepository {
   getPopularRestaurants(): Promise<RestaurantSummary[]>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   getCuisines(): Promise<Cuisine[]>;
+  /** Cities the catalog actually has venues in, for the city filter. */
+  getCities(): Promise<string[]>;
   getRecentSearches(): Promise<string[]>;
   getPopularSearches(): Promise<string[]>;
 }

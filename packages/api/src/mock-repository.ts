@@ -28,7 +28,14 @@ function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
 
   const openMatches = !query.filters.openNowOnly || r.isOpenNow;
 
-  return textMatches && cuisineMatches && ratingMatches && openMatches;
+  const cityMatches = query.filters.city === undefined || r.city === query.filters.city;
+
+  const priceMatches =
+    query.filters.priceLevel === undefined || r.priceLevel === query.filters.priceLevel;
+
+  return (
+    textMatches && cuisineMatches && ratingMatches && openMatches && cityMatches && priceMatches
+  );
 }
 
 export interface MockRepositoryOptions {
@@ -76,6 +83,15 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async getCuisines(): Promise<Cuisine[]> {
     await this.simulateNetwork();
     return cuisines;
+  }
+
+  /** Derived from the fixtures rather than hard-coded, so the mock's city
+   * filter can never offer a city no fixture is in. */
+  async getCities(): Promise<string[]> {
+    await this.simulateNetwork();
+    return Array.from(new Set(restaurants.map((r) => r.city))).sort((a, b) =>
+      a.localeCompare(b, "ru-RU"),
+    );
   }
 
   async getRecentSearches(): Promise<string[]> {

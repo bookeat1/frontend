@@ -8,7 +8,7 @@ import { IconButton } from "../../../src/components/IconButton";
 import { PhotoGrid } from "../../../src/components/PhotoGrid";
 import { ScreenContainer } from "../../../src/components/ScreenContainer";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
-import { ErrorState, LoadingState } from "../../../src/components/StateViews";
+import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 
 const t = getDictionary();
@@ -50,15 +50,24 @@ export default function RestaurantPhotosScreen() {
           <View style={styles.tabsRow}>
             <SegmentedTabs labels={[...TABS]} activeIndex={activeTab} onChange={setActiveTab} />
           </View>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-            <PhotoGrid
-              photos={filtered}
-              onPressPhoto={(index) => {
-                const globalIndex = restaurant.photos.indexOf(filtered[index]);
-                router.push(`/restaurant/${restaurant.id}/photo/${globalIndex}`);
-              }}
+          {filtered.length === 0 ? (
+            // У большинства заведений в каталоге фотографий пока нет вовсе —
+            // пустая сетка без объяснения выглядит как сломанный экран.
+            <EmptyState
+              title={t.restaurant.photosEmptyTitle}
+              description={t.restaurant.photosEmptyDescription}
             />
-          </ScrollView>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+              <PhotoGrid
+                photos={filtered}
+                onPressPhoto={(index) => {
+                  const globalIndex = restaurant.photos.indexOf(filtered[index]);
+                  router.push(`/restaurant/${restaurant.id}/photo/${globalIndex}`);
+                }}
+              />
+            </ScrollView>
+          )}
         </>
       )}
     </ScreenContainer>

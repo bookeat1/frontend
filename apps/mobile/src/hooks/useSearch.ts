@@ -27,7 +27,11 @@ export function useSearchScreen() {
   );
 
   const hasActiveSearch =
-    debouncedText.trim().length > 0 || filters.cuisineIds.length > 0 || filters.openNowOnly;
+    debouncedText.trim().length > 0 ||
+    filters.cuisineIds.length > 0 ||
+    filters.openNowOnly ||
+    filters.city !== undefined ||
+    filters.priceLevel !== undefined;
 
   const searchQueryResult = useQuery({
     queryKey: ["search", query],
@@ -52,6 +56,11 @@ export function useSearchScreen() {
     queryFn: () => repository.getCuisines(),
   });
 
+  const citiesQuery = useQuery({
+    queryKey: ["cities"],
+    queryFn: () => repository.getCities(),
+  });
+
   return {
     text,
     setText,
@@ -63,5 +72,6 @@ export function useSearchScreen() {
     recentQuery,
     popularQuery,
     cuisinesQuery,
+    citiesQuery,
   };
 }

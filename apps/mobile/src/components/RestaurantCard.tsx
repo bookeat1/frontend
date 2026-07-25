@@ -51,9 +51,13 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
         </Text>
         <Text style={styles.status}>{nameLine}</Text>
         <View style={styles.chipsRow}>
-          <View style={styles.chip}>
-            <Text style={styles.chipText}>{cuisineLabel}</Text>
-          </View>
+          {/* У части заведений в каталоге cuisine_type пустой — тогда чипа
+              просто нет, вместо пустого серого прямоугольника. */}
+          {cuisineLabel ? (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{cuisineLabel}</Text>
+            </View>
+          ) : null}
           <View style={styles.chip}>
             {/* NOTE: the mockup shows a tenge price range chip ("12 000-20 000 ₸");
                 the current schema only carries a symbolic tier ($/$$/$$$/$$$$).

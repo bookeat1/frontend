@@ -15,19 +15,26 @@
  * Confirmed absent from `backend-core` as of this writing (checked the DTOs
  * in internal/transport/rest/restaurants and internal/transport/rest/menu,
  * and internal/domain/restaurant.go + menu.go):
- *   - promo banners for a restaurant
- *   - a "popular in menu" / highlighted flag on menu items
+ *   - a "popular in menu" / highlighted flag on menu items: still absent, but
+ *     the strip no longer invents dishes — it shows the venue's own first
+ *     available dishes with a photo (see mapMenuHighlights in http-mapping.ts)
  *   - a tenge price *range* (only a price_category tier "₸"/"₸₸"/"₸₸₸" exists)
  *   - social links: DOES exist (social_links on the detail endpoint) — real
  *     data is used for that; only the map preview *image* is stubbed here.
  *   - distance from the user to the restaurant (no geolocation in the API)
  *
+ * Fixed since the first integration pass, no longer stubbed here:
+ *   - promo banners — GET /restaurants/:id/promos is real (image-less, so the
+ *     banner is caption-only)
+ *   - rating / reviewsCount — GET /restaurants/:id/reviews/summary is real
+ *     (venue screen only; the listing endpoint still carries no rating)
+ *
  * Also discovered while integrating (not in the owner's original list of 5,
- * flagged here for the same follow-up task): rating, reviewsCount, a
- * structured table/seating list, an explicit "is bookable" flag, and
- * suggested/recent search terms. See the comments on each stub below.
+ * flagged here for the same follow-up task): a structured table/seating list,
+ * an explicit "is bookable" flag, and suggested/recent search terms. See the
+ * comments on each stub below.
  */
-import type { MenuHighlight, Photo, PromoBanner, RestaurantTable } from "./types";
+import type { Photo, RestaurantTable } from "./types";
 
 function stubPhoto(seed: string, alt: string): Photo {
   // Width/height are not returned by the API for real images either (only
@@ -43,27 +50,6 @@ function stubPhoto(seed: string, alt: string): Photo {
     height: 600,
     alt,
   };
-}
-
-/** STUB: no promo-banner concept exists in the API. */
-export function stubPromoBanners(restaurantId: string): PromoBanner[] {
-  return [
-    { id: `${restaurantId}-stub-banner-1`, title: "[заглушка] Акция дня", photo: stubPhoto(`${restaurantId}-b1`, "Заглушка баннера") },
-    { id: `${restaurantId}-stub-banner-2`, title: "[заглушка] Спецпредложение", photo: stubPhoto(`${restaurantId}-b2`, "Заглушка баннера") },
-  ];
-}
-
-/** STUB: menu items have no "popular"/highlight flag in the API. */
-export function stubMenuHighlights(restaurantId: string): MenuHighlight[] {
-  return [
-    {
-      id: `${restaurantId}-stub-menu-1`,
-      name: "[заглушка] Блюдо недоступно из API",
-      description: "В API нет признака «популярное блюдо» — раздел временно фиктивный",
-      price: "— ₸",
-      photo: stubPhoto(`${restaurantId}-m1`, "Заглушка блюда"),
-    },
-  ];
 }
 
 /** STUB: no static-map image endpoint/field exists in the API. */
@@ -84,15 +70,6 @@ export function stubDistanceMeters(restaurantId: string): number {
   }
   return 300 + (hash % 4700); // 300m..5000m, fake
 }
-
-/**
- * STUB: not in the owner's list of 5, discovered during integration —
- * rating/reviewsCount have no backing column/table in the API response.
- * Not currently rendered by any screen, so defaulting to 0 is low-risk, but
- * flagged the same way in case a screen starts reading it later.
- */
-export const STUB_RATING = 0;
-export const STUB_REVIEWS_COUNT = 0;
 
 /**
  * STUB: not in the owner's list of 5 — there is no seating/table endpoint or
