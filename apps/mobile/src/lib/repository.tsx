@@ -1,5 +1,6 @@
 import { createRestaurantRepository, type RestaurantRepository } from "@bookeat/api";
 import React, { createContext, useContext, useMemo } from "react";
+import { getAccessToken } from "./token-store";
 
 /**
  * Dependency-injection seam for data access. Screens never import a concrete
@@ -11,8 +12,11 @@ import React, { createContext, useContext, useMemo } from "react";
 const RepositoryContext = createContext<RestaurantRepository | null>(null);
 
 export function RepositoryProvider({ children }: { children: React.ReactNode }) {
+  // Built once and never rebuilt: `getToken` is a closure over the live
+  // token cell, so signing in mid-session changes what the repository sends
+  // without invalidating any in-flight query.
   const repository = useMemo<RestaurantRepository>(
-    () => createRestaurantRepository(process.env.EXPO_PUBLIC_API_URL),
+    () => createRestaurantRepository(process.env.EXPO_PUBLIC_API_URL, { getToken: getAccessToken }),
     [],
   );
 

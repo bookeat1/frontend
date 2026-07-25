@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AuthProvider } from "../src/lib/auth";
 import { RepositoryProvider } from "../src/lib/repository";
 import { queryClient } from "../src/lib/queryClient";
 
@@ -37,6 +38,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <RepositoryProvider>
+            {/* AuthProvider sits INSIDE RepositoryProvider on purpose: it
+                writes the token cell that the repository's getToken closure
+                reads, and mounting it here means the whole app (not just the
+                booking flow) can read the session. */}
+            <AuthProvider>
             <StatusBar style="dark" />
             <Stack
               screenOptions={{
@@ -44,6 +50,7 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: colors.background.surface },
               }}
             />
+            </AuthProvider>
           </RepositoryProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

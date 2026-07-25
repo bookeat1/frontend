@@ -129,3 +129,147 @@ export const EMPTY_FILTERS: SearchFilters = {
   cuisineIds: [],
   openNowOnly: false,
 };
+
+/* ------------------------------------------------------------------------ *
+ * Reservation flow
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Why a slot cannot be booked. These are the exact values backend-core emits
+ * (internal/usecase/bookings/availability.go: ReasonTooSoon/ReasonHorizon/
+ * ReasonOccupied/ReasonCapacity) plus `"unknown"` for anything it grows later
+ * — the UI must keep rendering a sensible sentence for a reason it has never
+ * seen instead of showing a bare greyed-out slot.
+ */
+export type SlotUnavailableReason =
+  | "too_soon"
+  | "beyond_horizon"
+  | "occupied"
+  | "capacity"
+  | "unknown";
+
+export interface AvailabilitySlot {
+  /** RFC3339 with the venue's UTC offset, e.g. "2026-07-28T19:00:00+05:00". */
+  startsAt: string;
+  endsAt: string;
+  available: boolean;
+  /**
+   * Tables free for the whole slot. Do NOT use this to decide bookability:
+   * a venue with no table rows at all reports 0 for every slot while a
+   * table-less booking mode is being built server-side. `available` is the
+   * only field that decides; this is a hint for the "N столиков свободно"
+   * caption and is hidden when it is 0.
+   */
+  freeTables: number;
+  /** Empty string when `available` — normalized to a known union otherwise. */
+  reason: SlotUnavailableReason | null;
+}
+
+export interface DayAvailability {
+  restaurantId: string;
+  /** "YYYY-MM-DD" in the venue's own timezone. */
+  date: string;
+  /** IANA zone the slots are expressed in, e.g. "Asia/Almaty". */
+  timezone: string;
+  guests: number;
+  durationMinutes: number;
+  slots: AvailabilitySlot[];
+}
+
+/** One dish on the full menu screen (the pre-order step). Distinct from
+ * MenuHighlight, which is the photo-first card on the venue screen. */
+export interface MenuDish {
+  id: string;
+  name: string;
+  description: string;
+  /**
+   * Minor units (tiyin) parsed from the backend's decimal string, or null
+   * when the venue left the dish unpriced. Null is NOT zero: an unpriced dish
+   * shows "цена уточняется" and cannot be added to the pre-order, because a
+   * total built on a guessed price would be a lie.
+   */
+  priceMinor: number | null;
+  imageUrl: string | null;
+  isAvailable: boolean;
+}
+
+export interface MenuSection {
+  /** Category name as the venue spells it; "" is folded into `otherLabel` by
+   * the screen, never rendered as an empty heading. */
+  title: string;
+  dishes: MenuDish[];
+}
+
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "waitlist"
+  | "arrived"
+  | "completed"
+  | "cancelled"
+  | "no_show";
+
+export interface Booking {
+  id: string;
+  restaurantId: string;
+  name: string;
+  phone: string;
+  guests: number;
+  /** RFC3339 UTC as stored by the backend. */
+  startsAt: string;
+  endsAt: string;
+  status: BookingStatus;
+  notes: string | null;
+  /** Absolute moment free cancellation ends; null when it no longer applies. */
+  freeCancelDeadline: string | null;
+}
+
+export interface CreateBookingInput {
+  restaurantId: string;
+  /** RFC3339, taken verbatim from the chosen AvailabilitySlot.startsAt. */
+  startsAt: string;
+  guests: number;
+  name: string;
+  phone: string;
+  notes?: string;
+}
+
+export interface PreorderLine {
+  id: string;
+  menuItemId: string | null;
+  name: string;
+  priceMinor: number;
+  quantity: number;
+  totalMinor: number;
+  comment: string | null;
+}
+
+export interface Preorder {
+  bookingId: string;
+  items: PreorderLine[];
+  /** Server-computed. The cart's own estimate is never shown once this exists. */
+  totalMinor: number;
+  currency: string;
+}
+
+/** What the guest picked before the booking exists. The backend prices the
+ * lines itself from its own menu, so no price travels from the client. */
+export interface PreorderLineInput {
+  menuItemId: string;
+  quantity: number;
+  comment?: string;
+}
+
+export interface AuthSession {
+  accessToken: string;
+  refreshToken: string;
+  /** RFC3339 expiry of the access token. */
+  expiresAt: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+}

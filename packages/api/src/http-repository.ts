@@ -1,21 +1,50 @@
-import { HttpClient, type ApiPage } from "./http-client";
+import { HttpClient, type ApiPage, type TokenProvider } from "./http-client";
 import {
   cuisineIdFor,
+  mapAvailability,
+  mapBooking,
+  mapMenuSections,
+  mapPreorder,
   mapRestaurantDetail,
   mapRestaurantSummary,
+  mapSession,
+  mapUser,
   priceLevelToPriceCategory,
+  type ApiAvailability,
+  type ApiBooking,
   type ApiMenuItem,
+  type ApiPreorder,
   type ApiPromo,
   type ApiRestaurant,
   type ApiReviewSummary,
+  type ApiTokenPair,
+  type ApiUser,
 } from "./http-mapping";
-import { RepositoryError, type RestaurantRepository } from "./repository";
+import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { stubPopularSearches, stubRecentSearches } from "./unknown-data";
-import type { Cuisine, Restaurant, RestaurantSummary, SearchQuery, SearchResult } from "./types";
+import type {
+  AuthSession,
+  AuthUser,
+  Booking,
+  CreateBookingInput,
+  Cuisine,
+  DayAvailability,
+  MenuSection,
+  Preorder,
+  PreorderLineInput,
+  Restaurant,
+  RestaurantSummary,
+  SearchQuery,
+  SearchResult,
+} from "./types";
 
 export interface HttpRepositoryOptions {
   baseUrl: string;
   timeoutMs?: number;
+  /** Supplies the bearer token for the authenticated booking calls. Absent =
+   * every booking write fails fast with a 401 RepositoryError, which is what
+   * the sign-in gate reacts to. */
+  getToken?: TokenProvider;
 }
 
 const POPULAR_PAGE_SIZE = 20;
@@ -47,7 +76,11 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   private cuisinesPromise: Promise<CuisineCatalog> | null = null;
 
   constructor(options: HttpRepositoryOptions) {
-    this.client = new HttpClient({ baseUrl: options.baseUrl, timeoutMs: options.timeoutMs });
+    this.client = new HttpClient({
+      baseUrl: options.baseUrl,
+      timeoutMs: options.timeoutMs,
+      getToken: options.getToken,
+    });
   }
 
   /**
@@ -179,6 +212,148 @@ export class HttpRestaurantRepository implements RestaurantRepository {
 
   async getPopularSearches(): Promise<string[]> {
     return stubPopularSearches();
+  }
+
+  /* --- reservation flow --- */
+
+  /**
+   * GET /restaurants/:id/availability. The party-size parameter is `guests`,
+   * NOT `party_size` — verified against the live API on 2026-07-25: the
+   * handler reads `c.DefaultQuery("guests", "2")`, so a `party_size=4` request
+   * silently answers for a party of 2. Public route, no session.
+   */
+  async getAvailability(input: {
+    restaurantId: string;
+    date: string;
+    guests: number;
+  }): Promise<DayAvailability> {
+    const api = await this.client.get<ApiAvailability>(
+      `/restaurants/${encodeURIComponent(input.restaurantId)}/availability`,
+      { date: input.date, guests: input.guests },
+    );
+    return mapAvailability(api);
+  }
+
+  /** GET /restaurants/:id/menu — a bare array inside the standard envelope
+   * (no Page wrapper, no limit parameter), up to ~300 dishes. */
+  async getMenuSections(restaurantId: string): Promise<MenuSection[]> {
+    const items = await this.client.get<ApiMenuItem[]>(
+      `/restaurants/${encodeURIComponent(restaurantId)}/menu`,
+    );
+    return mapMenuSections(items);
+  }
+
+  /**
+   * POST /bookings. The Idempotency-Key header is mandatory (422 without it)
+   * and the backend hashes the body alongside it: replaying the same key with
+   * the same body returns 201 and the ORIGINAL booking, so a double tap or a
+   * retry after a timeout can never create a second table.
+   *
+   * `items` is deliberately not sent even though the create body accepts it:
+   * that path takes prices from the client. The pre-order goes through
+   * setPreorder instead, which prices the lines server-side.
+   */
+  async createBooking(input: CreateBookingInput, idempotencyKey: string): Promise<Booking> {
+    const api = await this.client.post<ApiBooking>(
+      "/bookings",
+      {
+        restaurant_id: input.restaurantId,
+        starts_at: input.startsAt,
+        guests: input.guests,
+        name: input.name,
+        phone: input.phone,
+        notes: input.notes?.trim() ? input.notes.trim() : undefined,
+      },
+      { auth: true, headers: { "Idempotency-Key": idempotencyKey } },
+    );
+    return mapBooking(api);
+  }
+
+  async getBooking(bookingId: string): Promise<Booking> {
+    const api = await this.client.get<ApiBooking>(
+      `/bookings/${encodeURIComponent(bookingId)}`,
+      undefined,
+      { auth: true },
+    );
+    return mapBooking(api);
+  }
+
+  /** PUT /bookings/:id/preorder — replace semantics. Only menu_item_id,
+   * quantity and comment travel; the server resolves the name and the price
+   * from its own menu. */
+  async setPreorder(bookingId: string, lines: PreorderLineInput[]): Promise<Preorder> {
+    const api = await this.client.put<ApiPreorder>(
+      `/bookings/${encodeURIComponent(bookingId)}/preorder`,
+      {
+        items: lines.map((line) => ({
+          menu_item_id: line.menuItemId,
+          quantity: line.quantity,
+          comment: line.comment?.trim() ? line.comment.trim() : null,
+        })),
+      },
+      { auth: true },
+    );
+    return mapPreorder(api);
+  }
+
+  async getPreorder(bookingId: string): Promise<Preorder> {
+    const api = await this.client.get<ApiPreorder>(
+      `/bookings/${encodeURIComponent(bookingId)}/preorder`,
+      undefined,
+      { auth: true },
+    );
+    return mapPreorder(api);
+  }
+}
+
+/**
+ * HTTP-backed AuthRepository over `/api/v1/auth` + `/api/v1/users/me`.
+ *
+ * Only the email+password pair is implemented. `/auth/otp/request` exists and
+ * answers `{"sent":true}`, but delivery on this deployment is
+ * infrastructure/otpsender.Stub — it logs and returns, no SMS is ever sent,
+ * and the code is withheld from the log outside APP_ENV=development. Wiring a
+ * phone/OTP screen would therefore ship a login nobody can complete. See the
+ * delivery note in conventions/bookeat-frontend.md.
+ */
+export class HttpAuthRepository implements AuthRepository {
+  private readonly client: HttpClient;
+
+  constructor(options: HttpRepositoryOptions) {
+    this.client = new HttpClient({
+      baseUrl: options.baseUrl,
+      timeoutMs: options.timeoutMs,
+      getToken: options.getToken,
+    });
+  }
+
+  async signUp(input: { email: string; password: string; fullName: string }): Promise<AuthSession> {
+    const api = await this.client.post<ApiTokenPair>("/auth/signup", {
+      email: input.email.trim(),
+      password: input.password,
+      full_name: input.fullName.trim(),
+    });
+    return mapSession(api);
+  }
+
+  async signIn(input: { email: string; password: string }): Promise<AuthSession> {
+    const api = await this.client.post<ApiTokenPair>("/auth/login", {
+      email: input.email.trim(),
+      password: input.password,
+    });
+    return mapSession(api);
+  }
+
+  async refresh(refreshToken: string): Promise<AuthSession> {
+    const api = await this.client.post<ApiTokenPair>("/auth/refresh", {
+      refresh_token: refreshToken,
+    });
+    return mapSession(api);
+  }
+
+  async getMe(): Promise<AuthUser> {
+    const api = await this.client.get<ApiUser>("/users/me", undefined, { auth: true });
+    return mapUser(api);
   }
 }
 
