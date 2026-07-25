@@ -23,6 +23,15 @@ export const radius = {
   card: 20,
   /** The single largest photo on screen — restaurant cover photo only. */
   photoHero: 24,
+  /** Rounded-square venue avatar at the top of the Reservation detail screen
+   * (node 488:9876) — a squircle, not a circle. */
+  avatar: 18,
+  /** Confirmation dialog sheet. */
+  dialog: 24,
+  /** Photo inside a horizontally scrolling Explore card (restaurant, dish,
+   * event). Measured on `design-ref/screen-explore.png`: the corner curve of
+   * the event photo runs 15px at 1:1 frame scale. */
+  media: 16,
 } as const;
 
 /** Minimum hit-slop / touch target per accessibility hard rule (>= 44pt). */
@@ -45,6 +54,37 @@ export const controlHeight = {
    * value-by-value spec yet, so this is a read of the render, not a node. */
   dishPhotoHeight: 80,
   dishPhotoWidth: 120,
+  /** Venue avatar on the Reservation detail screen (node 488:9876) — 72x72
+   * rounded square, optically centred under the header. */
+  venueAvatar: 72,
+  /** Circular contact icon button (website / WhatsApp / Instagram). */
+  contactIcon: 48,
+  /** Map preview block on the Reservation detail screen. */
+  mapPreview: 208,
+  /** Status pill height — 32 tall with 12/6 padding in the design. */
+  statusPill: 32,
+  /** Explore card pills: the red time-slot pill on a restaurant card and the
+   * grey tag chip on an event card are both 28 tall
+   * (`design-ref/screen-explore.png`). They are inside a horizontally
+   * scrolling card, so the 44pt rule is met with hitSlop, not with height. */
+  compactPill: 28,
+} as const;
+
+/**
+ * Fixed block sizes of the Explore (home) screen, measured on
+ * `design-ref/screen-explore.png` at 1:1 (the render's device frame is exactly
+ * 375 wide). No value-by-value Figma spec exists for this screen yet, so these
+ * are reads of the render.
+ */
+export const exploreLayout = {
+  /** Full-bleed hero carousel. 245 of it is visible; the last 20 sit behind
+   * the white sheet, which overlaps them with its rounded top corners. */
+  heroHeight: 265,
+  sheetOverlap: 20,
+  /** Horizontally scrolling card. 256 + 8 gap leaves the next card clearly
+   * peeking on a 375-wide screen (and still peeking at 360). */
+  cardWidth: 256,
+  cardPhotoHeight: 144,
 } as const;
 
 /** Stroke widths from the design. */
