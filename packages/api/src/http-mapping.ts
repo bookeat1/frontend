@@ -124,6 +124,40 @@ function text(value: string | null | undefined): string {
 }
 
 /**
+ * Venue descriptions come from the old CMS and are HTML, not plain text: live
+ * data contains `<p><span style="color: rgb(84,84,84);">…&nbsp;…`. React Native
+ * has no HTML renderer, so a <Text> would show the tags and entities to the
+ * guest verbatim. Strip the markup here, in the mapping layer, so no screen has
+ * to know the field was ever HTML.
+ */
+function plainText(value: string | null | undefined): string {
+  const raw = text(value);
+  if (!raw.includes("<") && !raw.includes("&")) return raw;
+  const entities: Record<string, string> = {
+    "&nbsp;": " ",
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&#39;": "'",
+    "&laquo;": "«",
+    "&raquo;": "»",
+    "&mdash;": "—",
+    "&ndash;": "–",
+  };
+  return raw
+    // Block-level tags become a line break, everything else just disappears —
+    // otherwise paragraphs would run together into one wall of text.
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&[a-z]+;|&#\d+;/gi, (m) => entities[m.toLowerCase()] ?? " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
  * `opening_hours` on the backend is a single free-text field (e.g.
  * "10:00-23:00"), not a per-weekday schedule — the domain model
  * (internal/domain/restaurant.go) has no day-of-week structure at all. We
@@ -247,8 +281,12 @@ function cuisineForRestaurant(api: ApiRestaurant): Cuisine[] {
  * output is identical on every Hermes build (RN's Intl support varies with
  * the engine's ICU). A price we can't parse is passed through as-is. */
 function formatMenuPrice(raw: string | null | undefined): string {
-  const value = Number(text(raw));
-  if (!Number.isFinite(value)) return text(raw);
+  const source = text(raw).trim();
+  // Number("") is 0, which would price a dish the backend never priced at "0 ₸".
+  // An absent price is unknown, not free.
+  if (source === "") return "";
+  const value = Number(source);
+  if (!Number.isFinite(value)) return source;
   const whole = Math.round(value).toString();
   // Non-breaking space between groups so the price never wraps mid-number.
   return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ")} ₸`;
@@ -269,7 +307,7 @@ export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined, limit
     .map((item) => ({
       id: item.id,
       name: text(item.name),
-      description: text(item.description),
+      description: plainText(item.description),
       price: formatMenuPrice(item.price),
       photo: imageToPhoto(text(item.image_url), item.id, text(item.name), "food"),
     }));
@@ -355,7 +393,7 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     workingHours: buildWorkingHours(api.opening_hours),
     // STUB: no seating/table data in the API — see unknown-data.ts.
     tables: stubTables(),
-    description: text(api.description),
+    description: plainText(api.description),
     isOpenNow: computeIsOpenNow(api.opening_hours),
     // ASSUMPTION: no per-restaurant bookable flag in the API; every
     // restaurant this endpoint returns is already active. See unknown-data.ts.
