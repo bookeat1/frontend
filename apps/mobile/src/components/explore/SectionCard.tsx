@@ -1,8 +1,10 @@
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CaretRight } from "../icons";
-import { exploreCopy } from "./copy";
+
+const t = getDictionary();
 
 /**
  * One white block of the Explore screen. The reference
@@ -41,7 +43,7 @@ export function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll?: (
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={exploreCopy.sectionSeeAll(title)}
+      accessibilityLabel={t.explore.sectionSeeAll(title)}
       onPress={onSeeAll}
       style={({ pressed }) => [styles.header, pressed && styles.pressed]}
     >

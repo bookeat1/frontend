@@ -1,12 +1,13 @@
 import type {
   Booking,
+  BookingPage,
   BookingPayment,
   CancelBookingInput,
   CreateBookingInput,
   PreorderLineInput,
 } from "@bookeat/api";
 import { RepositoryError } from "@bookeat/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useAuth } from "../lib/auth";
 import { useRepository } from "../lib/repository";
@@ -68,6 +69,40 @@ export function useBooking(bookingId: string | undefined) {
     // Waiting for the session to hydrate avoids a guaranteed 401 on a cold
     // start straight into a booking deep link.
     enabled: Boolean(bookingId) && status === "signed-in",
+  });
+}
+
+export const MY_BOOKINGS_QUERY_KEY = ["my-bookings"] as const;
+
+/** How many bookings one page of the list screen asks for. */
+const MY_BOOKINGS_PAGE_SIZE = 20;
+
+/**
+ * The guest's own bookings (`GET /bookings`), page by page.
+ *
+ * Paginated rather than "fetch everything": the server order is
+ * `starts_at DESC` and a guest who has been using the app for a year has a
+ * long tail nobody scrolls to. `pages === 0` means the guest has no bookings
+ * at all — that is a finished list, not "more to come".
+ *
+ * Session-gated for the same reason as useBooking: an anonymous call is a
+ * guaranteed 401, and the screen shows a sign-in prompt instead.
+ */
+export function useMyBookings() {
+  const repository = useRepository();
+  const { status } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: MY_BOOKINGS_QUERY_KEY,
+    queryFn: ({ pageParam }) =>
+      repository.listMyBookings({ page: pageParam, perPage: MY_BOOKINGS_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last: BookingPage) =>
+      last.page < last.pages ? last.page + 1 : undefined,
+    enabled: status === "signed-in",
+    // A booking can be confirmed or cancelled by the venue at any moment, so
+    // the list is re-read when the screen is opened again.
+    staleTime: 0,
   });
 }
 
@@ -134,6 +169,8 @@ export function useCreateBooking() {
       // The slot this booking took is gone; anything cached for that venue is
       // now a lie.
       void queryClient.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
+      // The guest now has one more booking than the list screen knows about.
+      void queryClient.invalidateQueries({ queryKey: MY_BOOKINGS_QUERY_KEY });
     },
   });
 }
@@ -247,6 +284,8 @@ export function useCancelBooking() {
       void queryClient.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
       // Whatever the deposit did, our copy of the payment is now stale.
       void queryClient.invalidateQueries({ queryKey: ["booking-payment", booking.id] });
+      // The list screen still shows this booking as live.
+      void queryClient.invalidateQueries({ queryKey: MY_BOOKINGS_QUERY_KEY });
     },
   });
 }

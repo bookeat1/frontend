@@ -71,6 +71,17 @@ export default function ReservationScreen() {
     if (user) prefillContact({ name: user.fullName, phone: user.phone });
   }, [prefillContact, user]);
 
+  // Settle the time that was pre-selected from an Explore time pill against
+  // the day's real slots, the moment they arrive — and re-check it on every
+  // later answer, since the first one can come from the cache Explore filled a
+  // minute ago. The draft ignores the call once the guest has chosen a time
+  // themselves, so this can never overrule them.
+  const { resolvePrefill } = draft;
+  const availabilitySlots = availability.data?.slots;
+  useEffect(() => {
+    if (availabilitySlots) resolvePrefill(availabilitySlots);
+  }, [availabilitySlots, resolvePrefill]);
+
   const selectedDate = useMemo(() => fromDateKey(draft.date), [draft.date]);
   const dateLabel = useMemo(() => {
     const today = new Date();
@@ -237,6 +248,15 @@ export default function ReservationScreen() {
               ) : null}
             </View>
             <View style={styles.sectionBody}>
+              {/* The time the guest tapped on Explore is gone. Say so, right
+                  above the grid they now have to choose from — the date and
+                  the party size they came with are still selected. */}
+              {draft.prefillOutcome === "taken" ? (
+                <View style={styles.notice} accessibilityRole="alert">
+                  <Text style={styles.noticeTitle}>{t.booking.prefillTakenTitle}</Text>
+                  <Text style={styles.noticeText}>{t.booking.prefillTakenDescription}</Text>
+                </View>
+              ) : null}
               <SlotsSection
                 query={availability}
                 selected={draft.slot?.startsAt ?? null}
@@ -527,6 +547,22 @@ const styles = StyleSheet.create({
   sectionCaption: {
     ...typography.caption,
     color: colors.text.muted,
+  },
+  // Same block the submit errors use, minus the screen gutter: this one sits
+  // INSIDE a card that already carries the padding.
+  notice: {
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.background.chip,
+    gap: spacing.xxs,
+  },
+  noticeTitle: {
+    ...typography.labelSemiBold,
+    color: colors.brand.primary,
+  },
+  noticeText: {
+    ...typography.body,
+    color: colors.text.primary,
   },
   submitError: {
     marginHorizontal: spacing.lg,

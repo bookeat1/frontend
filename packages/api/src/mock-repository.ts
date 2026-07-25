@@ -12,6 +12,7 @@ import type {
   AuthUser,
   AvailabilitySlot,
   Booking,
+  BookingPage,
   BookingPayment,
   CancelBookingInput,
   CreateBookingInput,
@@ -85,6 +86,10 @@ export class MockRestaurantRepository implements RestaurantRepository {
       throw new RepositoryError(`Restaurant ${id} not found`);
     }
     return found;
+  }
+
+  async getRestaurantSummary(id: string): Promise<RestaurantSummary> {
+    return toSummary(await this.getRestaurant(id));
   }
 
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {
@@ -214,6 +219,44 @@ export class MockRestaurantRepository implements RestaurantRepository {
       throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
     }
     return booking;
+  }
+
+  /**
+   * The bookings created in this process, newest start time first — the same
+   * order the real endpoint returns (`starts_at DESC`). Paginated by slicing,
+   * so the list screen's "load more" path is exercisable offline too.
+   */
+  async listMyBookings(input?: { page?: number; perPage?: number }): Promise<BookingPage> {
+    await this.simulateNetwork();
+    const perPage = Math.max(1, input?.perPage ?? 20);
+    const page = Math.max(1, input?.page ?? 1);
+    const all = [...this.bookings.values()].sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+    const start = (page - 1) * perPage;
+    return {
+      items: all.slice(start, start + perPage),
+      total: all.length,
+      page,
+      pages: Math.ceil(all.length / perPage),
+      perPage,
+    };
+  }
+
+  /** Favorites the mock holds for this process only. */
+  private readonly favorites = new Set<string>();
+
+  async getFavorites(): Promise<RestaurantSummary[]> {
+    await this.simulateNetwork();
+    return restaurants.filter((r) => this.favorites.has(r.id)).map(toSummary);
+  }
+
+  async addFavorite(restaurantId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favorites.add(restaurantId);
+  }
+
+  async removeFavorite(restaurantId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favorites.delete(restaurantId);
   }
 
   async setPreorder(bookingId: string, lines: PreorderLineInput[]): Promise<Preorder> {

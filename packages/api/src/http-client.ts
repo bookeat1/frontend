@@ -84,6 +84,11 @@ export class HttpClient {
     return this.send<T>("PUT", `${this.baseUrl}${path}`, path, body, options);
   }
 
+  /** DELETE with no request body — the only shape this API uses (favorites). */
+  async delete<T>(path: string, options?: RequestOptions): Promise<T> {
+    return this.send<T>("DELETE", `${this.baseUrl}${path}`, path, undefined, options);
+  }
+
   private async send<T>(
     method: string,
     url: string,

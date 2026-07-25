@@ -28,6 +28,7 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPage,
   BookingPayment,
   CancelBookingInput,
   CreateBookingInput,
@@ -60,6 +61,10 @@ const PROMO_PAGE_SIZE = 8;
  * the cuisine list out of the catalog. The live catalog is 29 venues, so one
  * page still covers it — revisit (real pagination) before it passes 100. */
 const SEARCH_PAGE_SIZE = 100;
+/** One screen of the guest's own bookings. Small on purpose: the list is
+ * offset-paginated and every visible row costs one extra venue request for the
+ * name, so a big first page is a burst of requests on a phone connection. */
+const BOOKINGS_PAGE_SIZE = 20;
 
 /** The chip label plus every exact spelling of that cuisine present in the
  * catalog. The server's cuisine filter is a case-sensitive
@@ -130,6 +135,13 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       ),
     ]);
     return mapRestaurantDetail(api, { reviews, menu, promos });
+  }
+
+  /** GET /restaurants/:id, mapped to the card shape — one request, no
+   * reviews / menu / promos fan-out. */
+  async getRestaurantSummary(id: string): Promise<RestaurantSummary> {
+    const api = await this.client.get<ApiRestaurant>(`/restaurants/${encodeURIComponent(id)}`);
+    return mapRestaurantSummary(api);
   }
 
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {
@@ -280,6 +292,57 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       { auth: true },
     );
     return mapBooking(api);
+  }
+
+  /**
+   * GET /bookings — the caller's own bookings, `starts_at DESC`.
+   *
+   * The server derives the owner from the bearer token (`listMine`), so there
+   * is no user filter to send and no way to read somebody else's list. It
+   * answers a standard page envelope; `pages` is 0 when the guest has no
+   * bookings at all, which the caller must treat as "one empty page", not as
+   * "more pages to come".
+   */
+  async listMyBookings(input?: { page?: number; perPage?: number }): Promise<BookingPage> {
+    const page = await this.client.get<ApiPage<ApiBooking>>(
+      "/bookings",
+      { page: input?.page ?? 1, per_page: input?.perPage ?? BOOKINGS_PAGE_SIZE },
+      { auth: true },
+    );
+    return {
+      items: (page.items ?? []).map(mapBooking),
+      total: typeof page.total === "number" ? page.total : 0,
+      page: typeof page.page === "number" ? page.page : 1,
+      pages: typeof page.pages === "number" ? page.pages : 0,
+      perPage:
+        typeof page.per_page === "number" ? page.per_page : (input?.perPage ?? BOOKINGS_PAGE_SIZE),
+    };
+  }
+
+  /**
+   * GET /favorites. Not paginated server-side — it answers a bare array of the
+   * same restaurant objects the catalog returns (verified live 2026-07-25), so
+   * the catalog mapper is reused rather than a second one written.
+   */
+  async getFavorites(): Promise<RestaurantSummary[]> {
+    const items = await this.client.get<ApiRestaurant[]>("/favorites", undefined, { auth: true });
+    return (items ?? []).map(mapRestaurantSummary);
+  }
+
+  /** PUT /favorites/:restaurantId. Idempotent server-side. */
+  async addFavorite(restaurantId: string): Promise<void> {
+    await this.client.put<unknown>(
+      `/favorites/${encodeURIComponent(restaurantId)}`,
+      undefined,
+      { auth: true },
+    );
+  }
+
+  /** DELETE /favorites/:restaurantId. Idempotent server-side. */
+  async removeFavorite(restaurantId: string): Promise<void> {
+    await this.client.delete<unknown>(`/favorites/${encodeURIComponent(restaurantId)}`, {
+      auth: true,
+    });
   }
 
   /** PUT /bookings/:id/preorder — replace semantics. Only menu_item_id,

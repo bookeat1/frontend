@@ -7,13 +7,16 @@ import {
   spacing,
   typography,
 } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRestaurantFavorite } from "../../hooks/useFavorites";
 import { formatTime } from "../../lib/format";
-import { exploreCopy } from "./copy";
 import { FavoriteButton } from "./FavoriteButton";
 import { EXPLORE_DEFAULT_GUESTS, useTodaySlots } from "./use-explore-data";
+
+const t = getDictionary();
 
 /** How many time pills fit in a 256-wide card without truncating a time. */
 const VISIBLE_SLOTS = 2;
@@ -39,6 +42,7 @@ export function PopularRestaurantCard({
   onPickSlot: (restaurant: RestaurantSummary, slot: AvailabilitySlot) => void;
 }) {
   const slotsQuery = useTodaySlots(restaurant.id, true);
+  const favorite = useRestaurantFavorite(restaurant.id);
   const cuisineLabel = restaurant.cuisines.map((cuisine) => cuisine.name).join(", ");
   const availableSlots = (slotsQuery.data?.slots ?? [])
     .filter((slot) => slot.available)
@@ -60,7 +64,11 @@ export function PopularRestaurantCard({
             transition={150}
             accessibilityLabel={restaurant.coverPhoto.alt}
           />
-          <FavoriteButton itemName={restaurant.name} />
+          <FavoriteButton
+            itemName={restaurant.name}
+            isFavorite={favorite.isFavorite}
+            onToggle={favorite.toggle}
+          />
         </View>
 
         <View style={styles.text}>
@@ -76,7 +84,16 @@ export function PopularRestaurantCard({
         </View>
       </Pressable>
 
-      <Text style={styles.meta}>{exploreCopy.todayGuests(EXPLORE_DEFAULT_GUESTS)}</Text>
+      {/* Одна и та же строка: обычно это «Сегодня · 2 гостя», а если запрос в
+          избранное упал — сообщение об этом. Отдельная строка под ошибку
+          меняла бы высоту карточки в горизонтальной ленте. */}
+      {favorite.failed ? (
+        <Text style={styles.metaError} accessibilityRole="alert" numberOfLines={2}>
+          {t.favorites.toggleFailed}
+        </Text>
+      ) : (
+        <Text style={styles.meta}>{t.explore.todayGuests(EXPLORE_DEFAULT_GUESTS)}</Text>
+      )}
 
       <SlotRow
         isLoading={slotsQuery.isLoading}
@@ -120,12 +137,12 @@ function SlotRow({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={exploreCopy.slotsFailed}
+        accessibilityLabel={t.explore.slotsFailed}
         onPress={onRetry}
         style={styles.slotRow}
         hitSlop={10}
       >
-        <Text style={styles.slotFallback}>{exploreCopy.slotsFailed}</Text>
+        <Text style={styles.slotFallback}>{t.explore.slotsFailed}</Text>
       </Pressable>
     );
   }
@@ -133,7 +150,7 @@ function SlotRow({
   if (slots.length === 0) {
     return (
       <View style={styles.slotRow}>
-        <Text style={styles.slotFallback}>{exploreCopy.slotsUnavailable}</Text>
+        <Text style={styles.slotFallback}>{t.explore.slotsUnavailable}</Text>
       </View>
     );
   }
@@ -146,7 +163,7 @@ function SlotRow({
           <Pressable
             key={slot.startsAt}
             accessibilityRole="button"
-            accessibilityLabel={exploreCopy.bookAt(restaurantName, label)}
+            accessibilityLabel={t.explore.bookAt(restaurantName, label)}
             onPress={() => onPick(slot)}
             // 28pt pill + 8pt slop each side clears the 44pt target rule.
             hitSlop={8}
@@ -189,6 +206,10 @@ const styles = StyleSheet.create({
   meta: {
     ...typography.body,
     color: colors.text.muted,
+  },
+  metaError: {
+    ...typography.body,
+    color: colors.status.negativeText,
   },
   slotRow: {
     flexDirection: "row",

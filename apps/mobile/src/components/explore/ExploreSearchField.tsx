@@ -1,8 +1,10 @@
 import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { MagnifyingGlass } from "../icons";
-import { exploreCopy } from "./copy";
+
+const t = getDictionary();
 
 /**
  * The search pill on Explore. It LOOKS like the shared `SearchBar` but is a
@@ -19,13 +21,13 @@ export function ExploreSearchField({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={exploreCopy.searchPlaceholder}
+      accessibilityLabel={t.explore.searchPlaceholder}
       onPress={onPress}
       style={({ pressed }) => [styles.field, pressed && styles.pressed]}
     >
       <MagnifyingGlass size={24} color={colors.text.muted} weight="regular" />
       <Text style={styles.placeholder} numberOfLines={1}>
-        {exploreCopy.searchPlaceholder}
+        {t.explore.searchPlaceholder}
       </Text>
     </Pressable>
   );

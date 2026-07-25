@@ -1,3 +1,16 @@
+/**
+ * Русская форма слова «гость» для числа. Живёт здесь, а не в компоненте:
+ * склонение — часть словаря, а не разметки.
+ */
+function guestsWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "гостей";
+  if (mod10 === 1) return "гость";
+  if (mod10 >= 2 && mod10 <= 4) return "гостя";
+  return "гостей";
+}
+
 export const ru = {
   common: {
     back: "Назад",
@@ -6,6 +19,40 @@ export const ru = {
     cancel: "Отмена",
     seeAll: "Смотреть все",
     loading: "Загрузка",
+  },
+  /**
+   * Главный экран (Explore). Переехало сюда из
+   * apps/mobile/src/components/explore/copy.ts без изменения формулировок.
+   *
+   * Макет на английском («Popular Restaurants», «Chef's Picks», «Restaurant,
+   * cuisine, or dish»), интерфейс приложения русский, поэтому заголовки
+   * секций переведены, а «Гастрогид» оставлен именем собственным.
+   */
+  explore: {
+    searchPlaceholder: "Заведение, кухня или блюдо",
+
+    popularTitle: "Популярные заведения",
+    popularLoading: "Загружаем заведения…",
+    popularEmptyTitle: "Пока нечего показать",
+    popularEmptyDescription: "Загляните в поиск — там есть весь каталог",
+    popularEmptyAction: "Открыть поиск",
+    popularErrorTitle: "Заведения не загрузились",
+    popularErrorDescription: "Проверьте соединение и попробуйте ещё раз",
+
+    chefsPicksTitle: "Выбор шефа",
+    gastroguideTitle: "Гастрогид",
+    eventsTitle: "События",
+
+    /** Строка под названием заведения на карточке: «Сегодня · 2 гостя». */
+    todayGuests: (guests: number) => `Сегодня · ${guests} ${guestsWord(guests)}`,
+    slotsUnavailable: "Сегодня свободного времени нет",
+    slotsFailed: "Время не загрузилось",
+
+    favoriteAdd: (name: string) => `Добавить «${name}» в избранное`,
+    favoriteRemove: (name: string) => `Убрать «${name}» из избранного`,
+    bookAt: (name: string, time: string) => `Забронировать в «${name}» на ${time}`,
+    heroBanner: (index: number, total: number) => `Баннер ${index} из ${total}`,
+    sectionSeeAll: (section: string) => `${section}: смотреть все`,
   },
   search: {
     placeholder: "Найти заведение, кухню или блюдо",
@@ -320,21 +367,18 @@ export const ru = {
     tomorrow: "Завтра",
     guestsSectionTitle: "Гости",
     pickGuestsTitle: "Сколько гостей",
-    guestsCount: (count: number) => {
-      const mod10 = count % 10;
-      const mod100 = count % 100;
-      let word = "гостей";
-      if (mod100 < 11 || mod100 > 14) {
-        if (mod10 === 1) word = "гость";
-        else if (mod10 >= 2 && mod10 <= 4) word = "гостя";
-      }
-      return `${count} ${word}`;
-    },
+    guestsCount: (count: number) => `${count} ${guestsWord(count)}`,
     guestsHint: (max: number) =>
       `Больше ${max} гостей — это уже банкет, свяжитесь с заведением напрямую`,
     guestsDecrease: "Меньше гостей",
     guestsIncrease: "Больше гостей",
     timeSectionTitle: "Время",
+    // --- время, подставленное с главного экрана ---
+    /** Слот из карточки Explore оказался занят, пока гость шёл в форму.
+     * Дата и число гостей при этом остаются подставленными. */
+    prefillTakenTitle: "Это время уже заняли",
+    prefillTakenDescription:
+      "Выберите другое время — дата и число гостей уже подставлены",
     slotDuration: (minutes: number) => `Столик держим ${minutes} минут`,
     slotFreeTables: (count: number) => `Свободно столиков: ${count}`,
     slotUnavailable: {
@@ -498,6 +542,60 @@ export const ru = {
     cancelErrorDescription: "Проверьте соединение и попробуйте ещё раз",
     cancelErrorForbidden: "Отменить эту бронь может только заведение — позвоните им",
     cancelErrorGone: "Эту бронь уже нельзя отменить — она завершена или отменена ранее",
+  },
+  /** Вкладка «Бронь» — список собственных броней гостя (GET /bookings). */
+  myBookings: {
+    title: "Мои брони",
+    loadingTitle: "Загружаем ваши брони…",
+    loadingMore: "Загружаем ещё…",
+    emptyTitle: "Броней пока нет",
+    emptyDescription: "Забронируйте столик — бронь появится здесь",
+    emptyAction: "Найти заведение",
+    errorTitle: "Брони не загрузились",
+    errorDescription: "Проверьте соединение и попробуйте ещё раз",
+    signedOutTitle: "Войдите, чтобы увидеть свои брони",
+    signedOutDescription: "Бронь оформляется на аккаунт — так её можно посмотреть и отменить",
+    signIn: "Войти",
+    /** Название заведения приходит отдельным запросом: пока оно не пришло
+     * и если запрос упал, врать названием нельзя. */
+    venueLoading: "Загружаем название…",
+    venueUnavailable: "Название заведения не загрузилось",
+    summary: (when: string, guests: string) => `${when} · ${guests}`,
+    openBooking: (venue: string, when: string) => `Бронь в «${venue}», ${when}`,
+  },
+  /** Вкладка «Избранные» — GET /favorites. */
+  favorites: {
+    title: "Избранные",
+    loadingTitle: "Загружаем избранное…",
+    emptyTitle: "В избранном пусто",
+    emptyDescription: "Нажмите на сердечко у заведения — оно появится здесь",
+    emptyAction: "Открыть поиск",
+    errorTitle: "Избранное не загрузилось",
+    errorDescription: "Проверьте соединение и попробуйте ещё раз",
+    signedOutTitle: "Войдите, чтобы сохранять заведения",
+    signedOutDescription: "Избранное хранится в аккаунте и открывается на любом устройстве",
+    signIn: "Войти",
+    toggleFailed: "Не удалось изменить избранное. Попробуйте ещё раз",
+  },
+  /** Вкладка «Профиль» — GET /users/me. */
+  profile: {
+    title: "Профиль",
+    loadingTitle: "Загружаем профиль…",
+    accountTitle: "Аккаунт",
+    nameLabel: "Имя",
+    nameEmpty: "Не указано",
+    emailLabel: "Почта",
+    phoneLabel: "Телефон",
+    phoneEmpty: "Не указан",
+    myBookings: "Мои брони",
+    myFavorites: "Избранные",
+    signOut: "Выйти",
+    signingOut: "Выходим…",
+    signedOutTitle: "Вы не вошли",
+    signedOutDescription: "Войдите, чтобы видеть свои брони и избранное",
+    signIn: "Войти",
+    errorTitle: "Профиль не загрузился",
+    errorDescription: "Проверьте соединение и попробуйте ещё раз",
   },
   auth: {
     signInTitle: "Вход",

@@ -28,11 +28,12 @@
  *                      (admin CRUD + per-venue listings, PR #27), but the
  *                      guest catalog has no cross-venue events route and
  *                      `RestaurantRepository` has no method for it.
- *   favourites       — POST/DELETE /favorites + `is_favorite` on the catalog.
- *                      These DO exist in backend-core (PR #17), but
- *                      `RestaurantRepository` exposes no favourites method, so
- *                      the heart is optimistic local state only and is reset
- *                      on remount. See FavoriteButton.
+ *   favourites       — WIRED UP. GET /favorites + PUT/DELETE
+ *                      /favorites/:restaurantId are real and the venue cards'
+ *                      heart now uses them (see useFavorites +
+ *                      FavoriteButton). The dish and event cards keep an INERT
+ *                      heart, because the entity under them is still a
+ *                      placeholder and there is nothing to favorite.
  *
  * Photos are placehold.co URLs on purpose, matching the convention already
  * used by `packages/api/src/unknown-data.ts`: a stub must LOOK like a stub, so

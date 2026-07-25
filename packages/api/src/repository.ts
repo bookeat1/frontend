@@ -2,6 +2,7 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPage,
   BookingPayment,
   CancelBookingInput,
   CreateBookingInput,
@@ -28,6 +29,15 @@ import type {
  */
 export interface RestaurantRepository {
   getRestaurant(id: string): Promise<Restaurant>;
+  /**
+   * The card-sized view of ONE venue (name, photo, cuisine, price tier).
+   *
+   * Exists next to `getRestaurant` because that one fans out to four endpoints
+   * (venue + reviews + menu + promos) to build the detail screen. A list that
+   * only needs the venue's NAME — «Мои брони», whose payload carries just
+   * `restaurant_id` — would otherwise pay four requests per row.
+   */
+  getRestaurantSummary(id: string): Promise<RestaurantSummary>;
   getPopularRestaurants(): Promise<RestaurantSummary[]>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   getCuisines(): Promise<Cuisine[]>;
@@ -62,6 +72,34 @@ export interface RestaurantRepository {
 
   /** One of the caller's own bookings. Requires a session. */
   getBooking(bookingId: string): Promise<Booking>;
+
+  /**
+   * The caller's own bookings, newest start time first (`GET /bookings`).
+   * Requires a session — an anonymous call is a 401, not an empty list.
+   *
+   * Offset pagination: the server caps nothing itself, so the caller decides
+   * `perPage` and walks `page` upwards while `page < pages`.
+   */
+  listMyBookings(input?: { page?: number; perPage?: number }): Promise<BookingPage>;
+
+  /* --- favorites --- */
+
+  /**
+   * The caller's favorite venues (`GET /favorites`). Requires a session; the
+   * payload is a plain array of the same restaurant objects the catalog
+   * returns, so it maps through mapRestaurantSummary unchanged.
+   */
+  getFavorites(): Promise<RestaurantSummary[]>;
+
+  /**
+   * Adds a venue to the caller's favorites (`PUT /favorites/:restaurantId`).
+   * Idempotent on the server — favoriting an already-favorited venue answers
+   * 200, not a conflict.
+   */
+  addFavorite(restaurantId: string): Promise<void>;
+
+  /** Removes a venue (`DELETE /favorites/:restaurantId`). Also idempotent. */
+  removeFavorite(restaurantId: string): Promise<void>;
 
   /**
    * Replaces the booking's pre-order with exactly these lines (PUT semantics —

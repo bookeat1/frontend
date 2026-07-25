@@ -1,12 +1,12 @@
 import type { AvailabilitySlot, RestaurantSummary } from "@bookeat/api";
 import { colors, exploreLayout, spacing } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { CardStrip } from "../src/components/explore/CardStrip";
-import { exploreCopy } from "../src/components/explore/copy";
 import { DishCard } from "../src/components/explore/DishCard";
 import { EventCard } from "../src/components/explore/EventCard";
 import { ExploreSearchField } from "../src/components/explore/ExploreSearchField";
@@ -21,6 +21,8 @@ import {
   useGastroguide,
   useHeroBanners,
 } from "../src/components/explore/use-explore-data";
+
+const t = getDictionary();
 
 /**
  * Explore — the home screen (Figma "BookEat Copy" / «🟠 В работе» / Explore,
@@ -51,15 +53,14 @@ export default function ExploreScreen() {
   );
 
   /**
-   * A time pill goes straight into the existing booking flow.
+   * A time pill goes straight into the booking flow, pre-filled.
    *
-   * The params below are what the flow needs to open pre-filled, but
-   * `app/restaurant/[id]/book/index.tsx` does not read them yet (it starts on
-   * today / 2 guests / no slot). That file is owned by another task right now,
-   * so the params are sent forward-compatibly instead of being edited in:
-   * today the guest lands on the right venue and date and picks the time one
-   * tap later. FOLLOW-UP: read `date`/`startsAt`/`guests` in the flow's
-   * BookingDraftProvider.
+   * The flow's layout reads `date` / `startsAt` / `guests` and hands them to
+   * the draft (app/restaurant/[id]/book/_layout.tsx), so the guest lands with
+   * the day, the party size and that exact time already chosen. If the slot
+   * has been taken in the meantime, the flow keeps the date and the party,
+   * clears the time and says so — see PrefillOutcome in
+   * src/lib/booking-draft.tsx.
    */
   const openBookingWithSlot = useCallback(
     (restaurant: RestaurantSummary, slot: AvailabilitySlot) => {
@@ -101,11 +102,11 @@ export default function ExploreScreen() {
           </SectionCard>
 
           <SectionCard>
-            <SectionHeader title={exploreCopy.chefsPicksTitle} />
+            <SectionHeader title={t.explore.chefsPicksTitle} />
             <CardStrip
               data={chefsPicks}
               keyExtractor={(dish) => dish.id}
-              accessibilityLabel={exploreCopy.chefsPicksTitle}
+              accessibilityLabel={t.explore.chefsPicksTitle}
               renderItem={({ item }) => (
                 <DishCard dish={item} onOpenRestaurant={openRestaurant} />
               )}
@@ -113,11 +114,11 @@ export default function ExploreScreen() {
           </SectionCard>
 
           <SectionCard>
-            <SectionHeader title={exploreCopy.gastroguideTitle} />
+            <SectionHeader title={t.explore.gastroguideTitle} />
             <CardStrip
               data={gastroguide}
               keyExtractor={(dish) => dish.id}
-              accessibilityLabel={exploreCopy.gastroguideTitle}
+              accessibilityLabel={t.explore.gastroguideTitle}
               renderItem={({ item }) => (
                 <DishCard dish={item} onOpenRestaurant={openRestaurant} />
               )}
@@ -125,11 +126,11 @@ export default function ExploreScreen() {
           </SectionCard>
 
           <SectionCard>
-            <SectionHeader title={exploreCopy.eventsTitle} />
+            <SectionHeader title={t.explore.eventsTitle} />
             <CardStrip
               data={events}
               keyExtractor={(event) => event.id}
-              accessibilityLabel={exploreCopy.eventsTitle}
+              accessibilityLabel={t.explore.eventsTitle}
               renderItem={({ item }) => (
                 <EventCard event={item} onOpenRestaurant={openRestaurant} />
               )}
@@ -138,9 +139,8 @@ export default function ExploreScreen() {
         </View>
       </ScrollView>
 
-      {/* Explore is the active tab. The other four are still inert — the tab
-          bar owns no navigation today (see BottomNavBar). */}
-      <BottomNavBar active="overview" />
+      {/* The bar reads the active tab off the current route itself. */}
+      <BottomNavBar />
     </View>
   );
 }

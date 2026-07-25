@@ -5,7 +5,6 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { EmptyState, ErrorState } from "../StateViews";
 import { CardStrip } from "./CardStrip";
-import { exploreCopy } from "./copy";
 import { PopularRestaurantCard } from "./PopularRestaurantCard";
 import { SectionHeader } from "./SectionCard";
 import { usePopularRestaurants } from "./use-explore-data";
@@ -31,7 +30,7 @@ export function PopularSection({
 
   return (
     <>
-      <SectionHeader title={exploreCopy.popularTitle} onSeeAll={onSeeAll} />
+      <SectionHeader title={t.explore.popularTitle} onSeeAll={onSeeAll} />
 
       {query.isLoading ? (
         <SkeletonStrip />
@@ -39,8 +38,8 @@ export function PopularSection({
         <View style={styles.state}>
           <ErrorState
             compact
-            title={exploreCopy.popularErrorTitle}
-            description={exploreCopy.popularErrorDescription}
+            title={t.explore.popularErrorTitle}
+            description={t.explore.popularErrorDescription}
             retryLabel={t.common.retry}
             onRetry={() => query.refetch()}
           />
@@ -49,9 +48,9 @@ export function PopularSection({
         <View style={styles.state}>
           <EmptyState
             compact
-            title={exploreCopy.popularEmptyTitle}
-            description={exploreCopy.popularEmptyDescription}
-            actionLabel={exploreCopy.popularEmptyAction}
+            title={t.explore.popularEmptyTitle}
+            description={t.explore.popularEmptyDescription}
+            actionLabel={t.explore.popularEmptyAction}
             onAction={onSeeAll}
           />
         </View>
@@ -59,7 +58,7 @@ export function PopularSection({
         <CardStrip
           data={query.data ?? []}
           keyExtractor={(restaurant) => restaurant.id}
-          accessibilityLabel={exploreCopy.popularTitle}
+          accessibilityLabel={t.explore.popularTitle}
           renderItem={({ item }) => (
             <PopularRestaurantCard
               restaurant={item}
@@ -76,7 +75,7 @@ export function PopularSection({
 /** Two card-shaped grey blocks, same geometry as the real cards. */
 function SkeletonStrip() {
   return (
-    <View style={styles.skeletonRow} accessibilityRole="progressbar" accessibilityLabel={exploreCopy.popularLoading}>
+    <View style={styles.skeletonRow} accessibilityRole="progressbar" accessibilityLabel={t.explore.popularLoading}>
       {[0, 1].map((key) => (
         <View key={key} style={styles.skeletonCard}>
           <View style={styles.skeletonPhoto} />

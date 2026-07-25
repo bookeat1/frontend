@@ -2,7 +2,7 @@ import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/des
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { FavoriteButton } from "./FavoriteButton";
+import { InertFavoriteHeart } from "./FavoriteButton";
 import type { DishCardData } from "./placeholder";
 
 /**
@@ -35,7 +35,7 @@ export function DishCard({
           transition={150}
           accessibilityLabel={dish.name}
         />
-        <FavoriteButton itemName={dish.name} />
+        <InertFavoriteHeart />
       </View>
 
       <View style={styles.text}>

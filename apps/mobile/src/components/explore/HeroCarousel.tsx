@@ -1,4 +1,5 @@
 import { colors, exploreLayout, radius, spacing } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -9,8 +10,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { exploreCopy } from "./copy";
 import type { HeroBanner } from "./placeholder";
+
+const t = getDictionary();
 
 /**
  * Full-bleed promo carousel at the very top of Explore — it runs UNDER the
@@ -64,7 +66,7 @@ export function HeroCarousel({ banners }: { banners: readonly HeroBanner[] }) {
             contentFit="cover"
             transition={150}
             accessible
-            accessibilityLabel={`${item.alt}. ${exploreCopy.heroBanner(i + 1, banners.length)}`}
+            accessibilityLabel={`${item.alt}. ${t.explore.heroBanner(i + 1, banners.length)}`}
           />
         )}
       />

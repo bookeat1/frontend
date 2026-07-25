@@ -253,6 +253,29 @@ export interface Booking {
 }
 
 /**
+ * One page of the guest's own bookings (`GET /bookings`).
+ *
+ * The list payload is the PLAIN booking, not the details one: it carries no
+ * `free_cancel_deadline`, no items and no tables (verified against the live
+ * test API on 2026-07-25), so every entry here has
+ * `freeCancelDeadline: null` and the detail screen has to re-read the booking
+ * by id. It also carries no restaurant name — only `restaurant_id`.
+ *
+ * Server order is `starts_at DESC` (internal/infrastructure/postgres/booking/
+ * repository.go), i.e. the furthest future booking first and the oldest last.
+ * The client does NOT re-sort: re-sorting one page of an offset-paginated list
+ * produces an order that is wrong across page boundaries.
+ */
+export interface BookingPage {
+  items: Booking[];
+  total: number;
+  page: number;
+  /** Total number of pages the server reports; 0 when there is nothing. */
+  pages: number;
+  perPage: number;
+}
+
+/**
  * Cancellation metadata the guest may attach. Both fields are optional on the
  * backend (`cancelRequest` in internal/transport/rest/bookings/request.go
  * binds an optional body), so an empty `{}` is a valid cancel.

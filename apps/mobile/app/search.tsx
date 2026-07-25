@@ -163,7 +163,7 @@ export default function SearchScreen() {
         )}
       </ScreenContainer>
 
-      <BottomNavBar active="search" />
+      <BottomNavBar />
     </View>
   );
 }

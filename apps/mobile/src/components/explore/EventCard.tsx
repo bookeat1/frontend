@@ -9,7 +9,7 @@ import {
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { FavoriteButton } from "./FavoriteButton";
+import { InertFavoriteHeart } from "./FavoriteButton";
 import type { EventCardData } from "./placeholder";
 
 /**
@@ -40,7 +40,7 @@ export function EventCard({
           transition={150}
           accessibilityLabel={event.title}
         />
-        <FavoriteButton itemName={event.title} />
+        <InertFavoriteHeart />
       </View>
 
       <View style={styles.text}>

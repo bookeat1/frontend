@@ -45,6 +45,36 @@ interface BookingDraft {
   preorder: PreorderDraftLine[];
 }
 
+/**
+ * What the flow was asked to pre-select when the guest entered it — today that
+ * is a red time pill on an Explore card, which links to
+ * `/restaurant/:id/book?date=…&startsAt=…&guests=…`.
+ *
+ * Only `date` and `guests` can be applied immediately. The TIME cannot: a slot
+ * is an object that only exists once availability has been loaded, and the one
+ * the guest tapped may already be gone by the time this screen asks. So the
+ * start time is held as an intent and resolved against the real answer.
+ */
+export interface BookingPrefill {
+  /** "YYYY-MM-DD" in the device's local calendar. */
+  date?: string;
+  /** A string when it comes straight off the route's query params. */
+  guests?: string | number;
+  /** RFC3339 start of the slot the guest tapped. */
+  startsAt?: string;
+}
+
+/**
+ * How the time part of the prefill ended up:
+ *   none    — nothing was asked for (the guest opened the flow normally);
+ *   pending — asked for, availability hasn't answered yet;
+ *   applied — the slot exists, is free, and is now selected;
+ *   taken   — it is gone (or the venue no longer offers it). The date and the
+ *             party size stay, and the guest is TOLD, because the alternative
+ *             is silently booking a different time than the one they tapped.
+ */
+export type PrefillOutcome = "none" | "pending" | "applied" | "taken";
+
 interface BookingDraftValue extends BookingDraft {
   setDate(date: string): void;
   setGuests(guests: number): void;
@@ -65,6 +95,14 @@ interface BookingDraftValue extends BookingDraft {
    */
   idempotencyKey: string;
   maxDate: Date;
+  /** See PrefillOutcome. */
+  prefillOutcome: PrefillOutcome;
+  /**
+   * Hands the day's real slots to the draft so a pending time prefill can be
+   * settled. Safe to call on every availability answer: it does nothing once
+   * the prefill is no longer pending.
+   */
+  resolvePrefill(slots: AvailabilitySlot[]): void;
 }
 
 const BookingDraftContext = createContext<BookingDraftValue | null>(null);
@@ -75,16 +113,73 @@ function randomKey(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+/** Party size the flow starts on when nothing else is asked for. */
+const DEFAULT_GUESTS = 2;
+
+/** "YYYY-MM-DD", and a date the flow could actually book (today .. horizon). */
+function sanitizeDate(raw: string | undefined): string | null {
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const parsed = new Date(`${raw}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (parsed < today) return null;
+  const horizon = addDays(today, HORIZON_DAYS);
+  if (parsed > horizon) return null;
+  return raw;
+}
+
+function sanitizeGuests(raw: string | number | undefined): number | null {
+  const value = typeof raw === "string" ? Number.parseInt(raw, 10) : raw;
+  if (value === undefined || value === null || !Number.isFinite(value)) return null;
+  if (value < MIN_GUESTS || value > MAX_GUESTS) return null;
+  return value;
+}
+
+function sanitizeStartsAt(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) return null;
+  // A slot in the past is not something the guest can be walked into.
+  if (parsed < Date.now()) return null;
+  return raw;
+}
+
 export function BookingDraftProvider({
   restaurantId,
+  prefill,
   children,
 }: {
   restaurantId: string;
+  /** Read from the route's query params by the flow's layout. Every field is
+   * validated here rather than trusted: these arrive from a URL. */
+  prefill?: BookingPrefill;
   children: React.ReactNode;
 }) {
-  const [date, setDateState] = useState(() => toDateKey(new Date()));
-  const [guests, setGuestsState] = useState(2);
+  // Read ONCE, at mount (lazy initializer, so the validators don't re-run on
+  // every render). A later re-render of the layout with the same params must
+  // not reset a form the guest has already been editing.
+  const [initial] = useState(() => ({
+    date: sanitizeDate(prefill?.date),
+    guests: sanitizeGuests(prefill?.guests),
+    startsAt: sanitizeStartsAt(prefill?.startsAt),
+  }));
+
+  const [date, setDateState] = useState(() => initial.date ?? toDateKey(new Date()));
+  const [guests, setGuestsState] = useState(() => initial.guests ?? DEFAULT_GUESTS);
   const [slot, setSlotState] = useState<AvailabilitySlot | null>(null);
+  // The tapped start time, still unproven. A ref, not state: nothing renders
+  // from it, and settling it must not run inside a state updater (React runs
+  // updaters twice under StrictMode, and this one has side effects).
+  const pendingStartsAt = useRef<string | null>(initial.startsAt);
+  // The time that WAS applied from the prefill and the guest has not touched
+  // since. Kept so a fresher availability answer can take it back if the slot
+  // has gone in the meantime — the guest never picked it by hand, so they have
+  // no reason to suspect it is stale.
+  const appliedStartsAt = useRef<string | null>(null);
+  const [prefillOutcome, setPrefillOutcome] = useState<PrefillOutcome>(
+    initial.startsAt ? "pending" : "none",
+  );
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -116,15 +211,23 @@ export function BookingDraftProvider({
     setIdempotencyKey(randomKey());
   }, []);
 
+  /** The guest took over: whatever time was pre-selected for them is void. */
+  const cancelPrefill = useCallback(() => {
+    pendingStartsAt.current = null;
+    appliedStartsAt.current = null;
+    setPrefillOutcome("none");
+  }, []);
+
   const setDate = useCallback(
     (next: string) => {
       setDateState(next);
       // The old slot belonged to the old day; keeping it would submit a time
       // the guest can no longer see on screen.
       setSlotState(null);
+      cancelPrefill();
       rotateKeyFor(`${restaurantId}|${next}|${guests}|`);
     },
-    [guests, restaurantId, rotateKeyFor],
+    [cancelPrefill, guests, restaurantId, rotateKeyFor],
   );
 
   const setGuests = useCallback(
@@ -134,17 +237,66 @@ export function BookingDraftProvider({
       // Availability is computed per party size: a slot that fit 2 may not fit
       // 8, so the choice has to be made again against the new numbers.
       setSlotState(null);
+      cancelPrefill();
       rotateKeyFor(`${restaurantId}|${date}|${clamped}|`);
     },
-    [date, restaurantId, rotateKeyFor],
+    [cancelPrefill, date, restaurantId, rotateKeyFor],
+  );
+
+  /**
+   * Settles the pending time against the day's REAL slots, and afterwards
+   * keeps watching it.
+   *
+   * A slot counts only when the server both knows it and calls it available —
+   * `available === false` covers "occupied", "capacity" and "too_soon" alike,
+   * and every one of them means the guest cannot have that time. Anything else
+   * would book them into a different time than the one they tapped.
+   *
+   * The second phase matters because the first answer can come from the cache
+   * the Explore screen filled a minute ago: when the refetch says the slot is
+   * gone, the pre-selected time is TAKEN BACK rather than left sitting in the
+   * form waiting to fail with a 409 at submit time.
+   */
+  const resolvePrefill = useCallback(
+    (slots: AvailabilitySlot[]) => {
+      const wanted = pendingStartsAt.current;
+      if (wanted) {
+        pendingStartsAt.current = null;
+        const match = slots.find((s) => s.startsAt === wanted && s.available);
+        if (!match) {
+          setPrefillOutcome("taken");
+          return;
+        }
+        appliedStartsAt.current = match.startsAt;
+        setSlotState(match);
+        setPrefillOutcome("applied");
+        // Same bookkeeping setSlot does: the key must follow the body.
+        keyedOn.current = `${restaurantId}|${date}|${guests}|${match.startsAt}`;
+        setIdempotencyKey(randomKey());
+        return;
+      }
+
+      const applied = appliedStartsAt.current;
+      if (!applied) return;
+      if (slots.some((s) => s.startsAt === applied && s.available)) return;
+      appliedStartsAt.current = null;
+      setSlotState(null);
+      setPrefillOutcome("taken");
+      keyedOn.current = `${restaurantId}|${date}|${guests}|`;
+      setIdempotencyKey(randomKey());
+    },
+    [date, guests, restaurantId],
   );
 
   const setSlot = useCallback(
     (next: AvailabilitySlot | null) => {
       setSlotState(next);
+      // Picking a time by hand answers the prefill question, whatever it was:
+      // the "your time was taken" notice has served its purpose.
+      cancelPrefill();
       rotateKeyFor(`${restaurantId}|${date}|${guests}|${next?.startsAt ?? ""}`);
     },
-    [date, guests, restaurantId, rotateKeyFor],
+    [cancelPrefill, date, guests, restaurantId, rotateKeyFor],
   );
 
   const setPreorderQuantity = useCallback(
@@ -208,6 +360,8 @@ export function BookingDraftProvider({
       preorder,
       idempotencyKey,
       maxDate,
+      prefillOutcome,
+      resolvePrefill,
       setDate,
       setGuests,
       setSlot,
@@ -229,6 +383,8 @@ export function BookingDraftProvider({
       preorder,
       idempotencyKey,
       maxDate,
+      prefillOutcome,
+      resolvePrefill,
       setDate,
       setGuests,
       setSlot,
