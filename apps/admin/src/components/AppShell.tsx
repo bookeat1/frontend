@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 
 import { PushToggle } from "./PushToggle";
+import { RestaurantSwitcher } from "./RestaurantSwitcher";
 
 interface NavItem {
   href: string;
@@ -28,7 +29,7 @@ const NAV: NavItem[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, restaurant, logout, clearRestaurant } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -76,14 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-md border-b border-hairline bg-surface px-lg py-md">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-text">{restaurant?.name}</p>
-            <button
-              type="button"
-              onClick={clearRestaurant}
-              className="text-[12px] text-text-muted hover:text-brand hover:underline"
-            >
-              {t.admin.restaurant.switch}
-            </button>
+            <RestaurantSwitcher />
           </div>
           <div className="flex items-center gap-md">
             <PushToggle />
