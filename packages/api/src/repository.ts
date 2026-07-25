@@ -117,7 +117,17 @@ export class RepositoryError extends Error {
   /** The slot was taken (or the venue has no table that fits) between loading
    * availability and submitting. Recoverable by picking another time. */
   get isSlotConflict(): boolean {
-    return this.status === 409;
+    return this.status === 409 && !this.isDuplicateSubmit;
+  }
+
+  /** A 409 that means "this exact request already created something", not
+   * "somebody else took the slot". The backend answers it when an
+   * Idempotency-Key is replayed with a DIFFERENT body — i.e. the booking very
+   * probably EXISTS. The two conflicts demand opposite reactions, so they must
+   * never share a branch: treating this one as a lost slot walks the guest into
+   * booking a second table. */
+  get isDuplicateSubmit(): boolean {
+    return this.status === 409 && (this.serverMessage ?? "").toLowerCase().includes("already exists");
   }
 
   /** The server refused the payload. Almost always a stale draft (a time that

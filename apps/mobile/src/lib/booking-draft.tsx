@@ -96,6 +96,20 @@ export function BookingDraftProvider({
   // them twice) — the same rule the admin panel's restaurant switch follows.
   const keyedOn = useRef(`${restaurantId}|${date}|${guests}|`);
 
+  // The key must cover EVERYTHING the request body carries, not just the venue,
+  // day, party and slot. The backend answers 409 "already exists" when the same
+  // key arrives with a DIFFERENT body — so a guest who fixed a typo in their
+  // phone after a timed-out submit got a conflict, which the screen then read as
+  // "your time was taken". They picked another time, the key rotated, and they
+  // ended up with two confirmed bookings while believing they had none.
+  // Contact details therefore rotate the key too: a changed body is a new
+  // request, and the server never has to guess which of the two we meant.
+  const contactSignature = useCallback(
+    (nextName: string, nextPhone: string, nextNotes: string) =>
+      `${nextName.trim()}|${nextPhone.trim()}|${nextNotes.trim()}`,
+    [],
+  );
+
   const rotateKeyFor = useCallback((signature: string) => {
     if (keyedOn.current === signature) return;
     keyedOn.current = signature;
@@ -156,6 +170,32 @@ export function BookingDraftProvider({
 
   const maxDate = useMemo(() => addDays(new Date(), HORIZON_DAYS), []);
 
+  // Wrapped setters: the raw state setters are kept private so nothing can
+  // change the body without the key following it.
+  const setNameKeyed = useCallback(
+    (next: string) => {
+      setName(next);
+      rotateKeyFor(`${restaurantId}|${date}|${guests}|${slot?.startsAt ?? ""}|${contactSignature(next, phone, notes)}`);
+    },
+    [contactSignature, date, guests, notes, phone, restaurantId, rotateKeyFor, slot],
+  );
+
+  const setPhoneKeyed = useCallback(
+    (next: string) => {
+      setPhone(next);
+      rotateKeyFor(`${restaurantId}|${date}|${guests}|${slot?.startsAt ?? ""}|${contactSignature(name, next, notes)}`);
+    },
+    [contactSignature, date, guests, name, notes, restaurantId, rotateKeyFor, slot],
+  );
+
+  const setNotesKeyed = useCallback(
+    (next: string) => {
+      setNotes(next);
+      rotateKeyFor(`${restaurantId}|${date}|${guests}|${slot?.startsAt ?? ""}|${contactSignature(name, phone, next)}`);
+    },
+    [contactSignature, date, guests, name, phone, restaurantId, rotateKeyFor, slot],
+  );
+
   const value = useMemo<BookingDraftValue>(
     () => ({
       restaurantId,
@@ -171,9 +211,9 @@ export function BookingDraftProvider({
       setDate,
       setGuests,
       setSlot,
-      setName,
-      setPhone,
-      setNotes,
+      setName: setNameKeyed,
+      setPhone: setPhoneKeyed,
+      setNotes: setNotesKeyed,
       setPreorderQuantity,
       clearPreorder,
       prefillContact,
@@ -192,6 +232,9 @@ export function BookingDraftProvider({
       setDate,
       setGuests,
       setSlot,
+      setNameKeyed,
+      setPhoneKeyed,
+      setNotesKeyed,
       setPreorderQuantity,
       clearPreorder,
       prefillContact,

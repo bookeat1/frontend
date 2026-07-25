@@ -135,6 +135,18 @@ export default function ReservationScreen() {
             router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
             return;
           }
+          if (error instanceof RepositoryError && error.isDuplicateSubmit) {
+            // NOT "the slot is gone" — the opposite. The server is saying this
+            // exact request already produced a booking. Clearing the slot here
+            // (as this branch used to) sent the guest off to pick another time
+            // and quietly gave them a SECOND table while they believed they had
+            // none. Keep everything and tell them to check their bookings.
+            setSubmitError({
+              title: t.booking.createErrorDuplicateTitle,
+              description: t.booking.createErrorDuplicateDescription,
+            });
+            return;
+          }
           if (error instanceof RepositoryError && error.isSlotConflict) {
             // The slot went while the guest was typing. Drop it and refetch so
             // the grid they look at next is the truth.

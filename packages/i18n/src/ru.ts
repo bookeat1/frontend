@@ -395,6 +395,9 @@ export const ru = {
     submitting: "Бронируем…",
     signInToConfirm: "Войти и забронировать",
     signInGateNote: "Бронь оформляется на аккаунт — так вы сможете её отменить или изменить",
+    createErrorDuplicateTitle: "Похоже, бронь уже создана",
+    createErrorDuplicateDescription:
+      "Ваш запрос уже дошёл до ресторана. Проверьте свои брони, прежде чем оформлять ещё одну — иначе стол займут дважды.",
     createErrorConflictTitle: "Это время только что заняли",
     createErrorConflictDescription: "Выберите другое время — список уже обновлён",
     createErrorValidationTitle: "Не получилось забронировать",
