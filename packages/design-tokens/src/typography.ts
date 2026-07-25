@@ -6,12 +6,28 @@ import { fontFamilies } from "./fonts";
  * do not add sizes that aren't backed by a real node.
  */
 export const typography = {
+  /** Venue name on the Reservation detail screen (node 488:9876) — the one
+   * place the design goes above 20pt. */
+  titleXl: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 22,
+    lineHeight: 30,
+    letterSpacing: -0.5,
+  },
   /** Section/screen titles: "Flour Demi", "О ресторане", "Популярное в меню", "Контакты". */
   titleLg: {
     fontFamily: fontFamilies.notoSansBold,
     fontSize: 20,
     lineHeight: 28,
     letterSpacing: -0.5,
+  },
+  /** Card headings on the Reservation detail screen ("What happens next?",
+   * "Contacts") — bold 18, one step below the venue name (node 488:9876). */
+  titleCard: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 18,
+    lineHeight: 26,
+    letterSpacing: -0.3,
   },
   /** Screen header titles ("Фотографии") and photo counter ("4 из 6"). */
   titleMd: {

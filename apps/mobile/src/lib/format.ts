@@ -93,6 +93,31 @@ export function formatTime(iso: string): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
+/**
+ * "Сегодня" / "Завтра" / "28 июля" — the day part of a booking's one-line
+ * summary. Relative wording only for the two days a guest actually thinks
+ * about relatively; anything further is a plain date, because "через 4 дня"
+ * forces mental arithmetic the calendar already did.
+ *
+ * `now` is injectable so the caller can pass a stable value and the string
+ * can be reasoned about; it defaults to the real clock.
+ */
+export function formatRelativeDay(iso: string, now: Date = new Date()): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  if (isSameDay(date, now)) return "Сегодня";
+  if (isSameDay(date, addDays(now, 1))) return "Завтра";
+  return formatDayMonth(date);
+}
+
+/** "Сегодня, 19:00" / "28 июля, 19:00" — used in the cancellation dialog,
+ * where the guest must be able to read a deadline without ambiguity. */
+export function formatRelativeDateTime(iso: string, now: Date = new Date()): string {
+  const day = formatRelativeDay(iso, now);
+  if (!day) return "";
+  return `${day}, ${formatTime(iso)}`;
+}
+
 /** "28 июля, 19:00" — the one-line "when" of a booking. */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);

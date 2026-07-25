@@ -72,6 +72,11 @@ export interface Restaurant {
   /** Short landmark note shown under the address, e.g. "Напротив Меги". */
   addressNote?: string;
   city: string;
+  /** WGS84 coordinates, real values from `latitude`/`longitude` on the
+   * detail endpoint. Undefined when the venue has none — the caller must hide
+   * the "open in maps" affordance rather than send a broken geo: URL. */
+  latitude?: number;
+  longitude?: number;
   distanceMeters?: number;
   phone?: string;
   social?: RestaurantSocialLinks;
@@ -209,6 +214,29 @@ export type BookingStatus =
   | "cancelled"
   | "no_show";
 
+/**
+ * The statuses from which `POST /bookings/:id/cancel` is legal, transcribed
+ * from `bookingTransitions` in backend-core/internal/domain/booking.go
+ * (every entry whose target set contains `cancelled`). `completed`,
+ * `cancelled` and `no_show` are terminal — asking to cancel one answers
+ * 422 "invalid status transition".
+ *
+ * There is deliberately NO time component: since the free-cancel-window
+ * consolidation, a guest may cancel at any moment and the deadline only
+ * decides whether the deposit comes back (usecase/bookings/status.go,
+ * authorizeTransition).
+ */
+export const CANCELLABLE_BOOKING_STATUSES = [
+  "pending",
+  "waitlist",
+  "confirmed",
+  "arrived",
+] as const;
+
+export function isCancellableBookingStatus(status: BookingStatus): boolean {
+  return (CANCELLABLE_BOOKING_STATUSES as readonly BookingStatus[]).includes(status);
+}
+
 export interface Booking {
   id: string;
   restaurantId: string;
@@ -222,6 +250,47 @@ export interface Booking {
   notes: string | null;
   /** Absolute moment free cancellation ends; null when it no longer applies. */
   freeCancelDeadline: string | null;
+}
+
+/**
+ * Cancellation metadata the guest may attach. Both fields are optional on the
+ * backend (`cancelRequest` in internal/transport/rest/bookings/request.go
+ * binds an optional body), so an empty `{}` is a valid cancel.
+ */
+export interface CancelBookingInput {
+  reasonCode?: string;
+  reason?: string;
+}
+
+/** Payment lifecycle as the backend spells it (domain.PaymentStatus). */
+export type PaymentStatus =
+  | "created"
+  | "authorized"
+  | "capturing"
+  | "captured"
+  | "voiding"
+  | "voided"
+  | "partially_refunded"
+  | "refunded"
+  | "failed"
+  | "expired";
+
+/** What the money is for (domain.PaymentPurpose). */
+export type PaymentPurpose = "deposit" | "preorder" | "ticket";
+
+/**
+ * The booking's live payment, from `GET /bookings/:id/payment`. The endpoint
+ * answers 404 when there is none, which the repository turns into `null` —
+ * "this booking costs nothing to cancel" is a normal state, not an error.
+ */
+export interface BookingPayment {
+  id: string;
+  bookingId: string;
+  purpose: PaymentPurpose;
+  status: PaymentStatus;
+  /** Minor units (tiyn). Never a float, never formatted server-side. */
+  amountMinor: number;
+  currency: string;
 }
 
 export interface CreateBookingInput {

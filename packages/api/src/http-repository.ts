@@ -4,6 +4,7 @@ import {
   mapAvailability,
   mapBooking,
   mapMenuSections,
+  mapPayment,
   mapPreorder,
   mapRestaurantDetail,
   mapRestaurantSummary,
@@ -13,6 +14,7 @@ import {
   type ApiAvailability,
   type ApiBooking,
   type ApiMenuItem,
+  type ApiPayment,
   type ApiPreorder,
   type ApiPromo,
   type ApiRestaurant,
@@ -26,6 +28,8 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPayment,
+  CancelBookingInput,
   CreateBookingInput,
   Cuisine,
   DayAvailability,
@@ -303,6 +307,46 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       { auth: true },
     );
     return mapPreorder(api);
+  }
+
+  /**
+   * POST /bookings/:id/cancel. The body is optional server-side; `{}` is sent
+   * when the guest gave no reason so the request always has a valid JSON body.
+   *
+   * Deliberately NO Idempotency-Key: this endpoint does not honour one (only
+   * POST /bookings does), and a replayed cancel answers 422 "invalid status
+   * transition" rather than 200. Single-flight is the caller's job.
+   */
+  async cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking> {
+    const api = await this.client.post<ApiBooking>(
+      `/bookings/${encodeURIComponent(bookingId)}/cancel`,
+      {
+        reason_code: input?.reasonCode?.trim() ? input.reasonCode.trim() : undefined,
+        reason: input?.reason?.trim() ? input.reason.trim() : undefined,
+      },
+      { auth: true },
+    );
+    return mapBooking(api);
+  }
+
+  /**
+   * GET /bookings/:id/payment. A booking with no deposit / pre-payment answers
+   * 404, which is the NORMAL case on this deployment today — it is turned into
+   * `null`, not thrown, so "nothing to lose" and "the request failed" stay
+   * distinguishable at the call site. Every other failure still throws.
+   */
+  async getBookingPayment(bookingId: string): Promise<BookingPayment | null> {
+    try {
+      const api = await this.client.get<ApiPayment>(
+        `/bookings/${encodeURIComponent(bookingId)}/payment`,
+        undefined,
+        { auth: true },
+      );
+      return mapPayment(api);
+    } catch (error) {
+      if (error instanceof RepositoryError && error.isNotFound) return null;
+      throw error;
+    }
   }
 }
 

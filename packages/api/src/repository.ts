@@ -2,6 +2,8 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPayment,
+  CancelBookingInput,
   CreateBookingInput,
   Cuisine,
   DayAvailability,
@@ -70,6 +72,34 @@ export interface RestaurantRepository {
 
   /** The booking's current pre-order. Requires a session. */
   getPreorder(bookingId: string): Promise<Preorder>;
+
+  /**
+   * Cancels one of the caller's own bookings (`POST /bookings/:id/cancel`).
+   * Requires a session.
+   *
+   * There is no "too late to cancel" gate any more (see authorizeTransition in
+   * internal/usecase/bookings/status.go): a guest may cancel at any time and
+   * the deadline only decides the MONEY. A booking already in a terminal state
+   * (cancelled / completed / no_show) answers 422 "invalid status transition";
+   * see RepositoryError.isInvalidStatusTransition.
+   *
+   * NOT idempotent on the server, so the caller must guarantee a single
+   * in-flight request per booking.
+   *
+   * The response is the plain booking payload, which — unlike GET
+   * /bookings/:id — carries NO `free_cancel_deadline` (verified against the
+   * live test API on 2026-07-25), so the returned Booking always has
+   * `freeCancelDeadline: null`. Callers that merge into a cache must keep the
+   * value they already had rather than overwriting it with null.
+   */
+  cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking>;
+
+  /**
+   * The booking's live payment, or `null` when there is none (the endpoint
+   * answers 404 in that case, and "no deposit" is the common case today).
+   * Requires a session for a booking that belongs to an account.
+   */
+  getBookingPayment(bookingId: string): Promise<BookingPayment | null>;
 }
 
 /**
@@ -134,5 +164,25 @@ export class RepositoryError extends Error {
    * has since fallen inside the lead window, too many guests). */
   get isValidation(): boolean {
     return this.status === 422;
+  }
+
+  /**
+   * The 422 that means "the booking is not in a state from which this
+   * transition is legal" — `domain.ErrInvalidStatus`, rendered by
+   * response.classify as the fixed string "invalid status transition"
+   * (verified live: a second cancel of the same booking answers exactly that).
+   *
+   * For a cancel this almost always means the booking is ALREADY cancelled,
+   * which is a success from the guest's point of view — but the message alone
+   * cannot distinguish it from "already completed", so the caller must re-read
+   * the booking and decide on the real status, never on this flag alone.
+   */
+  get isInvalidStatusTransition(): boolean {
+    return this.status === 422 && (this.serverMessage ?? "").toLowerCase().includes("invalid status");
+  }
+
+  /** The resource does not exist (or is not visible to this session). */
+  get isNotFound(): boolean {
+    return this.status === 404;
   }
 }

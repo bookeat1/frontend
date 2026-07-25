@@ -27,6 +27,7 @@ import {
   WarningCircle,
   WhatsappLogo,
   X,
+  XCircle,
   type IconProps,
 } from "phosphor-react-native";
 
@@ -51,6 +52,10 @@ import {
  * pills, CaretDown in those pills, X as the screen's close control. The rest
  * (CaretLeft/Right, CheckCircle, ForkKnife, Info, Minus, Plus, Users, Note,
  * WarningCircle) are still ours and must be reconciled with the design.
+ *
+ * XCircle is the circled X drawn to the left of the "Cancel" label on the
+ * Reservation detail screen (node 488:9876) — read off the reference render
+ * design-ref/screen-cancel-1.png, which has no per-node spec.
  */
 export type { IconProps };
 export {
@@ -82,4 +87,5 @@ export {
   WarningCircle,
   WhatsappLogo,
   X,
+  XCircle,
 };

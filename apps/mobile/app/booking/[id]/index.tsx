@@ -1,38 +1,79 @@
-import type { BookingStatus } from "@bookeat/api";
+import { isCancellableBookingStatus, RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BookingCard } from "../../../src/components/booking/BookingCard";
+import { CancelBookingDialog } from "../../../src/components/booking/CancelBookingDialog";
+import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
+import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
+import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
+import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
 import { FlowHeader } from "../../../src/components/FlowHeader";
-import { CheckCircle, Clock, Note, Users, WarningCircle } from "../../../src/components/icons";
+import { XCircle } from "../../../src/components/icons";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
-import { useBooking, usePreorder } from "../../../src/hooks/useBooking";
-import { formatDateTime, formatMoneyMinor } from "../../../src/lib/format";
+import {
+  useBooking,
+  useBookingPayment,
+  useCancelBooking,
+  usePreorder,
+} from "../../../src/hooks/useBooking";
+import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { formatMoneyMinor } from "../../../src/lib/format";
 
 const t = getDictionary();
 
 /**
- * Confirmation.
+ * Reservation — the guest's view of one booking, and the entry point to
+ * cancelling it (Figma file oPxXynSOY3PYhf3gkVR5Ps, section "Reservation
+ * Cancel Flow", node 488:9876).
  *
- * The booking is re-read from the server rather than trusting what the create
- * call returned, so a manually-confirmed venue that answered `pending` and a
- * venue that auto-confirms both show the truth after a pull-to-refresh, and a
- * deep link into this screen works with no create call at all.
+ * The booking is re-read from the server rather than trusting whatever the
+ * create call returned: a venue that auto-confirms and one that answers
+ * `pending` must both show the truth, and a deep link into this screen works
+ * with no create call at all.
  *
- * `preorderFailed=1` is passed by the reservation screen when the booking was
+ * Four states, all present: loading / error (with retry) / the booking / the
+ * cancelled booking. There is no "empty" — a booking id either resolves or it
+ * doesn't, and a 404 is the error state.
+ *
+ * Two independent queries feed the screen. Only the BOOKING may fail it: the
+ * venue read (name, photo, contacts, coordinates) degrades to a header with no
+ * photo and no contacts card, because a broken catalog request must not hide a
+ * guest's own reservation.
+ *
+ * `preorderFailed=1` is passed by the reservation flow when the booking was
  * created but attaching the pre-order failed. That is NOT a failed booking —
- * the table is held — so it renders as a notice, not as an error state over
- * the whole screen.
+ * the table is held — so it renders as a notice, not as an error state.
  */
-export default function BookingConfirmationScreen() {
+export default function ReservationScreen() {
   const { id, preorderFailed } = useLocalSearchParams<{ id: string; preorderFailed?: string }>();
   const router = useRouter();
+
   const booking = useBooking(id);
+  const restaurant = useRestaurant(booking.data?.restaurantId);
   const preorder = usePreorder(id);
-  const showPreorderWarning = preorderFailed === "1";
+
+  const canCancel = booking.data ? isCancellableBookingStatus(booking.data.status) : false;
+  const payment = useBookingPayment(id, canCancel);
+  const cancel = useCancelBooking();
+
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
+
+  const restaurantId = booking.data?.restaurantId;
+  // "Leave this screen". The flow that led here was replaced, so when there is
+  // nothing to pop we go to the venue rather than dead-ending.
+  const leave = React.useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(restaurantId ? `/restaurant/${restaurantId}` : "/");
+  }, [router, restaurantId]);
 
   if (booking.isPending) {
     return (
@@ -56,79 +97,58 @@ export default function BookingConfirmationScreen() {
   }
 
   const data = booking.data;
-  const { title, subtitle, tone } = headline(data.status);
+  // undefined = we could not find out (the request failed); null = there is
+  // none. The dialog says something different for each.
+  const paymentValue = payment.isError ? undefined : payment.data;
+  const { text: consequence } = describeCancellationCost({ booking: data, payment: paymentValue });
+  // Don't offer a decision the guest can't yet make honestly: while the
+  // payment check is still running there is no money sentence to show.
+  const cancelReady = !canCancel || !payment.isPending;
+
+  const onConfirmCancel = () => {
+    setCancelError(null);
+    cancel.mutate(
+      { bookingId: data.id },
+      {
+        onSuccess: () => setDialogOpen(false),
+        onError: (error) => setCancelError(cancelErrorMessage(error)),
+      },
+    );
+  };
 
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+        {/* Back appears only when there IS history to go back to — the design's
+            pending frame has an arrow and the confirmed one does not; the
+            honest rule behind that difference is "keep back when the screen has
+            history". The X always leaves. */}
         <FlowHeader
           title={t.booking.title}
-          // The flow that led here was replaced, so "назад" must not walk back
-          // into a submitted form. Go to the venue instead.
-          onBack={() => router.replace(`/restaurant/${data.restaurantId}`)}
+          onBack={router.canGoBack() ? () => router.back() : undefined}
+          onClose={leave}
         />
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          {tone === "positive" ? (
-            <CheckCircle size={64} color={colors.brand.primary} weight="fill" />
-          ) : (
-            <WarningCircle size={64} color={colors.text.muted} weight="regular" />
-          )}
-          <Text style={styles.heroTitle} accessibilityRole="header">
-            {title}
-          </Text>
-          <Text style={styles.heroSubtitle}>{subtitle}</Text>
-        </View>
+        <ReservationHeaderCard booking={data} restaurant={restaurant.data} />
 
-        <View style={styles.card}>
-          <DetailRow
-            icon={Clock}
-            label={t.booking.whenLabel}
-            value={formatDateTime(data.startsAt)}
-          />
-          <DetailRow
-            icon={Users}
-            label={t.booking.guestsSectionTitle}
-            value={t.booking.guestsCount(data.guests)}
-          />
-          <DetailRow
-            icon={Note}
-            label={t.booking.whoLabel}
-            value={`${data.name}${data.phone ? `, ${data.phone}` : ""}`}
-          />
-          <DetailRow
-            icon={CheckCircle}
-            label={t.booking.statusLabel}
-            value={t.booking.status[data.status]}
-          />
-          {data.notes ? (
-            <DetailRow icon={Note} label={t.booking.notesLabel} value={data.notes} />
-          ) : null}
-        </View>
+        <WhatHappensNextCard status={data.status} />
 
-        {data.freeCancelDeadline ? (
-          <Text style={styles.freeCancel}>
-            {t.booking.freeCancelUntil(formatDateTime(data.freeCancelDeadline))}
-          </Text>
-        ) : null}
-
-        {/* The booking itself succeeded — the table is held. Only attaching
-            the pre-order failed (already retried once inside the mutation).
-            There is deliberately NO retry button here: the flow's draft is
-            gone by this point, so a button labelled "повторить" would have
-            nothing to send. Re-ordering needs a booking-scoped menu screen,
-            which does not exist yet. */}
-        {showPreorderWarning ? (
-          <View style={styles.notice} accessibilityRole="alert">
-            <Text style={styles.noticeText}>{t.booking.preorderSaveFailed}</Text>
-          </View>
+        {/* The booking itself succeeded — the table is held. Only attaching the
+            pre-order failed (already retried once inside the mutation). There
+            is deliberately NO retry button: the flow's draft is gone by this
+            point, so a button labelled "повторить" would have nothing to send. */}
+        {preorderFailed === "1" ? (
+          <BookingCard style={styles.notice}>
+            <Text style={styles.noticeText} accessibilityRole="alert">
+              {t.booking.preorderSaveFailed}
+            </Text>
+          </BookingCard>
         ) : null}
 
         {preorder.data && preorder.data.items.length > 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t.booking.preorderSectionTitle}</Text>
+          <BookingCard title={t.booking.preorderSectionTitle}>
             {preorder.data.items.map((item) => (
               <View key={item.id} style={styles.preorderRow}>
                 <Text style={styles.preorderName} numberOfLines={2}>
@@ -138,75 +158,69 @@ export default function BookingConfirmationScreen() {
               </View>
             ))}
             <View style={styles.preorderRow}>
-              <Text style={styles.preorderTotalLabel}>{t.booking.preorderSectionTitle}</Text>
+              <Text style={styles.preorderTotalLabel}>{t.booking.preorderTotalEstimate}</Text>
               <Text style={styles.preorderTotalValue}>
                 {formatMoneyMinor(preorder.data.totalMinor)}
               </Text>
             </View>
-          </View>
+          </BookingCard>
         ) : null}
 
-        <PrimaryButton
-          label={t.booking.whatsNext}
-          variant="secondary"
-          onPress={() => router.push(`/booking/${data.id}/next`)}
-        />
-        <PrimaryButton
-          label={t.booking.backToVenue}
-          variant="secondary"
-          onPress={() => router.replace(`/restaurant/${data.restaurantId}`)}
-        />
+        {restaurant.data && hasAnyContact(restaurant.data) ? (
+          <ContactsCard restaurant={restaurant.data} />
+        ) : null}
       </ScrollView>
+
+      {/* The bar exists only while the booking can actually be cancelled — per
+          the backend's own transition table (pending / waitlist / confirmed /
+          arrived), not a guess. A cancelled or completed booking gets no footer
+          at all rather than a permanently disabled button. */}
+      {canCancel ? (
+        <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
+          <View style={styles.footer}>
+            <PrimaryButton
+              label={t.booking.cancelBooking}
+              variant="secondary"
+              size="lg"
+              icon={XCircle}
+              disabled={!cancelReady || cancel.isPending}
+              onPress={() => {
+                setCancelError(null);
+                setDialogOpen(true);
+              }}
+            />
+          </View>
+        </SafeAreaView>
+      ) : null}
+
+      <CancelBookingDialog
+        visible={dialogOpen}
+        consequence={consequence}
+        pending={cancel.isPending}
+        error={cancelError}
+        onConfirm={onConfirmCancel}
+        onDismiss={() => {
+          setCancelError(null);
+          setDialogOpen(false);
+        }}
+      />
     </View>
   );
 }
 
-function headline(status: BookingStatus): {
-  title: string;
-  subtitle: string;
-  tone: "positive" | "neutral";
-} {
-  switch (status) {
-    case "confirmed":
-    case "arrived":
-    case "completed":
-      return {
-        title: t.booking.confirmedTitle,
-        subtitle: t.booking.confirmedSubtitle,
-        tone: "positive",
-      };
-    case "cancelled":
-    case "no_show":
-      return {
-        title: t.booking.cancelledTitle,
-        subtitle: t.booking.cancelledSubtitle,
-        tone: "neutral",
-      };
-    default:
-      // pending / waitlist: the request landed, the venue has not answered.
-      // Saying "столик забронирован" here would be a promise we can't keep.
-      return { title: t.booking.pendingTitle, subtitle: t.booking.pendingSubtitle, tone: "neutral" };
+/**
+ * The backend's `error` string is English and written for developers, so the
+ * message is chosen by HTTP status and never printed. 403 is the venue-only
+ * case (a guest may cancel at any time, so in practice it means the booking is
+ * not theirs); a 422 that survived the already-cancelled re-read means the
+ * booking is in some other terminal state.
+ */
+function cancelErrorMessage(error: unknown): string {
+  if (error instanceof RepositoryError) {
+    if (error.status === 403) return t.booking.cancelErrorForbidden;
+    if (error.isInvalidStatusTransition || error.isNotFound) return t.booking.cancelErrorGone;
   }
-}
-
-function DetailRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ size: number; color: string; weight?: "regular" }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.detailRow}>
-      <Icon size={20} color={colors.text.muted} weight="regular" />
-      <View style={styles.detailText}>
-        <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>{value}</Text>
-      </View>
-    </View>
-  );
+  return t.booking.cancelErrorDescription;
 }
 
 const styles = StyleSheet.create({
@@ -221,64 +235,13 @@ const styles = StyleSheet.create({
   headerSafeArea: {
     backgroundColor: colors.background.surface,
   },
+  // Full-bleed cards separated by 8 of screen background — the stacking rule
+  // the rest of the booking flow already follows.
   content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.huge,
-    gap: spacing.lg,
-  },
-  hero: {
-    alignItems: "center",
+    paddingBottom: spacing.xxl,
     gap: spacing.sm,
-    paddingVertical: spacing.xxl,
-  },
-  heroTitle: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-    textAlign: "center",
-  },
-  heroSubtitle: {
-    ...typography.body,
-    color: colors.text.muted,
-    textAlign: "center",
-  },
-  card: {
-    backgroundColor: colors.background.surface,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-    gap: spacing.lg,
-  },
-  cardTitle: {
-    ...typography.titleMd,
-    color: colors.text.primary,
-  },
-  detailRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-    alignItems: "flex-start",
-  },
-  // flex:1 so a long note or a long name wraps instead of overflowing at 360px.
-  detailText: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  detailLabel: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  detailValue: {
-    ...typography.labelSemiBold,
-    color: colors.text.primary,
-  },
-  freeCancel: {
-    ...typography.caption,
-    color: colors.text.muted,
-    textAlign: "center",
   },
   notice: {
-    backgroundColor: colors.background.surface,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-    gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.brand.primary,
   },
@@ -308,5 +271,19 @@ const styles = StyleSheet.create({
   preorderTotalValue: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
+  },
+  footerSafeArea: {
+    backgroundColor: colors.background.surface,
+  },
+  footer: {
+    padding: spacing.lg,
+    backgroundColor: colors.background.surface,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    elevation: 8,
   },
 });

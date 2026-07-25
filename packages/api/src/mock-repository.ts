@@ -6,11 +6,14 @@ import {
   toSummary,
 } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
+import { isCancellableBookingStatus } from "./types";
 import type {
   AuthSession,
   AuthUser,
   AvailabilitySlot,
   Booking,
+  BookingPayment,
+  CancelBookingInput,
   CreateBookingInput,
   Cuisine,
   DayAvailability,
@@ -252,7 +255,47 @@ export class MockRestaurantRepository implements RestaurantRepository {
       this.preorders.get(bookingId) ?? { bookingId, items: [], totalMinor: 0, currency: "KZT" }
     );
   }
+
+  /**
+   * Mirrors the backend's state machine, including the part that matters most
+   * to the UI: cancelling an ALREADY terminal booking fails with the same 422
+   * "invalid status transition" the real API answers, so the screen's
+   * already-cancelled branch can be exercised with no backend at all.
+   */
+  async cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking> {
+    await this.simulateNetwork();
+    const booking = this.bookings.get(bookingId);
+    if (!booking) {
+      throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
+    }
+    if (!isCancellableBookingStatus(booking.status)) {
+      throw new RepositoryError(
+        `Booking ${bookingId} is ${booking.status}`,
+        undefined,
+        422,
+        "invalid status transition",
+      );
+    }
+    void input;
+    // The real endpoint returns the plain booking payload, which carries no
+    // free_cancel_deadline — reproduced here so callers cannot accidentally
+    // depend on it surviving a cancel.
+    const cancelled: Booking = { ...booking, status: "cancelled", freeCancelDeadline: null };
+    this.bookings.set(bookingId, cancelled);
+    return cancelled;
+  }
+
+  /** The mock has no payments at all, which is also the common live case: the
+   * endpoint answers 404 for a booking with no deposit. */
+  async getBookingPayment(bookingId: string): Promise<BookingPayment | null> {
+    await this.simulateNetwork();
+    if (!this.bookings.has(bookingId)) {
+      throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
+    }
+    return null;
+  }
 }
+
 
 const MOCK_TIMEZONE = "Asia/Almaty";
 const SLOT_DURATION_MINUTES = 90;
