@@ -178,6 +178,29 @@ export interface AuthRepository {
   getMe(): Promise<AuthUser>;
 }
 
+/**
+ * The outcome behind a 409 on the booking endpoints, once the machine-readable
+ * `code` of the error envelope has been read.
+ *
+ * The three narrow values come straight from the backend (`domain.WithCode`,
+ * added 2026-07-25); `"unknown"` is what an older server build gives us, where
+ * every one of them was the same byte-identical
+ * `409 {"error":"already exists"}` and the client CANNOT tell them apart.
+ * It is a distinct value on purpose — not folded into any of the others — so a
+ * caller is forced to decide what to do when the answer is genuinely unknown.
+ */
+export type BookingConflictKind =
+  /** Nobody booked anything: the time was taken between loading availability
+   * and submitting (also: an external hold, and PATCH /bookings/:id). */
+  | "slot_taken"
+  /** Nobody booked anything: the party does not fit at that time. */
+  | "no_table_available"
+  /** The EARLIER submit went through — a booking exists. Answered when the
+   * same Idempotency-Key arrives with a different body. */
+  | "idempotency_key_reused"
+  /** The server did not say. Could be either of the two above. */
+  | "unknown";
+
 export class RepositoryError extends Error {
   constructor(
     message: string,
@@ -188,6 +211,13 @@ export class RepositoryError extends Error {
     /** The backend's own English `error` string. For logs only — never render
      * it: the app's UI is Russian and this text is written for developers. */
     public readonly serverMessage?: string,
+    /**
+     * The machine-readable `code` of the error envelope, when the server sent
+     * one (`response.Envelope.code`, additive since 2026-07-25). Unlike
+     * `serverMessage` this IS a contract: branch on it, never on the text.
+     * `undefined` on an older server build and on transport failures.
+     */
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "RepositoryError";
@@ -199,20 +229,28 @@ export class RepositoryError extends Error {
     return this.status === 401;
   }
 
-  /** The slot was taken (or the venue has no table that fits) between loading
-   * availability and submitting. Recoverable by picking another time. */
-  get isSlotConflict(): boolean {
-    return this.status === 409 && !this.isDuplicateSubmit;
-  }
-
-  /** A 409 that means "this exact request already created something", not
-   * "somebody else took the slot". The backend answers it when an
-   * Idempotency-Key is replayed with a DIFFERENT body — i.e. the booking very
-   * probably EXISTS. The two conflicts demand opposite reactions, so they must
-   * never share a branch: treating this one as a lost slot walks the guest into
-   * booking a second table. */
-  get isDuplicateSubmit(): boolean {
-    return this.status === 409 && (this.serverMessage ?? "").toLowerCase().includes("already exists");
+  /**
+   * Which of the mutually exclusive booking conflicts this 409 is, or `null`
+   * when the failure is not a 409 at all.
+   *
+   * Two of them demand OPPOSITE reactions — "your time is gone, pick another"
+   * versus "you already have this booking, do not send it again" — and until
+   * the backend gained `code` they were byte-identical on the wire. Anything
+   * the server does not label narrowly stays `"unknown"`: guessing here is how
+   * a guest gets told they hold a table that was never booked.
+   */
+  get bookingConflict(): BookingConflictKind | null {
+    if (this.status !== 409) return null;
+    switch (this.code) {
+      case "slot_taken":
+      case "no_table_available":
+      case "idempotency_key_reused":
+        return this.code;
+      // "already_exists" (the generic sentinel code) and no code at all are
+      // the same thing to us: the server did not disambiguate.
+      default:
+        return "unknown";
+    }
   }
 
   /** The server refused the payload. Almost always a stale draft (a time that

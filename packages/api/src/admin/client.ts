@@ -26,6 +26,10 @@ import type {
 interface Envelope<T> {
   data?: T;
   error?: string;
+  /** Machine-readable failure code (additive since 2026-07-25, omitted by
+   * older builds). Surfaced on AdminApiError.code — branch on this, never on
+   * the `error` text. */
+  code?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 12000;
@@ -120,6 +124,8 @@ export class AdminApiClient {
       throw new AdminApiError(
         body?.error ?? `Server error ${response.status} requesting ${path}`,
         response.status,
+        undefined,
+        body?.code,
       );
     }
 
@@ -413,8 +419,14 @@ export class AdminApiError extends RepositoryError {
     message: string,
     public readonly status: number,
     cause?: unknown,
+    /** `response.Envelope.code`, when the server sent one. Same contract as on
+     * RepositoryError: optional, additive, the only safe thing to branch on. */
+    code?: string,
   ) {
-    super(message, cause);
+    // `status` is redeclared above (it is required here, optional on the
+    // base), so the base copies of status/serverMessage stay undefined exactly
+    // as before — only `code` is new.
+    super(message, cause, undefined, undefined, code);
     this.name = "AdminApiError";
   }
 }

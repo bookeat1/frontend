@@ -1,4 +1,4 @@
-import type { AvailabilitySlot } from "@bookeat/api";
+import type { AvailabilitySlot, BookingConflictKind } from "@bookeat/api";
 import { RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -29,6 +29,16 @@ interface FieldErrors {
   phone?: string;
 }
 
+/** What the guest is shown after a failed submit. `action` is the way out of
+ * the failure (their bookings list, the party-size picker); `blocksSubmit`
+ * means we KNOW a booking already exists, so the button must not fire again. */
+interface SubmitError {
+  title: string;
+  description: string;
+  action?: { label: string; onPress: () => void };
+  blocksSubmit?: boolean;
+}
+
 /** Deliberately loose: KZ mobile numbers are 11 digits, but guests paste all
  * sorts of formatting and a foreign number is legitimate. We only refuse
  * something that cannot be a phone at all — the venue calls the number, the
@@ -56,9 +66,7 @@ export default function ReservationScreen() {
   const createBooking = useCreateBooking();
 
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState<{ title: string; description: string } | null>(
-    null,
-  );
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null);
 
   // Prefill from the account once it is known, without touching anything the
   // guest has already typed (see prefillContact).
@@ -107,6 +115,78 @@ export default function ReservationScreen() {
     return !next.name && !next.phone;
   };
 
+  const goToMyBookings = () => router.push("/bookings");
+
+  /**
+   * The four ways POST /bookings can answer 409, and the only two questions
+   * that matter for each: does the guest have a booking, and may they submit
+   * again?
+   *
+   * IDEMPOTENCY-KEY, per branch:
+   *   - slot_taken / no_table_available — no booking exists. The selected time
+   *     is cleared, and clearing it rotates the key (BookingDraftProvider
+   *     rotates on any change to the request body: venue, day, party size,
+   *     slot, contacts). The guest's next submit is a genuinely new request.
+   *   - idempotency_key_reused — a booking DOES exist. Nothing about the draft
+   *     is touched, so the key does NOT rotate, and the submit button is
+   *     locked on top of that: rotating the key and resending is exactly what
+   *     would produce a second table.
+   *   - unknown — the draft is frozen for the same reason. Because the key
+   *     stays put, pressing "Забронировать" again resolves the ambiguity
+   *     safely by itself: if the earlier submit did go through, the backend
+   *     replays that same booking (identical body + identical key); if it did
+   *     not, the request is simply attempted again.
+   */
+  const handleBookingConflict = (conflict: BookingConflictKind) => {
+    switch (conflict) {
+      case "slot_taken":
+        // No booking was created. The slot went while the guest was typing:
+        // drop it and refetch so the grid they look at next is the truth.
+        draft.setSlot(null);
+        void availability.refetch();
+        setSubmitError({
+          title: t.booking.createErrorConflictTitle,
+          description: t.booking.createErrorConflictDescription,
+        });
+        return;
+      case "no_table_available":
+        // No booking either — but picking another time is not the only fix,
+        // a smaller party may still fit, so offer that route explicitly.
+        draft.setSlot(null);
+        void availability.refetch();
+        setSubmitError({
+          title: t.booking.createErrorNoTableTitle,
+          description: t.booking.createErrorNoTableDescription(draft.guests),
+          action: {
+            label: t.booking.createErrorChangeGuests,
+            onPress: () => router.push(`/restaurant/${id}/book/guests`),
+          },
+        });
+        return;
+      case "idempotency_key_reused":
+        // The OPPOSITE of a lost slot: this exact request already produced a
+        // booking. Keep the draft intact and stop the flow here.
+        setSubmitError({
+          title: t.booking.createErrorDuplicateTitle,
+          description: t.booking.createErrorDuplicateDescription,
+          action: { label: t.booking.createErrorOpenMyBookings, onPress: goToMyBookings },
+          blocksSubmit: true,
+        });
+        return;
+      case "unknown":
+        // An older server build: the same 409 covers both outcomes and we
+        // cannot tell them apart. Say nothing we do not know — claiming a
+        // booking that does not exist is what makes a guest not turn up —
+        // and send them to check. The draft is left exactly as it is.
+        setSubmitError({
+          title: t.booking.createErrorAmbiguousTitle,
+          description: t.booking.createErrorAmbiguousDescription,
+          action: { label: t.booking.createErrorOpenMyBookings, onPress: goToMyBookings },
+        });
+        return;
+    }
+  };
+
   const handleSubmit = () => {
     setSubmitError(null);
     if (!draft.slot || !id) return;
@@ -148,27 +228,15 @@ export default function ReservationScreen() {
             router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
             return;
           }
-          if (error instanceof RepositoryError && error.isDuplicateSubmit) {
-            // NOT "the slot is gone" — the opposite. The server is saying this
-            // exact request already produced a booking. Clearing the slot here
-            // (as this branch used to) sent the guest off to pick another time
-            // and quietly gave them a SECOND table while they believed they had
-            // none. Keep everything and tell them to check their bookings.
-            setSubmitError({
-              title: t.booking.createErrorDuplicateTitle,
-              description: t.booking.createErrorDuplicateDescription,
-            });
-            return;
-          }
-          if (error instanceof RepositoryError && error.isSlotConflict) {
-            // The slot went while the guest was typing. Drop it and refetch so
-            // the grid they look at next is the truth.
-            draft.setSlot(null);
-            void availability.refetch();
-            setSubmitError({
-              title: t.booking.createErrorConflictTitle,
-              description: t.booking.createErrorConflictDescription,
-            });
+          // A 409 is FOUR different outcomes, told apart only by the server's
+          // machine-readable `code` (never by the English message, which is
+          // the same "already exists" for all of them). Two of them mean the
+          // guest has NO booking, one means they DO, and the fourth is an
+          // older server build that will not say which.
+          const conflict =
+            error instanceof RepositoryError ? error.bookingConflict : null;
+          if (conflict) {
+            handleBookingConflict(conflict);
             return;
           }
           if (error instanceof RepositoryError && error.isValidation) {
@@ -188,7 +256,11 @@ export default function ReservationScreen() {
   };
 
   const submitting = createBooking.isPending;
-  const canSubmit = Boolean(draft.slot) && !submitting;
+  // `blocksSubmit` is set only when the server told us a booking already
+  // exists. It is deliberately NOT cleared by editing the form: any edit
+  // rotates the Idempotency-Key, so an "edit and resend" is what would create
+  // the second table. The way out is the bookings list.
+  const canSubmit = Boolean(draft.slot) && !submitting && !submitError?.blocksSubmit;
 
   return (
     <View style={styles.root}>
@@ -369,6 +441,13 @@ export default function ReservationScreen() {
             <View style={styles.submitError} accessibilityRole="alert">
               <Text style={styles.submitErrorTitle}>{submitError.title}</Text>
               <Text style={styles.submitErrorText}>{submitError.description}</Text>
+              {submitError.action ? (
+                <PrimaryButton
+                  label={submitError.action.label}
+                  onPress={submitError.action.onPress}
+                  variant="secondary"
+                />
+              ) : null}
             </View>
           ) : null}
         </ScrollView>
