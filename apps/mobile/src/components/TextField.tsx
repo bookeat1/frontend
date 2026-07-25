@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React, { useId } from "react";
 import {
   StyleSheet,
@@ -11,6 +11,11 @@ import {
 
 interface TextFieldProps {
   label: string;
+  /** Hides the visible label but keeps it as the spoken one. The design's
+   * "Special Requests" box is a bare rounded field whose card title already
+   * names it (Figma node 471:3946) — a second label above it would be a
+   * duplicate for sighted users and nothing for screen readers. */
+  labelHidden?: boolean;
   value: string;
   onChangeText: (value: string) => void;
   placeholder?: string;
@@ -38,6 +43,7 @@ interface TextFieldProps {
  */
 export function TextField({
   label,
+  labelHidden = false,
   value,
   onChangeText,
   placeholder,
@@ -56,7 +62,7 @@ export function TextField({
   const errorId = useId();
   return (
     <View style={styles.root}>
-      <Text style={styles.label}>{label}</Text>
+      {labelHidden ? null : <Text style={styles.label}>{label}</Text>}
       <TextInput
         style={[styles.input, multiline && styles.inputMultiline, Boolean(error) && styles.inputError]}
         value={value}
@@ -110,7 +116,8 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   inputMultiline: {
-    minHeight: 96,
+    // 80 in the design (Figma node 471:3946), not the 96 this was built with.
+    minHeight: controlHeight.multilineField,
     textAlignVertical: "top",
   },
   inputError: {

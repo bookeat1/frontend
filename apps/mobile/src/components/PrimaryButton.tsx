@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
@@ -7,6 +7,10 @@ interface PrimaryButtonProps {
   onPress: () => void;
   disabled?: boolean;
   variant?: "primary" | "secondary";
+  /** `md` is the 44pt accessibility minimum used across the catalog screens;
+   * `lg` is the 48pt height the booking flow's sticky CTA has in the design
+   * (Figma node 471:3967). Not a new component — same pill, one number. */
+  size?: "md" | "lg";
   accessibilityLabel?: string;
 }
 
@@ -21,6 +25,7 @@ export function PrimaryButton({
   onPress,
   disabled = false,
   variant = "primary",
+  size = "md",
   accessibilityLabel,
 }: PrimaryButtonProps) {
   const isSecondary = variant === "secondary";
@@ -33,6 +38,7 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
+        size === "lg" && styles.large,
         isSecondary ? styles.secondary : styles.primary,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
@@ -49,8 +55,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     flexDirection: "row",
+  },
+  large: {
+    height: controlHeight.pill,
   },
   primary: {
     backgroundColor: colors.brand.primary,

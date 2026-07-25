@@ -8,7 +8,9 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
-import { CalendarBlank, ForkKnife, Users } from "../../../../src/components/icons";
+import { CalendarBlank, ForkKnife, User } from "../../../../src/components/icons";
+import { MenuItemCard } from "../../../../src/components/MenuItemCard";
+import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SelectRow } from "../../../../src/components/SelectRow";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
@@ -180,7 +182,9 @@ export default function ReservationScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        <FlowHeader title={restaurant?.name ?? t.booking.title} onBack={() => router.back()} />
+        {/* The venue name moved into the first card (node 471:3899); the bar
+            itself carries the screen name and a single close control. */}
+        <FlowHeader title={t.booking.title} onClose={() => router.back()} />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -192,10 +196,13 @@ export default function ReservationScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.dateSectionTitle}</Text>
-            </View>
+          <View style={[styles.section, styles.sectionFirst]}>
+            {restaurant ? (
+              <View style={styles.venueBox}>
+                <Text style={styles.venueName}>{restaurant.name}</Text>
+                <Text style={styles.venueAddress}>{restaurant.address}</Text>
+              </View>
+            ) : null}
             <View style={styles.stripBleed}>
               <DateStrip
                 selected={draft.date}
@@ -204,23 +211,23 @@ export default function ReservationScreen() {
                 tomorrowLabel={t.booking.tomorrow}
               />
             </View>
-            <View style={styles.sectionBody}>
-              <SelectRow
+            <View style={[styles.sectionBody, styles.pillRow]}>
+              <PillSelect
                 icon={CalendarBlank}
-                label={t.booking.changeDate}
+                accessibilityLabel={t.booking.dateSectionTitle}
                 value={dateLabel}
                 onPress={() => router.push(`/restaurant/${id}/book/date`)}
               />
-              <SelectRow
-                icon={Users}
-                label={t.booking.guestsSectionTitle}
+              <PillSelect
+                icon={User}
+                accessibilityLabel={t.booking.guestsSectionTitle}
                 value={t.booking.guestsCount(draft.guests)}
                 onPress={() => router.push(`/restaurant/${id}/book/guests`)}
               />
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.timeSectionTitle}</Text>
               {availability.data ? (
@@ -239,7 +246,7 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.contactSectionTitle}</Text>
             </View>
@@ -270,8 +277,19 @@ export default function ReservationScreen() {
                 autoComplete="tel"
                 textContentType="telephoneNumber"
               />
+            </View>
+          </View>
+
+          {/* "Special Requests" is its own card in the design (node 471:3946):
+              a titled card with one bare rounded box, no field label. */}
+          <View style={[styles.section, styles.sectionRounded]}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t.booking.notesLabel}</Text>
+            </View>
+            <View style={styles.sectionBody}>
               <TextField
                 label={t.booking.notesLabel}
+                labelHidden
                 placeholder={t.booking.notesPlaceholder}
                 value={draft.notes}
                 onChangeText={draft.setNotes}
@@ -280,7 +298,7 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.preorderSectionTitle}</Text>
               <Text style={styles.sectionCaption}>{t.booking.preorderOptional}</Text>
@@ -306,6 +324,27 @@ export default function ReservationScreen() {
             </View>
           </View>
 
+          {/* "Top Picks" (node 471:3950). Rendered from the venue payload this
+              screen already has — no extra request — and read-only: the design
+              gives its cards no visible affordance, and wiring a tap would be a
+              behaviour decision, not a visual one. */}
+          {restaurant && restaurant.menuHighlights.length > 0 ? (
+            <View style={[styles.section, styles.sectionLast]}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.topPicksRow}
+              >
+                {restaurant.menuHighlights.map((item) => (
+                  <MenuItemCard key={item.id} item={item} />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
           {submitError ? (
             <View style={styles.submitError} accessibilityRole="alert">
               <Text style={styles.submitErrorTitle}>{submitError.title}</Text>
@@ -320,6 +359,7 @@ export default function ReservationScreen() {
               <Text style={styles.gateNote}>{t.booking.signInGateNote}</Text>
             ) : null}
             <PrimaryButton
+              size="lg"
               label={
                 submitting
                   ? t.booking.submitting
@@ -423,10 +463,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
     gap: spacing.sm,
   },
+  // Cards are full-bleed with 16 of inner padding and 24 between their blocks
+  // (nodes 471:3899 / 3914 / 3946 / 3950). The stack's outer corners are the
+  // only ones that stay square: the first card is rounded at the bottom, the
+  // last at the top, everything between is rounded all round.
   section: {
     backgroundColor: colors.background.surface,
     paddingVertical: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.xxl,
+  },
+  sectionFirst: {
+    borderBottomLeftRadius: radius.card,
+    borderBottomRightRadius: radius.card,
+  },
+  sectionRounded: {
+    borderRadius: radius.card,
+  },
+  sectionLast: {
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    paddingBottom: spacing.xxxl,
   },
   sectionHeader: {
     paddingHorizontal: spacing.lg,
@@ -435,6 +491,28 @@ const styles = StyleSheet.create({
   sectionBody: {
     paddingHorizontal: spacing.lg,
     gap: spacing.md,
+  },
+  venueBox: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xxs,
+  },
+  venueName: {
+    ...typography.titleLg,
+    color: colors.text.primary,
+  },
+  // Dark, not muted — the design's address line is #1B1B1B (node 471:3899).
+  venueAddress: {
+    ...typography.body,
+    color: colors.text.primary,
+  },
+  pillRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  topPicksRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   // The date strip scrolls edge to edge; its own contentContainer carries the
   // page padding so the first cell doesn't look clipped.
@@ -467,8 +545,10 @@ const styles = StyleSheet.create({
   },
   footerSafeArea: {
     backgroundColor: colors.background.surface,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
+    // 0 -8 16 at 8% black (node 471:3967); the alpha lives in the token, so
+    // shadowOpacity is left at full strength.
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
     shadowOffset: { width: 0, height: -8 },
     shadowRadius: 16,
     elevation: 8,

@@ -1,5 +1,12 @@
 import type { AvailabilitySlot } from "@bookeat/api";
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import {
+  borderWidth,
+  colors,
+  controlHeight,
+  radius,
+  spacing,
+  typography,
+} from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -58,7 +65,7 @@ export function TimeSlotGrid({ slots, selected, onSelect }: TimeSlotGridProps) {
               {formatTime(slot.startsAt)}
             </Text>
             {!slot.available ? (
-              <Text style={styles.reason} numberOfLines={2}>
+              <Text style={styles.reason} numberOfLines={3}>
                 {reasonLabel}
               </Text>
             ) : slot.freeTables > 0 && slot.freeTables <= 3 ? (
@@ -80,38 +87,44 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   slot: {
-    // Three per row at 360px with 16px page padding and 8px gaps; the reason
-    // caption is what forces the taller-than-a-chip minimum height.
-    minWidth: 96,
-    flexGrow: 1,
-    flexBasis: "30%",
-    minHeight: hitSlop.minTouchTarget + spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
+    // Four per row, 48 tall, outlined pill — Figma node 471:3914. The width is
+    // a share of the row rather than a fixed 80 so it also lands inside a
+    // 360pt screen (23% of 304 = 70), and flexGrow stays off so a half-empty
+    // last row keeps slot-sized slots instead of stretching them.
+    flexBasis: "23%",
+    minHeight: controlHeight.pill,
+    borderRadius: radius.pill,
+    borderWidth: borderWidth.control,
+    borderColor: colors.border.control,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
     gap: spacing.xxs,
   },
+  // The design draws available slots only, so this state is ours: a filled
+  // grey pill with muted text, which reads as "not tappable" without inventing
+  // a new colour.
   slotDisabled: {
     backgroundColor: colors.background.screen,
+    borderColor: colors.background.screen,
   },
   slotActive: {
-    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
   },
   pressed: {
     opacity: 0.7,
   },
   time: {
-    ...typography.labelSemiBold,
+    ...typography.labelMedium,
     color: colors.text.primary,
   },
   timeDisabled: {
     color: colors.text.muted,
   },
+  // Chosen slot: brand outline AND brand text, no fill (node 471:3914).
   timeActive: {
-    color: colors.text.onBrand,
+    color: colors.brand.primary,
   },
   reason: {
     ...typography.caption,

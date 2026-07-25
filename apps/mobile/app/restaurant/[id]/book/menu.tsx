@@ -1,5 +1,5 @@
 import type { MenuDish } from "@bookeat/api";
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -122,6 +122,10 @@ export default function PreorderMenuScreen() {
           renderSectionHeader={({ section }) => (
             <Text style={styles.sectionHeader}>{section.title}</Text>
           )}
+          // Each category is a white card on the grey screen (see the design
+          // render): the header carries the top corners, this footer the bottom
+          // ones plus the 8pt gap to the next card.
+          renderSectionFooter={() => <View style={styles.sectionFooter} />}
           stickySectionHeadersEnabled
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -144,7 +148,7 @@ export default function PreorderMenuScreen() {
               </Text>
             </View>
           ) : null}
-          <PrimaryButton label={t.booking.preorderDone} onPress={() => router.back()} />
+          <PrimaryButton size="lg" label={t.booking.preorderDone} onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     </View>
@@ -168,18 +172,6 @@ const DishRow = React.memo(function DishRow({
   const addable = dish.isAvailable && dish.priceMinor !== null;
   return (
     <View style={styles.dish}>
-      {dish.imageUrl ? (
-        <Image
-          source={{ uri: dish.imageUrl }}
-          style={styles.dishImage}
-          contentFit="cover"
-          accessibilityLabel={dish.name}
-          transition={150}
-        />
-      ) : (
-        <View style={[styles.dishImage, styles.dishImagePlaceholder]} />
-      )}
-
       <View style={styles.dishText}>
         <Text style={styles.dishName} numberOfLines={2}>
           {dish.name}
@@ -199,38 +191,57 @@ const DishRow = React.memo(function DishRow({
         ) : null}
       </View>
 
-      {addable ? (
-        quantity > 0 ? (
-          <View style={styles.quantityControl}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t.booking.dishRemove}: ${dish.name}`}
-              onPress={() => onChange(quantity - 1)}
-              style={styles.quantityButton}
-            >
-              <Minus size={18} color={colors.text.primary} weight="bold" />
-            </Pressable>
-            <Text style={styles.quantityValue}>{quantity}</Text>
+      {/* Photo on the right with the add / quantity control floating over its
+          lower edge, as in the design render. */}
+      <View style={styles.dishPhoto}>
+        {dish.imageUrl ? (
+          <Image
+            source={{ uri: dish.imageUrl }}
+            style={styles.dishImage}
+            contentFit="cover"
+            accessibilityLabel={dish.name}
+            transition={150}
+          />
+        ) : (
+          <View style={[styles.dishImage, styles.dishImagePlaceholder]} />
+        )}
+
+        {addable ? (
+          quantity > 0 ? (
+            <View style={styles.quantityControl}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${t.booking.dishRemove}: ${dish.name}`}
+                onPress={() => onChange(quantity - 1)}
+                hitSlop={8}
+                style={styles.quantityButton}
+              >
+                <Minus size={18} color={colors.text.primary} weight="bold" />
+              </Pressable>
+              <Text style={styles.quantityValue}>{quantity}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${t.booking.dishAdd}: ${dish.name}`}
+                onPress={() => onChange(quantity + 1)}
+                hitSlop={8}
+                style={styles.quantityButton}
+              >
+                <Plus size={18} color={colors.text.primary} weight="bold" />
+              </Pressable>
+            </View>
+          ) : (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${t.booking.dishAdd}: ${dish.name}`}
-              onPress={() => onChange(quantity + 1)}
-              style={styles.quantityButton}
+              onPress={() => onChange(1)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
             >
-              <Plus size={18} color={colors.text.primary} weight="bold" />
+              <Plus size={20} color={colors.text.primary} weight="bold" />
             </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t.booking.dishAdd}: ${dish.name}`}
-            onPress={() => onChange(1)}
-            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
-          >
-            <Plus size={20} color={colors.text.onBrand} weight="bold" />
-          </Pressable>
-        )
-      ) : null}
+          )
+        ) : null}
+      </View>
     </View>
   );
 });
@@ -238,7 +249,8 @@ const DishRow = React.memo(function DishRow({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    // Grey behind the per-category white cards.
+    backgroundColor: colors.background.screen,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
@@ -256,22 +268,40 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
   },
   sectionHeader: {
-    ...typography.titleMd,
+    // Category name is the big bold title in the design, not the 16pt one.
+    ...typography.titleLg,
     color: colors.text.primary,
     backgroundColor: colors.background.surface,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sectionFooter: {
+    height: spacing.lg,
+    backgroundColor: colors.background.surface,
+    borderBottomLeftRadius: radius.card,
+    borderBottomRightRadius: radius.card,
+    marginBottom: spacing.sm,
   },
   dish: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
+  dishPhoto: {
+    width: controlHeight.dishPhotoWidth,
+    height: controlHeight.dishPhotoHeight,
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
   dishImage: {
-    width: 64,
-    height: 64,
+    width: "100%",
+    height: "100%",
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
   },
@@ -300,29 +330,49 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.brand.primary,
   },
+  // White circle with a dark plus sitting on the photo (design render), not a
+  // red circle beside the text. 32pt of visible circle + 8 of hitSlop clears
+  // the 44pt touch-target rule.
   addButton: {
-    width: hitSlop.minTouchTarget,
-    height: hitSlop.minTouchTarget,
+    position: "absolute",
+    right: spacing.sm,
+    bottom: spacing.sm,
+    width: spacing.xxxl,
+    height: spacing.xxxl,
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.background.surface,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   pressed: {
     opacity: 0.7,
   },
   quantityControl: {
+    position: "absolute",
+    bottom: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.background.surface,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   quantityButton: {
-    width: hitSlop.minTouchTarget,
-    height: hitSlop.minTouchTarget,
+    width: spacing.xxxl,
+    height: spacing.xxxl,
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.background.chip,
   },
   quantityValue: {
     ...typography.labelSemiBold,
@@ -332,8 +382,8 @@ const styles = StyleSheet.create({
   },
   footerSafeArea: {
     backgroundColor: colors.background.surface,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
     shadowOffset: { width: 0, height: -8 },
     shadowRadius: 16,
     elevation: 8,

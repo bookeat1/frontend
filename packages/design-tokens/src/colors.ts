@@ -45,6 +45,9 @@ export const colors = {
   border: {
     /** Hairline between content and bottom nav / sticky footer. */
     subtle: "#F5F5F5",
+    /** 1.5px outline of an unselected time-slot pill — Figma file
+     * oPxXynSOY3PYhf3gkVR5Ps, node 471:3914 (Reservation, slots card). */
+    control: "#E5E5E5",
   },
   overlay: {
     /** Scrim behind icon buttons placed on photos (back/close). */

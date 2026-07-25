@@ -74,7 +74,7 @@ export default function GuestsScreen() {
 
       <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
         <View style={styles.footer}>
-          <PrimaryButton label={t.booking.preorderDone} onPress={() => router.back()} />
+          <PrimaryButton size="lg" label={t.booking.preorderDone} onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     </View>
