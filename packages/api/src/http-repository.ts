@@ -3,7 +3,9 @@ import {
   cuisineIdFor,
   mapAvailability,
   mapBooking,
+  mapEventSummary,
   mapMenuSections,
+  mapPayment,
   mapPreorder,
   mapRestaurantDetail,
   mapRestaurantSummary,
@@ -12,7 +14,9 @@ import {
   priceLevelToPriceCategory,
   type ApiAvailability,
   type ApiBooking,
+  type ApiEventListItem,
   type ApiMenuItem,
+  type ApiPayment,
   type ApiPreorder,
   type ApiPromo,
   type ApiRestaurant,
@@ -26,9 +30,14 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPage,
+  BookingPayment,
+  CancelBookingInput,
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
+  EventQuery,
   MenuSection,
   Preorder,
   PreorderLineInput,
@@ -56,6 +65,21 @@ const PROMO_PAGE_SIZE = 8;
  * the cuisine list out of the catalog. The live catalog is 29 venues, so one
  * page still covers it — revisit (real pagination) before it passes 100. */
 const SEARCH_PAGE_SIZE = 100;
+/** One screen of the guest's own bookings. Small on purpose: the list is
+ * offset-paginated and every visible row costs one extra venue request for the
+ * name, so a big first page is a burst of requests on a phone connection. */
+const BOOKINGS_PAGE_SIZE = 20;
+/** One page of the Explore events strip. The strip is horizontal and the user
+ * scrolls it by hand, so a page bigger than a handful of cards would download
+ * rows nobody swipes to. The server caps per_page at 100. */
+const EVENTS_PAGE_SIZE = 12;
+/** The server rejects nothing above 100 — it silently clamps — but sending a
+ * value it will not honour makes the response's `per_page` disagree with what
+ * the caller asked for, so the clamp happens here too. */
+function clampPerPage(value: number): number {
+  if (!Number.isFinite(value)) return EVENTS_PAGE_SIZE;
+  return Math.min(100, Math.max(1, Math.trunc(value)));
+}
 
 /** The chip label plus every exact spelling of that cuisine present in the
  * catalog. The server's cuisine filter is a case-sensitive
@@ -126,6 +150,13 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       ),
     ]);
     return mapRestaurantDetail(api, { reviews, menu, promos });
+  }
+
+  /** GET /restaurants/:id, mapped to the card shape — one request, no
+   * reviews / menu / promos fan-out. */
+  async getRestaurantSummary(id: string): Promise<RestaurantSummary> {
+    const api = await this.client.get<ApiRestaurant>(`/restaurants/${encodeURIComponent(id)}`);
+    return mapRestaurantSummary(api);
   }
 
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {
@@ -203,6 +234,37 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return this.client.get<string[]>("/cities");
   }
 
+  /**
+   * GET /events — published, not-yet-finished events of active venues across
+   * the whole catalog, `starts_at ASC` (ties by id).
+   *
+   * Verified live on 2026-07-25: the route answers 200 with the standard page
+   * envelope and, on the test deployment today, an EMPTY `items` array —
+   * `{"data":{"items":[],"total":0,"pages":0,"page":1,"per_page":20}}`. That is
+   * the normal shape of "nothing scheduled", so callers must render an empty
+   * state, not an error. A malformed `restaurant_id` is a 422
+   * (`restaurant_id must be a uuid`), which surfaces as a RepositoryError with
+   * `isValidation`.
+   */
+  async listUpcomingEvents(query?: EventQuery): Promise<EventPage> {
+    const perPage = clampPerPage(query?.perPage ?? EVENTS_PAGE_SIZE);
+    const page = await this.client.get<ApiPage<ApiEventListItem>>("/events", {
+      city: query?.city,
+      restaurant_id: query?.restaurantId,
+      from: query?.from,
+      to: query?.to,
+      page: query?.page ?? 1,
+      per_page: perPage,
+    });
+    return {
+      items: (page.items ?? []).map(mapEventSummary),
+      total: typeof page.total === "number" ? page.total : 0,
+      page: typeof page.page === "number" ? page.page : 1,
+      pages: typeof page.pages === "number" ? page.pages : 0,
+      perPage: typeof page.per_page === "number" ? page.per_page : perPage,
+    };
+  }
+
   /** STUB: no recent/popular search-term endpoint exists — see
    * unknown-data.ts. Not simulated as a network call since there is nothing
    * to fetch. */
@@ -278,6 +340,57 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return mapBooking(api);
   }
 
+  /**
+   * GET /bookings — the caller's own bookings, `starts_at DESC`.
+   *
+   * The server derives the owner from the bearer token (`listMine`), so there
+   * is no user filter to send and no way to read somebody else's list. It
+   * answers a standard page envelope; `pages` is 0 when the guest has no
+   * bookings at all, which the caller must treat as "one empty page", not as
+   * "more pages to come".
+   */
+  async listMyBookings(input?: { page?: number; perPage?: number }): Promise<BookingPage> {
+    const page = await this.client.get<ApiPage<ApiBooking>>(
+      "/bookings",
+      { page: input?.page ?? 1, per_page: input?.perPage ?? BOOKINGS_PAGE_SIZE },
+      { auth: true },
+    );
+    return {
+      items: (page.items ?? []).map(mapBooking),
+      total: typeof page.total === "number" ? page.total : 0,
+      page: typeof page.page === "number" ? page.page : 1,
+      pages: typeof page.pages === "number" ? page.pages : 0,
+      perPage:
+        typeof page.per_page === "number" ? page.per_page : (input?.perPage ?? BOOKINGS_PAGE_SIZE),
+    };
+  }
+
+  /**
+   * GET /favorites. Not paginated server-side — it answers a bare array of the
+   * same restaurant objects the catalog returns (verified live 2026-07-25), so
+   * the catalog mapper is reused rather than a second one written.
+   */
+  async getFavorites(): Promise<RestaurantSummary[]> {
+    const items = await this.client.get<ApiRestaurant[]>("/favorites", undefined, { auth: true });
+    return (items ?? []).map(mapRestaurantSummary);
+  }
+
+  /** PUT /favorites/:restaurantId. Idempotent server-side. */
+  async addFavorite(restaurantId: string): Promise<void> {
+    await this.client.put<unknown>(
+      `/favorites/${encodeURIComponent(restaurantId)}`,
+      undefined,
+      { auth: true },
+    );
+  }
+
+  /** DELETE /favorites/:restaurantId. Idempotent server-side. */
+  async removeFavorite(restaurantId: string): Promise<void> {
+    await this.client.delete<unknown>(`/favorites/${encodeURIComponent(restaurantId)}`, {
+      auth: true,
+    });
+  }
+
   /** PUT /bookings/:id/preorder — replace semantics. Only menu_item_id,
    * quantity and comment travel; the server resolves the name and the price
    * from its own menu. */
@@ -303,6 +416,46 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       { auth: true },
     );
     return mapPreorder(api);
+  }
+
+  /**
+   * POST /bookings/:id/cancel. The body is optional server-side; `{}` is sent
+   * when the guest gave no reason so the request always has a valid JSON body.
+   *
+   * Deliberately NO Idempotency-Key: this endpoint does not honour one (only
+   * POST /bookings does), and a replayed cancel answers 422 "invalid status
+   * transition" rather than 200. Single-flight is the caller's job.
+   */
+  async cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking> {
+    const api = await this.client.post<ApiBooking>(
+      `/bookings/${encodeURIComponent(bookingId)}/cancel`,
+      {
+        reason_code: input?.reasonCode?.trim() ? input.reasonCode.trim() : undefined,
+        reason: input?.reason?.trim() ? input.reason.trim() : undefined,
+      },
+      { auth: true },
+    );
+    return mapBooking(api);
+  }
+
+  /**
+   * GET /bookings/:id/payment. A booking with no deposit / pre-payment answers
+   * 404, which is the NORMAL case on this deployment today — it is turned into
+   * `null`, not thrown, so "nothing to lose" and "the request failed" stay
+   * distinguishable at the call site. Every other failure still throws.
+   */
+  async getBookingPayment(bookingId: string): Promise<BookingPayment | null> {
+    try {
+      const api = await this.client.get<ApiPayment>(
+        `/bookings/${encodeURIComponent(bookingId)}/payment`,
+        undefined,
+        { auth: true },
+      );
+      return mapPayment(api);
+    } catch (error) {
+      if (error instanceof RepositoryError && error.isNotFound) return null;
+      throw error;
+    }
   }
 }
 

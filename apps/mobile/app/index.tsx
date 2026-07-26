@@ -1,275 +1,155 @@
-import { EMPTY_FILTERS, type PriceLevel } from "@bookeat/api";
-import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
+import type { AvailabilitySlot, RestaurantSummary } from "@bookeat/api";
+import { colors, exploreLayout, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useCallback } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
-import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
-import { FilterChip } from "../src/components/FilterChip";
-import { RestaurantCard } from "../src/components/RestaurantCard";
-import { ScreenContainer } from "../src/components/ScreenContainer";
-import { SearchBar } from "../src/components/SearchBar";
-import { useSearchScreen } from "../src/hooks/useSearch";
+import { CardStrip } from "../src/components/explore/CardStrip";
+import { DishCard } from "../src/components/explore/DishCard";
+import { EventsSection } from "../src/components/explore/EventsSection";
+import { ExploreSearchField } from "../src/components/explore/ExploreSearchField";
+import { HeroCarousel } from "../src/components/explore/HeroCarousel";
+import { PopularSection } from "../src/components/explore/PopularSection";
+import { SectionCard, SectionHeader } from "../src/components/explore/SectionCard";
+import {
+  EXPLORE_DEFAULT_GUESTS,
+  exploreDateKey,
+  useChefsPicks,
+  useGastroguide,
+  useHeroBanners,
+} from "../src/components/explore/use-explore-data";
 
 const t = getDictionary();
 
-/** Ценовые ступени, которые понимает бэкенд (price_category «₸»/«₸₸»/«₸₸₸»).
- * Четвёртой ступени в каталоге нет, поэтому фильтр её и не предлагает. */
-const PRICE_FILTERS: PriceLevel[] = ["$", "$$", "$$$"];
-
-export default function SearchScreen() {
+/**
+ * Explore — the home screen (Figma "BookEat Copy" / «🟠 В работе» / Explore,
+ * node 488:9875, frame 408:3550; built from the render
+ * `design-ref/screen-explore.png`, which is 375 wide at 1:1).
+ *
+ * Shape: a full-bleed hero carousel running under the status bar, then a
+ * white sheet that overlaps it by 20 and holds a stack of white section
+ * blocks separated by the grey screen background.
+ *
+ * REAL DATA: «Популярные заведения» (catalog + today's availability) and
+ * «События» (GET /events). The remaining blocks are driven by
+ * `src/components/explore/placeholder.ts`, which names the missing endpoint
+ * for each one.
+ */
+export default function ExploreScreen() {
   const router = useRouter();
-  const {
-    text,
-    setText,
-    filters,
-    setFilters,
-    hasActiveSearch,
-    isTyping,
-    searchQueryResult,
-    recentQuery,
-    popularQuery,
-    cuisinesQuery,
-    citiesQuery,
-  } = useSearchScreen();
+
+  const banners = useHeroBanners();
+  const chefsPicks = useChefsPicks();
+  const gastroguide = useGastroguide();
+
+  const openSearch = useCallback(() => router.push("/search"), [router]);
 
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
     [router],
   );
 
-  const toggleOpenNow = () =>
-    setFilters((prev) => ({ ...prev, openNowOnly: !prev.openNowOnly }));
-
-  const toggleCuisine = (cuisineId: string) =>
-    setFilters((prev) => ({
-      ...prev,
-      cuisineIds: prev.cuisineIds.includes(cuisineId)
-        ? prev.cuisineIds.filter((id) => id !== cuisineId)
-        : [...prev.cuisineIds, cuisineId],
-    }));
-
-  // Город и цена — одиночный выбор: бэкенд сравнивает их на равенство, а
-  // повторное нажатие по выбранному чипу снимает фильтр.
-  const toggleCity = (city: string) =>
-    setFilters((prev) => ({ ...prev, city: prev.city === city ? undefined : city }));
-
-  const togglePrice = (priceLevel: PriceLevel) =>
-    setFilters((prev) => ({
-      ...prev,
-      priceLevel: prev.priceLevel === priceLevel ? undefined : priceLevel,
-    }));
-
-  const resetFilters = () => {
-    setFilters(EMPTY_FILTERS);
-    setText("");
-  };
+  /**
+   * A time pill goes straight into the booking flow, pre-filled.
+   *
+   * The flow's layout reads `date` / `startsAt` / `guests` and hands them to
+   * the draft (app/restaurant/[id]/book/_layout.tsx), so the guest lands with
+   * the day, the party size and that exact time already chosen. If the slot
+   * has been taken in the meantime, the flow keeps the date and the party,
+   * clears the time and says so — see PrefillOutcome in
+   * src/lib/booking-draft.tsx.
+   */
+  const openBookingWithSlot = useCallback(
+    (restaurant: RestaurantSummary, slot: AvailabilitySlot) => {
+      router.push({
+        pathname: "/restaurant/[id]/book",
+        params: {
+          id: restaurant.id,
+          date: exploreDateKey(),
+          startsAt: slot.startsAt,
+          guests: String(EXPLORE_DEFAULT_GUESTS),
+        },
+      });
+    },
+    [router],
+  );
 
   return (
     <View style={styles.root}>
-      <ScreenContainer padded={false}>
-        <View style={styles.searchRow}>
-          <SearchBar value={text} onChangeText={setText} autoFocus />
+      {/* The hero is a dark photo behind the status bar — dark glyphs would
+          disappear into it. Reverts to the app-wide dark bar on unmount. */}
+      <StatusBar style="light" />
 
-          {/* Два прокручиваемых ряда вместо одного переносящегося: на 360 px
-              список кухонь иначе занимает пол-экрана до результатов. */}
-          <ChipRow>
-            <FilterChip
-              label={t.search.filterOpenNow}
-              selected={filters.openNowOnly}
-              onPress={toggleOpenNow}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        // No top safe-area inset on purpose: the hero must bleed under the
+        // status bar exactly as in the reference.
+      >
+        <HeroCarousel banners={banners} />
+
+        <View style={styles.sheet}>
+          <SectionCard>
+            <ExploreSearchField onPress={openSearch} />
+            <PopularSection
+              onSeeAll={openSearch}
+              onOpenRestaurant={openRestaurant}
+              onPickSlot={openBookingWithSlot}
             />
-            {(citiesQuery.data ?? []).map((city) => (
-              <FilterChip
-                key={city}
-                label={city}
-                selected={filters.city === city}
-                onPress={() => toggleCity(city)}
-              />
-            ))}
-            {PRICE_FILTERS.map((priceLevel) => (
-              <FilterChip
-                key={priceLevel}
-                label={priceLevel}
-                selected={filters.priceLevel === priceLevel}
-                onPress={() => togglePrice(priceLevel)}
-              />
-            ))}
-          </ChipRow>
+          </SectionCard>
 
-          <ChipRow>
-            {cuisinesQuery.isError ? (
-              // Кухни грузятся отдельным запросом: если он упал, показываем
-              // именно это, а не пустой ряд, который выглядит как «кухонь нет».
-              <FilterChip
-                label={t.search.filterCuisinesFailed}
-                selected={false}
-                onPress={() => cuisinesQuery.refetch()}
-              />
-            ) : (
-              (cuisinesQuery.data ?? []).map((cuisine) => (
-                <FilterChip
-                  key={cuisine.id}
-                  label={cuisine.name}
-                  selected={filters.cuisineIds.includes(cuisine.id)}
-                  onPress={() => toggleCuisine(cuisine.id)}
-                />
-              ))
-            )}
-          </ChipRow>
+          <SectionCard>
+            <SectionHeader title={t.explore.chefsPicksTitle} />
+            <CardStrip
+              data={chefsPicks}
+              keyExtractor={(dish) => dish.id}
+              accessibilityLabel={t.explore.chefsPicksTitle}
+              renderItem={({ item }) => (
+                <DishCard dish={item} onOpenRestaurant={openRestaurant} />
+              )}
+            />
+          </SectionCard>
+
+          <SectionCard>
+            <SectionHeader title={t.explore.gastroguideTitle} />
+            <CardStrip
+              data={gastroguide}
+              keyExtractor={(dish) => dish.id}
+              accessibilityLabel={t.explore.gastroguideTitle}
+              renderItem={({ item }) => (
+                <DishCard dish={item} onOpenRestaurant={openRestaurant} />
+              )}
+            />
+          </SectionCard>
+
+          <SectionCard>
+            {/* Owns its own query and all four of its states — see
+                EventsSection. */}
+            <EventsSection onOpenRestaurant={openRestaurant} />
+          </SectionCard>
         </View>
+      </ScrollView>
 
-        {!hasActiveSearch ? (
-          <IdleContent
-            recent={recentQuery.data ?? []}
-            popular={popularQuery.data ?? []}
-            isLoading={recentQuery.isLoading || popularQuery.isLoading}
-            onPickTerm={setText}
-          />
-        ) : isTyping || searchQueryResult.isLoading ? (
-          <LoadingState title={t.search.loadingTitle} />
-        ) : searchQueryResult.isError ? (
-          <ErrorState
-            title={t.search.errorTitle}
-            description={t.search.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => searchQueryResult.refetch()}
-          />
-        ) : (searchQueryResult.data?.items.length ?? 0) === 0 ? (
-          <EmptyState
-            title={t.search.emptyTitle}
-            description={t.search.emptyDescription}
-            actionLabel={t.search.emptyResetFilters}
-            onAction={resetFilters}
-          />
-        ) : (
-          <FlatList
-            data={searchQueryResult.data?.items ?? []}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <RestaurantCard restaurant={item} onPress={openRestaurant} />
-            )}
-            ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </ScreenContainer>
-
-      <BottomNavBar active="search" />
+      {/* The bar reads the active tab off the current route itself. */}
+      <BottomNavBar />
     </View>
-  );
-}
-
-/** Горизонтальный ряд чипов фильтра. Пустой ряд не занимает высоту. */
-function ChipRow({ children }: { children: React.ReactNode }) {
-  if (React.Children.count(children) === 0) return null;
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.chipsRow}>{children}</View>
-    </ScrollView>
-  );
-}
-
-function IdleContent({
-  recent,
-  popular,
-  isLoading,
-  onPickTerm,
-}: {
-  recent: string[];
-  popular: string[];
-  isLoading: boolean;
-  onPickTerm: (term: string) => void;
-}) {
-  if (isLoading) {
-    return <LoadingState title={t.common.loading} />;
-  }
-
-  return (
-    <View style={styles.idleContainer}>
-      {recent.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t.search.recent}</Text>
-          <View style={styles.termsList}>
-            {recent.map((term) => (
-              <TermRow key={term} term={term} onPress={() => onPickTerm(term)} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {popular.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t.search.popular}</Text>
-          <View style={styles.termsList}>
-            {popular.map((term) => (
-              <TermRow key={term} term={term} onPress={() => onPickTerm(term)} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function TermRow({ term, onPress }: { term: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={styles.termRow}
-      accessibilityRole="button"
-      accessibilityLabel={term}
-    >
-      <Text style={styles.termText}>{term}</Text>
-    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.screen,
   },
-  searchRow: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+  scrollContent: {
+    paddingBottom: spacing.xxl,
+  },
+  sheet: {
+    marginTop: -exploreLayout.sheetOverlap,
+    // 8 of grey between white blocks — measured at the centre of the render,
+    // where the 20pt corner radius doesn't widen the gap.
     gap: spacing.sm,
-  },
-  chipsRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  listContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxxl,
-  },
-  idleContainer: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.xl,
-  },
-  section: {
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  termsList: {
-    gap: spacing.xs,
-  },
-  termRow: {
-    minHeight: hitSlop.minTouchTarget,
-    justifyContent: "center",
-  },
-  termText: {
-    ...typography.body,
-    color: colors.text.primary,
   },
 });

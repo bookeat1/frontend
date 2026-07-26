@@ -72,6 +72,11 @@ export interface Restaurant {
   /** Short landmark note shown under the address, e.g. "Напротив Меги". */
   addressNote?: string;
   city: string;
+  /** WGS84 coordinates, real values from `latitude`/`longitude` on the
+   * detail endpoint. Undefined when the venue has none — the caller must hide
+   * the "open in maps" affordance rather than send a broken geo: URL. */
+  latitude?: number;
+  longitude?: number;
   distanceMeters?: number;
   phone?: string;
   social?: RestaurantSocialLinks;
@@ -209,6 +214,29 @@ export type BookingStatus =
   | "cancelled"
   | "no_show";
 
+/**
+ * The statuses from which `POST /bookings/:id/cancel` is legal, transcribed
+ * from `bookingTransitions` in backend-core/internal/domain/booking.go
+ * (every entry whose target set contains `cancelled`). `completed`,
+ * `cancelled` and `no_show` are terminal — asking to cancel one answers
+ * 422 "invalid status transition".
+ *
+ * There is deliberately NO time component: since the free-cancel-window
+ * consolidation, a guest may cancel at any moment and the deadline only
+ * decides whether the deposit comes back (usecase/bookings/status.go,
+ * authorizeTransition).
+ */
+export const CANCELLABLE_BOOKING_STATUSES = [
+  "pending",
+  "waitlist",
+  "confirmed",
+  "arrived",
+] as const;
+
+export function isCancellableBookingStatus(status: BookingStatus): boolean {
+  return (CANCELLABLE_BOOKING_STATUSES as readonly BookingStatus[]).includes(status);
+}
+
 export interface Booking {
   id: string;
   restaurantId: string;
@@ -222,6 +250,70 @@ export interface Booking {
   notes: string | null;
   /** Absolute moment free cancellation ends; null when it no longer applies. */
   freeCancelDeadline: string | null;
+}
+
+/**
+ * One page of the guest's own bookings (`GET /bookings`).
+ *
+ * The list payload is the PLAIN booking, not the details one: it carries no
+ * `free_cancel_deadline`, no items and no tables (verified against the live
+ * test API on 2026-07-25), so every entry here has
+ * `freeCancelDeadline: null` and the detail screen has to re-read the booking
+ * by id. It also carries no restaurant name — only `restaurant_id`.
+ *
+ * Server order is `starts_at DESC` (internal/infrastructure/postgres/booking/
+ * repository.go), i.e. the furthest future booking first and the oldest last.
+ * The client does NOT re-sort: re-sorting one page of an offset-paginated list
+ * produces an order that is wrong across page boundaries.
+ */
+export interface BookingPage {
+  items: Booking[];
+  total: number;
+  page: number;
+  /** Total number of pages the server reports; 0 when there is nothing. */
+  pages: number;
+  perPage: number;
+}
+
+/**
+ * Cancellation metadata the guest may attach. Both fields are optional on the
+ * backend (`cancelRequest` in internal/transport/rest/bookings/request.go
+ * binds an optional body), so an empty `{}` is a valid cancel.
+ */
+export interface CancelBookingInput {
+  reasonCode?: string;
+  reason?: string;
+}
+
+/** Payment lifecycle as the backend spells it (domain.PaymentStatus). */
+export type PaymentStatus =
+  | "created"
+  | "authorized"
+  | "capturing"
+  | "captured"
+  | "voiding"
+  | "voided"
+  | "partially_refunded"
+  | "refunded"
+  | "failed"
+  | "expired";
+
+/** What the money is for (domain.PaymentPurpose). */
+export type PaymentPurpose = "deposit" | "preorder" | "ticket";
+
+/**
+ * The booking's live payment, from `GET /bookings/:id/payment`. The endpoint
+ * answers 404 when there is none, which the repository turns into `null` —
+ * "this booking costs nothing to cancel" is a normal state, not an error.
+ */
+export interface BookingPayment {
+  id: string;
+  bookingId: string;
+  purpose: PaymentPurpose;
+  status: PaymentStatus;
+  /** Minor units (tiyn). Never a float, never formatted server-side. */
+  amountMinor: number;
+  currency: string;
 }
 
 export interface CreateBookingInput {
@@ -272,4 +364,76 @@ export interface AuthUser {
   email: string;
   fullName: string;
   phone: string | null;
+}
+
+/**
+ * One upcoming event of the public cross-venue listing (`GET /events`).
+ *
+ * The guest-facing listing only ever returns PUBLISHED, not-yet-finished
+ * events of active venues — the filter is server-side and cannot be widened
+ * from the client (internal/transport/rest/events/handler.go: listUpcoming),
+ * so there is no `status` field here: it would be the constant "published".
+ *
+ * IMPORTANT — there are NO tags or categories on an event, anywhere in the
+ * backend: no column in `events`, no join table, nothing in domain.Event. The
+ * Explore design shows chips ("Brunch", "Special Event"); they are not
+ * derivable from any field, so the card does not render them (see EventCard).
+ */
+export interface EventSummary {
+  id: string;
+  restaurantId: string;
+  title: string;
+  description: string;
+  /** RFC3339. The card's date line is formatted from this one. */
+  startsAt: string;
+  endsAt: string;
+  /** Room / area inside the venue. Omitted by the server when empty. */
+  venue: string;
+  /** Null when the venue uploaded no cover — the card must handle it, the
+   * backend does not substitute anything. */
+  coverImageUrl: string | null;
+  ticketed: boolean;
+  /** Integer MINOR units (tiyin). Null when the event sells no tickets or the
+   * price is not set. */
+  ticketPriceMinor: number | null;
+  capacity: number | null;
+  /** Refund rules the guest must be able to read before buying a ticket.
+   * Always present server-side: "not refundable" is a rule too. */
+  ticketsRefundable: boolean;
+  ticketRefundCutoffMinutes: number;
+  /** The hosting venue, so a card can open the restaurant screen without a
+   * second request. */
+  restaurant: EventRestaurant;
+}
+
+/** The minimal venue identity carried on an event of the public listing. */
+export interface EventRestaurant {
+  id: string;
+  name: string;
+  city: string;
+}
+
+/** Query surface of `GET /events` — every parameter is optional server-side. */
+export interface EventQuery {
+  /** City of the HOST restaurant, matched by equality on the city enum. */
+  city?: string;
+  /** UUID. A malformed value is a 422, not an empty list. */
+  restaurantId?: string;
+  /** RFC3339, inclusive, compared against the event's START. */
+  from?: string;
+  to?: string;
+  page?: number;
+  /** Server default 20, hard cap 100. */
+  perPage?: number;
+}
+
+/** One page of the public events listing, sorted by start time ascending
+ * (ties broken by id — a stable order across pages). */
+export interface EventPage {
+  items: EventSummary[];
+  total: number;
+  page: number;
+  /** 0 when there is nothing at all, same convention as BookingPage. */
+  pages: number;
+  perPage: number;
 }

@@ -2,9 +2,14 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPage,
+  BookingPayment,
+  CancelBookingInput,
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
+  EventQuery,
   MenuSection,
   Preorder,
   PreorderLineInput,
@@ -26,11 +31,35 @@ import type {
  */
 export interface RestaurantRepository {
   getRestaurant(id: string): Promise<Restaurant>;
+  /**
+   * The card-sized view of ONE venue (name, photo, cuisine, price tier).
+   *
+   * Exists next to `getRestaurant` because that one fans out to four endpoints
+   * (venue + reviews + menu + promos) to build the detail screen. A list that
+   * only needs the venue's NAME — «Мои брони», whose payload carries just
+   * `restaurant_id` — would otherwise pay four requests per row.
+   */
+  getRestaurantSummary(id: string): Promise<RestaurantSummary>;
   getPopularRestaurants(): Promise<RestaurantSummary[]>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   getCuisines(): Promise<Cuisine[]>;
   /** Cities the catalog actually has venues in, for the city filter. */
   getCities(): Promise<string[]>;
+
+  /**
+   * Upcoming events across every venue (`GET /events`) — the Explore
+   * «События» strip.
+   *
+   * Public, no session. Visibility is decided server-side: only PUBLISHED,
+   * not-yet-finished events of ACTIVE restaurants are ever returned, and no
+   * query parameter can widen that — so an empty page is a real answer
+   * ("nothing is scheduled"), not a permissions problem to work around.
+   *
+   * Sorted by start time ascending, ties broken by id, i.e. a stable order
+   * across pages. `pages` is 0 when there is nothing at all (same convention
+   * as listMyBookings).
+   */
+  listUpcomingEvents(query?: EventQuery): Promise<EventPage>;
   getRecentSearches(): Promise<string[]>;
   getPopularSearches(): Promise<string[]>;
 
@@ -62,6 +91,34 @@ export interface RestaurantRepository {
   getBooking(bookingId: string): Promise<Booking>;
 
   /**
+   * The caller's own bookings, newest start time first (`GET /bookings`).
+   * Requires a session — an anonymous call is a 401, not an empty list.
+   *
+   * Offset pagination: the server caps nothing itself, so the caller decides
+   * `perPage` and walks `page` upwards while `page < pages`.
+   */
+  listMyBookings(input?: { page?: number; perPage?: number }): Promise<BookingPage>;
+
+  /* --- favorites --- */
+
+  /**
+   * The caller's favorite venues (`GET /favorites`). Requires a session; the
+   * payload is a plain array of the same restaurant objects the catalog
+   * returns, so it maps through mapRestaurantSummary unchanged.
+   */
+  getFavorites(): Promise<RestaurantSummary[]>;
+
+  /**
+   * Adds a venue to the caller's favorites (`PUT /favorites/:restaurantId`).
+   * Idempotent on the server — favoriting an already-favorited venue answers
+   * 200, not a conflict.
+   */
+  addFavorite(restaurantId: string): Promise<void>;
+
+  /** Removes a venue (`DELETE /favorites/:restaurantId`). Also idempotent. */
+  removeFavorite(restaurantId: string): Promise<void>;
+
+  /**
    * Replaces the booking's pre-order with exactly these lines (PUT semantics —
    * an empty array clears it). Prices are computed server-side from the
    * venue's own menu; nothing about money is sent from the client.
@@ -70,6 +127,34 @@ export interface RestaurantRepository {
 
   /** The booking's current pre-order. Requires a session. */
   getPreorder(bookingId: string): Promise<Preorder>;
+
+  /**
+   * Cancels one of the caller's own bookings (`POST /bookings/:id/cancel`).
+   * Requires a session.
+   *
+   * There is no "too late to cancel" gate any more (see authorizeTransition in
+   * internal/usecase/bookings/status.go): a guest may cancel at any time and
+   * the deadline only decides the MONEY. A booking already in a terminal state
+   * (cancelled / completed / no_show) answers 422 "invalid status transition";
+   * see RepositoryError.isInvalidStatusTransition.
+   *
+   * NOT idempotent on the server, so the caller must guarantee a single
+   * in-flight request per booking.
+   *
+   * The response is the plain booking payload, which — unlike GET
+   * /bookings/:id — carries NO `free_cancel_deadline` (verified against the
+   * live test API on 2026-07-25), so the returned Booking always has
+   * `freeCancelDeadline: null`. Callers that merge into a cache must keep the
+   * value they already had rather than overwriting it with null.
+   */
+  cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking>;
+
+  /**
+   * The booking's live payment, or `null` when there is none (the endpoint
+   * answers 404 in that case, and "no deposit" is the common case today).
+   * Requires a session for a booking that belongs to an account.
+   */
+  getBookingPayment(bookingId: string): Promise<BookingPayment | null>;
 }
 
 /**
@@ -93,6 +178,29 @@ export interface AuthRepository {
   getMe(): Promise<AuthUser>;
 }
 
+/**
+ * The outcome behind a 409 on the booking endpoints, once the machine-readable
+ * `code` of the error envelope has been read.
+ *
+ * The three narrow values come straight from the backend (`domain.WithCode`,
+ * added 2026-07-25); `"unknown"` is what an older server build gives us, where
+ * every one of them was the same byte-identical
+ * `409 {"error":"already exists"}` and the client CANNOT tell them apart.
+ * It is a distinct value on purpose — not folded into any of the others — so a
+ * caller is forced to decide what to do when the answer is genuinely unknown.
+ */
+export type BookingConflictKind =
+  /** Nobody booked anything: the time was taken between loading availability
+   * and submitting (also: an external hold, and PATCH /bookings/:id). */
+  | "slot_taken"
+  /** Nobody booked anything: the party does not fit at that time. */
+  | "no_table_available"
+  /** The EARLIER submit went through — a booking exists. Answered when the
+   * same Idempotency-Key arrives with a different body. */
+  | "idempotency_key_reused"
+  /** The server did not say. Could be either of the two above. */
+  | "unknown";
+
 export class RepositoryError extends Error {
   constructor(
     message: string,
@@ -103,6 +211,13 @@ export class RepositoryError extends Error {
     /** The backend's own English `error` string. For logs only — never render
      * it: the app's UI is Russian and this text is written for developers. */
     public readonly serverMessage?: string,
+    /**
+     * The machine-readable `code` of the error envelope, when the server sent
+     * one (`response.Envelope.code`, additive since 2026-07-25). Unlike
+     * `serverMessage` this IS a contract: branch on it, never on the text.
+     * `undefined` on an older server build and on transport failures.
+     */
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "RepositoryError";
@@ -114,25 +229,53 @@ export class RepositoryError extends Error {
     return this.status === 401;
   }
 
-  /** The slot was taken (or the venue has no table that fits) between loading
-   * availability and submitting. Recoverable by picking another time. */
-  get isSlotConflict(): boolean {
-    return this.status === 409 && !this.isDuplicateSubmit;
-  }
-
-  /** A 409 that means "this exact request already created something", not
-   * "somebody else took the slot". The backend answers it when an
-   * Idempotency-Key is replayed with a DIFFERENT body — i.e. the booking very
-   * probably EXISTS. The two conflicts demand opposite reactions, so they must
-   * never share a branch: treating this one as a lost slot walks the guest into
-   * booking a second table. */
-  get isDuplicateSubmit(): boolean {
-    return this.status === 409 && (this.serverMessage ?? "").toLowerCase().includes("already exists");
+  /**
+   * Which of the mutually exclusive booking conflicts this 409 is, or `null`
+   * when the failure is not a 409 at all.
+   *
+   * Two of them demand OPPOSITE reactions — "your time is gone, pick another"
+   * versus "you already have this booking, do not send it again" — and until
+   * the backend gained `code` they were byte-identical on the wire. Anything
+   * the server does not label narrowly stays `"unknown"`: guessing here is how
+   * a guest gets told they hold a table that was never booked.
+   */
+  get bookingConflict(): BookingConflictKind | null {
+    if (this.status !== 409) return null;
+    switch (this.code) {
+      case "slot_taken":
+      case "no_table_available":
+      case "idempotency_key_reused":
+        return this.code;
+      // "already_exists" (the generic sentinel code) and no code at all are
+      // the same thing to us: the server did not disambiguate.
+      default:
+        return "unknown";
+    }
   }
 
   /** The server refused the payload. Almost always a stale draft (a time that
    * has since fallen inside the lead window, too many guests). */
   get isValidation(): boolean {
     return this.status === 422;
+  }
+
+  /**
+   * The 422 that means "the booking is not in a state from which this
+   * transition is legal" — `domain.ErrInvalidStatus`, rendered by
+   * response.classify as the fixed string "invalid status transition"
+   * (verified live: a second cancel of the same booking answers exactly that).
+   *
+   * For a cancel this almost always means the booking is ALREADY cancelled,
+   * which is a success from the guest's point of view — but the message alone
+   * cannot distinguish it from "already completed", so the caller must re-read
+   * the booking and decide on the real status, never on this flag alone.
+   */
+  get isInvalidStatusTransition(): boolean {
+    return this.status === 422 && (this.serverMessage ?? "").toLowerCase().includes("invalid status");
+  }
+
+  /** The resource does not exist (or is not visible to this session). */
+  get isNotFound(): boolean {
+    return this.status === 404;
   }
 }

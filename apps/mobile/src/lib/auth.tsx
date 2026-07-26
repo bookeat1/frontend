@@ -5,6 +5,7 @@ import {
   type AuthSession,
   type AuthUser,
 } from "@bookeat/api";
+import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getAccessToken, setAccessToken } from "./token-store";
@@ -94,7 +95,23 @@ async function readPersisted(): Promise<AuthSession | null> {
   }
 }
 
+/**
+ * Cached data that belongs to ONE account and must not survive a sign-out —
+ * the next person to use the phone would otherwise see a flash of somebody
+ * else's bookings before the refetch replaced them. Written as literals rather
+ * than imported from the hooks, which already import this module.
+ */
+const PRIVATE_QUERY_KEYS = [
+  ["me"],
+  ["my-bookings"],
+  ["favorites"],
+  ["booking"],
+  ["preorder"],
+  ["booking-payment"],
+] as const;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const repository = useMemo(
     () => createAuthRepository(process.env.EXPO_PUBLIC_API_URL, { getToken: getAccessToken }),
     [],
@@ -109,13 +126,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const sessionRef = useRef<AuthSession | null>(null);
   const refreshInFlight = useRef<Promise<string | null> | null>(null);
 
-  const applySession = useCallback(async (session: AuthSession | null) => {
-    sessionRef.current = session;
-    setAccessToken(session?.accessToken);
-    setStatus(session ? "signed-in" : "signed-out");
-    if (!session) setUser(null);
-    await persist(session);
-  }, []);
+  const applySession = useCallback(
+    async (session: AuthSession | null) => {
+      sessionRef.current = session;
+      setAccessToken(session?.accessToken);
+      setStatus(session ? "signed-in" : "signed-out");
+      if (!session) {
+        setUser(null);
+        for (const key of PRIVATE_QUERY_KEYS) {
+          queryClient.removeQueries({ queryKey: key });
+        }
+      }
+      await persist(session);
+    },
+    [queryClient],
+  );
 
   const loadUser = useCallback(async () => {
     try {

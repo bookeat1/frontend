@@ -4,16 +4,23 @@ import {
   recentSearches,
   restaurants,
   toSummary,
+  upcomingEvents,
 } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
+import { isCancellableBookingStatus } from "./types";
 import type {
   AuthSession,
   AuthUser,
   AvailabilitySlot,
   Booking,
+  BookingPage,
+  BookingPayment,
+  CancelBookingInput,
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
+  EventQuery,
   MenuSection,
   Preorder,
   PreorderLineInput,
@@ -84,6 +91,10 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return found;
   }
 
+  async getRestaurantSummary(id: string): Promise<RestaurantSummary> {
+    return toSummary(await this.getRestaurant(id));
+  }
+
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {
     await this.simulateNetwork();
     return restaurants.map(toSummary);
@@ -107,6 +118,34 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return Array.from(new Set(restaurants.map((r) => r.city))).sort((a, b) =>
       a.localeCompare(b, "ru-RU"),
     );
+  }
+
+  /**
+   * The mock's own upcoming events, filtered and paginated the way the real
+   * endpoint does: `from`/`to` are INCLUSIVE and compared against the event's
+   * START, the order is start time ascending with id as the tie-breaker, and
+   * `pages` is 0 when nothing matches.
+   */
+  async listUpcomingEvents(query?: EventQuery): Promise<EventPage> {
+    await this.simulateNetwork();
+    const perPage = Math.min(100, Math.max(1, query?.perPage ?? 20));
+    const page = Math.max(1, query?.page ?? 1);
+
+    const all = upcomingEvents()
+      .filter((e) => (query?.city ? e.restaurant.city === query.city : true))
+      .filter((e) => (query?.restaurantId ? e.restaurantId === query.restaurantId : true))
+      .filter((e) => (query?.from ? e.startsAt >= query.from : true))
+      .filter((e) => (query?.to ? e.startsAt <= query.to : true))
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+
+    const start = (page - 1) * perPage;
+    return {
+      items: all.slice(start, start + perPage),
+      total: all.length,
+      page,
+      pages: Math.ceil(all.length / perPage),
+      perPage,
+    };
   }
 
   async getRecentSearches(): Promise<string[]> {
@@ -213,6 +252,44 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return booking;
   }
 
+  /**
+   * The bookings created in this process, newest start time first — the same
+   * order the real endpoint returns (`starts_at DESC`). Paginated by slicing,
+   * so the list screen's "load more" path is exercisable offline too.
+   */
+  async listMyBookings(input?: { page?: number; perPage?: number }): Promise<BookingPage> {
+    await this.simulateNetwork();
+    const perPage = Math.max(1, input?.perPage ?? 20);
+    const page = Math.max(1, input?.page ?? 1);
+    const all = [...this.bookings.values()].sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+    const start = (page - 1) * perPage;
+    return {
+      items: all.slice(start, start + perPage),
+      total: all.length,
+      page,
+      pages: Math.ceil(all.length / perPage),
+      perPage,
+    };
+  }
+
+  /** Favorites the mock holds for this process only. */
+  private readonly favorites = new Set<string>();
+
+  async getFavorites(): Promise<RestaurantSummary[]> {
+    await this.simulateNetwork();
+    return restaurants.filter((r) => this.favorites.has(r.id)).map(toSummary);
+  }
+
+  async addFavorite(restaurantId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favorites.add(restaurantId);
+  }
+
+  async removeFavorite(restaurantId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favorites.delete(restaurantId);
+  }
+
   async setPreorder(bookingId: string, lines: PreorderLineInput[]): Promise<Preorder> {
     await this.simulateNetwork();
     const booking = this.bookings.get(bookingId);
@@ -252,7 +329,47 @@ export class MockRestaurantRepository implements RestaurantRepository {
       this.preorders.get(bookingId) ?? { bookingId, items: [], totalMinor: 0, currency: "KZT" }
     );
   }
+
+  /**
+   * Mirrors the backend's state machine, including the part that matters most
+   * to the UI: cancelling an ALREADY terminal booking fails with the same 422
+   * "invalid status transition" the real API answers, so the screen's
+   * already-cancelled branch can be exercised with no backend at all.
+   */
+  async cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking> {
+    await this.simulateNetwork();
+    const booking = this.bookings.get(bookingId);
+    if (!booking) {
+      throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
+    }
+    if (!isCancellableBookingStatus(booking.status)) {
+      throw new RepositoryError(
+        `Booking ${bookingId} is ${booking.status}`,
+        undefined,
+        422,
+        "invalid status transition",
+      );
+    }
+    void input;
+    // The real endpoint returns the plain booking payload, which carries no
+    // free_cancel_deadline — reproduced here so callers cannot accidentally
+    // depend on it surviving a cancel.
+    const cancelled: Booking = { ...booking, status: "cancelled", freeCancelDeadline: null };
+    this.bookings.set(bookingId, cancelled);
+    return cancelled;
+  }
+
+  /** The mock has no payments at all, which is also the common live case: the
+   * endpoint answers 404 for a booking with no deposit. */
+  async getBookingPayment(bookingId: string): Promise<BookingPayment | null> {
+    await this.simulateNetwork();
+    if (!this.bookings.has(bookingId)) {
+      throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
+    }
+    return null;
+  }
 }
+
 
 const MOCK_TIMEZONE = "Asia/Almaty";
 const SLOT_DURATION_MINUTES = 90;

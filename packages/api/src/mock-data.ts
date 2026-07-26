@@ -10,6 +10,7 @@ import foodDessertBerry from "../assets/photos/food-dessert-berry.jpg";
 import mapPreview from "../assets/photos/map-preview.jpg";
 import type {
   Cuisine,
+  EventSummary,
   MenuHighlight,
   Photo,
   PromoBanner,
@@ -281,3 +282,83 @@ export const popularSearches = [
   "живая музыка",
   "веранда",
 ];
+
+/**
+ * Upcoming events for the offline mock (`GET /events` — see
+ * RestaurantRepository.listUpcomingEvents).
+ *
+ * Built as a FUNCTION of the current time rather than a frozen array: the real
+ * endpoint only ever returns events that have not finished yet, so a fixture
+ * with hard-coded 2026 dates would quietly become an empty list and make the
+ * mock stop matching the contract it exists to stand in for.
+ *
+ * Note there are no tags/categories here either — the backend has none, so
+ * inventing them in the mock would let a card be built against a field that
+ * cannot exist in production.
+ */
+export function upcomingEvents(now: Date = new Date()): EventSummary[] {
+  const at = (days: number, hour: number): string => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + days);
+    d.setHours(hour, 0, 0, 0);
+    return d.toISOString();
+  };
+  const host = (index: number): EventSummary["restaurant"] => {
+    const r = restaurants[index];
+    return { id: r.id, name: r.name, city: r.city };
+  };
+
+  return [
+    {
+      id: "e1",
+      restaurantId: restaurants[0].id,
+      title: "Ужин с шефом: сезонное меню",
+      description: "Сет из шести подач, шеф выходит к каждому столу.",
+      startsAt: at(2, 19),
+      endsAt: at(2, 22),
+      venue: "Основной зал",
+      coverImageUrl: photo("foodPlateTasting", "e1-cover", "Ужин с шефом").uri,
+      ticketed: true,
+      ticketPriceMinor: 1_800_000,
+      capacity: 24,
+      ticketsRefundable: true,
+      ticketRefundCutoffMinutes: 1440,
+      restaurant: host(0),
+    },
+    {
+      id: "e2",
+      restaurantId: restaurants[1].id,
+      title: "Винный вечер",
+      description: "Шесть образцов из Грузии и Испании, дегустация вслепую.",
+      startsAt: at(5, 20),
+      endsAt: at(5, 23),
+      venue: "",
+      coverImageUrl: photo("interiorWineTable", "e2-cover", "Винный вечер").uri,
+      ticketed: true,
+      ticketPriceMinor: 950_000,
+      capacity: null,
+      ticketsRefundable: false,
+      ticketRefundCutoffMinutes: 0,
+      restaurant: host(1),
+    },
+    {
+      id: "e3",
+      restaurantId: restaurants[2].id,
+      title: "Бранч выходного дня",
+      description: "Живая музыка и меню бранча до трёх часов дня.",
+      startsAt: at(9, 12),
+      endsAt: at(9, 16),
+      venue: "Веранда",
+      // Deliberately without a cover: the real payload omits
+      // `cover_image_url` for venues that uploaded none, and the card has to
+      // survive that.
+      coverImageUrl: null,
+      ticketed: false,
+      ticketPriceMinor: null,
+      capacity: null,
+      ticketsRefundable: false,
+      ticketRefundCutoffMinutes: 0,
+      restaurant: host(2),
+    },
+  ];
+}

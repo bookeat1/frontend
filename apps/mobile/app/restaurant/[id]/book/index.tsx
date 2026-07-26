@@ -1,4 +1,4 @@
-import type { AvailabilitySlot } from "@bookeat/api";
+import type { AvailabilitySlot, BookingConflictKind } from "@bookeat/api";
 import { RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -8,7 +8,9 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
-import { CalendarBlank, ForkKnife, Users } from "../../../../src/components/icons";
+import { CalendarBlank, ForkKnife, User } from "../../../../src/components/icons";
+import { MenuItemCard } from "../../../../src/components/MenuItemCard";
+import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SelectRow } from "../../../../src/components/SelectRow";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
@@ -25,6 +27,16 @@ const t = getDictionary();
 interface FieldErrors {
   name?: string;
   phone?: string;
+}
+
+/** What the guest is shown after a failed submit. `action` is the way out of
+ * the failure (their bookings list, the party-size picker); `blocksSubmit`
+ * means we KNOW a booking already exists, so the button must not fire again. */
+interface SubmitError {
+  title: string;
+  description: string;
+  action?: { label: string; onPress: () => void };
+  blocksSubmit?: boolean;
 }
 
 /** Deliberately loose: KZ mobile numbers are 11 digits, but guests paste all
@@ -54,9 +66,7 @@ export default function ReservationScreen() {
   const createBooking = useCreateBooking();
 
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState<{ title: string; description: string } | null>(
-    null,
-  );
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null);
 
   // Prefill from the account once it is known, without touching anything the
   // guest has already typed (see prefillContact).
@@ -68,6 +78,17 @@ export default function ReservationScreen() {
   useEffect(() => {
     if (user) prefillContact({ name: user.fullName, phone: user.phone });
   }, [prefillContact, user]);
+
+  // Settle the time that was pre-selected from an Explore time pill against
+  // the day's real slots, the moment they arrive — and re-check it on every
+  // later answer, since the first one can come from the cache Explore filled a
+  // minute ago. The draft ignores the call once the guest has chosen a time
+  // themselves, so this can never overrule them.
+  const { resolvePrefill } = draft;
+  const availabilitySlots = availability.data?.slots;
+  useEffect(() => {
+    if (availabilitySlots) resolvePrefill(availabilitySlots);
+  }, [availabilitySlots, resolvePrefill]);
 
   const selectedDate = useMemo(() => fromDateKey(draft.date), [draft.date]);
   const dateLabel = useMemo(() => {
@@ -92,6 +113,78 @@ export default function ReservationScreen() {
     };
     setErrors(next);
     return !next.name && !next.phone;
+  };
+
+  const goToMyBookings = () => router.push("/bookings");
+
+  /**
+   * The four ways POST /bookings can answer 409, and the only two questions
+   * that matter for each: does the guest have a booking, and may they submit
+   * again?
+   *
+   * IDEMPOTENCY-KEY, per branch:
+   *   - slot_taken / no_table_available — no booking exists. The selected time
+   *     is cleared, and clearing it rotates the key (BookingDraftProvider
+   *     rotates on any change to the request body: venue, day, party size,
+   *     slot, contacts). The guest's next submit is a genuinely new request.
+   *   - idempotency_key_reused — a booking DOES exist. Nothing about the draft
+   *     is touched, so the key does NOT rotate, and the submit button is
+   *     locked on top of that: rotating the key and resending is exactly what
+   *     would produce a second table.
+   *   - unknown — the draft is frozen for the same reason. Because the key
+   *     stays put, pressing "Забронировать" again resolves the ambiguity
+   *     safely by itself: if the earlier submit did go through, the backend
+   *     replays that same booking (identical body + identical key); if it did
+   *     not, the request is simply attempted again.
+   */
+  const handleBookingConflict = (conflict: BookingConflictKind) => {
+    switch (conflict) {
+      case "slot_taken":
+        // No booking was created. The slot went while the guest was typing:
+        // drop it and refetch so the grid they look at next is the truth.
+        draft.setSlot(null);
+        void availability.refetch();
+        setSubmitError({
+          title: t.booking.createErrorConflictTitle,
+          description: t.booking.createErrorConflictDescription,
+        });
+        return;
+      case "no_table_available":
+        // No booking either — but picking another time is not the only fix,
+        // a smaller party may still fit, so offer that route explicitly.
+        draft.setSlot(null);
+        void availability.refetch();
+        setSubmitError({
+          title: t.booking.createErrorNoTableTitle,
+          description: t.booking.createErrorNoTableDescription(draft.guests),
+          action: {
+            label: t.booking.createErrorChangeGuests,
+            onPress: () => router.push(`/restaurant/${id}/book/guests`),
+          },
+        });
+        return;
+      case "idempotency_key_reused":
+        // The OPPOSITE of a lost slot: this exact request already produced a
+        // booking. Keep the draft intact and stop the flow here.
+        setSubmitError({
+          title: t.booking.createErrorDuplicateTitle,
+          description: t.booking.createErrorDuplicateDescription,
+          action: { label: t.booking.createErrorOpenMyBookings, onPress: goToMyBookings },
+          blocksSubmit: true,
+        });
+        return;
+      case "unknown":
+        // An older server build: the same 409 covers both outcomes and we
+        // cannot tell them apart. Say nothing we do not know — claiming a
+        // booking that does not exist is what makes a guest not turn up —
+        // and send them to check. The draft is left exactly as it is.
+        setSubmitError({
+          title: t.booking.createErrorAmbiguousTitle,
+          description: t.booking.createErrorAmbiguousDescription,
+          action: { label: t.booking.createErrorOpenMyBookings, onPress: goToMyBookings },
+        });
+        return;
+    }
   };
 
   const handleSubmit = () => {
@@ -135,27 +228,15 @@ export default function ReservationScreen() {
             router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
             return;
           }
-          if (error instanceof RepositoryError && error.isDuplicateSubmit) {
-            // NOT "the slot is gone" — the opposite. The server is saying this
-            // exact request already produced a booking. Clearing the slot here
-            // (as this branch used to) sent the guest off to pick another time
-            // and quietly gave them a SECOND table while they believed they had
-            // none. Keep everything and tell them to check their bookings.
-            setSubmitError({
-              title: t.booking.createErrorDuplicateTitle,
-              description: t.booking.createErrorDuplicateDescription,
-            });
-            return;
-          }
-          if (error instanceof RepositoryError && error.isSlotConflict) {
-            // The slot went while the guest was typing. Drop it and refetch so
-            // the grid they look at next is the truth.
-            draft.setSlot(null);
-            void availability.refetch();
-            setSubmitError({
-              title: t.booking.createErrorConflictTitle,
-              description: t.booking.createErrorConflictDescription,
-            });
+          // A 409 is FOUR different outcomes, told apart only by the server's
+          // machine-readable `code` (never by the English message, which is
+          // the same "already exists" for all of them). Two of them mean the
+          // guest has NO booking, one means they DO, and the fourth is an
+          // older server build that will not say which.
+          const conflict =
+            error instanceof RepositoryError ? error.bookingConflict : null;
+          if (conflict) {
+            handleBookingConflict(conflict);
             return;
           }
           if (error instanceof RepositoryError && error.isValidation) {
@@ -175,12 +256,18 @@ export default function ReservationScreen() {
   };
 
   const submitting = createBooking.isPending;
-  const canSubmit = Boolean(draft.slot) && !submitting;
+  // `blocksSubmit` is set only when the server told us a booking already
+  // exists. It is deliberately NOT cleared by editing the form: any edit
+  // rotates the Idempotency-Key, so an "edit and resend" is what would create
+  // the second table. The way out is the bookings list.
+  const canSubmit = Boolean(draft.slot) && !submitting && !submitError?.blocksSubmit;
 
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        <FlowHeader title={restaurant?.name ?? t.booking.title} onBack={() => router.back()} />
+        {/* The venue name moved into the first card (node 471:3899); the bar
+            itself carries the screen name and a single close control. */}
+        <FlowHeader title={t.booking.title} onClose={() => router.back()} />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -192,10 +279,13 @@ export default function ReservationScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.dateSectionTitle}</Text>
-            </View>
+          <View style={[styles.section, styles.sectionFirst]}>
+            {restaurant ? (
+              <View style={styles.venueBox}>
+                <Text style={styles.venueName}>{restaurant.name}</Text>
+                <Text style={styles.venueAddress}>{restaurant.address}</Text>
+              </View>
+            ) : null}
             <View style={styles.stripBleed}>
               <DateStrip
                 selected={draft.date}
@@ -204,23 +294,23 @@ export default function ReservationScreen() {
                 tomorrowLabel={t.booking.tomorrow}
               />
             </View>
-            <View style={styles.sectionBody}>
-              <SelectRow
+            <View style={[styles.sectionBody, styles.pillRow]}>
+              <PillSelect
                 icon={CalendarBlank}
-                label={t.booking.changeDate}
+                accessibilityLabel={t.booking.dateSectionTitle}
                 value={dateLabel}
                 onPress={() => router.push(`/restaurant/${id}/book/date`)}
               />
-              <SelectRow
-                icon={Users}
-                label={t.booking.guestsSectionTitle}
+              <PillSelect
+                icon={User}
+                accessibilityLabel={t.booking.guestsSectionTitle}
                 value={t.booking.guestsCount(draft.guests)}
                 onPress={() => router.push(`/restaurant/${id}/book/guests`)}
               />
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.timeSectionTitle}</Text>
               {availability.data ? (
@@ -230,6 +320,15 @@ export default function ReservationScreen() {
               ) : null}
             </View>
             <View style={styles.sectionBody}>
+              {/* The time the guest tapped on Explore is gone. Say so, right
+                  above the grid they now have to choose from — the date and
+                  the party size they came with are still selected. */}
+              {draft.prefillOutcome === "taken" ? (
+                <View style={styles.notice} accessibilityRole="alert">
+                  <Text style={styles.noticeTitle}>{t.booking.prefillTakenTitle}</Text>
+                  <Text style={styles.noticeText}>{t.booking.prefillTakenDescription}</Text>
+                </View>
+              ) : null}
               <SlotsSection
                 query={availability}
                 selected={draft.slot?.startsAt ?? null}
@@ -239,7 +338,7 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.contactSectionTitle}</Text>
             </View>
@@ -270,8 +369,19 @@ export default function ReservationScreen() {
                 autoComplete="tel"
                 textContentType="telephoneNumber"
               />
+            </View>
+          </View>
+
+          {/* "Special Requests" is its own card in the design (node 471:3946):
+              a titled card with one bare rounded box, no field label. */}
+          <View style={[styles.section, styles.sectionRounded]}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t.booking.notesLabel}</Text>
+            </View>
+            <View style={styles.sectionBody}>
               <TextField
                 label={t.booking.notesLabel}
+                labelHidden
                 placeholder={t.booking.notesPlaceholder}
                 value={draft.notes}
                 onChangeText={draft.setNotes}
@@ -280,7 +390,7 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.preorderSectionTitle}</Text>
               <Text style={styles.sectionCaption}>{t.booking.preorderOptional}</Text>
@@ -306,10 +416,38 @@ export default function ReservationScreen() {
             </View>
           </View>
 
+          {/* "Top Picks" (node 471:3950). Rendered from the venue payload this
+              screen already has — no extra request — and read-only: the design
+              gives its cards no visible affordance, and wiring a tap would be a
+              behaviour decision, not a visual one. */}
+          {restaurant && restaurant.menuHighlights.length > 0 ? (
+            <View style={[styles.section, styles.sectionLast]}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.topPicksRow}
+              >
+                {restaurant.menuHighlights.map((item) => (
+                  <MenuItemCard key={item.id} item={item} />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
           {submitError ? (
             <View style={styles.submitError} accessibilityRole="alert">
               <Text style={styles.submitErrorTitle}>{submitError.title}</Text>
               <Text style={styles.submitErrorText}>{submitError.description}</Text>
+              {submitError.action ? (
+                <PrimaryButton
+                  label={submitError.action.label}
+                  onPress={submitError.action.onPress}
+                  variant="secondary"
+                />
+              ) : null}
             </View>
           ) : null}
         </ScrollView>
@@ -320,6 +458,7 @@ export default function ReservationScreen() {
               <Text style={styles.gateNote}>{t.booking.signInGateNote}</Text>
             ) : null}
             <PrimaryButton
+              size="lg"
               label={
                 submitting
                   ? t.booking.submitting
@@ -423,10 +562,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
     gap: spacing.sm,
   },
+  // Cards are full-bleed with 16 of inner padding and 24 between their blocks
+  // (nodes 471:3899 / 3914 / 3946 / 3950). The stack's outer corners are the
+  // only ones that stay square: the first card is rounded at the bottom, the
+  // last at the top, everything between is rounded all round.
   section: {
     backgroundColor: colors.background.surface,
     paddingVertical: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.xxl,
+  },
+  sectionFirst: {
+    borderBottomLeftRadius: radius.card,
+    borderBottomRightRadius: radius.card,
+  },
+  sectionRounded: {
+    borderRadius: radius.card,
+  },
+  sectionLast: {
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    paddingBottom: spacing.xxxl,
   },
   sectionHeader: {
     paddingHorizontal: spacing.lg,
@@ -435,6 +590,28 @@ const styles = StyleSheet.create({
   sectionBody: {
     paddingHorizontal: spacing.lg,
     gap: spacing.md,
+  },
+  venueBox: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xxs,
+  },
+  venueName: {
+    ...typography.titleLg,
+    color: colors.text.primary,
+  },
+  // Dark, not muted — the design's address line is #1B1B1B (node 471:3899).
+  venueAddress: {
+    ...typography.body,
+    color: colors.text.primary,
+  },
+  pillRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  topPicksRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   // The date strip scrolls edge to edge; its own contentContainer carries the
   // page padding so the first cell doesn't look clipped.
@@ -449,6 +626,22 @@ const styles = StyleSheet.create({
   sectionCaption: {
     ...typography.caption,
     color: colors.text.muted,
+  },
+  // Same block the submit errors use, minus the screen gutter: this one sits
+  // INSIDE a card that already carries the padding.
+  notice: {
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.background.chip,
+    gap: spacing.xxs,
+  },
+  noticeTitle: {
+    ...typography.labelSemiBold,
+    color: colors.brand.primary,
+  },
+  noticeText: {
+    ...typography.body,
+    color: colors.text.primary,
   },
   submitError: {
     marginHorizontal: spacing.lg,
@@ -467,8 +660,10 @@ const styles = StyleSheet.create({
   },
   footerSafeArea: {
     backgroundColor: colors.background.surface,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
+    // 0 -8 16 at 8% black (node 471:3967); the alpha lives in the token, so
+    // shadowOpacity is left at full strength.
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
     shadowOffset: { width: 0, height: -8 },
     shadowRadius: 16,
     elevation: 8,

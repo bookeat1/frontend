@@ -19,11 +19,15 @@ import type {
   AuthSession,
   AuthUser,
   Booking,
+  BookingPayment,
   BookingStatus,
   Cuisine,
   DayAvailability,
+  EventSummary,
   MenuHighlight,
   MenuSection,
+  PaymentPurpose,
+  PaymentStatus,
   Photo,
   Preorder,
   PriceLevel,
@@ -371,6 +375,48 @@ export interface ApiBooking {
   free_cancel_deadline?: string | null;
 }
 
+/** paymentResponse — internal/transport/rest/payments/response.go. Only the
+ * fields the guest UI is allowed to reason about are declared. */
+export interface ApiPayment {
+  id: string;
+  booking_id: string;
+  purpose: string;
+  status: string;
+  amount_minor: number;
+  currency: string;
+}
+
+const PAYMENT_STATUSES: PaymentStatus[] = [
+  "created",
+  "authorized",
+  "capturing",
+  "captured",
+  "voiding",
+  "voided",
+  "partially_refunded",
+  "refunded",
+  "failed",
+  "expired",
+];
+
+const PAYMENT_PURPOSES: PaymentPurpose[] = ["deposit", "preorder", "ticket"];
+
+/** An unrecognised status maps to "created" — the state that grants the guest
+ * no claim about money either way. Guessing "voided"/"refunded" would tell
+ * them their deposit is safe when we don't know it. */
+export function mapPayment(api: ApiPayment): BookingPayment {
+  const status = text(api.status).trim();
+  const purpose = text(api.purpose).trim();
+  return {
+    id: text(api.id),
+    bookingId: text(api.booking_id),
+    purpose: PAYMENT_PURPOSES.find((p) => p === purpose) ?? "deposit",
+    status: PAYMENT_STATUSES.find((s) => s === status) ?? "created",
+    amountMinor: typeof api.amount_minor === "number" ? api.amount_minor : 0,
+    currency: text(api.currency) || "KZT",
+  };
+}
+
 export interface ApiPreorderItem {
   id: string;
   menu_item_id: string | null;
@@ -581,6 +627,20 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
   };
 }
 
+/**
+ * Coordinates, or nothing at all. `0,0` is treated as absent on purpose: it is
+ * what an unfilled numeric column looks like, and it would open the maps app
+ * in the Gulf of Guinea.
+ */
+function coordinates(api: ApiRestaurant): { latitude?: number; longitude?: number } {
+  const lat = api.latitude;
+  const lng = api.longitude;
+  if (typeof lat !== "number" || typeof lng !== "number") return {};
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return {};
+  if (lat === 0 && lng === 0) return {};
+  return { latitude: lat, longitude: lng };
+}
+
 export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras = {}): Restaurant {
   const photos: Photo[] = (api.images ?? []).map((img) =>
     imageToPhoto(img.image_url, img.id, text(api.name), undefined),
@@ -606,6 +666,10 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     reviewsCount: extras.reviews?.count ?? 0,
     address: text(api.address),
     city: text(api.city),
+    // Real, from `latitude`/`longitude` on the detail endpoint (verified on
+    // the live catalog). Only used to open the device's maps app — there is
+    // still no distance calculation, which is the separate stub below.
+    ...coordinates(api),
     // STUB: no geolocation/distance in the API — see unknown-data.ts.
     distanceMeters: stubDistanceMeters(api.id),
     phone: text(api.phone) || undefined,
@@ -633,5 +697,79 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // ASSUMPTION: no per-restaurant bookable flag in the API; every
     // restaurant this endpoint returns is already active. See unknown-data.ts.
     isBookable: ASSUMED_IS_BOOKABLE,
+  };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Events (public cross-venue listing)
+ *
+ * Shape read from backend-core, not guessed:
+ *   internal/transport/rest/events/handler.go
+ *     (eventResponse, eventListItemResponse, eventRestaurantResponse,
+ *      publicListItemResponse)
+ * `venue`, `cover_image_url`, `ticket_price_minor` and `capacity` are
+ * `omitempty` on the Go side, so every one of them can be simply ABSENT from
+ * the JSON — not null, absent.
+ * ------------------------------------------------------------------------ */
+
+/** eventResponse — the guest-facing shape (title/description already resolved
+ * into the requested language server-side; the raw *_i18n maps are stripped
+ * for public callers). */
+export interface ApiEvent {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  venue?: string;
+  cover_image_url?: string | null;
+  status: string;
+  ticketed: boolean;
+  ticket_price_minor?: number | null;
+  capacity?: number | null;
+  tickets_refundable: boolean;
+  ticket_refund_cutoff_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** eventListItemResponse — an event plus the venue that hosts it. */
+export interface ApiEventListItem extends ApiEvent {
+  restaurant?: {
+    id?: string;
+    name?: string;
+    city?: string;
+  };
+}
+
+/**
+ * `status` is deliberately dropped: the public listing only emits published
+ * events, so carrying it into the UI would invite a screen to branch on a
+ * constant. The `restaurant` object is defensive — a listing row without it
+ * degrades to an unclickable card, never to a thrown mapper that blanks the
+ * whole section.
+ */
+export function mapEventSummary(api: ApiEventListItem): EventSummary {
+  return {
+    id: text(api.id),
+    restaurantId: text(api.restaurant_id),
+    title: text(api.title),
+    description: plainText(api.description),
+    startsAt: text(api.starts_at),
+    endsAt: text(api.ends_at),
+    venue: text(api.venue).trim(),
+    coverImageUrl: text(api.cover_image_url).trim() || null,
+    ticketed: api.ticketed === true,
+    ticketPriceMinor: typeof api.ticket_price_minor === "number" ? api.ticket_price_minor : null,
+    capacity: typeof api.capacity === "number" ? api.capacity : null,
+    ticketsRefundable: api.tickets_refundable === true,
+    ticketRefundCutoffMinutes:
+      typeof api.ticket_refund_cutoff_minutes === "number" ? api.ticket_refund_cutoff_minutes : 0,
+    restaurant: {
+      id: text(api.restaurant?.id) || text(api.restaurant_id),
+      name: text(api.restaurant?.name),
+      city: text(api.restaurant?.city),
+    },
   };
 }

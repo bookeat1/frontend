@@ -1,0 +1,93 @@
+import type { Booking, Restaurant } from "@bookeat/api";
+import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
+import { Image } from "expo-image";
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { formatRelativeDay, formatTime } from "../../lib/format";
+import { BookingCard } from "./BookingCard";
+import { BookingStatusPill } from "./BookingStatusPill";
+
+const t = getDictionary();
+
+/**
+ * Top card of the Reservation detail screen (Figma node 488:9876): the venue
+ * photo as a 72x72 rounded square, the venue name, the one-line summary
+ * ("Сегодня · 14:00 · 2 гостя") and the status pill — all centred, all flush
+ * with the top bar (only the bottom corners are rounded).
+ *
+ * `restaurant` is optional: the booking loads from its own endpoint and the
+ * venue from another, so the header must still be truthful while the venue
+ * request is in flight or has failed. In that case the photo slot renders as
+ * a neutral placeholder and the name falls back to the name ON THE BOOKING's
+ * own venue id being unknown — see the caller, which passes the venue name
+ * only when it has one.
+ */
+export function ReservationHeaderCard({
+  booking,
+  restaurant,
+}: {
+  booking: Booking;
+  restaurant?: Restaurant;
+}) {
+  const photoUri = restaurant?.coverPhoto?.uri;
+  const summary = t.booking.reservationSummary(
+    formatRelativeDay(booking.startsAt),
+    formatTime(booking.startsAt),
+    t.booking.guestsCount(booking.guests),
+  );
+
+  return (
+    <BookingCard corners="bottom" align="center" style={styles.card}>
+      {photoUri ? (
+        <Image
+          source={{ uri: photoUri }}
+          style={styles.avatar}
+          contentFit="cover"
+          accessibilityLabel={restaurant?.coverPhoto.alt}
+        />
+      ) : (
+        <View style={[styles.avatar, styles.avatarPlaceholder]} />
+      )}
+
+      {restaurant?.name ? (
+        // Long RU venue names are real ("Fusion Rooftop на очень-очень длинной
+        // улице"); two lines then ellipsis keeps the pill on screen.
+        <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">
+          {restaurant.name.trim()}
+        </Text>
+      ) : null}
+
+      <Text style={styles.summary}>{summary}</Text>
+
+      <BookingStatusPill status={booking.status} />
+    </BookingCard>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    gap: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  avatar: {
+    width: controlHeight.venueAvatar,
+    height: controlHeight.venueAvatar,
+    borderRadius: radius.avatar,
+    backgroundColor: colors.background.bannerPlaceholder,
+    marginBottom: spacing.xs,
+  },
+  avatarPlaceholder: {
+    backgroundColor: colors.background.chip,
+  },
+  name: {
+    ...typography.titleXl,
+    color: colors.text.primary,
+    textAlign: "center",
+  },
+  summary: {
+    ...typography.body,
+    color: colors.text.mutedStrong,
+    textAlign: "center",
+  },
+});

@@ -4,7 +4,15 @@ import { RepositoryError } from "./repository";
  * in backend-core/internal/transport/rest/response/response.go). */
 interface Envelope<T> {
   data?: T;
+  /** Human-readable, English, written for developers. Never rendered. */
   error?: string;
+  /**
+   * Machine-readable failure code, additive since 2026-07-25 — omitted by
+   * older server builds, so every consumer must survive its absence. This is
+   * the ONLY part of an error body the UI is allowed to branch on: `error`
+   * text is not a contract, `code` is.
+   */
+  code?: string;
 }
 
 /** Paginated list envelope (see response.Page[T] in the same file). */
@@ -46,7 +54,11 @@ interface RequestOptions {
  * The server's `error` string is English and written for developers
  * ("already exists", "validation: guests must be positive"). It is carried on
  * RepositoryError.serverMessage for logs, but the UI must translate by
- * `status`, never print it to a guest.
+ * `status` and by the machine-readable `code`, never print it to a guest.
+ *
+ * `code` is forwarded from the envelope for EVERY endpoint, not just bookings:
+ * it is additive and optional, so carrying it costs nothing where nobody reads
+ * it yet, and a later consumer does not have to re-plumb the client.
  */
 export class HttpClient {
   private readonly baseUrl: string;
@@ -82,6 +94,11 @@ export class HttpClient {
 
   async put<T>(path: string, body: unknown, options?: RequestOptions): Promise<T> {
     return this.send<T>("PUT", `${this.baseUrl}${path}`, path, body, options);
+  }
+
+  /** DELETE with no request body — the only shape this API uses (favorites). */
+  async delete<T>(path: string, options?: RequestOptions): Promise<T> {
+    return this.send<T>("DELETE", `${this.baseUrl}${path}`, path, undefined, options);
   }
 
   private async send<T>(
@@ -144,10 +161,12 @@ export class HttpClient {
 
     if (!response.ok) {
       throw new RepositoryError(
-        `Server error ${response.status} requesting ${path}: ${envelope?.error ?? "unknown error"}`,
+        `Server error ${response.status} requesting ${path}: ${envelope?.error ?? "unknown error"}` +
+          (envelope?.code ? ` [${envelope.code}]` : ""),
         undefined,
         response.status,
         envelope?.error,
+        envelope?.code,
       );
     }
 

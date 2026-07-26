@@ -1,12 +1,21 @@
-import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
+import type { IconProps } from "./icons";
 
 interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   variant?: "primary" | "secondary";
+  /** Optional glyph rendered before the label, e.g. the circled X on the
+   * Reservation screen's "Отменить бронь" (node 488:9876). Decorative — the
+   * label already carries the meaning, so it is never announced separately. */
+  icon?: React.ComponentType<IconProps>;
+  /** `md` is the 44pt accessibility minimum used across the catalog screens;
+   * `lg` is the 48pt height the booking flow's sticky CTA has in the design
+   * (Figma node 471:3967). Not a new component — same pill, one number. */
+  size?: "md" | "lg";
   accessibilityLabel?: string;
 }
 
@@ -21,9 +30,12 @@ export function PrimaryButton({
   onPress,
   disabled = false,
   variant = "primary",
+  size = "md",
+  icon: Icon,
   accessibilityLabel,
 }: PrimaryButtonProps) {
   const isSecondary = variant === "secondary";
+  const labelColor = isSecondary ? colors.text.primary : colors.text.onBrand;
   return (
     <Pressable
       accessibilityRole="button"
@@ -33,11 +45,13 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
+        size === "lg" && styles.large,
         isSecondary ? styles.secondary : styles.primary,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
       ]}
     >
+      {Icon ? <Icon size={20} color={labelColor} weight="regular" /> : null}
       <Text style={[styles.label, isSecondary && styles.labelSecondary]}>{label}</Text>
     </Pressable>
   );
@@ -49,8 +63,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     flexDirection: "row",
+    // Gap is 0 without an icon, so this is safe for every existing caller.
+    gap: spacing.sm,
+  },
+  large: {
+    height: controlHeight.pill,
   },
   primary: {
     backgroundColor: colors.brand.primary,

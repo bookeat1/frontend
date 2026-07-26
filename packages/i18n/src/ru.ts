@@ -1,3 +1,16 @@
+/**
+ * Русская форма слова «гость» для числа. Живёт здесь, а не в компоненте:
+ * склонение — часть словаря, а не разметки.
+ */
+function guestsWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "гостей";
+  if (mod10 === 1) return "гость";
+  if (mod10 >= 2 && mod10 <= 4) return "гостя";
+  return "гостей";
+}
+
 export const ru = {
   common: {
     back: "Назад",
@@ -6,6 +19,53 @@ export const ru = {
     cancel: "Отмена",
     seeAll: "Смотреть все",
     loading: "Загрузка",
+  },
+  /**
+   * Главный экран (Explore). Переехало сюда из
+   * apps/mobile/src/components/explore/copy.ts без изменения формулировок.
+   *
+   * Макет на английском («Popular Restaurants», «Chef's Picks», «Restaurant,
+   * cuisine, or dish»), интерфейс приложения русский, поэтому заголовки
+   * секций переведены, а «Гастрогид» оставлен именем собственным.
+   */
+  explore: {
+    searchPlaceholder: "Заведение, кухня или блюдо",
+
+    popularTitle: "Популярные заведения",
+    popularLoading: "Загружаем заведения…",
+    popularEmptyTitle: "Пока нечего показать",
+    popularEmptyDescription: "Загляните в поиск — там есть весь каталог",
+    popularEmptyAction: "Открыть поиск",
+    popularErrorTitle: "Заведения не загрузились",
+    popularErrorDescription: "Проверьте соединение и попробуйте ещё раз",
+
+    chefsPicksTitle: "Выбор шефа",
+    gastroguideTitle: "Гастрогид",
+    eventsTitle: "События",
+    eventsLoading: "Загружаем события…",
+    /** Пустая секция — это НОРМАЛЬНЫЙ ответ /events: возвращаются только
+     * опубликованные и ещё не прошедшие события активных заведений, и сегодня
+     * на тестовом бэкенде их ноль. Формулировка объясняет причину, а не
+     * извиняется за поломку. */
+    eventsEmptyTitle: "Ближайших событий нет",
+    eventsEmptyDescription:
+      "Заведения пока не анонсировали ужины, бранчи и вечеринки. Появятся — покажем здесь",
+    eventsErrorTitle: "События не загрузились",
+    eventsErrorDescription: "Проверьте соединение и попробуйте ещё раз",
+    /** Метка карточки для скринридера: «Ужин с шефом, 28 июля, 19:00, Дастархан». */
+    eventCard: (title: string, when: string, restaurant: string) =>
+      restaurant ? `${title}, ${when}, ${restaurant}` : `${title}, ${when}`,
+
+    /** Строка под названием заведения на карточке: «Сегодня · 2 гостя». */
+    todayGuests: (guests: number) => `Сегодня · ${guests} ${guestsWord(guests)}`,
+    slotsUnavailable: "Сегодня свободного времени нет",
+    slotsFailed: "Время не загрузилось",
+
+    favoriteAdd: (name: string) => `Добавить «${name}» в избранное`,
+    favoriteRemove: (name: string) => `Убрать «${name}» из избранного`,
+    bookAt: (name: string, time: string) => `Забронировать в «${name}» на ${time}`,
+    heroBanner: (index: number, total: number) => `Баннер ${index} из ${total}`,
+    sectionSeeAll: (section: string) => `${section}: смотреть все`,
   },
   search: {
     placeholder: "Найти заведение, кухню или блюдо",
@@ -320,21 +380,18 @@ export const ru = {
     tomorrow: "Завтра",
     guestsSectionTitle: "Гости",
     pickGuestsTitle: "Сколько гостей",
-    guestsCount: (count: number) => {
-      const mod10 = count % 10;
-      const mod100 = count % 100;
-      let word = "гостей";
-      if (mod100 < 11 || mod100 > 14) {
-        if (mod10 === 1) word = "гость";
-        else if (mod10 >= 2 && mod10 <= 4) word = "гостя";
-      }
-      return `${count} ${word}`;
-    },
+    guestsCount: (count: number) => `${count} ${guestsWord(count)}`,
     guestsHint: (max: number) =>
       `Больше ${max} гостей — это уже банкет, свяжитесь с заведением напрямую`,
     guestsDecrease: "Меньше гостей",
     guestsIncrease: "Больше гостей",
     timeSectionTitle: "Время",
+    // --- время, подставленное с главного экрана ---
+    /** Слот из карточки Explore оказался занят, пока гость шёл в форму.
+     * Дата и число гостей при этом остаются подставленными. */
+    prefillTakenTitle: "Это время уже заняли",
+    prefillTakenDescription:
+      "Выберите другое время — дата и число гостей уже подставлены",
     slotDuration: (minutes: number) => `Столик держим ${minutes} минут`,
     slotFreeTables: (count: number) => `Свободно столиков: ${count}`,
     slotUnavailable: {
@@ -395,11 +452,29 @@ export const ru = {
     submitting: "Бронируем…",
     signInToConfirm: "Войти и забронировать",
     signInGateNote: "Бронь оформляется на аккаунт — так вы сможете её отменить или изменить",
-    createErrorDuplicateTitle: "Похоже, бронь уже создана",
+    // --- четыре исхода конфликта 409 на POST /bookings ---
+    // Ветвление идёт по машинному полю `code` в ответе сервера, а не по
+    // тексту. Формулировки разные не для красоты: гость, которому сказали
+    // «бронь есть», когда её нет, просто не придёт в ресторан.
+    /** code = idempotency_key_reused — прошлая отправка ДОШЛА, бронь есть. */
+    createErrorDuplicateTitle: "Эта бронь уже оформлена",
     createErrorDuplicateDescription:
-      "Ваш запрос уже дошёл до ресторана. Проверьте свои брони, прежде чем оформлять ещё одну — иначе стол займут дважды.",
+      "Ваша предыдущая отправка дошла до ресторана — столик за вами. Откройте «Мои брони», чтобы её посмотреть. Отправлять ещё раз не нужно, иначе стол займут дважды.",
+    /** code = slot_taken — брони НЕТ, время ушло. */
     createErrorConflictTitle: "Это время только что заняли",
-    createErrorConflictDescription: "Выберите другое время — список уже обновлён",
+    createErrorConflictDescription:
+      "Бронь не оформлена: пока вы заполняли форму, столик на это время забрали. Выберите другое время — список уже обновлён.",
+    /** code = no_table_available — брони НЕТ, компания не помещается. */
+    createErrorNoTableTitle: "На это время нет подходящего столика",
+    createErrorNoTableDescription: (guests: number) =>
+      `Бронь не оформлена: столика на ${guests} ${guestsWord(guests)} в это время не нашлось. Попробуйте другое время или уменьшите число гостей.`,
+    /** Кода нет (старая сборка сервера) — не знаем, создалась бронь или нет.
+     * Ничего не утверждаем ни в ту, ни в другую сторону. */
+    createErrorAmbiguousTitle: "Не удалось подтвердить бронь",
+    createErrorAmbiguousDescription:
+      "Ресторан ответил, что на это время бронь уже есть, но не уточнил — ваша или чужая. Сначала откройте «Мои брони»: если ваша там есть, всё в порядке; если нет — выберите другое время.",
+    createErrorOpenMyBookings: "Открыть мои брони",
+    createErrorChangeGuests: "Изменить число гостей",
     createErrorValidationTitle: "Не получилось забронировать",
     createErrorValidationDescription:
       "Проверьте дату, время и число гостей: возможно, время уже прошло или гостей слишком много",
@@ -448,6 +523,110 @@ export const ru = {
     backToVenue: "Вернуться к заведению",
     bookingErrorTitle: "Бронь не загрузилась",
     bookingLoading: "Загружаем бронь…",
+
+    // --- экран брони (Reservation, node 488:9876) ---
+    /** Подпись под названием заведения: «Сегодня · 14:00 · 2 гостя». */
+    reservationSummary: (when: string, time: string, guests: string) =>
+      `${when} · ${time} · ${guests}`,
+    /** Заголовок карточки-объяснялки. В макете он один на все статусы,
+     * но текст под ним свой у каждого — см. whatHappensNext. */
+    whatHappensNextTitle: "Что происходит дальше?",
+    whatHappensNext: {
+      pending:
+        "Обычно заведение подтверждает бронь за 15–30 минут. Как только бронь подтвердят, мы пришлём уведомление.",
+      waitlist:
+        "Вы в листе ожидания: свободного столика на это время пока нет. Если место освободится, заведение подтвердит бронь, и мы сразу сообщим.",
+      confirmed:
+        "Столик за вами — заведение подтвердило бронь. Приходите к назначенному времени; если планы изменятся, бронь можно отменить прямо здесь.",
+      arrived: "Вы на месте — администратор отметил ваш приход. Приятного вечера.",
+      completed: "Визит завершён. Спасибо, что были у нас — будем рады видеть снова.",
+      cancelled:
+        "Эта бронь отменена, столик за вами больше не держат. Чтобы прийти, оформите новую бронь.",
+      no_show:
+        "Заведение отметило, что гость не пришёл. Если это ошибка, свяжитесь с заведением по телефону ниже.",
+    },
+    contactsTitle: "Контакты",
+    contactWebsite: "Сайт заведения",
+    contactWhatsapp: "Написать в WhatsApp",
+    contactInstagram: "Instagram заведения",
+    openInMaps: "Открыть на карте",
+    mapPlaceholderTitle: "Превью карты недоступно",
+    mapPlaceholderDescription: "Нажмите, чтобы открыть адрес в приложении карт",
+    mapNoCoordinates: "У заведения не указаны координаты",
+
+    // --- отмена ---
+    cancelBooking: "Отменить бронь",
+    cancelDialogTitle: "Отменить бронь?",
+    /** Деньги. Формулировка обязана быть однозначной — гость решает по ней. */
+    cancelFreeNoMoney: "Вы ничего не оплачивали, поэтому отмена ничего не стоит.",
+    cancelDepositLost: (amount: string) =>
+      `Бесплатная отмена уже закончилась: депозит ${amount} не возвращается.`,
+    cancelDepositLostSoon: (amount: string, when: string) =>
+      `Бесплатная отмена действует до ${when}. Если отменить позже, депозит ${amount} останется у заведения.`,
+    cancelMoneyUnknown:
+      "Не удалось проверить, была ли оплата по этой брони. Если вы вносили депозит, уточните условия возврата у заведения.",
+    cancelKeep: "Оставить бронь",
+    cancelConfirm: "Да, отменить",
+    cancelling: "Отменяем…",
+    cancelledToast: "Бронь отменена",
+    cancelErrorTitle: "Не удалось отменить бронь",
+    cancelErrorDescription: "Проверьте соединение и попробуйте ещё раз",
+    cancelErrorForbidden: "Отменить эту бронь может только заведение — позвоните им",
+    cancelErrorGone: "Эту бронь уже нельзя отменить — она завершена или отменена ранее",
+  },
+  /** Вкладка «Бронь» — список собственных броней гостя (GET /bookings). */
+  myBookings: {
+    title: "Мои брони",
+    loadingTitle: "Загружаем ваши брони…",
+    loadingMore: "Загружаем ещё…",
+    emptyTitle: "Броней пока нет",
+    emptyDescription: "Забронируйте столик — бронь появится здесь",
+    emptyAction: "Найти заведение",
+    errorTitle: "Брони не загрузились",
+    errorDescription: "Проверьте соединение и попробуйте ещё раз",
+    signedOutTitle: "Войдите, чтобы увидеть свои брони",
+    signedOutDescription: "Бронь оформляется на аккаунт — так её можно посмотреть и отменить",
+    signIn: "Войти",
+    /** Название заведения приходит отдельным запросом: пока оно не пришло
+     * и если запрос упал, врать названием нельзя. */
+    venueLoading: "Загружаем название…",
+    venueUnavailable: "Название заведения не загрузилось",
+    summary: (when: string, guests: string) => `${when} · ${guests}`,
+    openBooking: (venue: string, when: string) => `Бронь в «${venue}», ${when}`,
+  },
+  /** Вкладка «Избранные» — GET /favorites. */
+  favorites: {
+    title: "Избранные",
+    loadingTitle: "Загружаем избранное…",
+    emptyTitle: "В избранном пусто",
+    emptyDescription: "Нажмите на сердечко у заведения — оно появится здесь",
+    emptyAction: "Открыть поиск",
+    errorTitle: "Избранное не загрузилось",
+    errorDescription: "Проверьте соединение и попробуйте ещё раз",
+    signedOutTitle: "Войдите, чтобы сохранять заведения",
+    signedOutDescription: "Избранное хранится в аккаунте и открывается на любом устройстве",
+    signIn: "Войти",
+    toggleFailed: "Не удалось изменить избранное. Попробуйте ещё раз",
+  },
+  /** Вкладка «Профиль» — GET /users/me. */
+  profile: {
+    title: "Профиль",
+    loadingTitle: "Загружаем профиль…",
+    accountTitle: "Аккаунт",
+    nameLabel: "Имя",
+    nameEmpty: "Не указано",
+    emailLabel: "Почта",
+    phoneLabel: "Телефон",
+    phoneEmpty: "Не указан",
+    myBookings: "Мои брони",
+    myFavorites: "Избранные",
+    signOut: "Выйти",
+    signingOut: "Выходим…",
+    signedOutTitle: "Вы не вошли",
+    signedOutDescription: "Войдите, чтобы видеть свои брони и избранное",
+    signIn: "Войти",
+    errorTitle: "Профиль не загрузился",
+    errorDescription: "Проверьте соединение и попробуйте ещё раз",
   },
   auth: {
     signInTitle: "Вход",
