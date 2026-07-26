@@ -125,13 +125,12 @@ export const restaurants: Restaurant[] = [
     id: "r1",
     name: "Дастархан у Розы Ахметовны",
     cuisines: [cuisines[3], cuisines[4]],
-    priceLevel: "$$",
+    priceLevel: "₸₸",
     rating: 4.7,
     reviewsCount: 328,
     address: "ул. Достык, 89",
     addressNote: "Напротив Меги",
     city: "Алматы",
-    distanceMeters: 650,
     phone: "+7 (707) 547-47-47",
     social: {
       website: "https://dastarkhan.example.kz",
@@ -148,6 +147,7 @@ export const restaurants: Restaurant[] = [
     ],
     promoBanners: banners("r1"),
     menuHighlights: menuHighlights("r1"),
+    openingHoursText: "Ежедневно 10:00–23:00",
     workingHours: fullWeek("10:00", "23:00"),
     tables: [
       { id: "t1", seats: 2, location: "hall", isAvailableNow: true },
@@ -163,12 +163,11 @@ export const restaurants: Restaurant[] = [
     id: "r2",
     name: "Trattoria Buonissimo на Розыбакиева",
     cuisines: [cuisines[1]],
-    priceLevel: "$$$",
+    priceLevel: "₸₸₸",
     rating: 4.4,
     reviewsCount: 156,
     address: "ул. Розыбакиева, 247",
     city: "Алматы",
-    distanceMeters: 1200,
     phone: "+7 (707) 111-22-33",
     social: {
       instagram: "https://instagram.com/buonissimo.example",
@@ -181,6 +180,7 @@ export const restaurants: Restaurant[] = [
     ],
     promoBanners: banners("r2"),
     menuHighlights: menuHighlights("r2"),
+    openingHoursText: "Ежедневно 11:00–00:00",
     workingHours: fullWeek("11:00", "00:00"),
     tables: [
       { id: "t1", seats: 2, location: "hall", isAvailableNow: true },
@@ -194,12 +194,11 @@ export const restaurants: Restaurant[] = [
     id: "r3",
     name: "Sakura Sushi & Ramen Bar",
     cuisines: [cuisines[2], cuisines[5]],
-    priceLevel: "$$",
+    priceLevel: "₸₸",
     rating: 4.2,
     reviewsCount: 89,
     address: "пр. Абая, 52/2",
     city: "Алматы",
-    distanceMeters: 2400,
     phone: "+7 (707) 222-33-44",
     social: {
       whatsapp: "https://wa.me/77072223344",
@@ -211,6 +210,7 @@ export const restaurants: Restaurant[] = [
     ],
     promoBanners: banners("r3"),
     menuHighlights: menuHighlights("r3"),
+    openingHoursText: "Ежедневно 11:00–22:00",
     workingHours: fullWeek("11:00", "22:00"),
     tables: [{ id: "t1", seats: 2, location: "bar", isAvailableNow: false }],
     description: "Аутентичный рамен и суши-бар в самом центре города.",
@@ -221,12 +221,11 @@ export const restaurants: Restaurant[] = [
     id: "r4",
     name: "Fusion Rooftop на очень-очень длинной улице имени Абылай хана",
     cuisines: [cuisines[4], cuisines[5]],
-    priceLevel: "$$$$",
+    priceLevel: "₸₸₸₸",
     rating: 4.9,
     reviewsCount: 412,
     address: "ул. Абылай хана, 123, 18 этаж",
     city: "Алматы",
-    distanceMeters: 3100,
     phone: "+7 (707) 333-44-55",
     social: {
       website: "https://fusionrooftop.example.kz",
@@ -242,6 +241,7 @@ export const restaurants: Restaurant[] = [
     ],
     promoBanners: banners("r4"),
     menuHighlights: menuHighlights("r4"),
+    openingHoursText: "Ежедневно 18:00–02:00",
     workingHours: fullWeek("18:00", "02:00"),
     tables: [
       { id: "t1", seats: 2, location: "terrace", isAvailableNow: true },
@@ -263,19 +263,11 @@ export function toSummary(r: Restaurant): RestaurantSummary {
     rating: r.rating,
     reviewsCount: r.reviewsCount,
     address: r.address,
-    distanceMeters: r.distanceMeters,
     coverPhoto: r.coverPhoto,
     isOpenNow: r.isOpenNow,
   };
 }
 
-export const recentSearches = ["Грузинская кухня", "Бешбармак", "Merino"];
-export const popularSearches = [
-  "паназиатская кухня",
-  "детская комната",
-  "живая музыка",
-  "веранда",
-];
 
 /**
  * Upcoming events for the offline mock (`GET /events` — see

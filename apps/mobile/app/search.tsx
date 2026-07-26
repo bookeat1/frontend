@@ -1,9 +1,9 @@
 import { EMPTY_FILTERS, type PriceLevel } from "@bookeat/api";
-import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
+import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { FilterChip } from "../src/components/FilterChip";
@@ -18,11 +18,16 @@ const t = getDictionary();
  * Каталог с поиском и фильтрами. Раньше это был экран `/` — он переехал сюда
  * без изменений, когда домашним экраном стал Explore (`app/index.tsx`), а
  * поисковая строка на нём стала кнопкой, ведущей на этот маршрут.
+ *
+ * Пустой запрос показывает ВЕСЬ каталог, а не заглушку: на этот экран ведут
+ * и вкладка «Поиск», и «Смотреть все» с главного, и оба раза гость приходил в
+ * пустоту с тремя выдуманными подсказками. Список заведений при пустой строке
+ * — это ответ сервера на `GET /restaurants/search` без `q`.
  */
 
 /** Ценовые ступени, которые понимает бэкенд (price_category «₸»/«₸₸»/«₸₸₸»).
  * Четвёртой ступени в каталоге нет, поэтому фильтр её и не предлагает. */
-const PRICE_FILTERS: PriceLevel[] = ["$", "$$", "$$$"];
+const PRICE_FILTERS: PriceLevel[] = ["₸", "₸₸", "₸₸₸"];
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -34,8 +39,6 @@ export default function SearchScreen() {
     hasActiveSearch,
     isTyping,
     searchQueryResult,
-    recentQuery,
-    popularQuery,
     cuisinesQuery,
     citiesQuery,
   } = useSearchScreen();
@@ -76,7 +79,10 @@ export default function SearchScreen() {
     <View style={styles.root}>
       <ScreenContainer padded={false}>
         <View style={styles.searchRow}>
-          <SearchBar value={text} onChangeText={setText} autoFocus />
+          {/* Без autoFocus: экран теперь открывается со списком заведений, и
+              клавиатура, накрывающая половину каталога сразу после «Смотреть
+              все», мешает больше, чем помогает. */}
+          <SearchBar value={text} onChangeText={setText} />
 
           {/* Два прокручиваемых ряда вместо одного переносящегося: на 360 px
               список кухонь иначе занимает пол-экрана до результатов. */}
@@ -126,14 +132,7 @@ export default function SearchScreen() {
           </ChipRow>
         </View>
 
-        {!hasActiveSearch ? (
-          <IdleContent
-            recent={recentQuery.data ?? []}
-            popular={popularQuery.data ?? []}
-            isLoading={recentQuery.isLoading || popularQuery.isLoading}
-            onPickTerm={setText}
-          />
-        ) : isTyping || searchQueryResult.isLoading ? (
+        {isTyping || searchQueryResult.isPending ? (
           <LoadingState title={t.search.loadingTitle} />
         ) : searchQueryResult.isError ? (
           <ErrorState
@@ -143,12 +142,21 @@ export default function SearchScreen() {
             onRetry={() => searchQueryResult.refetch()}
           />
         ) : (searchQueryResult.data?.items.length ?? 0) === 0 ? (
-          <EmptyState
-            title={t.search.emptyTitle}
-            description={t.search.emptyDescription}
-            actionLabel={t.search.emptyResetFilters}
-            onAction={resetFilters}
-          />
+          // Пустой каталог и «по этому запросу ничего нет» — разные вещи, и
+          // предлагать «сбросить фильтры» там, где фильтров нет, бессмысленно.
+          hasActiveSearch ? (
+            <EmptyState
+              title={t.search.emptyTitle}
+              description={t.search.emptyDescription}
+              actionLabel={t.search.emptyResetFilters}
+              onAction={resetFilters}
+            />
+          ) : (
+            <EmptyState
+              title={t.search.catalogEmptyTitle}
+              description={t.search.catalogEmptyDescription}
+            />
+          )
         ) : (
           <FlatList
             data={searchQueryResult.data?.items ?? []}
@@ -156,9 +164,22 @@ export default function SearchScreen() {
             renderItem={({ item }) => (
               <RestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
+            // Заголовок списка — счётчик реальных результатов, он же объясняет
+            // при пустом запросе, что перед гостем весь каталог.
+            ListHeaderComponent={
+              <Text style={styles.resultsCount}>
+                {t.search.resultsCount(searchQueryResult.data?.total ?? 0)}
+              </Text>
+            }
             ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            // 24 заведения сегодня и до 100 на страницу — список должен
+            // оставаться оконным, а не монтировать все карточки с фото сразу.
+            initialNumToRender={6}
+            windowSize={7}
+            removeClippedSubviews
           />
         )}
       </ScreenContainer>
@@ -183,61 +204,6 @@ function ChipRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function IdleContent({
-  recent,
-  popular,
-  isLoading,
-  onPickTerm,
-}: {
-  recent: string[];
-  popular: string[];
-  isLoading: boolean;
-  onPickTerm: (term: string) => void;
-}) {
-  if (isLoading) {
-    return <LoadingState title={t.common.loading} />;
-  }
-
-  return (
-    <View style={styles.idleContainer}>
-      {recent.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t.search.recent}</Text>
-          <View style={styles.termsList}>
-            {recent.map((term) => (
-              <TermRow key={term} term={term} onPress={() => onPickTerm(term)} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {popular.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t.search.popular}</Text>
-          <View style={styles.termsList}>
-            {popular.map((term) => (
-              <TermRow key={term} term={term} onPress={() => onPickTerm(term)} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function TermRow({ term, onPress }: { term: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={styles.termRow}
-      accessibilityRole="button"
-      accessibilityLabel={term}
-    >
-      <Text style={styles.termText}>{term}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -256,26 +222,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
-  idleContainer: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.xl,
-  },
-  section: {
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  termsList: {
-    gap: spacing.xs,
-  },
-  termRow: {
-    minHeight: hitSlop.minTouchTarget,
-    justifyContent: "center",
-  },
-  termText: {
-    ...typography.body,
-    color: colors.text.primary,
+  resultsCount: {
+    ...typography.caption,
+    color: colors.text.muted,
+    paddingBottom: spacing.md,
   },
 });

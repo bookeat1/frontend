@@ -31,7 +31,6 @@ import {
 } from "./http-mapping";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { buildMapPreviewUrl, type MapPreviewOptions } from "./static-map";
-import { stubPopularSearches, stubRecentSearches } from "./unknown-data";
 import type {
   AuthSession,
   AuthUser,
@@ -283,17 +282,6 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       pages: typeof page.pages === "number" ? page.pages : 0,
       perPage: typeof page.per_page === "number" ? page.per_page : perPage,
     };
-  }
-
-  /** STUB: no recent/popular search-term endpoint exists — see
-   * unknown-data.ts. Not simulated as a network call since there is nothing
-   * to fetch. */
-  async getRecentSearches(): Promise<string[]> {
-    return stubRecentSearches();
-  }
-
-  async getPopularSearches(): Promise<string[]> {
-    return stubPopularSearches();
   }
 
   /* --- reservation flow --- */

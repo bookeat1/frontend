@@ -1,11 +1,4 @@
-import {
-  cuisines,
-  popularSearches,
-  recentSearches,
-  restaurants,
-  toSummary,
-  upcomingEvents,
-} from "./mock-data";
+import { cuisines, restaurants, toSummary, upcomingEvents } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { isCancellableBookingStatus } from "./types";
 import type {
@@ -158,16 +151,6 @@ export class MockRestaurantRepository implements RestaurantRepository {
     };
   }
 
-  async getRecentSearches(): Promise<string[]> {
-    await this.simulateNetwork();
-    return recentSearches;
-  }
-
-  async getPopularSearches(): Promise<string[]> {
-    await this.simulateNetwork();
-    return popularSearches;
-  }
-
   /* --- reservation flow --- */
 
   /**
@@ -215,7 +198,9 @@ export class MockRestaurantRepository implements RestaurantRepository {
           name: dish.name,
           description: dish.description,
           priceMinor: parseMockPriceMinor(dish.price),
-          imageUrl: dish.photo.uri,
+          // У живых блюд фото нет ни у одного, поэтому в типе оно необязательное;
+          // в фикстурах оно есть, но код обязан переживать и его отсутствие.
+          imageUrl: dish.photo?.uri ?? null,
           isAvailable: true,
         })),
       },

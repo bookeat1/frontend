@@ -7,7 +7,13 @@ export interface WorkingHoursEntry {
   closesAt: string | null; // "23:00"
 }
 
-export type PriceLevel = "$" | "$$" | "$$$" | "$$$$";
+/**
+ * Ценовая ступень заведения — ровно та строка, которую хранит и сравнивает
+ * бэкенд (`price_category`: "₸"/"₸₸"/"₸₸₸"). Раньше здесь были доллары: в
+ * тенговом продукте это валюта, которой в нём нет, поэтому знак приведён к
+ * тенге во всех местах сразу — и в чипах, и в фильтре, и в запросе к API.
+ */
+export type PriceLevel = "₸" | "₸₸" | "₸₸₸" | "₸₸₸₸";
 
 export interface Photo {
   id: string;
@@ -52,7 +58,11 @@ export interface MenuHighlight {
   /** Pre-formatted display price, e.g. "8 990 ₸" — matches the design, which
    * doesn't localize/format a raw number in the UI layer. */
   price: string;
-  photo: Photo;
+  /** Необязательно: в живом каталоге ни у одного блюда нет фотографии
+   * (проверено curl'ом 2026-07-26 — 0 фото на 353 блюда четырёх заведений с
+   * меню). Блюдо без фото — нормальная строка меню, а не причина скрыть его,
+   * поэтому карточка рисует осознанную плашку без картинки. */
+  photo?: Photo;
 }
 
 export interface RestaurantSocialLinks {
@@ -77,13 +87,18 @@ export interface Restaurant {
    * the "open in maps" affordance rather than send a broken geo: URL. */
   latitude?: number;
   longitude?: number;
-  distanceMeters?: number;
   phone?: string;
   social?: RestaurantSocialLinks;
   coverPhoto: Photo;
   photos: Photo[];
   promoBanners: PromoBanner[];
   menuHighlights: MenuHighlight[];
+  /** Часы работы так, как их написало само заведение (`opening_hours`), без
+   * нашей интерпретации: в живых данных встречается "Чт, Пт, Сб 19:00-24:00",
+   * и разложить это по дням недели наш парсер не умеет. Экран показывает эту
+   * строку, когда она сложнее одного диапазона, — иначе получалось
+   * «Ежедневно с 19:00 до 24:00» у заведения, работающего три дня в неделю. */
+  openingHoursText: string;
   workingHours: WorkingHoursEntry[];
   tables: RestaurantTable[];
   description: string;
@@ -99,7 +114,6 @@ export interface RestaurantSummary {
   rating: number;
   reviewsCount: number;
   address: string;
-  distanceMeters?: number;
   coverPhoto: Photo;
   isOpenNow: boolean;
 }
@@ -108,7 +122,6 @@ export interface SearchFilters {
   cuisineIds: string[];
   minRating?: number;
   openNowOnly: boolean;
-  maxDistanceMeters?: number;
   /** City name exactly as the catalog spells it ("Алматы"/"Астана") — the
    * backend's city filter is an equality match on that enum value, there is
    * no city id. Undefined = every city. */

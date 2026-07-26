@@ -71,8 +71,6 @@ export interface RestaurantRepository {
    * as listMyBookings).
    */
   listUpcomingEvents(query?: EventQuery): Promise<EventPage>;
-  getRecentSearches(): Promise<string[]>;
-  getPopularSearches(): Promise<string[]>;
 
   /* --- reservation flow --- */
 

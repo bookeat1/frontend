@@ -3,29 +3,52 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { Image } from "expo-image";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { ForkKnife } from "./icons";
 
 const ITEM_WIDTH = 180;
 const ITEM_HEIGHT = 120;
 
-/** "Популярное в меню" card — Figma nodes 340:2601–340:2614. */
+/**
+ * Карточка блюда в ленте «Из меню» — Figma nodes 340:2601–340:2614.
+ *
+ * Фото может не быть: в живой базе его нет НИ У ОДНОГО блюда (проверено
+ * 2026-07-26). Вместо картинки рисуется ровная плашка со столовым прибором —
+ * она читается как «фотографии нет», а не как «картинка не загрузилась», и
+ * точно не как сломанная карточка. Название, описание и цена при этом
+ * настоящие.
+ */
 export function MenuItemCard({ item }: { item: MenuHighlight }) {
   return (
     <View style={styles.card}>
-      <Image
-        source={{ uri: item.photo.uri }}
-        style={styles.image}
-        contentFit="cover"
-        accessibilityLabel={item.photo.alt}
-        transition={150}
-      />
+      {item.photo ? (
+        <Image
+          source={{ uri: item.photo.uri }}
+          style={styles.image}
+          contentFit="cover"
+          accessibilityLabel={item.photo.alt}
+          transition={150}
+        />
+      ) : (
+        <View
+          style={[styles.image, styles.imageFallback]}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <ForkKnife size={28} color={colors.text.muted} weight="regular" />
+        </View>
+      )}
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {item.name}
         </Text>
-        <Text style={styles.description} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <Text style={styles.price}>{item.price}</Text>
+        {/* У большинства живых блюд описание пустое, а цена изредка не
+            заполнена — пустые строки просто не рисуем. */}
+        {item.description ? (
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+        ) : null}
+        {item.price ? <Text style={styles.price}>{item.price}</Text> : null}
       </View>
     </View>
   );
@@ -41,6 +64,10 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
+  },
+  imageFallback: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   body: {
     paddingHorizontal: spacing.sm,

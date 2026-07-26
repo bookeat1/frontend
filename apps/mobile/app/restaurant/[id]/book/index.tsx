@@ -4,7 +4,15 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
@@ -334,6 +342,8 @@ export default function ReservationScreen() {
                 selected={draft.slot?.startsAt ?? null}
                 onSelect={handleSelectSlot}
                 onPickAnotherDate={() => router.push(`/restaurant/${id}/book/date`)}
+                openingHoursText={restaurant?.openingHoursText ?? ""}
+                phone={restaurant?.phone}
               />
             </View>
           </View>
@@ -479,22 +489,40 @@ export default function ReservationScreen() {
 /**
  * The four states of the slot list, plus the two shapes of "no slots" the live
  * catalog actually produces:
- *   - no slots at all      -> the venue has no working hours for that day
- *   - every slot "capacity" -> the venue has no tables in the system yet, so
- *     online booking is not possible there at any time. Telling the guest to
- *     "pick another day" would send them round a loop, so this gets its own
- *     copy pointing at the phone.
+ *
+ *   - no slots at all       -> the venue is closed that day. The guest is
+ *     offered another date, and — this is the part that was missing — the
+ *     venue's OWN schedule line, so the search for an open day is reading
+ *     rather than guessing. «Adept» answers 0 slots Sun–Wed and says
+ *     "Чт, Пт, Сб 19:00-24:00" about itself; without that line the guest tapped
+ *     through four dates to find out.
+ *   - every slot "capacity" -> `capacity` means no table in the system fits
+ *     this party, and a venue with no tables at all answers it for every slot
+ *     of every day («Adept» again: 8 slots Thu/Fri/Sat, all `capacity`). So
+ *     this is a venue-level fact, not a date-level one: no "pick another date"
+ *     button here, and the venue's real phone number instead.
+ *
+ * What this still cannot do: say ANYTHING before the guest has picked a date.
+ * The catalog payload carries no `bookable` / `has_tables` flag, so the venue
+ * screen's "Забронировать столик" button is offered to every active venue —
+ * see ASSUMED_IS_BOOKABLE in packages/api/src/unknown-data.ts. Fixing that
+ * properly needs the backend to expose the flag.
  */
 function SlotsSection({
   query,
   selected,
   onSelect,
   onPickAnotherDate,
+  openingHoursText,
+  phone,
 }: {
   query: ReturnType<typeof useAvailability>;
   selected: string | null;
   onSelect: (slot: AvailabilitySlot) => void;
   onPickAnotherDate: () => void;
+  /** The venue's own opening-hours line, verbatim. Empty when it has none. */
+  openingHoursText: string;
+  phone?: string;
 }) {
   if (query.isPending) {
     return <LoadingState title={t.booking.slotsLoading} compact />;
@@ -516,7 +544,11 @@ function SlotsSection({
     return (
       <EmptyState
         title={t.booking.slotsClosedTitle}
-        description={t.booking.slotsClosedDescription}
+        description={
+          openingHoursText
+            ? `${t.booking.slotsClosedSchedule(openingHoursText)}\n${t.booking.slotsClosedDescription}`
+            : t.booking.slotsClosedDescription
+        }
         actionLabel={t.booking.pickAnotherDate}
         onAction={onPickAnotherDate}
         compact
@@ -531,6 +563,11 @@ function SlotsSection({
       <EmptyState
         title={t.booking.slotsNoTablesTitle}
         description={t.booking.slotsNoTablesDescription}
+        // Телефон настоящий, из карточки заведения. Кнопки «выбрать другую
+        // дату» здесь нет намеренно: другой даты, на которой это заведение
+        // можно забронировать онлайн, не существует.
+        actionLabel={phone ? t.booking.slotsNoTablesCall(phone) : undefined}
+        onAction={phone ? () => void Linking.openURL(`tel:${phone.replace(/[^\d+]/g, "")}`) : undefined}
         compact
       />
     ) : (
