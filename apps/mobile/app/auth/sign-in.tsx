@@ -1,18 +1,43 @@
 import { RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextField } from "../../src/components/TextField";
+import { useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
 
 const t = getDictionary();
 
 type Mode = "sign-in" | "sign-up";
+
+/**
+ * Why the guest was sent here, carried as a route param by whoever pushed the
+ * screen. It does two jobs and both are real: it picks the subtitle (a guest
+ * who tapped a heart is not "завершая бронирование"), and for `favorite` it
+ * says which action to finish once the session exists.
+ */
+type SignInReason = "booking" | "favorite";
+
+function parseReason(raw: string | undefined): SignInReason | undefined {
+  return raw === "booking" || raw === "favorite" ? raw : undefined;
+}
+
+function subtitleFor(reason: SignInReason | undefined, isSignUp: boolean): string {
+  if (isSignUp) return t.auth.signUpSubtitle;
+  switch (reason) {
+    case "booking":
+      return t.auth.signInSubtitleBooking;
+    case "favorite":
+      return t.auth.signInSubtitleFavorite;
+    default:
+      return t.auth.signInSubtitle;
+  }
+}
 
 interface FieldErrors {
   email?: string;
@@ -41,11 +66,17 @@ function validateEmail(raw: string): string | undefined {
  * logs outside development. See the note in src/lib/auth.tsx.
  *
  * On success this pops back to whatever pushed it (the reservation screen,
- * with its draft intact) rather than navigating anywhere itself.
+ * with its draft intact) rather than navigating anywhere itself — EXCEPT on a
+ * deep link, where there is nothing to pop and `router.back()` is a no-op that
+ * strands the guest on the login form. Then it replaces to a real destination.
  */
 export default function SignInScreen() {
   const router = useRouter();
   const { signIn, signUp } = useAuth();
+  const params = useLocalSearchParams<{ reason?: string; restaurantId?: string }>();
+  const reason = parseReason(params.reason);
+  const restaurantId = params.restaurantId;
+  const toggleFavorite = useToggleFavorite();
 
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
@@ -56,6 +87,42 @@ export default function SignInScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const isSignUp = mode === "sign-up";
+
+  /**
+   * Leaves the gate. Normally that means popping back to the screen that
+   * pushed it (the booking draft, Explore, the reservation) — but on a deep
+   * link straight to /auth/sign-in the stack is empty and `back()` does
+   * nothing at all. Then we go somewhere the guest can actually continue:
+   * the venue they were looking at, or Explore.
+   */
+  const leave = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(restaurantId ? `/restaurant/${restaurantId}` : "/");
+  }, [router, restaurantId]);
+
+  /**
+   * Finishes what the guest started before they were stopped by the gate.
+   *
+   * `favorite`: the heart they tapped is applied here, so they do not have to
+   * find the card and tap it again. If the write fails we do NOT pretend it
+   * worked — we simply leave, and the heart stays empty on a screen where one
+   * tap retries it (the venue cards on Explore / search).
+   *
+   * `booking`: nothing to replay. The draft is untouched on the screen
+   * underneath, and submitting a booking is a decision the guest makes, not
+   * something to fire behind their back on a screen they can't see.
+   */
+  const completeIntent = async (): Promise<void> => {
+    if (reason !== "favorite" || !restaurantId) return;
+    try {
+      await toggleFavorite.mutateAsync({ restaurantId, favorite: true });
+    } catch {
+      // Deliberately swallowed: see above.
+    }
+  };
 
   const validate = (): boolean => {
     const next: FieldErrors = {
@@ -83,9 +150,13 @@ export default function SignInScreen() {
       } else {
         await signIn({ email, password });
       }
+      // Finish the interrupted action first (the favorite), then leave. The
+      // button stays in its "Проверяем…" state for the extra request rather
+      // than flashing back to Explore with a heart that is still empty.
+      await completeIntent();
       // Back to the flow. Everything the guest typed there is still in the
       // draft — this screen was pushed on top of that stack, not instead of it.
-      router.back();
+      leave();
     } catch (error) {
       // The typed input is deliberately left untouched: a failed sign-in that
       // wipes the form is the fastest way to lose a booking.
@@ -108,7 +179,7 @@ export default function SignInScreen() {
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <FlowHeader
           title={isSignUp ? t.auth.signUpTitle : t.auth.signInTitle}
-          onBack={() => router.back()}
+          onBack={leave}
         />
       </SafeAreaView>
 
@@ -121,9 +192,7 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.subtitle}>
-            {isSignUp ? t.auth.signUpSubtitle : t.auth.signInSubtitle}
-          </Text>
+          <Text style={styles.subtitle}>{subtitleFor(reason, isSignUp)}</Text>
 
           {isSignUp ? (
             <TextField

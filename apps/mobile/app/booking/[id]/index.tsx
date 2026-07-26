@@ -14,7 +14,7 @@ import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappens
 import { FlowHeader } from "../../../src/components/FlowHeader";
 import { XCircle } from "../../../src/components/icons";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
-import { ErrorState, LoadingState } from "../../../src/components/StateViews";
+import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import {
   useBooking,
   useBookingPayment,
@@ -22,6 +22,7 @@ import {
   usePreorder,
 } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { useAuth } from "../../../src/lib/auth";
 import { formatMoneyMinor } from "../../../src/lib/format";
 
 const t = getDictionary();
@@ -52,6 +53,7 @@ const t = getDictionary();
 export default function ReservationScreen() {
   const { id, preorderFailed } = useLocalSearchParams<{ id: string; preorderFailed?: string }>();
   const router = useRouter();
+  const { status: authStatus } = useAuth();
 
   const booking = useBooking(id);
   const restaurant = useRestaurant(booking.data?.restaurantId);
@@ -75,24 +77,74 @@ export default function ReservationScreen() {
     router.replace(restaurantId ? `/restaurant/${restaurantId}` : "/");
   }, [router, restaurantId]);
 
+  // The header is rendered in EVERY branch, not only the successful one: a
+  // screen that can be reached by deep link (and whose query is gated on the
+  // session) would otherwise be a dead end with no way off it.
+  const header = (
+    <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+      {/* Back appears only when there IS history to go back to — the design's
+          pending frame has an arrow and the confirmed one does not; the
+          honest rule behind that difference is "keep back when the screen has
+          history". The X always leaves. */}
+      <FlowHeader
+        title={t.booking.title}
+        onBack={router.canGoBack() ? () => router.back() : undefined}
+        onClose={leave}
+      />
+    </SafeAreaView>
+  );
+
+  // No session: this is not a failure to load, and it must never look like
+  // one. Happens on a deep link into the screen and when the session dies
+  // while the screen is open (the refresh failed → clean sign-out).
+  // `useBooking` is disabled without a session, and a disabled query in
+  // TanStack v5 stays `isPending` forever — so this branch comes FIRST.
+  if (authStatus !== "signed-in") {
+    return (
+      <View style={styles.root}>
+        {header}
+        <View style={styles.stateBody}>
+          {authStatus === "loading" ? (
+            <LoadingState title={t.booking.bookingLoading} />
+          ) : (
+            <EmptyState
+              title={t.booking.bookingSignedOutTitle}
+              description={t.booking.bookingSignedOutDescription}
+              actionLabel={t.booking.bookingSignIn}
+              // Comes straight back here after a successful sign-in: this
+              // screen stays on the stack underneath the gate.
+              onAction={() => router.push("/auth/sign-in")}
+            />
+          )}
+        </View>
+      </View>
+    );
+  }
+
   if (booking.isPending) {
     return (
-      <SafeAreaView style={styles.stateRoot}>
-        <LoadingState title={t.booking.bookingLoading} />
-      </SafeAreaView>
+      <View style={styles.root}>
+        {header}
+        <View style={styles.stateBody}>
+          <LoadingState title={t.booking.bookingLoading} />
+        </View>
+      </View>
     );
   }
 
   if (booking.isError || !booking.data) {
     return (
-      <SafeAreaView style={styles.stateRoot}>
-        <ErrorState
-          title={t.booking.bookingErrorTitle}
-          description={t.search.errorDescription}
-          retryLabel={t.common.retry}
-          onRetry={() => void booking.refetch()}
-        />
-      </SafeAreaView>
+      <View style={styles.root}>
+        {header}
+        <View style={styles.stateBody}>
+          <ErrorState
+            title={t.booking.bookingErrorTitle}
+            description={t.search.errorDescription}
+            retryLabel={t.common.retry}
+            onRetry={() => void booking.refetch()}
+          />
+        </View>
+      </View>
     );
   }
 
@@ -118,17 +170,7 @@ export default function ReservationScreen() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        {/* Back appears only when there IS history to go back to — the design's
-            pending frame has an arrow and the confirmed one does not; the
-            honest rule behind that difference is "keep back when the screen has
-            history". The X always leaves. */}
-        <FlowHeader
-          title={t.booking.title}
-          onBack={router.canGoBack() ? () => router.back() : undefined}
-          onClose={leave}
-        />
-      </SafeAreaView>
+      {header}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ReservationHeaderCard booking={data} restaurant={restaurant.data} />
@@ -228,7 +270,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.screen,
   },
-  stateRoot: {
+  /** Fills the space under the header so a state view centres in what is left
+   * of the screen instead of collapsing under it. */
+  stateBody: {
     flex: 1,
     backgroundColor: colors.background.surface,
   },

@@ -1,4 +1,9 @@
-import { HttpClient, type ApiPage, type TokenProvider } from "./http-client";
+import {
+  HttpClient,
+  type ApiPage,
+  type TokenProvider,
+  type UnauthorizedHandler,
+} from "./http-client";
 import {
   cuisineIdFor,
   mapAvailability,
@@ -55,6 +60,10 @@ export interface HttpRepositoryOptions {
    * every booking write fails fast with a 401 RepositoryError, which is what
    * the sign-in gate reacts to. */
   getToken?: TokenProvider;
+  /** Recovers a single 401 by refreshing the session — see UnauthorizedHandler.
+   * Absent = a 401 is final, which is the right behaviour for anything that
+   * has no refresh token to spend (the admin panel, tests). */
+  onUnauthorized?: UnauthorizedHandler;
 }
 
 const POPULAR_PAGE_SIZE = 20;
@@ -109,6 +118,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
       getToken: options.getToken,
+      onUnauthorized: options.onUnauthorized,
     });
   }
 
@@ -487,6 +497,7 @@ export class HttpAuthRepository implements AuthRepository {
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
       getToken: options.getToken,
+      onUnauthorized: options.onUnauthorized,
     });
   }
 

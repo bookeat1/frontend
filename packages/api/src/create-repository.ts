@@ -1,4 +1,4 @@
-import type { TokenProvider } from "./http-client";
+import type { TokenProvider, UnauthorizedHandler } from "./http-client";
 import { HttpAuthRepository, HttpRestaurantRepository } from "./http-repository";
 import { MockAuthRepository, MockRestaurantRepository } from "./mock-repository";
 import type { AuthRepository, RestaurantRepository } from "./repository";
@@ -8,6 +8,10 @@ export interface RepositoryFactoryOptions {
    * live session on every request, so a repository built at app start still
    * sees a token acquired at the sign-in gate later. */
   getToken?: TokenProvider;
+  /** Refresh-and-retry for a 401 on an authenticated call. See
+   * UnauthorizedHandler — it must be single-flight, the refresh token is
+   * single-use. */
+  onUnauthorized?: UnauthorizedHandler;
 }
 
 /**
@@ -25,7 +29,11 @@ export function createRestaurantRepository(
   if (!trimmed) {
     return new MockRestaurantRepository({ latencyMs: 600 });
   }
-  return new HttpRestaurantRepository({ baseUrl: trimmed, getToken: options.getToken });
+  return new HttpRestaurantRepository({
+    baseUrl: trimmed,
+    getToken: options.getToken,
+    onUnauthorized: options.onUnauthorized,
+  });
 }
 
 /** Same switch, for the auth API. Kept beside the catalog factory so both
@@ -38,5 +46,9 @@ export function createAuthRepository(
   if (!trimmed) {
     return new MockAuthRepository({ latencyMs: 600 });
   }
-  return new HttpAuthRepository({ baseUrl: trimmed, getToken: options.getToken });
+  return new HttpAuthRepository({
+    baseUrl: trimmed,
+    getToken: options.getToken,
+    onUnauthorized: options.onUnauthorized,
+  });
 }
