@@ -26,6 +26,15 @@ export interface ApiPage<T> {
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
+/** `Retry-After` in delta-seconds, or undefined when the header is absent or
+ * in the HTTP-date form this API never uses. */
+function parseRetryAfter(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const seconds = Number.parseInt(raw.trim(), 10);
+  if (!Number.isFinite(seconds) || seconds < 0) return undefined;
+  return seconds;
+}
+
 /** Returns the bearer token to send, or undefined when nobody is signed in.
  * A closure rather than a value so the repository is built once and still
  * sees a token acquired later (sign-in mid-session).
@@ -211,6 +220,12 @@ export class HttpClient {
       throw new RepositoryError(`Network error requesting ${path}`, cause);
     }
 
+    // Whole seconds the server itself asked us to wait. Only the rate-limit
+    // middleware sends it (429), and it is the ONLY honest source for a
+    // "try again in N seconds" line — anything else would be the client
+    // guessing at somebody else's window.
+    const retryAfter = parseRetryAfter(response.headers.get("Retry-After"));
+
     let envelope: Envelope<T> | undefined;
     try {
       envelope = (await response.json()) as Envelope<T>;
@@ -220,6 +235,9 @@ export class HttpClient {
           `Server error ${response.status} requesting ${path}`,
           cause,
           response.status,
+          undefined,
+          undefined,
+          retryAfter,
         );
       }
       throw new RepositoryError(`Empty or malformed response from ${path}`, cause);
@@ -233,6 +251,7 @@ export class HttpClient {
         response.status,
         envelope?.error,
         envelope?.code,
+        retryAfter,
       );
     }
 

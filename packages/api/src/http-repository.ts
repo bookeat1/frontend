@@ -44,6 +44,7 @@ import type {
   EventPage,
   EventQuery,
   MenuSection,
+  OtpRequest,
   Preorder,
   PreorderLineInput,
   Restaurant,
@@ -477,6 +478,14 @@ export class HttpRestaurantRepository implements RestaurantRepository {
  * phone/OTP screen would therefore ship a login nobody can complete. See the
  * delivery note in conventions/bookeat-frontend.md.
  */
+/** `POST /auth/otp/request` payload (transport/rest/auth/response.go:
+ * otpRequestedResponse). `code` is omitted unless the server runs with
+ * AUTH_OTP_DEV_EXPOSE=true. */
+interface ApiOtpRequested {
+  sent?: boolean;
+  code?: string;
+}
+
 export class HttpAuthRepository implements AuthRepository {
   private readonly client: HttpClient;
 
@@ -502,6 +511,37 @@ export class HttpAuthRepository implements AuthRepository {
     const api = await this.client.post<ApiTokenPair>("/auth/login", {
       email: input.email.trim(),
       password: input.password,
+    });
+    return mapSession(api);
+  }
+
+  /**
+   * `POST /auth/otp/request` — verified by curl on 2026-07-26:
+   * `200 {"data":{"sent":true}}`, and a second request for the same phone
+   * inside a minute answers `422 {"error":"validation failed",
+   * "code":"validation_failed"}`.
+   *
+   * `sent: true` means the backend accepted the request and handed the code to
+   * its delivery waterfall — NOT that anything was delivered. On a deployment
+   * with no channel credentials the waterfall degrades to
+   * infrastructure/otpsender.Stub, which answers success and sends nothing.
+   */
+  async requestOtp(phone: string): Promise<OtpRequest> {
+    const api = await this.client.post<ApiOtpRequested>("/auth/otp/request", { phone });
+    return {
+      sent: api.sent === true,
+      // Present only when the deployment sets AUTH_OTP_DEV_EXPOSE=true. Absent
+      // on test. Carried, never depended on.
+      devCode: typeof api.code === "string" && api.code !== "" ? api.code : null,
+    };
+  }
+
+  /** `POST /auth/otp/verify` — the ONLY sign-in step for a phone: the backend
+   * creates the user here if the phone is new (usecase/auth/otp.go). */
+  async verifyOtp(input: { phone: string; code: string }): Promise<AuthSession> {
+    const api = await this.client.post<ApiTokenPair>("/auth/otp/verify", {
+      phone: input.phone,
+      code: input.code,
     });
     return mapSession(api);
   }

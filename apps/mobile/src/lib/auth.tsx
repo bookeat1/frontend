@@ -4,6 +4,7 @@ import {
   type AuthRepository,
   type AuthSession,
   type AuthUser,
+  type OtpRequest,
 } from "@bookeat/api";
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
@@ -18,13 +19,19 @@ import {
 /**
  * Session state for the guest app.
  *
- * WHY email+password and not phone/OTP: `/api/v1/auth/otp/request` exists and
- * answers `{"sent": true}`, but the delivery adapter on this deployment is
- * `internal/infrastructure/otpsender.Stub` — it never sends anything, and the
- * code is withheld from the logs outside APP_ENV=development. A phone login
- * would be a screen nobody can get past. `/auth/signup` + `/auth/login`
- * (email + password) work end to end, verified against the test backend on
- * 2026-07-25 including creating a real booking with the resulting token.
+ * WHY phone + one-time code and nothing else (2026-07-26): the guest signs in
+ * with a number they already own, and there is no separate registration step —
+ * `POST /auth/otp/verify` finds OR CREATES the user itself
+ * (internal/usecase/auth/otp.go: users.GetByPhone → users.Create). Email +
+ * password still exists on the backend and is still reachable through
+ * `AuthRepository`, but no screen offers it: two ways in is two ways to end up
+ * with two accounts for one person.
+ *
+ * DELIVERY IS A SEPARATE PROBLEM from this module: the server answers
+ * `{"sent": true}` as soon as it hands the code to its waterfall, and on a
+ * deployment with no channel credentials that waterfall degrades to
+ * `otpsender.Stub`, which delivers nothing. The screen says so; this file just
+ * reports what the API returned.
  *
  * WHY SecureStore: the access token is a bearer credential. Keychain /
  * Android Keystore is the only storage in this app that isn't plain
@@ -45,8 +52,14 @@ interface AuthContextValue {
    * prefill is a nicety, never a gate. */
   user: AuthUser | null;
   repository: AuthRepository;
-  signIn(input: { email: string; password: string }): Promise<void>;
-  signUp(input: { email: string; password: string; fullName: string }): Promise<void>;
+  /**
+   * Asks the backend to send a one-time code to an E.164 phone. Returns what
+   * the server said — `sent` is "accepted for delivery", never "delivered".
+   */
+  requestCode(phone: string): Promise<OtpRequest>;
+  /** Exchanges phone + code for a session. Creates the account server-side on
+   * the first successful code for a new number. */
+  signInWithCode(input: { phone: string; code: string }): Promise<void>;
   signOut(): Promise<void>;
   /**
    * Returns a token that is valid for at least the next minute, refreshing if
@@ -268,17 +281,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setSessionTokenGateway(null);
   }, [ensureFreshToken, refreshAfterUnauthorized]);
 
-  const signIn = useCallback(
-    async (input: { email: string; password: string }) => {
-      await applySession(await repository.signIn(input));
-      void loadUser();
-    },
-    [applySession, loadUser, repository],
+  const requestCode = useCallback(
+    (phone: string) => repository.requestOtp(phone),
+    [repository],
   );
 
-  const signUp = useCallback(
-    async (input: { email: string; password: string; fullName: string }) => {
-      await applySession(await repository.signUp(input));
+  const signInWithCode = useCallback(
+    async (input: { phone: string; code: string }) => {
+      await applySession(await repository.verifyOtp(input));
       void loadUser();
     },
     [applySession, loadUser, repository],
@@ -293,8 +303,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status,
       user,
       repository,
-      signIn,
-      signUp,
+      requestCode,
+      signInWithCode,
       signOut,
       ensureFreshToken,
       refreshAfterUnauthorized,
@@ -303,8 +313,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status,
       user,
       repository,
-      signIn,
-      signUp,
+      requestCode,
+      signInWithCode,
       signOut,
       ensureFreshToken,
       refreshAfterUnauthorized,

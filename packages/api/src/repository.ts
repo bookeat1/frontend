@@ -12,6 +12,7 @@ import type {
   EventPage,
   EventQuery,
   MenuSection,
+  OtpRequest,
   Preorder,
   PreorderLineInput,
   Restaurant,
@@ -176,6 +177,27 @@ export interface AuthRepository {
   signUp(input: { email: string; password: string; fullName: string }): Promise<AuthSession>;
   signIn(input: { email: string; password: string }): Promise<AuthSession>;
   /**
+   * Asks the backend to send a one-time code to `phone` (E.164, "+7…").
+   *
+   * Server-side limits, read from internal/bootstrap/config.go and the OTP
+   * usecase, NOT guessed: 1 request per minute and 5 per hour PER PHONE
+   * (`AUTH_OTP_RATE_PER_MIN` / `AUTH_OTP_RATE_PER_HOUR`), plus 5 requests per
+   * minute per IP on the strict middleware tier. Over the phone limits the
+   * server answers 422; over the IP limit, 429 with `Retry-After`.
+   */
+  requestOtp(phone: string): Promise<OtpRequest>;
+  /**
+   * Exchanges phone + code for a session. There is NO separate sign-up: the
+   * backend finds-or-creates the user inside this call
+   * (internal/usecase/auth/otp.go, VerifyOTP → users.GetByPhone → Create).
+   *
+   * A wrong code, an expired code, a phone with no active code and a phone
+   * locked out after 5 wrong attempts are ALL the same
+   * `401 {"error":"unauthorized","code":"unauthorized"}` — verified by curl on
+   * 2026-07-26. The client cannot tell them apart and must not pretend to.
+   */
+  verifyOtp(input: { phone: string; code: string }): Promise<AuthSession>;
+  /**
    * Exchanges a refresh token for a new pair. The refresh token ROTATES —
    * verified against the live API on 2026-07-25: replaying the same one
    * answers 401. So the caller must persist the returned pair before using
@@ -227,6 +249,13 @@ export class RepositoryError extends Error {
      * `undefined` on an older server build and on transport failures.
      */
     public readonly code?: string,
+    /**
+     * `Retry-After` from a 429, in whole seconds, when the server sent one.
+     * The rate-limit middleware always does (middleware/ratelimit.go), and it
+     * is the only honest source for "попробуйте через N секунд" — a number
+     * invented on the client would be a guess about somebody else's window.
+     */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "RepositoryError";
@@ -264,6 +293,13 @@ export class RepositoryError extends Error {
 
   /** The server refused the payload. Almost always a stale draft (a time that
    * has since fallen inside the lead window, too many guests). */
+  /** The server refused because too many requests arrived from this source
+   * (per-IP tier). Distinct from the per-phone OTP limit, which the backend
+   * reports as a plain 422. */
+  get isRateLimited(): boolean {
+    return this.status === 429;
+  }
+
   get isValidation(): boolean {
     return this.status === 422;
   }
