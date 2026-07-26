@@ -7,7 +7,6 @@ import interiorWineTable from "../assets/photos/interior-wine-table.jpg";
 import foodGrillSkewers from "../assets/photos/food-grill-skewers.jpg";
 import foodPlateTasting from "../assets/photos/food-plate-tasting.jpg";
 import foodDessertBerry from "../assets/photos/food-dessert-berry.jpg";
-import mapPreview from "../assets/photos/map-preview.jpg";
 import type {
   Cuisine,
   EventSummary,
@@ -32,7 +31,6 @@ const assetModules = {
   foodGrillSkewers,
   foodPlateTasting,
   foodDessertBerry,
-  mapPreview,
 } as const;
 
 function photo(
@@ -148,7 +146,6 @@ export const restaurants: Restaurant[] = [
       photo("foodPlateTasting", "r1-4", "Блюдо: дегустационная тарелка", categoryFor("foodPlateTasting")),
       photo("interiorCheers", "r1-5", "Гости поднимают бокалы", categoryFor("interiorCheers")),
     ],
-    mapImage: photo("mapPreview", "r1-map", "Расположение на карте"),
     promoBanners: banners("r1"),
     menuHighlights: menuHighlights("r1"),
     workingHours: fullWeek("10:00", "23:00"),
@@ -182,7 +179,6 @@ export const restaurants: Restaurant[] = [
       photo("interiorArchwayHall", "r2-2", "Зал с видом на арку", categoryFor("interiorArchwayHall")),
       photo("foodPlateTasting", "r2-3", "Паста ручной работы", categoryFor("foodPlateTasting")),
     ],
-    mapImage: photo("mapPreview", "r2-map", "Расположение на карте"),
     promoBanners: banners("r2"),
     menuHighlights: menuHighlights("r2"),
     workingHours: fullWeek("11:00", "00:00"),
@@ -213,7 +209,6 @@ export const restaurants: Restaurant[] = [
       photo("foodPlateTasting", "r3-1", "Сеты роллов", categoryFor("foodPlateTasting")),
       photo("interiorOpenKitchen", "r3-2", "Открытая кухня", categoryFor("interiorOpenKitchen")),
     ],
-    mapImage: photo("mapPreview", "r3-map", "Расположение на карте"),
     promoBanners: banners("r3"),
     menuHighlights: menuHighlights("r3"),
     workingHours: fullWeek("11:00", "22:00"),
@@ -245,7 +240,6 @@ export const restaurants: Restaurant[] = [
       photo("interiorCheers", "r4-3", "Бар на крыше", categoryFor("interiorCheers")),
       photo("foodDessertBerry", "r4-4", "Десерт дня", categoryFor("foodDessertBerry")),
     ],
-    mapImage: photo("mapPreview", "r4-map", "Расположение на карте"),
     promoBanners: banners("r4"),
     menuHighlights: menuHighlights("r4"),
     workingHours: fullWeek("18:00", "02:00"),

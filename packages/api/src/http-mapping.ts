@@ -40,7 +40,6 @@ import type {
 import {
   ASSUMED_IS_BOOKABLE,
   stubDistanceMeters,
-  stubMapImage,
   stubTables,
 } from "./unknown-data";
 
@@ -681,8 +680,6 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // Left empty when the venue has no images: the gallery screen shows its
     // own empty state, which is honest, unlike a grid of one placeholder.
     photos,
-    // STUB: no static-map preview endpoint/field — see unknown-data.ts.
-    mapImage: stubMapImage(api.id),
     // Real, from GET /restaurants/:id/promos (published promos only).
     promoBanners: mapPromoBanners(extras.promos),
     // Real dishes from GET /restaurants/:id/menu — see mapMenuHighlights for

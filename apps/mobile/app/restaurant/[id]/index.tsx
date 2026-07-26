@@ -8,6 +8,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Clock, Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
 import { IconButton } from "../../../src/components/IconButton";
+import { MapPreview } from "../../../src/components/booking/MapPreview";
 import { MenuItemCard } from "../../../src/components/MenuItemCard";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { PromoBannerStrip } from "../../../src/components/PromoBannerStrip";
@@ -198,17 +199,12 @@ export default function RestaurantDetailScreen() {
                 </View>
               ) : null}
 
-              {restaurant.mapImage ? (
-                <View style={styles.mapContainer}>
-                  <Image
-                    source={{ uri: restaurant.mapImage.uri }}
-                    style={styles.mapImage}
-                    contentFit="cover"
-                    accessibilityLabel={restaurant.mapImage.alt}
-                  />
-                  <View pointerEvents="none" style={styles.mapPin} />
-                </View>
-              ) : null}
+              {/* Тот же блок карты, что и на экране брони: server-rendered
+                  превью с тапом в приложение карт. Раньше здесь висела
+                  картинка-заглушка с placehold.co и НАРИСОВАННАЯ булавка —
+                  оба ушли: булавку рисует сам провайдер на настоящей карте,
+                  вторая была бы вторым маркером не в том месте. */}
+              <MapPreview restaurant={restaurant} />
             </View>
           </ScrollView>
 
@@ -376,27 +372,6 @@ const styles = StyleSheet.create({
   contactSecondary: {
     ...typography.caption,
     color: colors.text.muted,
-  },
-  mapContainer: {
-    height: 208,
-    borderRadius: radius.card,
-    overflow: "hidden",
-  },
-  mapImage: {
-    ...StyleSheet.absoluteFill,
-  },
-  mapPin: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    marginTop: -20,
-    marginLeft: -16,
-    width: 32,
-    height: 32,
-    borderRadius: radius.pill,
-    borderWidth: 10,
-    borderColor: colors.brand.primary,
-    backgroundColor: colors.background.surface,
   },
   footerSafeArea: {
     backgroundColor: colors.background.surface,

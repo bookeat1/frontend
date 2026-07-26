@@ -20,10 +20,12 @@
  *     available dishes with a photo (see mapMenuHighlights in http-mapping.ts)
  *   - a tenge price *range* (only a price_category tier "₸"/"₸₸"/"₸₸₸" exists)
  *   - social links: DOES exist (social_links on the detail endpoint) — real
- *     data is used for that; only the map preview *image* is stubbed here.
+ *     data is used for that.
  *   - distance from the user to the restaurant (no geolocation in the API)
  *
  * Fixed since the first integration pass, no longer stubbed here:
+ *   - the map preview — GET /restaurants/:id/map is real (a server-rendered
+ *     PNG, see static-map.ts); the placehold.co stub image is gone
  *   - promo banners — GET /restaurants/:id/promos is real (image-less, so the
  *     banner is caption-only)
  *   - rating / reviewsCount — GET /restaurants/:id/reviews/summary is real
@@ -34,28 +36,7 @@
  * an explicit "is bookable" flag, and suggested/recent search terms. See the
  * comments on each stub below.
  */
-import type { Photo, RestaurantTable } from "./types";
-
-function stubPhoto(seed: string, alt: string): Photo {
-  // Width/height are not returned by the API for real images either (only
-  // image_url + is_primary) and are not consumed by any current screen's
-  // layout (fixed-size containers), so this placeholder pair is harmless.
-  // Reuses the same bundled fixture photos as the mock so the fake sections
-  // are visually obvious/consistent rather than broken image links.
-  void seed;
-  return {
-    id: `stub-${seed}`,
-    uri: "https://placehold.co/800x600?text=Stub",
-    width: 800,
-    height: 600,
-    alt,
-  };
-}
-
-/** STUB: no static-map image endpoint/field exists in the API. */
-export function stubMapImage(restaurantId: string): Photo {
-  return stubPhoto(`${restaurantId}-map`, "Заглушка карты — в API нет превью карты");
-}
+import type { RestaurantTable } from "./types";
 
 /**
  * STUB: the API has no geolocation-based distance calculation (and the

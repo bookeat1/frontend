@@ -25,6 +25,7 @@ import {
   type ApiUser,
 } from "./http-mapping";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
+import { buildMapPreviewUrl, type MapPreviewOptions } from "./static-map";
 import { stubPopularSearches, stubRecentSearches } from "./unknown-data";
 import type {
   AuthSession,
@@ -97,9 +98,13 @@ interface CuisineCatalog {
  */
 export class HttpRestaurantRepository implements RestaurantRepository {
   private readonly client: HttpClient;
+  /** Kept beside the client because one endpoint (the map preview) is consumed
+   * as a URL by an <Image> rather than fetched through HttpClient. */
+  private readonly baseUrl: string;
   private cuisinesPromise: Promise<CuisineCatalog> | null = null;
 
   constructor(options: HttpRepositoryOptions) {
+    this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.client = new HttpClient({
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
@@ -157,6 +162,11 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   async getRestaurantSummary(id: string): Promise<RestaurantSummary> {
     const api = await this.client.get<ApiRestaurant>(`/restaurants/${encodeURIComponent(id)}`);
     return mapRestaurantSummary(api);
+  }
+
+  /** GET /restaurants/:id/map — a URL, not a request: see the interface. */
+  getMapPreviewUrl(restaurantId: string, options?: MapPreviewOptions): string {
+    return buildMapPreviewUrl(this.baseUrl, restaurantId, options);
   }
 
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {

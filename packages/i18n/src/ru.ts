@@ -550,6 +550,9 @@ export const ru = {
     contactWhatsapp: "Написать в WhatsApp",
     contactInstagram: "Instagram заведения",
     openInMaps: "Открыть на карте",
+    /** Подсказка скринридера к блоку карты: сама картинка декоративная,
+     * адрес рядом текстом, поэтому объявляем действие, а не изображение. */
+    openInMapsHint: "Откроется приложение карт на устройстве",
     mapPlaceholderTitle: "Превью карты недоступно",
     mapPlaceholderDescription: "Нажмите, чтобы открыть адрес в приложении карт",
     mapNoCoordinates: "У заведения не указаны координаты",

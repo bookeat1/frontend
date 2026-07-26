@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./static-map";
 export * from "./repository";
 export * from "./mock-repository";
 export * from "./http-repository";

@@ -82,8 +82,6 @@ export interface Restaurant {
   social?: RestaurantSocialLinks;
   coverPhoto: Photo;
   photos: Photo[];
-  /** Static map preview shown in the Контакты section. */
-  mapImage?: Photo;
   promoBanners: PromoBanner[];
   menuHighlights: MenuHighlight[];
   workingHours: WorkingHoursEntry[];
