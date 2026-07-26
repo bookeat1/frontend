@@ -370,6 +370,22 @@ export interface AuthSession {
   expiresAt: string;
 }
 
+/**
+ * The answer to "send me a code".
+ *
+ * `devCode` is the server's own debug echo: the OTP usecase returns the code in
+ * the response body ONLY when the deployment sets `AUTH_OTP_DEV_EXPOSE=true`
+ * (internal/usecase/auth/otp.go). It is absent on the test backend — verified
+ * by curl on 2026-07-26 — so nothing may depend on it, and it is never shown
+ * in a production bundle.
+ */
+export interface OtpRequest {
+  /** The server accepted the request and handed the code to its delivery
+   * waterfall. It does NOT mean anything was actually delivered. */
+  sent: boolean;
+  devCode: string | null;
+}
+
 export interface AuthUser {
   id: string;
   email: string;

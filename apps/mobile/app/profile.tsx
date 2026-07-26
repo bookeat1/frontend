@@ -84,7 +84,11 @@ export default function ProfileScreen() {
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <BookingCard title={t.profile.accountTitle}>
               <Field label={t.profile.nameLabel} value={me.data.fullName || t.profile.nameEmpty} />
-              <Field label={t.profile.emailLabel} value={me.data.email} />
+              {/* An account created by phone code has no email at all — the
+                  backend leaves it blank (usecase/auth/otp.go creates the user
+                  with a phone and nothing else). An empty line under «Почта»
+                  looks like a failed load, so say it plainly. */}
+              <Field label={t.profile.emailLabel} value={me.data.email || t.profile.emailEmpty} />
               <Field label={t.profile.phoneLabel} value={me.data.phone ?? t.profile.phoneEmpty} />
             </BookingCard>
 

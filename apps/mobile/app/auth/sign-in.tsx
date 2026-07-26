@@ -2,7 +2,7 @@ import { RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
@@ -10,10 +10,36 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextField } from "../../src/components/TextField";
 import { useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
+import {
+  extractNationalDigits,
+  formatE164ForDisplay,
+  formatNationalDigits,
+  isCompleteNationalNumber,
+  toE164,
+} from "../../src/lib/phone";
 
 const t = getDictionary();
 
-type Mode = "sign-in" | "sign-up";
+const CODE_LENGTH = 6;
+/**
+ * Server-side limits, read from the backend, not invented:
+ * `AUTH_OTP_RATE_PER_MIN=1` per phone (internal/bootstrap/config.go) is what
+ * the resend countdown mirrors, and `AUTH_OTP_TTL=5m` is how long a code is
+ * accepted (internal/usecase/auth/otp.go stores `now + OTPTTL`).
+ */
+const RESEND_COOLDOWN_SECONDS = 60;
+const CODE_TTL_SECONDS = 5 * 60;
+/** `maxOTPAttempts` in internal/usecase/auth/otp.go: after five wrong guesses
+ * the server rejects every further attempt against that code. */
+const MAX_CODE_ATTEMPTS = 5;
+
+/**
+ * Set to "1" on an environment whose OTP delivery channels are not configured.
+ * The server still answers `{"sent":true}` there — the waterfall degrades to
+ * `otpsender.Stub`, which delivers nothing — so without this flag the guest
+ * would sit in front of an empty field forever with no way to know why.
+ */
+const DELIVERY_DISABLED = process.env.EXPO_PUBLIC_OTP_DELIVERY_DISABLED === "1";
 
 /**
  * Why the guest was sent here, carried as a route param by whoever pushed the
@@ -23,12 +49,13 @@ type Mode = "sign-in" | "sign-up";
  */
 type SignInReason = "booking" | "favorite";
 
+type Step = "phone" | "code";
+
 function parseReason(raw: string | undefined): SignInReason | undefined {
   return raw === "booking" || raw === "favorite" ? raw : undefined;
 }
 
-function subtitleFor(reason: SignInReason | undefined, isSignUp: boolean): string {
-  if (isSignUp) return t.auth.signUpSubtitle;
+function subtitleFor(reason: SignInReason | undefined): string {
   switch (reason) {
     case "booking":
       return t.auth.signInSubtitleBooking;
@@ -39,54 +66,67 @@ function subtitleFor(reason: SignInReason | undefined, isSignUp: boolean): strin
   }
 }
 
-interface FieldErrors {
-  email?: string;
-  password?: string;
-  fullName?: string;
-}
-
-/** Intentionally permissive: the backend is the authority (its own binding is
- * `email`), and refusing a valid-but-unusual address on the client is a bug
- * the guest can't work around. This only catches obvious typos. */
-function validateEmail(raw: string): string | undefined {
-  const value = raw.trim();
-  if (!value) return t.auth.emailRequired;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t.auth.emailInvalid;
-  return undefined;
-}
-
 /**
- * The sign-in gate.
+ * The sign-in gate: phone number → one-time code. Nothing else.
  *
- * A booking cannot be created without a session (`POST /bookings` is on the
- * authenticated group), so the whole flow is browsable signed-out and stops
- * exactly here. Email + password is the only login that actually works on this
- * backend: `/auth/otp/request` answers `{"sent": true}` but the delivery
- * adapter is a stub — no SMS is ever sent and the code is withheld from the
- * logs outside development. See the note in src/lib/auth.tsx.
+ * There is NO registration step and no password. `POST /auth/otp/verify` finds
+ * or creates the user itself (internal/usecase/auth/otp.go: users.GetByPhone
+ * → users.Create with PhoneVerifiedAt), so a first-time guest and a returning
+ * one walk exactly the same two steps.
  *
- * On success this pops back to whatever pushed it (the reservation screen,
- * with its draft intact) rather than navigating anywhere itself — EXCEPT on a
- * deep link, where there is nothing to pop and `router.back()` is a no-op that
- * strands the guest on the login form. Then it replaces to a real destination.
+ * WHAT THE SERVER WILL NOT TELL US (verified by curl on 2026-07-26): a wrong
+ * code, an expired code, a phone with no active code and a phone locked out
+ * after five wrong attempts are ALL `401 {"error":"unauthorized",
+ * "code":"unauthorized"}`. The per-minute and per-hour phone limits are both
+ * `422 {"code":"validation_failed"}` — the same code an invalid phone gets.
+ * So this screen never claims to know which of them happened: it names the
+ * possibilities and offers the one action that helps (a new code). The only
+ * distinctions it can draw honestly are by HTTP status (422 vs 429) and by
+ * counting the guest's own failed attempts on this device.
+ *
+ * On success it finishes the interrupted action (the favorite) and pops back
+ * to whatever pushed it — with a real destination when the stack is empty.
  */
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { requestCode, signInWithCode } = useAuth();
   const params = useLocalSearchParams<{ reason?: string; restaurantId?: string }>();
   const reason = parseReason(params.reason);
   const restaurantId = params.restaurantId;
   const toggleFavorite = useToggleFavorite();
 
-  const [mode, setMode] = useState<Mode>("sign-in");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [step, setStep] = useState<Step>("phone");
+  const [digits, setDigits] = useState("");
+  const [code, setCode] = useState("");
+  /** The number the current code was sent to, so "изменить номер" cannot leave
+   * the screen verifying a code against a different phone. */
+  const [sentToDigits, setSentToDigits] = useState("");
+  const [sentAt, setSentAt] = useState<number | null>(null);
+  /** Epoch ms when the resend button becomes tappable again. */
+  const [resendAt, setResendAt] = useState<number | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [tick, setTick] = useState(() => Date.now());
 
-  const isSignUp = mode === "sign-up";
+  // One timer drives both countdowns (resend, and "this code has probably
+  // expired"). It stops itself once neither has anything left to count, so an
+  // idle screen is not re-rendering once a second forever.
+  const resendSecondsLeft =
+    resendAt === null ? 0 : Math.max(0, Math.ceil((resendAt - tick) / 1000));
+  const codeAgeSeconds = sentAt === null ? 0 : Math.floor((tick - sentAt) / 1000);
+  const codeProbablyExpired = sentAt !== null && codeAgeSeconds >= CODE_TTL_SECONDS;
+  const needsTicking = step === "code" && (resendSecondsLeft > 0 || !codeProbablyExpired);
+
+  useEffect(() => {
+    if (!needsTicking) return;
+    const id = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [needsTicking]);
+
+  const attemptsExhausted = attempts >= MAX_CODE_ATTEMPTS;
 
   /**
    * Leaves the gate. Normally that means popping back to the screen that
@@ -124,48 +164,99 @@ export default function SignInScreen() {
     }
   };
 
-  const validate = (): boolean => {
-    const next: FieldErrors = {
-      email: validateEmail(email),
-      password: !password
-        ? t.auth.passwordRequired
-        : password.length < 6
-          ? t.auth.passwordTooShort
-          : undefined,
-      fullName: isSignUp && !fullName.trim() ? t.auth.fullNameRequired : undefined,
-    };
-    setErrors(next);
-    return !next.email && !next.password && !next.fullName;
+  /** Turns a failed `/auth/otp/request` into a sentence that is true. */
+  const describeRequestError = (error: unknown): string => {
+    if (error instanceof RepositoryError) {
+      // Per-IP tier of the rate limiter. The server said how long to wait, so
+      // that is the number shown — never a guess.
+      if (error.isRateLimited) {
+        return t.auth.errorRateLimited(error.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);
+      }
+      // The only 422 left once the client has checked that the number is
+      // complete: the per-phone budget (1/min, 5/hour).
+      if (error.isValidation) return t.auth.errorTooOften;
+    }
+    return t.auth.errorDescription;
   };
 
-  const handleSubmit = async () => {
+  const sendCode = async (nationalDigits: string): Promise<void> => {
     setFormError(null);
+    setFieldError(null);
     if (submitting) return; // double-submit guard on top of the disabled button
-    if (!validate()) return;
+    if (!isCompleteNationalNumber(nationalDigits)) {
+      setFieldError(t.auth.phoneIncomplete);
+      return;
+    }
+    // Asking again inside the server's own per-phone minute is a guaranteed
+    // 422; say so instead of spending the request and the guest's hourly
+    // budget on it.
+    if (nationalDigits === sentToDigits && resendSecondsLeft > 0) {
+      setFormError(t.auth.resendIn(resendSecondsLeft));
+      return;
+    }
 
     setSubmitting(true);
     try {
-      if (isSignUp) {
-        await signUp({ email, password, fullName });
-      } else {
-        await signIn({ email, password });
+      const result = await requestCode(toE164(nationalDigits));
+      const now = Date.now();
+      setSentToDigits(nationalDigits);
+      setSentAt(now);
+      setResendAt(now + RESEND_COOLDOWN_SECONDS * 1000);
+      setAttempts(0);
+      setCode("");
+      // Only ever non-null when the deployment runs with AUTH_OTP_DEV_EXPOSE,
+      // and only rendered in a development build (see below).
+      setDevCode(result.devCode);
+      setStep("code");
+    } catch (error) {
+      setFormError(describeRequestError(error));
+      // A 429 tells us exactly how long the server wants to be left alone.
+      if (error instanceof RepositoryError && error.isRateLimited && error.retryAfterSeconds) {
+        setResendAt(Date.now() + error.retryAfterSeconds * 1000);
       }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const verify = async (value: string): Promise<void> => {
+    setFormError(null);
+    setFieldError(null);
+    if (submitting) return;
+    if (value.length !== CODE_LENGTH) {
+      setFieldError(t.auth.codeIncomplete);
+      return;
+    }
+    if (attemptsExhausted) {
+      setFormError(t.auth.errorTooManyAttempts);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await signInWithCode({ phone: toE164(sentToDigits), code: value });
       // Finish the interrupted action first (the favorite), then leave. The
-      // button stays in its "Проверяем…" state for the extra request rather
-      // than flashing back to Explore with a heart that is still empty.
+      // button stays in its "Проверяем код…" state for the extra request
+      // rather than flashing back to Explore with a heart that is still empty.
       await completeIntent();
-      // Back to the flow. Everything the guest typed there is still in the
-      // draft — this screen was pushed on top of that stack, not instead of it.
       leave();
     } catch (error) {
-      // The typed input is deliberately left untouched: a failed sign-in that
-      // wipes the form is the fastest way to lose a booking.
-      if (error instanceof RepositoryError && error.isUnauthorized) {
-        setFormError(t.auth.errorInvalidCredentials);
-      } else if (error instanceof RepositoryError && error.status === 409) {
-        setFormError(t.auth.errorEmailTaken);
+      // The typed code is deliberately left in the field: an input that is
+      // wiped on failure is the fastest way to lose a guest who mistyped one
+      // digit.
+      if (error instanceof RepositoryError && error.isRateLimited) {
+        setFormError(t.auth.errorRateLimited(error.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS));
+      } else if (error instanceof RepositoryError && error.isUnauthorized) {
+        // 401 covers wrong / expired / no active code / locked out, and the
+        // server will not say which. What we CAN count is how many times this
+        // guest guessed, because the lockout threshold is a known constant.
+        const next = attempts + 1;
+        setAttempts(next);
+        setFormError(
+          next >= MAX_CODE_ATTEMPTS ? t.auth.errorTooManyAttempts : t.auth.errorCodeRejected,
+        );
       } else if (error instanceof RepositoryError && error.isValidation) {
-        setFormError(t.auth.passwordTooShort);
+        setFieldError(t.auth.codeIncomplete);
       } else {
         setFormError(t.auth.errorDescription);
       }
@@ -174,12 +265,47 @@ export default function SignInScreen() {
     }
   };
 
+  // Auto-submit is a convenience, never the only way in: the button below does
+  // the same thing, and this guard keeps an SMS autofill from racing a tap.
+  const verifyingRef = useRef(false);
+  const onCodeChange = (raw: string) => {
+    const next = raw.replace(/\D/g, "").slice(0, CODE_LENGTH);
+    setCode(next);
+    if (fieldError) setFieldError(null);
+    if (next.length === CODE_LENGTH && !submitting && !verifyingRef.current && !attemptsExhausted) {
+      verifyingRef.current = true;
+      void verify(next).finally(() => {
+        verifyingRef.current = false;
+      });
+    }
+  };
+
+  const changePhone = () => {
+    setStep("phone");
+    setCode("");
+    setFieldError(null);
+    setFormError(null);
+    setAttempts(0);
+  };
+
+  const isPhoneStep = step === "phone";
+  const submitLabel = isPhoneStep
+    ? submitting
+      ? t.auth.requestingCode
+      : t.auth.submitRequestCode
+    : submitting
+      ? t.auth.verifying
+      : t.auth.submitVerify;
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <FlowHeader
-          title={isSignUp ? t.auth.signUpTitle : t.auth.signInTitle}
-          onBack={leave}
+          title={isPhoneStep ? t.auth.signInTitle : t.auth.codeTitle}
+          // On the code step the arrow means "back to the number", which is
+          // where a guest who mistyped it needs to go. On the first step it
+          // leaves the gate — and never dead-ends when there is no history.
+          onBack={isPhoneStep ? leave : changePhone}
         />
       </SafeAreaView>
 
@@ -192,91 +318,119 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.subtitle}>{subtitleFor(reason, isSignUp)}</Text>
+          {isPhoneStep ? (
+            <>
+              <Text style={styles.subtitle}>{subtitleFor(reason)}</Text>
+              <TextField
+                label={t.auth.phoneLabel}
+                placeholder={t.auth.phonePlaceholder}
+                prefix={t.auth.phonePrefix}
+                value={formatNationalDigits(digits)}
+                onChangeText={(value) => {
+                  setDigits(extractNationalDigits(value));
+                  if (fieldError) setFieldError(null);
+                }}
+                error={fieldError ?? undefined}
+                hint={t.auth.phoneHint}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
+                // "(777) 123-45-67" is 15 characters; the cap only stops a
+                // paste from growing the field, the mask does the real work.
+                maxLength={16}
+                returnKeyType="go"
+                onSubmitEditing={() => void sendCode(digits)}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.subtitle}>
+                {t.auth.codeSentTo(formatE164ForDisplay(sentToDigits))}
+              </Text>
 
-          {isSignUp ? (
-            <TextField
-              label={t.auth.fullNameLabel}
-              placeholder={t.auth.fullNamePlaceholder}
-              value={fullName}
-              onChangeText={(value) => {
-                setFullName(value);
-                if (errors.fullName) setErrors((e) => ({ ...e, fullName: undefined }));
-              }}
-              error={errors.fullName}
-              autoCapitalize="words"
-              autoComplete="name"
-              textContentType="name"
-            />
-          ) : null}
+              {/* The honest note for an environment that accepts the request
+                  and delivers nothing. Off by default; see
+                  EXPO_PUBLIC_OTP_DELIVERY_DISABLED in .env.example. */}
+              {DELIVERY_DISABLED ? (
+                <Text style={styles.notice} accessibilityRole="alert">
+                  {t.auth.deliveryDisabledNotice}
+                </Text>
+              ) : null}
 
-          <TextField
-            label={t.auth.emailLabel}
-            placeholder={t.auth.emailPlaceholder}
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
-            }}
-            error={errors.email}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            textContentType="emailAddress"
-          />
+              {/* The server's OWN debug echo (AUTH_OTP_DEV_EXPOSE), never a
+                  code invented here, and rendered only in a development build
+                  so it cannot reach a release bundle. Absent on test. */}
+              {__DEV__ && devCode ? (
+                <Text style={styles.notice}>{t.auth.devCodeNotice(devCode)}</Text>
+              ) : null}
 
-          <TextField
-            label={t.auth.passwordLabel}
-            placeholder={t.auth.passwordPlaceholder}
-            value={password}
-            onChangeText={(value) => {
-              setPassword(value);
-              if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
-            }}
-            error={errors.password}
-            secureTextEntry
-            autoCapitalize="none"
-            autoComplete={isSignUp ? "new-password" : "current-password"}
-            textContentType={isSignUp ? "newPassword" : "password"}
-            returnKeyType="go"
-            onSubmitEditing={() => void handleSubmit()}
-          />
+              <TextField
+                label={t.auth.codeLabel}
+                placeholder={t.auth.codePlaceholder}
+                value={code}
+                onChangeText={onCodeChange}
+                error={fieldError ?? undefined}
+                keyboardType="number-pad"
+                // iOS lifts the code straight out of the SMS; Android's
+                // autofill uses the sms-otp hint.
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
+                maxLength={CODE_LENGTH}
+                returnKeyType="go"
+                onSubmitEditing={() => void verify(code)}
+              />
+
+              {codeProbablyExpired ? (
+                <Text style={styles.hint}>{t.auth.codeProbablyExpired}</Text>
+              ) : null}
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: resendSecondsLeft > 0 || submitting }}
+                disabled={resendSecondsLeft > 0 || submitting}
+                onPress={() => void sendCode(sentToDigits)}
+                style={styles.secondaryAction}
+              >
+                <Text
+                  style={[
+                    styles.secondaryActionLabel,
+                    resendSecondsLeft > 0 && styles.secondaryActionLabelDisabled,
+                  ]}
+                >
+                  {resendSecondsLeft > 0 ? t.auth.resendIn(resendSecondsLeft) : t.auth.resend}
+                </Text>
+              </Pressable>
+            </>
+          )}
 
           {formError ? (
             <Text style={styles.formError} accessibilityRole="alert">
               {formError}
             </Text>
           ) : null}
-
-          <Text style={styles.note}>{t.auth.phoneUnavailableNote}</Text>
         </ScrollView>
 
         <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
           <View style={styles.footer}>
             <PrimaryButton
-              label={
-                submitting
-                  ? t.auth.submitting
-                  : isSignUp
-                    ? t.auth.submitSignUp
-                    : t.auth.submitSignIn
+              label={submitLabel}
+              onPress={() => void (isPhoneStep ? sendCode(digits) : verify(code))}
+              disabled={
+                submitting ||
+                (isPhoneStep
+                  ? !isCompleteNationalNumber(digits)
+                  : code.length !== CODE_LENGTH || attemptsExhausted)
               }
-              onPress={() => void handleSubmit()}
-              disabled={submitting}
             />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setMode(isSignUp ? "sign-in" : "sign-up");
-                setErrors({});
-                setFormError(null);
-              }}
-              style={styles.switchMode}
-            >
-              <Text style={styles.switchModeLabel}>
-                {isSignUp ? t.auth.toSignIn : t.auth.toSignUp}
-              </Text>
-            </Pressable>
+            {isPhoneStep ? null : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={changePhone}
+                style={styles.secondaryAction}
+              >
+                <Text style={styles.secondaryActionLabel}>{t.auth.changePhone}</Text>
+              </Pressable>
+            )}
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
@@ -310,7 +464,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
   },
-  note: {
+  notice: {
+    ...typography.caption,
+    color: colors.text.primary,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.background.chip,
+  },
+  hint: {
     ...typography.caption,
     color: colors.text.muted,
   },
@@ -321,13 +482,17 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  switchMode: {
+  secondaryAction: {
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  switchModeLabel: {
+  secondaryActionLabel: {
     ...typography.labelMedium,
     color: colors.brand.primary,
+    textAlign: "center",
+  },
+  secondaryActionLabelDisabled: {
+    color: colors.text.muted,
   },
 });

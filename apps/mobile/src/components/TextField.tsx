@@ -25,6 +25,11 @@ interface TextFieldProps {
   /** Neutral helper text; hidden while `error` is showing so the two never
    * stack and push the submit button off a 360px screen. */
   hint?: string;
+  /** Fixed, untypable text glued to the left of the input — the phone field's
+   * "+7". It is NOT part of `value`: the guest can neither delete it nor put
+   * the caret before it, which is the whole reason it is drawn separately. */
+  prefix?: string;
+  maxLength?: number;
   keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: TextInputProps["autoCapitalize"];
   autoComplete?: TextInputProps["autoComplete"];
@@ -49,6 +54,8 @@ export function TextField({
   placeholder,
   error,
   hint,
+  prefix,
+  maxLength,
   keyboardType,
   autoCapitalize = "sentences",
   autoComplete,
@@ -60,11 +67,14 @@ export function TextField({
   onSubmitEditing,
 }: TextFieldProps) {
   const errorId = useId();
-  return (
-    <View style={styles.root}>
-      {labelHidden ? null : <Text style={styles.label}>{label}</Text>}
+  const input = (
       <TextInput
-        style={[styles.input, multiline && styles.inputMultiline, Boolean(error) && styles.inputError]}
+        style={
+          prefix
+            ? styles.inputInner
+            : [styles.input, multiline && styles.inputMultiline, Boolean(error) && styles.inputError]
+        }
+        maxLength={maxLength}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -85,6 +95,23 @@ export function TextField({
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : undefined}
       />
+  );
+
+  return (
+    <View style={styles.root}>
+      {labelHidden ? null : <Text style={styles.label}>{label}</Text>}
+      {prefix ? (
+        <View style={[styles.input, styles.inputWithPrefix, Boolean(error) && styles.inputError]}>
+          {/* importantForAccessibility: the prefix is decoration — the input's
+              own accessibilityLabel already names the whole field. */}
+          <Text style={styles.prefix} importantForAccessibility="no">
+            {prefix}
+          </Text>
+          {input}
+        </View>
+      ) : (
+        input
+      )}
       {error ? (
         <Text nativeID={errorId} style={styles.error} accessibilityRole="alert">
           {error}
@@ -114,6 +141,24 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     ...typography.labelMedium,
     color: colors.text.primary,
+  },
+  inputWithPrefix: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    // The row owns the padding; the input inside it must not add its own.
+    paddingVertical: spacing.none,
+  },
+  prefix: {
+    ...typography.labelMedium,
+    color: colors.text.primary,
+  },
+  inputInner: {
+    flex: 1,
+    minHeight: hitSlop.minTouchTarget,
+    ...typography.labelMedium,
+    color: colors.text.primary,
+    paddingVertical: spacing.md,
   },
   inputMultiline: {
     // 80 in the design (Figma node 471:3946), not the 96 this was built with.

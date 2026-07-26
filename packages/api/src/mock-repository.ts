@@ -15,6 +15,7 @@ import type {
   EventPage,
   EventQuery,
   MenuSection,
+  OtpRequest,
   Preorder,
   PreorderLineInput,
   Restaurant,
@@ -437,8 +438,12 @@ function formatClock(minuteOfDay: number): string {
  * hands out an obviously fake token, so the sign-in gate and everything
  * behind it can be walked with no backend. It authenticates nobody.
  */
+/** The code the mock accepts. Only reachable with no backend configured. */
+const MOCK_OTP_CODE = "000000";
+
 export class MockAuthRepository implements AuthRepository {
   private user: AuthUser | null = null;
+  private otpPhone: string | null = null;
 
   constructor(private readonly options: MockRepositoryOptions = {}) {}
 
@@ -481,6 +486,32 @@ export class MockAuthRepository implements AuthRepository {
       throw new RepositoryError("Invalid credentials", undefined, 401);
     }
     return this.session(input.email.trim(), "");
+  }
+
+  /**
+   * The mock has no delivery channel, so it names the code it would have sent:
+   * MOCK_OTP_CODE. That is not an invented server behaviour leaking into the
+   * real flow — this repository only runs when EXPO_PUBLIC_API_URL is unset,
+   * i.e. when there is no backend at all.
+   */
+  async requestOtp(phone: string): Promise<OtpRequest> {
+    await this.simulateNetwork();
+    if (!phone.trim()) {
+      throw new RepositoryError("Phone required", undefined, 422);
+    }
+    this.otpPhone = phone;
+    return { sent: true, devCode: MOCK_OTP_CODE };
+  }
+
+  async verifyOtp(input: { phone: string; code: string }): Promise<AuthSession> {
+    await this.simulateNetwork();
+    if (this.otpPhone !== input.phone || input.code !== MOCK_OTP_CODE) {
+      // Same shape the real backend uses for every failed verify.
+      throw new RepositoryError("Invalid code", undefined, 401);
+    }
+    const session = this.session("", "");
+    this.user = { id: "mock-user", email: "", fullName: "", phone: input.phone };
+    return session;
   }
 
   async refresh(refreshToken: string): Promise<AuthSession> {
