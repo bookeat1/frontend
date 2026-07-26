@@ -8,7 +8,12 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { getAccessToken, setAccessToken } from "./token-store";
+import {
+  getFreshAccessToken,
+  refreshAfterUnauthorized as gatewayRefreshAfterUnauthorized,
+  setAccessToken,
+  setSessionTokenGateway,
+} from "./token-store";
 
 /**
  * Session state for the guest app.
@@ -45,11 +50,18 @@ interface AuthContextValue {
   signOut(): Promise<void>;
   /**
    * Returns a token that is valid for at least the next minute, refreshing if
-   * needed, or null when there is no usable session. Call this immediately
-   * before an authenticated write — access tokens live ~15 minutes and this
-   * flow can sit on the confirmation step for longer than that.
+   * needed, or null when there is no usable session. Every authenticated
+   * request goes through this (see token-store's gateway); call it directly
+   * before a write that wants to fail fast on a dead session.
    */
   ensureFreshToken(): Promise<string | null>;
+  /**
+   * Recovery path for a 401 the pre-flight refresh did not prevent (skewed
+   * device clock, token revoked server-side). Returns the token to retry with,
+   * or null when the session is gone — in which case the guest has already
+   * been signed out and the screens show their signed-out state.
+   */
+  refreshAfterUnauthorized(staleToken: string): Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -113,7 +125,14 @@ const PRIVATE_QUERY_KEYS = [
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const repository = useMemo(
-    () => createAuthRepository(process.env.EXPO_PUBLIC_API_URL, { getToken: getAccessToken }),
+    () =>
+      createAuthRepository(process.env.EXPO_PUBLIC_API_URL, {
+        // Same fresh-token path as the catalog repository: /users/me is an
+        // authenticated READ and used to die silently after 15 minutes.
+        // No recursion — POST /auth/refresh is not an authenticated call.
+        getToken: getFreshAccessToken,
+        onUnauthorized: gatewayRefreshAfterUnauthorized,
+      }),
     [],
   );
 
@@ -183,20 +202,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [applySession, loadUser, repository]);
 
-  const ensureFreshToken = useCallback(async (): Promise<string | null> => {
-    const current = sessionRef.current;
-    if (!current) return null;
-    if (!isExpiring(current)) return current.accessToken;
-    // Single-flight: the refresh token is single-use, so two concurrent
-    // refreshes would have one of them invalidate the other's session.
+  /**
+   * Spends the refresh token, once.
+   *
+   * Single-flight: the refresh token is single-use (verified on the test
+   * backend — a replay answers 401), so two concurrent refreshes would have
+   * the second one burn the session the first just created. Everyone who asks
+   * while a refresh is in flight waits on the SAME promise.
+   */
+  const refreshNow = useCallback((): Promise<string | null> => {
     if (!refreshInFlight.current) {
       refreshInFlight.current = (async () => {
+        const current = sessionRef.current;
+        if (!current) return null;
         try {
           const refreshed = await repository.refresh(current.refreshToken);
           await applySession(refreshed);
           return refreshed.accessToken;
         } catch (error) {
           if (error instanceof RepositoryError && error.isUnauthorized) {
+            // The refresh token itself is dead: this is a logout, not a
+            // failure. Signing out cleanly is what makes the screens show
+            // «Вы не вошли» with a way back in instead of a network error.
             await applySession(null);
             return null;
           }
@@ -210,6 +237,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return refreshInFlight.current;
   }, [applySession, repository]);
+
+  const ensureFreshToken = useCallback(async (): Promise<string | null> => {
+    const current = sessionRef.current;
+    if (!current) return null;
+    if (!isExpiring(current)) return current.accessToken;
+    return refreshNow();
+  }, [refreshNow]);
+
+  const refreshAfterUnauthorized = useCallback(
+    async (staleToken: string): Promise<string | null> => {
+      const current = sessionRef.current;
+      // Already signed out (a concurrent refresh found the session dead).
+      if (!current) return null;
+      // Somebody else already refreshed while this request was in flight —
+      // hand out the fresh token instead of burning another refresh token on
+      // a race that is already won.
+      if (current.accessToken !== staleToken) return current.accessToken;
+      return refreshNow();
+    },
+    [refreshNow],
+  );
+
+  // The repositories are built once at app start and cannot read React
+  // context, so the session operations are published into the token cell they
+  // do read. Registered in an effect (never during render) and cleared on
+  // unmount so a torn-down provider can't be called into.
+  useEffect(() => {
+    setSessionTokenGateway({ ensureFreshToken, refreshAfterUnauthorized });
+    return () => setSessionTokenGateway(null);
+  }, [ensureFreshToken, refreshAfterUnauthorized]);
 
   const signIn = useCallback(
     async (input: { email: string; password: string }) => {
@@ -232,8 +289,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applySession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, repository, signIn, signUp, signOut, ensureFreshToken }),
-    [status, user, repository, signIn, signUp, signOut, ensureFreshToken],
+    () => ({
+      status,
+      user,
+      repository,
+      signIn,
+      signUp,
+      signOut,
+      ensureFreshToken,
+      refreshAfterUnauthorized,
+    }),
+    [
+      status,
+      user,
+      repository,
+      signIn,
+      signUp,
+      signOut,
+      ensureFreshToken,
+      refreshAfterUnauthorized,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

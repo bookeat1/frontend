@@ -14,10 +14,6 @@ interface RestaurantCardProps {
 
 const IMAGE_HEIGHT = 148;
 
-function distanceLabel(meters: number): string {
-  return meters < 1000 ? `${meters} м` : `${(meters / 1000).toFixed(1)} км`;
-}
-
 /**
  * Search-result card — matches Figma nodes 347:5716–347:5730. The design has
  * no rating/star and no status badge overlaid on the photo: open/closed is a
@@ -26,10 +22,10 @@ function distanceLabel(meters: number): string {
  */
 export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
   const cuisineLabel = restaurant.cuisines.map((c) => c.name).join(", ");
+  // Раньше рядом со статусом стояло расстояние («Открыто · 3.4 км»),
+  // посчитанное из хеша id заведения. Ни геопозиции гостя, ни расстояния в API
+  // нет — строка теперь говорит только то, что мы действительно знаем.
   const statusLabel = restaurant.isOpenNow ? t.restaurant.openNow : t.restaurant.closedNow;
-  const nameLine = restaurant.distanceMeters !== undefined
-    ? `${statusLabel} · ${distanceLabel(restaurant.distanceMeters)}`
-    : statusLabel;
 
   return (
     <Pressable
@@ -49,7 +45,7 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
         <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
           {restaurant.name}
         </Text>
-        <Text style={styles.status}>{nameLine}</Text>
+        <Text style={styles.status}>{statusLabel}</Text>
         <View style={styles.chipsRow}>
           {/* У части заведений в каталоге cuisine_type пустой — тогда чипа
               просто нет, вместо пустого серого прямоугольника. */}
@@ -60,8 +56,9 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
           ) : null}
           <View style={styles.chip}>
             {/* NOTE: the mockup shows a tenge price range chip ("12 000-20 000 ₸");
-                the current schema only carries a symbolic tier ($/$$/$$$/$$$$).
-                Flagged in the delivery report as a schema gap for the designer. */}
+                the schema only carries a symbolic tier, which the app now
+                renders in the backend's own alphabet (₸/₸₸/₸₸₸) instead of the
+                dollars it used to show. The range itself is still a schema gap. */}
             <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
           </View>
         </View>

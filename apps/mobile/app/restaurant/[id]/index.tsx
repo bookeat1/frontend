@@ -4,10 +4,11 @@ import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Clock, Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
 import { IconButton } from "../../../src/components/IconButton";
+import { useRestaurantFavorite } from "../../../src/hooks/useFavorites";
 import { MapPreview } from "../../../src/components/booking/MapPreview";
 import { MenuItemCard } from "../../../src/components/MenuItemCard";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
@@ -31,14 +32,28 @@ function todaysHoursLabel(restaurant: Restaurant): string {
     : t.restaurant.opensAt(entry.opensAt);
 }
 
-function distanceLabel(meters: number): string {
-  return meters < 1000 ? `${meters} м` : `${(meters / 1000).toFixed(1)} км`;
-}
-
 export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: restaurant, isLoading, isError, refetch } = useRestaurant(id);
+  // То же самое сердечко, что на карточках Explore: один запрос ["favorites"]
+  // на весь экран, гость без сессии уезжает на вход, состояние приходит с
+  // сервера. Раньше здесь стоял onPress={() => {}}.
+  const favorite = useRestaurantFavorite(id ?? "");
+
+  /**
+   * «Поделиться» — системный Share. Ссылки на заведение в вебе у продукта нет,
+   * поэтому делимся тем, что существует: название и адрес. Придумывать
+   * https://book-eat.com/r/<id> было бы ссылкой в никуда.
+   */
+  const share = async (name: string, address: string) => {
+    try {
+      await Share.share({ message: t.restaurant.shareText(name, address) });
+    } catch {
+      // Гость закрыл системный лист или платформа отказала — это не ошибка,
+      // о которой ему нужно рассказывать.
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -47,7 +62,16 @@ export default function RestaurantDetailScreen() {
           <LoadingState title={t.common.loading} />
         </SafeAreaView>
       ) : isError || !restaurant ? (
+        // Шапка с «назад» — и в ветке ошибки тоже: без неё 404 или обрыв сети
+        // оставлял гостя на экране, с которого есть только «Повторить».
         <SafeAreaView style={styles.loadingSafeArea}>
+          <View style={styles.header}>
+            <IconButton
+              icon={ArrowLeft}
+              accessibilityLabel={t.a11y.backButton}
+              onPress={() => router.back()}
+            />
+          </View>
           <ErrorState
             title={t.search.errorTitle}
             description={t.search.errorDescription}
@@ -61,8 +85,21 @@ export default function RestaurantDetailScreen() {
             <View style={styles.header}>
               <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={() => router.back()} />
               <View style={styles.headerRightGroup}>
-                <IconButton icon={Heart} accessibilityLabel={t.a11y.favoriteButton} onPress={() => {}} />
-                <IconButton icon={Export} accessibilityLabel={t.a11y.shareButton} onPress={() => {}} />
+                <IconButton
+                  icon={Heart}
+                  accessibilityLabel={
+                    favorite.isFavorite
+                      ? t.restaurant.favoriteRemove(restaurant.name)
+                      : t.restaurant.favoriteAdd(restaurant.name)
+                  }
+                  selected={favorite.isFavorite}
+                  onPress={favorite.toggle}
+                />
+                <IconButton
+                  icon={Export}
+                  accessibilityLabel={t.a11y.shareButton}
+                  onPress={() => void share(restaurant.name, restaurant.address)}
+                />
               </View>
             </View>
           </SafeAreaView>
@@ -80,12 +117,15 @@ export default function RestaurantDetailScreen() {
 
             <View style={styles.summary}>
               <Text style={styles.name}>{restaurant.name}</Text>
-              {/* Адрес в каталоге бывает пустым — тогда строка не рисуется
-                  вовсе, а не превращается в « · 3.4 км». */}
+              {/* Адрес в каталоге бывает пустым — тогда строки просто нет.
+                  Расстояния здесь больше нет вообще: раньше рядом с адресом
+                  стояло «· 3.4 км», посчитанное из хеша id. */}
               {restaurant.address ? (
-                <Text style={styles.addressLine}>
-                  {restaurant.address}
-                  {restaurant.distanceMeters !== undefined ? ` · ${distanceLabel(restaurant.distanceMeters)}` : ""}
+                <Text style={styles.addressLine}>{restaurant.address}</Text>
+              ) : null}
+              {favorite.failed ? (
+                <Text style={styles.favoriteFailed} accessibilityRole="alert">
+                  {t.restaurant.favoriteFailed}
                 </Text>
               ) : null}
               <View style={styles.chipsRow}>
@@ -131,12 +171,14 @@ export default function RestaurantDetailScreen() {
                 <Clock size={24} color={colors.text.primary} weight="regular" />
                 <View>
                   <Text style={styles.hoursPrimary}>{todaysHoursLabel(restaurant)}</Text>
-                  <Text style={styles.hoursSecondary}>
-                    {(() => {
-                      const first = restaurant.workingHours.find((h) => h.opensAt && h.closesAt);
-                      return first ? t.restaurant.everydayHours(first.opensAt!, first.closesAt!) : "";
-                    })()}
-                  </Text>
+                  {/* Строка режима работы — ровно та, что написало заведение
+                      («Чт, Пт, Сб 19:00-24:00»). Раньше здесь было
+                      «Ежедневно с 19:00 до 24:00», собранное из первого и
+                      последнего времени в этой же строке, — то есть график,
+                      которого у заведения нет. */}
+                  {restaurant.openingHoursText ? (
+                    <Text style={styles.hoursSecondary}>{restaurant.openingHoursText}</Text>
+                  ) : null}
                 </View>
               </View>
             </View>
@@ -144,16 +186,15 @@ export default function RestaurantDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
               <ScrollableMenu items={restaurant.menuHighlights} />
-              {/* «Посмотреть меню» остаётся невключённой: экран меню сегодня
-                  живёт внутри флоу бронирования и держит корзину предзаказа в
-                  черновике этого флоу. Открыть его отсюда — значит дать гостю
-                  набрать корзину, которая молча пропадёт при выходе. Нужен
-                  отдельный экран меню вне флоу — отдельная задача. */}
+              {/* Кнопка ведёт на отдельный экран меню — только чтение, без
+                  корзины. Раньше она была disabled, потому что единственный
+                  экран меню жил внутри флоу брони и складывал блюда в его
+                  черновик; в результате у заведения с 200 блюдами меню нельзя
+                  было открыть вообще. */}
               <PrimaryButton
                 label={t.restaurant.viewMenu}
                 variant="secondary"
-                onPress={() => {}}
-                disabled
+                onPress={() => router.push(`/restaurant/${restaurant.id}/menu`)}
               />
             </View>
 
@@ -224,8 +265,8 @@ export default function RestaurantDetailScreen() {
 }
 
 function ScrollableMenu({ items }: { items: Restaurant["menuHighlights"] }) {
-  // У части заведений меню либо пустое, либо целиком без фотографий —
-  // тогда честнее написать это, чем показать пустую полосу.
+  // Пустая лента = у заведения действительно нет блюд в API (например,
+  // «Adept»). Отсутствие фотографий блюдом больше не считается.
   if (items.length === 0) {
     return <Text style={styles.sectionEmpty}>{t.restaurant.menuEmpty}</Text>;
   }
@@ -291,6 +332,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
     marginTop: spacing.xxs,
+  },
+  favoriteFailed: {
+    ...typography.caption,
+    color: colors.brand.primary,
   },
   chipsRow: {
     flexDirection: "row",

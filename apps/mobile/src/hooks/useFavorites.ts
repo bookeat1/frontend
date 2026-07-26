@@ -74,7 +74,13 @@ export function useRestaurantFavorite(restaurantId: string): {
     // the attempt the guest just made.
     mutation.reset();
     if (status !== "signed-in") {
-      router.push("/auth/sign-in");
+      // The intent travels with the guest: the sign-in screen adds this venue
+      // to the favorites itself once the session exists, so the heart the
+      // guest already tapped is not asked for a second time.
+      router.push({
+        pathname: "/auth/sign-in",
+        params: { reason: "favorite", restaurantId },
+      });
       return;
     }
     mutation.mutate({ restaurantId, favorite: !isFavorite });

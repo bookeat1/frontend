@@ -26,6 +26,16 @@ export function useSearchScreen() {
     [debouncedText, filters],
   );
 
+  /**
+   * Есть ли у гостя активный запрос — нужно только для копирайта пустого
+   * результата («ничего не нашлось» против «каталог пуст»). Сам запрос
+   * выполняется ВСЕГДА: пустой `q` — это законный вызов
+   * `GET /restaurants/search`, который отдаёт весь каталог (проверено
+   * 2026-07-26: 24 заведения). Раньше при пустой строке запрос был выключен, и
+   * экран поиска (он же вкладка «Поиск» и переход «Смотреть все») открывался
+   * пустым — с тремя выдуманными «популярными запросами», каждый из которых
+   * давал ноль результатов.
+   */
   const hasActiveSearch =
     debouncedText.trim().length > 0 ||
     filters.cuisineIds.length > 0 ||
@@ -36,19 +46,6 @@ export function useSearchScreen() {
   const searchQueryResult = useQuery({
     queryKey: ["search", query],
     queryFn: () => repository.searchRestaurants(query),
-    enabled: hasActiveSearch,
-  });
-
-  const recentQuery = useQuery({
-    queryKey: ["recent-searches"],
-    queryFn: () => repository.getRecentSearches(),
-    enabled: !hasActiveSearch,
-  });
-
-  const popularQuery = useQuery({
-    queryKey: ["popular-searches"],
-    queryFn: () => repository.getPopularSearches(),
-    enabled: !hasActiveSearch,
   });
 
   const cuisinesQuery = useQuery({
@@ -69,8 +66,6 @@ export function useSearchScreen() {
     hasActiveSearch,
     isTyping: text !== debouncedText,
     searchQueryResult,
-    recentQuery,
-    popularQuery,
     cuisinesQuery,
     citiesQuery,
   };

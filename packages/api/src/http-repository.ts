@@ -1,4 +1,9 @@
-import { HttpClient, type ApiPage, type TokenProvider } from "./http-client";
+import {
+  HttpClient,
+  type ApiPage,
+  type TokenProvider,
+  type UnauthorizedHandler,
+} from "./http-client";
 import {
   cuisineIdFor,
   mapAvailability,
@@ -26,7 +31,6 @@ import {
 } from "./http-mapping";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { buildMapPreviewUrl, type MapPreviewOptions } from "./static-map";
-import { stubPopularSearches, stubRecentSearches } from "./unknown-data";
 import type {
   AuthSession,
   AuthUser,
@@ -55,6 +59,10 @@ export interface HttpRepositoryOptions {
    * every booking write fails fast with a 401 RepositoryError, which is what
    * the sign-in gate reacts to. */
   getToken?: TokenProvider;
+  /** Recovers a single 401 by refreshing the session — see UnauthorizedHandler.
+   * Absent = a 401 is final, which is the right behaviour for anything that
+   * has no refresh token to spend (the admin panel, tests). */
+  onUnauthorized?: UnauthorizedHandler;
 }
 
 const POPULAR_PAGE_SIZE = 20;
@@ -109,6 +117,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
       getToken: options.getToken,
+      onUnauthorized: options.onUnauthorized,
     });
   }
 
@@ -273,17 +282,6 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       pages: typeof page.pages === "number" ? page.pages : 0,
       perPage: typeof page.per_page === "number" ? page.per_page : perPage,
     };
-  }
-
-  /** STUB: no recent/popular search-term endpoint exists — see
-   * unknown-data.ts. Not simulated as a network call since there is nothing
-   * to fetch. */
-  async getRecentSearches(): Promise<string[]> {
-    return stubRecentSearches();
-  }
-
-  async getPopularSearches(): Promise<string[]> {
-    return stubPopularSearches();
   }
 
   /* --- reservation flow --- */
@@ -487,6 +485,7 @@ export class HttpAuthRepository implements AuthRepository {
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
       getToken: options.getToken,
+      onUnauthorized: options.onUnauthorized,
     });
   }
 

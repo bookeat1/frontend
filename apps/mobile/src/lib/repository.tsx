@@ -1,6 +1,6 @@
 import { createRestaurantRepository, type RestaurantRepository } from "@bookeat/api";
 import React, { createContext, useContext, useMemo } from "react";
-import { getAccessToken } from "./token-store";
+import { getFreshAccessToken, refreshAfterUnauthorized } from "./token-store";
 
 /**
  * Dependency-injection seam for data access. Screens never import a concrete
@@ -15,8 +15,18 @@ export function RepositoryProvider({ children }: { children: React.ReactNode }) 
   // Built once and never rebuilt: `getToken` is a closure over the live
   // token cell, so signing in mid-session changes what the repository sends
   // without invalidating any in-flight query.
+  //
+  // `getFreshAccessToken` refreshes an access token that is within a minute of
+  // expiring BEFORE the request leaves — that is what keeps a 15-minute token
+  // from breaking authenticated READS (bookings, favorites, profile).
+  // `refreshAfterUnauthorized` is the second line: a 401 that slipped through
+  // gets one refresh-and-retry, de-duplicated across concurrent requests.
   const repository = useMemo<RestaurantRepository>(
-    () => createRestaurantRepository(process.env.EXPO_PUBLIC_API_URL, { getToken: getAccessToken }),
+    () =>
+      createRestaurantRepository(process.env.EXPO_PUBLIC_API_URL, {
+        getToken: getFreshAccessToken,
+        onUnauthorized: refreshAfterUnauthorized,
+      }),
     [],
   );
 

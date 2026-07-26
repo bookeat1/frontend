@@ -28,13 +28,33 @@ const DEFAULT_TIMEOUT_MS = 8000;
 
 /** Returns the bearer token to send, or undefined when nobody is signed in.
  * A closure rather than a value so the repository is built once and still
- * sees a token acquired later (sign-in mid-session). */
-export type TokenProvider = () => string | undefined;
+ * sees a token acquired later (sign-in mid-session).
+ *
+ * May be async: the mobile app's provider refreshes an access token that is
+ * about to expire BEFORE the request goes out, so a 15-minute token never
+ * turns a healthy screen into "проверьте соединение". A plain synchronous
+ * closure (the admin app) still satisfies this type. */
+export type TokenProvider = () => string | undefined | Promise<string | undefined>;
+
+/**
+ * Last-resort recovery from a 401 on an authenticated request: given the token
+ * that was just rejected, return a token to retry with, or undefined to let
+ * the 401 stand.
+ *
+ * The handler owns de-duplication. This client calls it once per request and
+ * retries at most once — it never loops — but N requests failing at the same
+ * moment call it N times, and the refresh token on this backend is single-use
+ * (verified: a second POST /auth/refresh with the same token answers 401), so
+ * the handler must be single-flight and must answer the already-refreshed
+ * token to whoever arrives late.
+ */
+export type UnauthorizedHandler = (staleToken: string) => Promise<string | undefined>;
 
 export interface HttpClientOptions {
   baseUrl: string;
   timeoutMs?: number;
   getToken?: TokenProvider;
+  onUnauthorized?: UnauthorizedHandler;
 }
 
 interface RequestOptions {
@@ -64,6 +84,7 @@ export class HttpClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly getToken?: TokenProvider;
+  private readonly onUnauthorized?: UnauthorizedHandler;
 
   constructor(options: HttpClientOptions) {
     // Trim a trailing slash so callers can pass either "https://host" or
@@ -71,6 +92,7 @@ export class HttpClient {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.getToken = options.getToken;
+    this.onUnauthorized = options.onUnauthorized;
   }
 
   async get<T>(
@@ -101,12 +123,63 @@ export class HttpClient {
     return this.send<T>("DELETE", `${this.baseUrl}${path}`, path, undefined, options);
   }
 
+  /**
+   * Resolves the bearer token (refreshing it up front when the provider says
+   * so) and, if the server still answers 401, gives the session exactly ONE
+   * chance to recover before the failure reaches the caller.
+   *
+   * Why a retry at all when the token is already refreshed pre-flight: the
+   * pre-flight check trusts `expires_at` and the device clock. A phone with a
+   * skewed clock, a token revoked server-side, or a request that left just
+   * before the boundary all produce a 401 on a session that is still valid —
+   * and the guest must not have to restart the app to recover from it.
+   */
   private async send<T>(
     method: string,
     url: string,
     path: string,
     body: unknown,
     options?: RequestOptions,
+  ): Promise<T> {
+    if (!options?.auth) {
+      return this.sendOnce<T>(method, url, path, body, options, undefined);
+    }
+
+    const token = await this.getToken?.();
+    if (!token) {
+      // Fail before the round trip: a request that needs a session but has
+      // none is a caller bug (or a session that expired between screens),
+      // and the UI's answer to both is the same — send the guest to sign in.
+      throw new RepositoryError(`Not authenticated for ${path}`, undefined, 401);
+    }
+
+    try {
+      return await this.sendOnce<T>(method, url, path, body, options, token);
+    } catch (error) {
+      if (
+        !this.onUnauthorized ||
+        !(error instanceof RepositoryError) ||
+        error.status !== 401
+      ) {
+        throw error;
+      }
+      const refreshed = await this.onUnauthorized(token);
+      // No new token (refresh rejected → the handler has signed the guest out)
+      // or the same one back: the 401 is the truth, report it as such. Never
+      // dressed up as a network failure.
+      if (!refreshed || refreshed === token) throw error;
+      return this.sendOnce<T>(method, url, path, body, options, refreshed);
+    }
+  }
+
+  /** One round trip with an already-decided token. Never retries. */
+  private async sendOnce<T>(
+    method: string,
+    url: string,
+    path: string,
+    body: unknown,
+    options: RequestOptions | undefined,
+    token: string | undefined,
   ): Promise<T> {
     const headers: Record<string, string> = {
       Accept: "application/json",
@@ -115,14 +188,7 @@ export class HttpClient {
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
     }
-    if (options?.auth) {
-      const token = this.getToken?.();
-      if (!token) {
-        // Fail before the round trip: a request that needs a session but has
-        // none is a caller bug (or a session that expired between screens),
-        // and the UI's answer to both is the same — send the guest to sign in.
-        throw new RepositoryError(`Not authenticated for ${path}`, undefined, 401);
-      }
+    if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 

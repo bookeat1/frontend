@@ -37,11 +37,7 @@ import type {
   SlotUnavailableReason,
   Weekday,
 } from "./types";
-import {
-  ASSUMED_IS_BOOKABLE,
-  stubDistanceMeters,
-  stubTables,
-} from "./unknown-data";
+import { ASSUMED_IS_BOOKABLE, stubTables } from "./unknown-data";
 
 export interface ApiImage {
   id: string;
@@ -129,9 +125,19 @@ const WEEKDAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
  * client-side. */
 export const MENU_HIGHLIGHT_LIMIT = 8;
 
-/** Reads a possibly-absent string field without throwing on null/undefined. */
+/**
+ * Reads a possibly-absent string field without throwing on null/undefined,
+ * and trims it.
+ *
+ * The trim is not cosmetic: the live catalog really does contain
+ * `" Chaihana Palau  "` and `"Koktobe Terrace  "` (verified 2026-07-26). Until
+ * now one screen trimmed the name by hand and another did not, so the same
+ * venue sat a few pixels apart on two screens and sorted differently. The
+ * cleanup belongs here, in the single seam between the wire and the UI — not
+ * in each screen, and not in the database from a phone.
+ */
 function text(value: string | null | undefined): string {
-  return typeof value === "string" ? value : "";
+  return typeof value === "string" ? value.trim() : "";
 }
 
 /**
@@ -220,15 +226,13 @@ function computeIsOpenNow(raw: string | null | undefined): boolean {
 }
 
 /**
- * `price_category` arrives as a level string ("₸" / "₸₸" / "₸₸₸"), per the
- * owner's brief — shown as-is, no invented tenge range. The UI's chip
- * component only ever renders whatever string PriceLevel holds; we re-express
- * the tier count using the same "$" vocabulary the mock already used (a
- * design placeholder, not a currency), rather than widening the PriceLevel
- * type across the whole app for this integration. The *number* of tiers is
- * the real value read from the API; only the glyph is translated.
+ * `price_category` arrives as a level string ("₸" / "₸₸" / "₸₸₸") and is kept
+ * in exactly that alphabet — no invented tenge range, and no dollars. The
+ * previous mapping re-expressed the tier count as "$"/"$$"/"$$$", which put a
+ * currency that does not exist in this product on every card and every price
+ * filter chip while the backend and the admin panel spoke tenge.
  */
-const PRICE_LEVELS = ["$", "$$", "$$$", "$$$$"] as const;
+const PRICE_LEVELS = ["₸", "₸₸", "₸₸₸", "₸₸₸₸"] as const;
 
 function mapPriceLevel(priceCategory: string | null | undefined): PriceLevel {
   const raw = text(priceCategory);
@@ -237,11 +241,13 @@ function mapPriceLevel(priceCategory: string | null | undefined): PriceLevel {
   return PRICE_LEVELS[clamped - 1];
 }
 
-/** Inverse of mapPriceLevel, for pushing the price filter back to the API:
- * the server compares `price_category` for equality against the tenge tier
- * string it stores ("₸" / "₸₸" / "₸₸₸"). */
+/** Inverse of mapPriceLevel, for pushing the price filter back to the API.
+ * Now an identity: the UI holds the same tenge tier string the server compares
+ * `price_category` against. Kept as a named function so the call site still
+ * says which direction it is going, and so a future divergence has one place
+ * to live. */
 export function priceLevelToPriceCategory(level: PriceLevel): string {
-  return "₸".repeat(level.length);
+  return level;
 }
 
 function pickCoverPhoto(api: ApiRestaurant): Photo {
@@ -305,23 +311,35 @@ function formatMenuPrice(raw: string | null | undefined): string {
 
 /**
  * The API has no "popular dish" flag (see unknown-data.ts for what that
- * costs us), so the highlights strip shows the venue's own first available
- * dishes THAT HAVE A PHOTO — the card is photo-first and a placeholder tile
- * would look broken. Ordering follows display_order, i.e. the venue's own
- * menu order, so this is real data in a real order, just not "popular".
+ * costs us), so the strip shows the venue's own first available dishes in the
+ * venue's own `display_order` — real data in a real order, just not "popular".
+ *
+ * A photo is NOT a condition for showing a dish. It used to be, and on this
+ * catalog that emptied the strip for every single venue: not one dish in the
+ * database has an `image_url` (checked 2026-07-26 — Abay 200 dishes, Chaihana
+ * 69, Koktobe 84, zero photos between them). Name, description and price are
+ * real; the photo is simply missing, and the card draws a deliberate
+ * photo-less tile for it.
  */
 export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined, limit: number): MenuHighlight[] {
   return (items ?? [])
-    .filter((item) => item.is_available && text(item.image_url).length > 0)
+    .filter((item) => item.is_available)
     .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
     .slice(0, limit)
-    .map((item) => ({
-      id: item.id,
-      name: text(item.name),
-      description: plainText(item.description),
-      price: formatMenuPrice(item.price),
-      photo: imageToPhoto(text(item.image_url), item.id, text(item.name), "food"),
-    }));
+    .map((item) => {
+      const imageUrl = text(item.image_url);
+      return {
+        id: item.id,
+        name: text(item.name),
+        description: plainText(item.description),
+        price: formatMenuPrice(item.price),
+        // Undefined, not a placehold.co tile: "we have no photo" is a fact the
+        // card can render honestly, a stub image is a picture of nothing.
+        photo: imageUrl
+          ? imageToPhoto(imageUrl, item.id, text(item.name), "food")
+          : undefined,
+      };
+    });
 }
 
 /** Promos carry no image server-side, so the banner is caption-only. */
@@ -619,8 +637,9 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     rating: 0,
     reviewsCount: 0,
     address: text(api.address),
-    // STUB: no geolocation/distance in the API — see unknown-data.ts.
-    distanceMeters: stubDistanceMeters(api.id),
+    // Расстояния тут нет и не появится само: у API нет геопоиска, а у
+    // приложения — доступа к геопозиции гостя. Раньше здесь стоял хеш от id,
+    // который рисовался как «3.4 км» рядом с адресом.
     coverPhoto: pickCoverPhoto(api),
     isOpenNow: computeIsOpenNow(api.opening_hours),
   };
@@ -669,8 +688,6 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // the live catalog). Only used to open the device's maps app — there is
     // still no distance calculation, which is the separate stub below.
     ...coordinates(api),
-    // STUB: no geolocation/distance in the API — see unknown-data.ts.
-    distanceMeters: stubDistanceMeters(api.id),
     phone: text(api.phone) || undefined,
     // Real data where the API has it; social_links IS present on the detail
     // endpoint (contrary to the owner's brief lumping it with the map image —
@@ -685,6 +702,8 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // Real dishes from GET /restaurants/:id/menu — see mapMenuHighlights for
     // why "popular" is really "first available with a photo".
     menuHighlights: mapMenuHighlights(extras.menu, MENU_HIGHLIGHT_LIMIT),
+    // The venue's own words, untouched — see the field's doc comment.
+    openingHoursText: text(api.opening_hours),
     // Derived, best-effort — see parseOpeningHours/buildWorkingHours comments.
     workingHours: buildWorkingHours(api.opening_hours),
     // STUB: no seating/table data in the API — see unknown-data.ts.
