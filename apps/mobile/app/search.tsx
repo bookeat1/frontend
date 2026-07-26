@@ -51,6 +51,9 @@ export default function SearchScreen() {
   const toggleOpenNow = () =>
     setFilters((prev) => ({ ...prev, openNowOnly: !prev.openNowOnly }));
 
+  const toggleOnlineBookable = () =>
+    setFilters((prev) => ({ ...prev, onlineBookableOnly: !prev.onlineBookableOnly }));
+
   const toggleCuisine = (cuisineId: string) =>
     setFilters((prev) => ({
       ...prev,
@@ -69,6 +72,22 @@ export default function SearchScreen() {
       ...prev,
       priceLevel: prev.priceLevel === priceLevel ? undefined : priceLevel,
     }));
+
+  /**
+   * Сколько из показанных заведений реально можно забронировать в приложении.
+   * Считается по загруженной странице (весь каталог приходит одной: per_page
+   * 100 против 24 заведений), поэтому число честное, а не «из первых
+   * двадцати». Строка не показывается, когда бронировать можно везде, — и
+   * когда фильтр «бронь онлайн» уже включён, потому что тогда она тавтология.
+   */
+  const items = searchQueryResult.data?.items ?? [];
+  const bookableCount = items.filter((item) => item.acceptsOnlineBookings).length;
+  const bookableNote =
+    filters.onlineBookableOnly || items.length === 0 || bookableCount === items.length
+      ? null
+      : bookableCount === 0
+        ? t.search.onlineBookableNone
+        : t.search.onlineBookableCount(bookableCount, items.length);
 
   const resetFilters = () => {
     setFilters(EMPTY_FILTERS);
@@ -91,6 +110,15 @@ export default function SearchScreen() {
               label={t.search.filterOpenNow}
               selected={filters.openNowOnly}
               onPress={toggleOpenNow}
+            />
+            {/* Выключен по умолчанию: каталог показывает ВСЕ заведения, в том
+                числе те, куда нужно звонить. Это выход для гостя, который
+                хочет забронировать прямо сейчас, а не способ спрятать
+                неудобные строки. */}
+            <FilterChip
+              label={t.search.filterOnlineBookable}
+              selected={filters.onlineBookableOnly}
+              onPress={toggleOnlineBookable}
             />
             {(citiesQuery.data ?? []).map((city) => (
               <FilterChip
@@ -141,7 +169,7 @@ export default function SearchScreen() {
             retryLabel={t.common.retry}
             onRetry={() => searchQueryResult.refetch()}
           />
-        ) : (searchQueryResult.data?.items.length ?? 0) === 0 ? (
+        ) : items.length === 0 ? (
           // Пустой каталог и «по этому запросу ничего нет» — разные вещи, и
           // предлагать «сбросить фильтры» там, где фильтров нет, бессмысленно.
           hasActiveSearch ? (
@@ -159,17 +187,24 @@ export default function SearchScreen() {
           )
         ) : (
           <FlatList
-            data={searchQueryResult.data?.items ?? []}
+            data={items}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <RestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
             // Заголовок списка — счётчик реальных результатов, он же объясняет
-            // при пустом запросе, что перед гостем весь каталог.
+            // при пустом запросе, что перед гостем весь каталог. Вторая строка
+            // появляется, когда часть заведений онлайн-бронь не принимает: без
+            // неё каталог читается как стена карточек, ведущих в никуда.
             ListHeaderComponent={
-              <Text style={styles.resultsCount}>
-                {t.search.resultsCount(searchQueryResult.data?.total ?? 0)}
-              </Text>
+              <View style={styles.listHeader}>
+                <Text style={styles.resultsCount}>
+                  {t.search.resultsCount(searchQueryResult.data?.total ?? 0)}
+                </Text>
+                {bookableNote ? (
+                  <Text style={styles.bookableNote}>{bookableNote}</Text>
+                ) : null}
+              </View>
             }
             ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
             contentContainerStyle={styles.listContent}
@@ -222,9 +257,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
+  listHeader: {
+    gap: spacing.xxs,
+    paddingBottom: spacing.md,
+  },
   resultsCount: {
     ...typography.caption,
     color: colors.text.muted,
-    paddingBottom: spacing.md,
+  },
+  bookableNote: {
+    ...typography.caption,
+    color: colors.text.mutedStrong,
   },
 });

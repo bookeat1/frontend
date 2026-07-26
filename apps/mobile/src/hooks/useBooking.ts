@@ -24,6 +24,13 @@ export function useAvailability(input: {
   restaurantId: string | undefined;
   date: string;
   guests: number;
+  /**
+   * `accepts_online_bookings` заведения. false — запрос НЕ отправляется:
+   * сервер по такому заведению не выдаст слот ни на одну дату, и спрашивать
+   * его при каждой смене даты — трафик ради заведомого пустого ответа.
+   * `undefined` (заведение ещё грузится) запрос не блокирует.
+   */
+  acceptsOnlineBookings?: boolean;
 }) {
   const repository = useRepository();
   return useQuery({
@@ -36,7 +43,7 @@ export function useAvailability(input: {
         guests: input.guests,
       });
     },
-    enabled: Boolean(input.restaurantId),
+    enabled: Boolean(input.restaurantId) && input.acceptsOnlineBookings !== false,
     staleTime: 0,
   });
 }

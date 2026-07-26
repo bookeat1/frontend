@@ -40,6 +40,7 @@ export function useSearchScreen() {
     debouncedText.trim().length > 0 ||
     filters.cuisineIds.length > 0 ||
     filters.openNowOnly ||
+    filters.onlineBookableOnly ||
     filters.city !== undefined ||
     filters.priceLevel !== undefined;
 

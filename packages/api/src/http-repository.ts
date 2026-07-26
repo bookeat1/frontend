@@ -198,9 +198,13 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    *   - `city`     — equality on the city enum value
    *   - `price`    — equality on the price_category tier string
    * Filters with no server-side counterpart stay client-side over the fetched
-   * page: `openNowOnly` (isOpenNow is itself derived from the free-text
-   * opening_hours, see http-mapping.ts) and `minRating` (the listing carries
-   * no rating).
+   * page: `openNowOnly`, `onlineBookableOnly` and `minRating` (the listing
+   * carries no rating). `open_now` / `accepts_online_bookings` as query
+   * parameters are IGNORED by the server today — checked 2026-07-26:
+   * `/restaurants/search?open_now=true&accepts_online_bookings=true` still
+   * answers `total: 24`, i.e. the whole catalog — so sending them would look
+   * like filtering while doing nothing. The whole catalog fits in one page
+   * (per_page=100 → 24 items), so filtering it client-side hides no rows.
    */
   async searchRestaurants(query: SearchQuery): Promise<SearchResult> {
     const cuisines = await this.cuisineVariants(query.filters.cuisineIds);
@@ -224,7 +228,14 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     }
 
     if (query.filters.openNowOnly) {
-      items = items.filter((r) => r.isOpenNow);
+      // Строго `=== true`: заведение без графика (или без `open_now`) под
+      // фильтр «открыто сейчас» не попадает — мы про него не знаем, а не
+      // «знаем, что открыто».
+      items = items.filter((r) => r.schedule?.openNow === true);
+    }
+
+    if (query.filters.onlineBookableOnly) {
+      items = items.filter((r) => r.acceptsOnlineBookings);
     }
 
     // `page.total` counts every match across pages; once a client-side filter

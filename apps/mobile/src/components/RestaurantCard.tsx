@@ -4,6 +4,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { openStateLabel } from "../lib/schedule";
 
 const t = getDictionary();
 
@@ -25,12 +26,25 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
   // Раньше рядом со статусом стояло расстояние («Открыто · 3.4 км»),
   // посчитанное из хеша id заведения. Ни геопозиции гостя, ни расстояния в API
   // нет — строка теперь говорит только то, что мы действительно знаем.
-  const statusLabel = restaurant.isOpenNow ? t.restaurant.openNow : t.restaurant.closedNow;
+  //
+  // «Открыто»/«Закрыто» — серверный `schedule.open_now` (в таймзоне
+  // заведения), третье состояние — «часы работы не указаны». Клиент здесь
+  // ничего не вычисляет.
+  const statusLabel = openStateLabel(restaurant.schedule);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${restaurant.name}, ${cuisineLabel}`}
+      // Скринридер должен услышать то же, что видно глазами, — включая
+      // «только по телефону»: иначе гость узнает об этом на экране брони.
+      accessibilityLabel={[
+        restaurant.name,
+        cuisineLabel,
+        statusLabel,
+        restaurant.acceptsOnlineBookings ? null : t.restaurant.phoneOnlyBadge,
+      ]
+        .filter(Boolean)
+        .join(", ")}
       onPress={() => onPress(restaurant.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
@@ -61,6 +75,17 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
                 dollars it used to show. The range itself is still a schema gap. */}
             <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
           </View>
+          {/* Карточка не врёт о том, куда ведёт: 17 заведений из 24 в каталоге
+              онлайн-бронь не принимают, и узнавать об этом после выбора даты —
+              издевательство. Заведение при этом НЕ прячется: оно в каталоге,
+              просто с честной меткой. */}
+          {!restaurant.acceptsOnlineBookings ? (
+            <View style={[styles.chip, styles.chipPhoneOnly]}>
+              <Text style={[styles.chipText, styles.chipTextPhoneOnly]}>
+                {t.restaurant.phoneOnlyBadge}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </Pressable>
@@ -107,5 +132,14 @@ const styles = StyleSheet.create({
   chipText: {
     ...typography.captionMedium,
     color: colors.text.mutedStrong,
+  },
+  // Не красный: «только по телефону» — это не ошибка и не запрет, а способ
+  // забронировать. Тёплый нейтральный тон, тот же, что у статуса «ждём ответа
+  // заведения».
+  chipPhoneOnly: {
+    backgroundColor: colors.status.pendingSurface,
+  },
+  chipTextPhoneOnly: {
+    color: colors.status.pendingText,
   },
 });

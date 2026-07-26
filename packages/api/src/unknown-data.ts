@@ -33,6 +33,19 @@
  *     screen now shows the real catalog when the query is empty, and there is
  *     no search-terms endpoint to replace them with.
  *
+ * Removed 2026-07-26 (второй заход), потому что сервер стал отдавать факт:
+ *   - ASSUMED_IS_BOOKABLE — константа `true`, из-за которой кнопка
+ *     «Забронировать столик» предлагалась КАЖДОМУ заведению, а правда
+ *     («столиков нет, слотов не будет ни на одну дату») выяснялась только
+ *     после выбора даты. Теперь в payload есть `accepts_online_bookings`, и
+ *     он читается как есть: на живом каталоге 17 заведений из 24 брони не
+ *     принимают.
+ *   - парсер `opening_hours` (parseOpeningHours / buildWorkingHours /
+ *     computeIsOpenNow) — «открыто сейчас» и «открыто до 24:00» выводились из
+ *     первого и последнего времени в свободнотекстовой строке и часов
+ *     устройства. Теперь есть `schedule` с графиком по дням и `open_now`,
+ *     посчитанным сервером в таймзоне заведения.
+ *
  * Fixed earlier, no longer stubbed here:
  *   - the map preview — GET /restaurants/:id/map is real (a server-rendered
  *     PNG, see static-map.ts); the placehold.co stub image is gone
@@ -51,18 +64,3 @@ export function stubTables(): RestaurantTable[] {
   return [];
 }
 
-/**
- * ASSUMPTION, not a read fact: the API has no per-restaurant "bookable
- * online" flag. Every restaurant the catalog returns is active (deactivated
- * ones 404), so the venue screen offers the booking button to all of them.
- *
- * The catalog contains at least one venue where that assumption is wrong:
- * «Adept» has no tables in the system, so every slot it does return comes
- * back `available: false, reason: "capacity"` (verified 2026-07-26). The
- * booking screen therefore has to tell the guest the truth from the
- * availability answer itself — see SlotsSection in
- * app/restaurant/[id]/book/index.tsx. A real fix is a backend flag (or a
- * `bookable`/`has_tables` field on the restaurant payload) so the venue
- * screen can say it before the guest starts picking dates.
- */
-export const ASSUMED_IS_BOOKABLE = true;

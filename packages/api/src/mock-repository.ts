@@ -42,7 +42,11 @@ function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
   const ratingMatches =
     query.filters.minRating === undefined || r.rating >= query.filters.minRating;
 
-  const openMatches = !query.filters.openNowOnly || r.isOpenNow;
+  // Как и на живом репозитории: «открыто сейчас» — это ответ сервера, а не
+  // вычисление по часам. Неизвестный график под фильтр не попадает.
+  const openMatches = !query.filters.openNowOnly || r.schedule?.openNow === true;
+
+  const bookableMatches = !query.filters.onlineBookableOnly || r.acceptsOnlineBookings;
 
   const cityMatches = query.filters.city === undefined || r.city === query.filters.city;
 
@@ -50,7 +54,13 @@ function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
     query.filters.priceLevel === undefined || r.priceLevel === query.filters.priceLevel;
 
   return (
-    textMatches && cuisineMatches && ratingMatches && openMatches && cityMatches && priceMatches
+    textMatches &&
+    cuisineMatches &&
+    ratingMatches &&
+    openMatches &&
+    bookableMatches &&
+    cityMatches &&
+    priceMatches
   );
 }
 
@@ -385,7 +395,10 @@ function parseMockPriceMinor(display: string): number | null {
 }
 
 function buildMockSlots(restaurant: Restaurant, date: string, guests: number): AvailabilitySlot[] {
-  const hours = restaurant.workingHours.find((h) => h.opensAt && h.closesAt);
+  // Заведение, которое не принимает онлайн-бронь, не отдаёт слотов ни на одну
+  // дату — ровно как сервер.
+  if (!restaurant.acceptsOnlineBookings) return [];
+  const hours = restaurant.schedule?.days.find((d) => d.isOpen && d.opensAt && d.closesAt);
   if (!hours?.opensAt || !hours.closesAt) return [];
   const toMinutes = (hhmm: string) => {
     const [h, m] = hhmm.split(":").map(Number);

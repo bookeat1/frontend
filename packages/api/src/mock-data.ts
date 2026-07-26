@@ -9,12 +9,15 @@ import foodPlateTasting from "../assets/photos/food-plate-tasting.jpg";
 import foodDessertBerry from "../assets/photos/food-dessert-berry.jpg";
 import type {
   Cuisine,
+  DayOfWeek,
   EventSummary,
   MenuHighlight,
   Photo,
   PromoBanner,
   Restaurant,
   RestaurantSummary,
+  ScheduleDay,
+  VenueSchedule,
 } from "./types";
 
 /**
@@ -69,12 +72,33 @@ export const cuisines: Cuisine[] = [
   { id: "asian", name: "Паназиатская" },
 ];
 
-const fullWeek = (opensAt: string, closesAt: string) =>
-  (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((weekday) => ({
-    weekday,
-    opensAt,
-    closesAt,
-  }));
+const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
+
+const openDay = (
+  dayOfWeek: DayOfWeek,
+  opensAt: string,
+  closesAt: string,
+  closesNextDay = false,
+): ScheduleDay => ({ dayOfWeek, isOpen: true, opensAt, closesAt, closesNextDay });
+
+const dayOff = (dayOfWeek: DayOfWeek): ScheduleDay => ({
+  dayOfWeek,
+  isOpen: false,
+  opensAt: null,
+  closesAt: null,
+  closesNextDay: false,
+});
+
+const fullWeek = (opensAt: string, closesAt: string, closesNextDay = false): ScheduleDay[] =>
+  ALL_DAYS.map((day) => openDay(day, opensAt, closesAt, closesNextDay));
+
+/** `openNow` в фикстурах — такое же «мнение сервера», как в проде: экраны
+ * его только читают. */
+const schedule = (openNow: boolean, days: ScheduleDay[]): VenueSchedule => ({
+  timezone: "Asia/Almaty",
+  openNow,
+  days,
+});
 
 function banners(restaurantId: string): PromoBanner[] {
   return [
@@ -148,7 +172,7 @@ export const restaurants: Restaurant[] = [
     promoBanners: banners("r1"),
     menuHighlights: menuHighlights("r1"),
     openingHoursText: "Ежедневно 10:00–23:00",
-    workingHours: fullWeek("10:00", "23:00"),
+    schedule: schedule(true, fullWeek("10:00", "23:00")),
     tables: [
       { id: "t1", seats: 2, location: "hall", isAvailableNow: true },
       { id: "t2", seats: 4, location: "terrace", isAvailableNow: true },
@@ -156,8 +180,7 @@ export const restaurants: Restaurant[] = [
     ],
     description:
       "Современный ресторан с авторской кухней, уютной атмосферой и внимательным сервисом. Идеальное место для встреч, семейных ужинов и особых событий.",
-    isOpenNow: true,
-    isBookable: true,
+    acceptsOnlineBookings: true,
   },
   {
     id: "r2",
@@ -181,14 +204,15 @@ export const restaurants: Restaurant[] = [
     promoBanners: banners("r2"),
     menuHighlights: menuHighlights("r2"),
     openingHoursText: "Ежедневно 11:00–00:00",
-    workingHours: fullWeek("11:00", "00:00"),
+    // Закрытие ровно в полночь — тот самый случай, который нельзя рисовать как
+    // «работает час»: 11:00 → 00:00 следующего дня.
+    schedule: schedule(true, fullWeek("11:00", "00:00", true)),
     tables: [
       { id: "t1", seats: 2, location: "hall", isAvailableNow: true },
       { id: "t2", seats: 4, location: "hall", isAvailableNow: true },
     ],
     description: "Итальянская кухня, дровяная печь и терраса с видом на горы.",
-    isOpenNow: true,
-    isBookable: true,
+    acceptsOnlineBookings: true,
   },
   {
     id: "r3",
@@ -211,11 +235,13 @@ export const restaurants: Restaurant[] = [
     promoBanners: banners("r3"),
     menuHighlights: menuHighlights("r3"),
     openingHoursText: "Ежедневно 11:00–22:00",
-    workingHours: fullWeek("11:00", "22:00"),
+    // Часов в системе нет вообще — как у «THE ME’ET» в живом каталоге. Это
+    // «неизвестно», и экраны обязаны рисовать его именно так, а не «закрыто».
+    schedule: null,
     tables: [{ id: "t1", seats: 2, location: "bar", isAvailableNow: false }],
     description: "Аутентичный рамен и суши-бар в самом центре города.",
-    isOpenNow: false,
-    isBookable: true,
+    // Онлайн-брони нет — фикстура для состояния «столик только по телефону».
+    acceptsOnlineBookings: false,
   },
   {
     id: "r4",
@@ -242,15 +268,24 @@ export const restaurants: Restaurant[] = [
     promoBanners: banners("r4"),
     menuHighlights: menuHighlights("r4"),
     openingHoursText: "Ежедневно 18:00–02:00",
-    workingHours: fullWeek("18:00", "02:00"),
+    // Смешанная неделя: работа за полночь, настоящий выходной (понедельник) и
+    // ОТСУТСТВУЮЩИЙ вторник — про вторник сервер ничего не сказал, и это не
+    // выходной. Все три состояния должны различаться на экране.
+    schedule: schedule(false, [
+      openDay(0, "18:00", "02:00", true),
+      dayOff(1),
+      openDay(3, "18:00", "02:00", true),
+      openDay(4, "18:00", "02:00", true),
+      openDay(5, "18:00", "03:00", true),
+      openDay(6, "18:00", "03:00", true),
+    ]),
     tables: [
       { id: "t1", seats: 2, location: "terrace", isAvailableNow: true },
       { id: "t2", seats: 8, location: "vip", isAvailableNow: true },
     ],
     description:
       "Ресторан на крыше с панорамным видом на город и авторской fusion-кухней.",
-    isOpenNow: true,
-    isBookable: true,
+    acceptsOnlineBookings: true,
   },
 ];
 
@@ -264,7 +299,8 @@ export function toSummary(r: Restaurant): RestaurantSummary {
     reviewsCount: r.reviewsCount,
     address: r.address,
     coverPhoto: r.coverPhoto,
-    isOpenNow: r.isOpenNow,
+    schedule: r.schedule,
+    acceptsOnlineBookings: r.acceptsOnlineBookings,
   };
 }
 
