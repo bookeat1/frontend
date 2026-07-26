@@ -41,7 +41,10 @@ export function PopularRestaurantCard({
   onOpenRestaurant: (id: string) => void;
   onPickSlot: (restaurant: RestaurantSummary, slot: AvailabilitySlot) => void;
 }) {
-  const slotsQuery = useTodaySlots(restaurant.id, true);
+  // Заведение без онлайн-брони не спрашиваем: сервер по нему слот не выдаст,
+  // а «нет свободного времени» на карточке читалось бы как «сегодня занято»,
+  // хотя занятость тут ни при чём.
+  const slotsQuery = useTodaySlots(restaurant.id, restaurant.acceptsOnlineBookings);
   const favorite = useRestaurantFavorite(restaurant.id);
   const cuisineLabel = restaurant.cuisines.map((cuisine) => cuisine.name).join(", ");
   const availableSlots = (slotsQuery.data?.slots ?? [])
@@ -95,14 +98,24 @@ export function PopularRestaurantCard({
         <Text style={styles.meta}>{t.explore.todayGuests(EXPLORE_DEFAULT_GUESTS)}</Text>
       )}
 
-      <SlotRow
-        isLoading={slotsQuery.isLoading}
-        isError={slotsQuery.isError}
-        slots={availableSlots}
-        restaurantName={restaurant.name}
-        onRetry={() => slotsQuery.refetch()}
-        onPick={(slot) => onPickSlot(restaurant, slot)}
-      />
+      {restaurant.acceptsOnlineBookings ? (
+        <SlotRow
+          isLoading={slotsQuery.isLoading}
+          isError={slotsQuery.isError}
+          slots={availableSlots}
+          restaurantName={restaurant.name}
+          onRetry={() => slotsQuery.refetch()}
+          onPick={(slot) => onPickSlot(restaurant, slot)}
+        />
+      ) : (
+        // Вместо ряда времён — правда о том, как сюда попасть. Высота строки
+        // та же, карточки в ленте не разъезжаются.
+        <View style={styles.slotRow}>
+          <Text style={styles.slotFallback} numberOfLines={2}>
+            {t.restaurant.phoneOnlyBadge}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

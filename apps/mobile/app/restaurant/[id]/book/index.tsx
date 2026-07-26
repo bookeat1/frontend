@@ -1,4 +1,4 @@
-import type { AvailabilitySlot, BookingConflictKind } from "@bookeat/api";
+import type { AvailabilitySlot, BookingConflictKind, DayOfWeek } from "@bookeat/api";
 import { RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -6,7 +6,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
-  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -28,7 +27,9 @@ import { useAvailability, useCreateBooking } from "../../../../src/hooks/useBook
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { useAuth } from "../../../../src/lib/auth";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
+import { openPhone } from "../../../../src/lib/external-links";
 import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
+import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
 
 const t = getDictionary();
 
@@ -70,6 +71,8 @@ export default function ReservationScreen() {
     restaurantId: id,
     date: draft.date,
     guests: draft.guests,
+    // Заведение без онлайн-брони не спрашиваем вообще — см. useAvailability.
+    acceptsOnlineBookings: restaurant?.acceptsOnlineBookings,
   });
   const createBooking = useCreateBooking();
 
@@ -105,6 +108,22 @@ export default function ReservationScreen() {
     if (isSameDay(selectedDate, new Date(today.getTime() + 86_400_000))) return t.booking.tomorrow;
     return formatDayMonth(selectedDate);
   }, [selectedDate]);
+
+  /**
+   * Подсказка под пустым списком слотов — из СТРУКТУРНОГО графика на выбранный
+   * день, а не из свободнотекстовой строки заведения. Три исхода, и они
+   * разные: выходной, «работает с … до …» (значит, дело не в графике) и
+   * «сервер про этот день не сказал» — тогда молчим, а не выдумываем.
+   */
+  const selectedDayHint = useMemo(() => {
+    const schedule = restaurant?.schedule;
+    if (!schedule) return null;
+    const day = scheduleDayFor(schedule, fromDateKey(draft.date).getDay() as DayOfWeek);
+    if (!day) return null;
+    if (!day.isOpen) return t.booking.slotsClosedDayOff;
+    if (!day.opensAt || !day.closesAt) return null;
+    return t.booking.slotsClosedSchedule(dayHoursLabel(day));
+  }, [restaurant?.schedule, draft.date]);
 
   const preorderTotal = estimatePreorderTotalMinor(draft.preorder);
   const preorderCount = draft.preorder.reduce((sum, line) => sum + line.quantity, 0);
@@ -270,6 +289,38 @@ export default function ReservationScreen() {
   // the second table. The way out is the bookings list.
   const canSubmit = Boolean(draft.slot) && !submitting && !submitError?.blocksSubmit;
 
+  /**
+   * Заведение вообще не принимает онлайн-бронь (`accepts_online_bookings:
+   * false`) — форму не показываем совсем.
+   *
+   * Раньше сюда можно было зайти, выбрать дату, дождаться слотов и получить
+   * отказ по каждому из них; на «Adept» это выяснялось на четвёртой дате.
+   * Теперь факт известен до первого запроса, и экран сразу даёт единственный
+   * рабочий выход — телефон заведения. На экран всё ещё можно попасть по
+   * прямой ссылке, поэтому проверка живёт здесь, а не только на кнопке.
+   */
+  if (restaurant && !restaurant.acceptsOnlineBookings) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+          <FlowHeader title={t.booking.title} onClose={() => router.back()} />
+        </SafeAreaView>
+        <EmptyState
+          title={t.restaurant.bookingUnavailableTitle}
+          description={
+            restaurant.phone
+              ? t.restaurant.bookingUnavailableDescription
+              : t.restaurant.bookingUnavailableNoPhone
+          }
+          actionLabel={restaurant.phone ? t.restaurant.callToBook : undefined}
+          onAction={
+            restaurant.phone ? () => void openPhone(restaurant.phone ?? "") : undefined
+          }
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
@@ -342,7 +393,7 @@ export default function ReservationScreen() {
                 selected={draft.slot?.startsAt ?? null}
                 onSelect={handleSelectSlot}
                 onPickAnotherDate={() => router.push(`/restaurant/${id}/book/date`)}
-                openingHoursText={restaurant?.openingHoursText ?? ""}
+                dayHint={selectedDayHint}
                 phone={restaurant?.phone}
               />
             </View>
@@ -491,37 +542,33 @@ export default function ReservationScreen() {
  * catalog actually produces:
  *
  *   - no slots at all       -> the venue is closed that day. The guest is
- *     offered another date, and — this is the part that was missing — the
- *     venue's OWN schedule line, so the search for an open day is reading
- *     rather than guessing. «Adept» answers 0 slots Sun–Wed and says
- *     "Чт, Пт, Сб 19:00-24:00" about itself; without that line the guest tapped
- *     through four dates to find out.
- *   - every slot "capacity" -> `capacity` means no table in the system fits
- *     this party, and a venue with no tables at all answers it for every slot
- *     of every day («Adept» again: 8 slots Thu/Fri/Sat, all `capacity`). So
- *     this is a venue-level fact, not a date-level one: no "pick another date"
- *     button here, and the venue's real phone number instead.
+ *     offered another date, and the venue's schedule FOR THAT DAY, read from
+ *     the server's structured `schedule` — "выходной" and "работает 19:00 –
+ *     до полуночи" are different answers and now read differently.
+ *   - every slot "capacity" -> no table in the system fits this party. For a
+ *     venue that DOES accept online bookings this is about the party size, not
+ *     about the venue, so the way out is another date or fewer guests.
  *
- * What this still cannot do: say ANYTHING before the guest has picked a date.
- * The catalog payload carries no `bookable` / `has_tables` flag, so the venue
- * screen's "Забронировать столик" button is offered to every active venue —
- * see ASSUMED_IS_BOOKABLE in packages/api/src/unknown-data.ts. Fixing that
- * properly needs the backend to expose the flag.
+ * A venue that cannot be booked online at all never reaches this component:
+ * `accepts_online_bookings` is known before the first request and the screen
+ * returns its own state above. That flag is what replaced the old guesswork
+ * (ASSUMED_IS_BOOKABLE + "all slots came back capacity, so probably…").
  */
 function SlotsSection({
   query,
   selected,
   onSelect,
   onPickAnotherDate,
-  openingHoursText,
+  dayHint,
   phone,
 }: {
   query: ReturnType<typeof useAvailability>;
   selected: string | null;
   onSelect: (slot: AvailabilitySlot) => void;
   onPickAnotherDate: () => void;
-  /** The venue's own opening-hours line, verbatim. Empty when it has none. */
-  openingHoursText: string;
+  /** Что график заведения говорит про ВЫБРАННЫЙ день, или null — если сервер
+   * про этот день ничего не сказал. */
+  dayHint: string | null;
   phone?: string;
 }) {
   if (query.isPending) {
@@ -545,8 +592,8 @@ function SlotsSection({
       <EmptyState
         title={t.booking.slotsClosedTitle}
         description={
-          openingHoursText
-            ? `${t.booking.slotsClosedSchedule(openingHoursText)}\n${t.booking.slotsClosedDescription}`
+          dayHint
+            ? `${dayHint}\n${t.booking.slotsClosedDescription}`
             : t.booking.slotsClosedDescription
         }
         actionLabel={t.booking.pickAnotherDate}
@@ -564,10 +611,11 @@ function SlotsSection({
         title={t.booking.slotsNoTablesTitle}
         description={t.booking.slotsNoTablesDescription}
         // Телефон настоящий, из карточки заведения. Кнопки «выбрать другую
-        // дату» здесь нет намеренно: другой даты, на которой это заведение
-        // можно забронировать онлайн, не существует.
+        // дату» здесь нет намеренно: сюда попадает заведение, которое брони
+        // принимает, но подходящего столика на эту компанию не нашлось ни в
+        // одном слоте дня, — звонок разрулит это быстрее перебора дат.
         actionLabel={phone ? t.booking.slotsNoTablesCall(phone) : undefined}
-        onAction={phone ? () => void Linking.openURL(`tel:${phone.replace(/[^\d+]/g, "")}`) : undefined}
+        onAction={phone ? () => void openPhone(phone) : undefined}
         compact
       />
     ) : (

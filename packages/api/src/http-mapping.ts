@@ -34,10 +34,12 @@ import type {
   PromoBanner,
   Restaurant,
   RestaurantSummary,
+  ScheduleDay,
   SlotUnavailableReason,
-  Weekday,
+  DayOfWeek,
+  VenueSchedule,
 } from "./types";
-import { ASSUMED_IS_BOOKABLE, stubTables } from "./unknown-data";
+import { stubTables } from "./unknown-data";
 
 export interface ApiImage {
   id: string;
@@ -82,6 +84,10 @@ export interface ApiRestaurant {
   images?: ApiImage[];
   features?: ApiFeature[];
   social_links?: ApiSocialLink[];
+  /** ОТСУТСТВУЕТ ЦЕЛИКОМ у заведения без записанных часов — см. ApiSchedule. */
+  schedule?: ApiSchedule;
+  /** Может ли сервер выдать слот по этому заведению вообще. */
+  accepts_online_bookings?: boolean;
 }
 
 /** menuItemResponse — GET /restaurants/:id/menu returns a bare array of these
@@ -117,8 +123,6 @@ export interface ApiReviewSummary {
   average: number;
   count: number;
 }
-
-const WEEKDAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /** How many dishes the "Популярное в меню" strip shows. The menu endpoint has
  * no limit parameter and a real venue returns ~300 items, so the cut happens
@@ -175,54 +179,78 @@ function plainText(value: string | null | undefined): string {
 }
 
 /**
- * `opening_hours` on the backend is a single free-text field (e.g.
- * "10:00-23:00"), not a per-weekday schedule — the domain model
- * (internal/domain/restaurant.go) has no day-of-week structure at all. We
- * best-effort parse the first "HH:MM" and last "HH:MM" found in the string
- * and apply that single range to every day of the week. This is a real,
- * derived value (not fabricated numbers) but it is an approximation: a
- * restaurant with different weekend hours will show the wrong hours on that
- * day. Flagged here rather than silently assumed correct.
+ * `schedule` — структурный график, который сервер СЧИТАЕТ САМ, включая
+ * `open_now` в таймзоне заведения (internal/transport/rest/restaurants:
+ * scheduleResponse). Ключ `omitempty`: у заведения без записанных часов его в
+ * ответе НЕТ ВООБЩЕ (в живом каталоге такое одно — «THE ME’ET»,
+ * 85817ed1-3775-42f9-a453-c4f08462899b, проверено curl'ом 2026-07-26).
+ *
+ * `day_of_week`: 0 — воскресенье.
  */
-function parseOpeningHours(raw: string | null | undefined): {
-  opensAt: string | null;
-  closesAt: string | null;
-} {
-  const matches = text(raw).match(/\d{1,2}:\d{2}/g);
-  if (!matches || matches.length < 2) {
-    return { opensAt: null, closesAt: null };
-  }
-  return { opensAt: matches[0], closesAt: matches[matches.length - 1] };
+export interface ApiScheduleDay {
+  day_of_week: number;
+  is_open: boolean;
+  /** "12:00"; у нерабочего дня приходит пустой строкой, не null. */
+  opens_at: string;
+  closes_at: string;
+  closes_next_day: boolean;
 }
 
-function buildWorkingHours(raw: string | null | undefined) {
-  const { opensAt, closesAt } = parseOpeningHours(raw);
-  return WEEKDAYS.map((weekday) => ({ weekday, opensAt, closesAt }));
+export interface ApiSchedule {
+  timezone: string;
+  open_now: boolean;
+  days: ApiScheduleDay[];
+}
+
+/** "12:00" / "12:00:00" -> "12:00". Всё остальное — null (неизвестно). */
+function clockTime(raw: string | null | undefined): string | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec(text(raw));
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return `${String(hours).padStart(2, "0")}:${match[2]}`;
+}
+
+function mapScheduleDay(api: ApiScheduleDay): ScheduleDay | null {
+  const day = api?.day_of_week;
+  if (typeof day !== "number" || !Number.isInteger(day) || day < 0 || day > 6) return null;
+  const isOpen = api.is_open === true;
+  return {
+    dayOfWeek: day as DayOfWeek,
+    isOpen,
+    // У выходного дня время приходит пустым — это не "00:00".
+    opensAt: isOpen ? clockTime(api.opens_at) : null,
+    closesAt: isOpen ? clockTime(api.closes_at) : null,
+    closesNextDay: isOpen && api.closes_next_day === true,
+  };
 }
 
 /**
- * There's no `is_open_now` field from the API. We derive it from the same
- * best-effort parsed hours + the device's current time, wrapping past
- * midnight (e.g. "18:00"-"02:00"). If the hours string didn't parse, this
- * falls back to `true` (open) rather than guessing closed, and that fallback
- * is intentional: it's better to show a bookable restaurant than to hide one
- * behind a wrong "closed" guess.
+ * Отсутствующий/битый `schedule` -> null, то есть «часы работы неизвестны».
+ * Ни при каких условиях не «закрыто»: закрытость может утверждать только
+ * сервер, и только через `is_open: false` конкретного дня либо `open_now`.
+ *
+ * Дубликаты по `day_of_week` схлопываются в первый пришедший, а не в
+ * последний: две противоречащие записи на один день — повод ничего не
+ * выдумывать поверх, а показать первую и не мигать порядком.
  */
-function computeIsOpenNow(raw: string | null | undefined): boolean {
-  const { opensAt, closesAt } = parseOpeningHours(raw);
-  if (!opensAt || !closesAt) return true;
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const toMinutes = (hhmm: string) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    return h * 60 + m;
+export function mapSchedule(api: ApiSchedule | null | undefined): VenueSchedule | null {
+  if (!api || typeof api !== "object") return null;
+  const days: ScheduleDay[] = [];
+  const seen = new Set<number>();
+  for (const raw of Array.isArray(api.days) ? api.days : []) {
+    const day = mapScheduleDay(raw);
+    if (!day || seen.has(day.dayOfWeek)) continue;
+    seen.add(day.dayOfWeek);
+    days.push(day);
+  }
+  return {
+    timezone: text(api.timezone),
+    // Никакого `?? false`: «сервер не сказал» и «закрыто» — разные вещи.
+    openNow: typeof api.open_now === "boolean" ? api.open_now : null,
+    days: days.sort((a, b) => a.dayOfWeek - b.dayOfWeek),
   };
-  const open = toMinutes(opensAt);
-  const close = toMinutes(closesAt);
-  if (close === open) return true; // "24 hours"-ish, unparseable edge case
-  if (close > open) return nowMinutes >= open && nowMinutes < close;
-  // Wraps past midnight, e.g. 18:00 -> 02:00.
-  return nowMinutes >= open || nowMinutes < close;
 }
 
 /**
@@ -641,7 +669,10 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     // приложения — доступа к геопозиции гостя. Раньше здесь стоял хеш от id,
     // который рисовался как «3.4 км» рядом с адресом.
     coverPhoto: pickCoverPhoto(api),
-    isOpenNow: computeIsOpenNow(api.opening_hours),
+    // Реальный график с сервера — и в листинге, и в поиске, и в избранном
+    // (проверено curl'ом: все три ручки отдают одно и то же поле).
+    schedule: mapSchedule(api.schedule),
+    acceptsOnlineBookings: api.accepts_online_bookings === true,
   };
 }
 
@@ -702,17 +733,14 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // Real dishes from GET /restaurants/:id/menu — see mapMenuHighlights for
     // why "popular" is really "first available with a photo".
     menuHighlights: mapMenuHighlights(extras.menu, MENU_HIGHLIGHT_LIMIT),
-    // The venue's own words, untouched — see the field's doc comment.
+    // The venue's own words, untouched. Rendered ONLY as a fallback when the
+    // structured schedule is absent — see the field's doc comment.
     openingHoursText: text(api.opening_hours),
-    // Derived, best-effort — see parseOpeningHours/buildWorkingHours comments.
-    workingHours: buildWorkingHours(api.opening_hours),
+    schedule: mapSchedule(api.schedule),
     // STUB: no seating/table data in the API — see unknown-data.ts.
     tables: stubTables(),
     description: plainText(api.description),
-    isOpenNow: computeIsOpenNow(api.opening_hours),
-    // ASSUMPTION: no per-restaurant bookable flag in the API; every
-    // restaurant this endpoint returns is already active. See unknown-data.ts.
-    isBookable: ASSUMED_IS_BOOKABLE,
+    acceptsOnlineBookings: api.accepts_online_bookings === true,
   };
 }
 

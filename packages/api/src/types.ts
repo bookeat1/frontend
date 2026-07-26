@@ -1,10 +1,65 @@
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
-export interface WorkingHoursEntry {
-  weekday: Weekday;
-  /** null = closed that day */
-  opensAt: string | null; // "10:00"
-  closesAt: string | null; // "23:00"
+/**
+ * День недели ровно в той нумерации, в которой его присылает сервер:
+ * **0 = воскресенье**, 6 = суббота (совпадает с `Date.prototype.getDay()`).
+ * Понедельник-первый порядок — это дело отрисовки, а не модели.
+ */
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Ключи словаря `t.weekdays`, разложенные по `DayOfWeek` (индекс 0 — вс). */
+export const WEEKDAY_BY_DAY_OF_WEEK: readonly Weekday[] = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+];
+
+/** Понедельник-первый порядок для отрисовки недели (RU-конвенция). */
+export const WEEK_ORDER_MONDAY_FIRST: readonly DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
+
+/**
+ * Один день недели в графике заведения.
+ *
+ * Три РАЗНЫХ состояния, которые нельзя схлопывать:
+ *   - `isOpen: true` + время — рабочий день;
+ *   - `isOpen: false` — настоящий выходной (сервер прислал день и сказал, что
+ *     он нерабочий; `opensAt`/`closesAt` при этом приходят пустыми);
+ *   - дня вообще нет в `VenueSchedule.days` — про этот день НИЧЕГО не
+ *     известно. Это не выходной.
+ */
+export interface ScheduleDay {
+  dayOfWeek: DayOfWeek;
+  isOpen: boolean;
+  /** "12:00". null — заведение открыто, но время не записано (или выходной). */
+  opensAt: string | null;
+  closesAt: string | null;
+  /**
+   * Заведение работает за полночь: `12:00–01:00` с этим флагом значит «до часу
+   * ночи следующего дня», а не «закрылось через час после открытия».
+   */
+  closesNextDay: boolean;
+}
+
+/**
+ * График работы заведения — то, что присылает сервер, без нашей
+ * интерпретации.
+ *
+ * ЖЁСТКОЕ ПРАВИЛО: `openNow` считает СЕРВЕР в таймзоне самого заведения.
+ * Клиент не пересчитывает его и не выводит «открыто» из `opensAt`/`closesAt`
+ * — именно эта самодеятельность и была багом (см. bugs/
+ * bookeat-frontend-invented-data-in-catalog.md, раздел «осталось нечинёным»).
+ */
+export interface VenueSchedule {
+  /** IANA-зона заведения, например "Asia/Almaty". */
+  timezone: string;
+  /** true/false — ответ сервера. null — сервер не сказал (поле не булево). */
+  openNow: boolean | null;
+  /** Только те дни, которые сервер прислал. Отсутствие дня = неизвестно. */
+  days: ScheduleDay[];
 }
 
 /**
@@ -93,17 +148,27 @@ export interface Restaurant {
   photos: Photo[];
   promoBanners: PromoBanner[];
   menuHighlights: MenuHighlight[];
-  /** Часы работы так, как их написало само заведение (`opening_hours`), без
-   * нашей интерпретации: в живых данных встречается "Чт, Пт, Сб 19:00-24:00",
-   * и разложить это по дням недели наш парсер не умеет. Экран показывает эту
-   * строку, когда она сложнее одного диапазона, — иначе получалось
-   * «Ежедневно с 19:00 до 24:00» у заведения, работающего три дня в неделю. */
+  /**
+   * Свободнотекстовая строка `opening_hours` — то, что заведение написало о
+   * себе само («Пн-Вс 12:00–01:00, Пт–Сб до 02:00»).
+   *
+   * Экран показывает её ТОЛЬКО когда структурного графика нет (`schedule ===
+   * null`): тогда это единственное, что мы знаем, и подписано как слова
+   * заведения. Разбирать её на часы нельзя — на этом и стоял старый баг.
+   */
   openingHoursText: string;
-  workingHours: WorkingHoursEntry[];
+  /** Структурный график с сервера. null — часы работы у заведения НЕ ЗАПИСАНЫ
+   * (ключа `schedule` в ответе нет). Это «неизвестно», а не «закрыто». */
+  schedule: VenueSchedule | null;
   tables: RestaurantTable[];
   description: string;
-  isOpenNow: boolean;
-  isBookable: boolean;
+  /**
+   * Может ли сервер вообще выдать слот по этому заведению
+   * (`accepts_online_bookings`). false — слотов не будет ни на одну дату, и
+   * гостю нужно сказать это ДО выбора даты. На тестовом каталоге таких 17 из
+   * 24 (проверено curl'ом 2026-07-26).
+   */
+  acceptsOnlineBookings: boolean;
 }
 
 export interface RestaurantSummary {
@@ -115,13 +180,25 @@ export interface RestaurantSummary {
   reviewsCount: number;
   address: string;
   coverPhoto: Photo;
-  isOpenNow: boolean;
+  /** См. Restaurant.schedule — листинг, поиск и избранное отдают то же поле. */
+  schedule: VenueSchedule | null;
+  /** См. Restaurant.acceptsOnlineBookings. Есть и в списке, и в деталке. */
+  acceptsOnlineBookings: boolean;
 }
 
 export interface SearchFilters {
   cuisineIds: string[];
   minRating?: number;
+  /**
+   * «Открыто сейчас» — фильтр по СЕРВЕРНОМУ `schedule.open_now`. Заведение без
+   * графика под него не попадает: мы не знаем, открыто ли оно, а фильтр
+   * обещает именно открытые.
+   */
   openNowOnly: boolean;
+  /** «Можно забронировать онлайн» — по `accepts_online_bookings`. По умолчанию
+   * выключен: 17 из 24 заведений каталога брони не принимают, и прятать их
+   * молча — то же враньё, только умолчанием. */
+  onlineBookableOnly: boolean;
   /** City name exactly as the catalog spells it ("Алматы"/"Астана") — the
    * backend's city filter is an equality match on that enum value, there is
    * no city id. Undefined = every city. */
@@ -144,6 +221,7 @@ export interface SearchResult {
 export const EMPTY_FILTERS: SearchFilters = {
   cuisineIds: [],
   openNowOnly: false,
+  onlineBookableOnly: false,
 };
 
 /* ------------------------------------------------------------------------ *

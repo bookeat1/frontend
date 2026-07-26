@@ -1,4 +1,4 @@
-import type { Restaurant, Weekday } from "@bookeat/api";
+import type { Restaurant } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
@@ -6,7 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Clock, Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
+import { Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
 import { IconButton } from "../../../src/components/IconButton";
 import { useRestaurantFavorite } from "../../../src/hooks/useFavorites";
 import { MapPreview } from "../../../src/components/booking/MapPreview";
@@ -15,22 +15,12 @@ import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { PromoBannerStrip } from "../../../src/components/PromoBannerStrip";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
+import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { openPhone } from "../../../src/lib/external-links";
+import { openStateLabel } from "../../../src/lib/schedule";
 
 const t = getDictionary();
-
-const WEEKDAY_ORDER: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-function todaysHoursLabel(restaurant: Restaurant): string {
-  const today = WEEKDAY_ORDER[new Date().getDay()];
-  const entry = restaurant.workingHours.find((h) => h.weekday === today);
-  if (!entry || !entry.opensAt || !entry.closesAt) {
-    return restaurant.isOpenNow ? t.restaurant.openNow : t.restaurant.closedNow;
-  }
-  return restaurant.isOpenNow
-    ? t.restaurant.closesAt(entry.closesAt)
-    : t.restaurant.opensAt(entry.opensAt);
-}
 
 export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -129,8 +119,11 @@ export default function RestaurantDetailScreen() {
                 </Text>
               ) : null}
               <View style={styles.chipsRow}>
+                {/* Ровно то, что сказал сервер: «Открыто» / «Закрыто» /
+                    «Часы работы не указаны». Раньше здесь было «Открыто до
+                    24:00», собранное из свободного текста и часов телефона. */}
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{todaysHoursLabel(restaurant)}</Text>
+                  <Text style={styles.chipText}>{openStateLabel(restaurant.schedule)}</Text>
                 </View>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
@@ -167,20 +160,28 @@ export default function RestaurantDetailScreen() {
                 <Text style={styles.description}>{restaurant.description}</Text>
               </View>
 
-              <View style={styles.hoursRow}>
-                <Clock size={24} color={colors.text.primary} weight="regular" />
-                <View>
-                  <Text style={styles.hoursPrimary}>{todaysHoursLabel(restaurant)}</Text>
-                  {/* Строка режима работы — ровно та, что написало заведение
-                      («Чт, Пт, Сб 19:00-24:00»). Раньше здесь было
-                      «Ежедневно с 19:00 до 24:00», собранное из первого и
-                      последнего времени в этой же строке, — то есть график,
-                      которого у заведения нет. */}
-                  {restaurant.openingHoursText ? (
-                    <Text style={styles.hoursSecondary}>{restaurant.openingHoursText}</Text>
-                  ) : null}
+              {/* Полная неделя с сервера: выходные помечены, работа за
+                  полночь читается, сегодняшняя строка выделена, неизвестный
+                  день выглядит неизвестным. */}
+              <VenueScheduleCard
+                schedule={restaurant.schedule}
+                openingHoursText={restaurant.openingHoursText}
+              />
+
+              {/* Правда об онлайн-брони — ДО выбора даты, а не после того, как
+                  все слоты откажут. На живом каталоге таких 17 из 24. */}
+              {!restaurant.acceptsOnlineBookings ? (
+                <View style={styles.notice}>
+                  <Text style={styles.noticeTitle}>
+                    {t.restaurant.bookingUnavailableTitle}
+                  </Text>
+                  <Text style={styles.noticeText}>
+                    {restaurant.phone
+                      ? t.restaurant.bookingUnavailableDescription
+                      : t.restaurant.bookingUnavailableNoPhone}
+                  </Text>
                 </View>
-              </View>
+              ) : null}
             </View>
 
             <View style={styles.section}>
@@ -251,11 +252,29 @@ export default function RestaurantDetailScreen() {
 
           <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
             <View style={styles.footer}>
-              <PrimaryButton
-                label={restaurant.isBookable ? t.restaurant.bookTable : t.restaurant.bookingUnavailable}
-                onPress={() => router.push(`/restaurant/${restaurant.id}/book`)}
-                disabled={!restaurant.isBookable}
-              />
+              {/* Три состояния кнопки, и все три — правда:
+                  бронь работает → «Забронировать столик»;
+                  брони нет, но есть телефон → звонок (реальный выход, а не
+                  серая кнопка);
+                  брони нет и телефона нет → неактивная кнопка с честной
+                  подписью, потому что предлагать нечего. */}
+              {restaurant.acceptsOnlineBookings ? (
+                <PrimaryButton
+                  label={t.restaurant.bookTable}
+                  onPress={() => router.push(`/restaurant/${restaurant.id}/book`)}
+                />
+              ) : restaurant.phone ? (
+                <PrimaryButton
+                  label={t.restaurant.callToBook}
+                  onPress={() => void openPhone(restaurant.phone ?? "")}
+                />
+              ) : (
+                <PrimaryButton
+                  label={t.restaurant.bookingUnavailableAction}
+                  onPress={() => {}}
+                  disabled
+                />
+              )}
             </View>
           </SafeAreaView>
         </>
@@ -367,18 +386,19 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
   },
-  hoursRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
+  notice: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.status.pendingSurface,
   },
-  hoursPrimary: {
-    ...typography.labelMedium,
-    color: colors.text.primary,
+  noticeTitle: {
+    ...typography.labelSemiBold,
+    color: colors.status.pendingText,
   },
-  hoursSecondary: {
+  noticeText: {
     ...typography.caption,
-    color: colors.text.muted,
+    color: colors.text.primary,
   },
   menuRow: {
     flexDirection: "row",
