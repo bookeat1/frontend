@@ -95,6 +95,16 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return toSummary(await this.getRestaurant(id));
   }
 
+  /**
+   * No backend in mock mode, therefore no map: `undefined` makes the UI show
+   * its "no map preview" placeholder, which is the truth here. Returning a
+   * bundled picture of some other city's streets would be a lie the reviewer
+   * cannot see through.
+   */
+  getMapPreviewUrl(): string | undefined {
+    return undefined;
+  }
+
   async getPopularRestaurants(): Promise<RestaurantSummary[]> {
     await this.simulateNetwork();
     return restaurants.map(toSummary);

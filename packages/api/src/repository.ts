@@ -1,3 +1,4 @@
+import type { MapPreviewOptions } from "./static-map";
 import type {
   AuthSession,
   AuthUser,
@@ -40,6 +41,16 @@ export interface RestaurantRepository {
    * `restaurant_id` — would otherwise pay four requests per row.
    */
   getRestaurantSummary(id: string): Promise<RestaurantSummary>;
+  /**
+   * URL of the server-rendered map preview for one venue, or `undefined` when
+   * this build has no backend to ask (the mock).
+   *
+   * Synchronous and not a Promise on purpose: it performs no request. The
+   * bytes are fetched by the <Image> that receives the URL, which is what
+   * gives us the platform's own HTTP caching (the server sends
+   * `Cache-Control: max-age` + ETag) instead of a second cache of our own.
+   */
+  getMapPreviewUrl(restaurantId: string, options?: MapPreviewOptions): string | undefined;
   getPopularRestaurants(): Promise<RestaurantSummary[]>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   getCuisines(): Promise<Cuisine[]>;
