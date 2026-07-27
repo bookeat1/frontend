@@ -76,6 +76,36 @@ function utcMidnight(now: Date): Date {
   return new Date(`${now.toISOString().slice(0, 10)}T00:00:00.000Z`);
 }
 
+function shiftDateKey(key: string, days: number): string {
+  const date = new Date(`${key}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * The inclusive range of birth dates this app will accept, as date keys.
+ *
+ * ONE definition, used by two things that must never disagree: the validator
+ * below, and the calendar the guest picks from. A picker that offers a day the
+ * validator then refuses is a trap — the guest taps a date and gets a red line
+ * for obeying the control they were given. So the calendar greys out exactly
+ * what `validateProfileDraft` would reject, because both read this.
+ *
+ * Both ends are one day tighter than the server (see the note at the top of
+ * this file): `latest` is YESTERDAY in UTC, not today, and `earliest` is the
+ * day AFTER "120 years ago" — the two days the server's date-vs-instant
+ * comparison decides differently depending on the hour.
+ */
+export function birthDateBounds(now: Date): { earliest: string; latest: string } {
+  const todayKey = utcMidnight(now).toISOString().slice(0, 10);
+  const oldest = new Date(`${todayKey}T00:00:00.000Z`);
+  oldest.setUTCFullYear(oldest.getUTCFullYear() - MAX_AGE_YEARS);
+  return {
+    earliest: shiftDateKey(oldest.toISOString().slice(0, 10), 1),
+    latest: shiftDateKey(todayKey, -1),
+  };
+}
+
 /**
  * @param original what the server currently holds, needed for the one rule
  * that depends on it: a birth date that already exists cannot be REMOVED
@@ -103,14 +133,12 @@ export function validateProfileDraft(
     if (!parsed) {
       errors.birthDate = "birth_date_format";
     } else {
-      const today = utcMidnight(now);
-      if (parsed.getTime() >= today.getTime()) {
-        errors.birthDate = "birth_date_not_past";
-      } else {
-        const oldest = new Date(today);
-        oldest.setUTCFullYear(oldest.getUTCFullYear() - MAX_AGE_YEARS);
-        if (parsed.getTime() <= oldest.getTime()) errors.birthDate = "birth_date_too_old";
-      }
+      // Date keys are compared as strings: "YYYY-MM-DD" sorts chronologically
+      // by construction, and comparing the same representation the picker
+      // hands out removes any chance of the two drifting through a Date.
+      const { earliest, latest } = birthDateBounds(now);
+      if (birthDate > latest) errors.birthDate = "birth_date_not_past";
+      else if (birthDate < earliest) errors.birthDate = "birth_date_too_old";
     }
   }
 

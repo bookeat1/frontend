@@ -62,6 +62,24 @@ export function fromDateKey(key: string): Date {
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }
 
+/**
+ * "1990-05-04" → "04-05-1990".
+ *
+ * The WIRE format of a date and the format a guest reads are two different
+ * things and must not be confused: everything that leaves the device stays
+ * "YYYY-MM-DD" (that is what `time.Parse("2006-01-02")` takes on the server),
+ * and this is only ever applied on the way to a `<Text>`.
+ *
+ * A string that is not a date key comes back unchanged rather than half
+ * rearranged — showing "" or garbage for a value the server did send would
+ * read as "we lost your data".
+ */
+export function formatDateKeyDayFirst(key: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) return key;
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 export function isSameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&

@@ -3,7 +3,9 @@ import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React, { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { formatStoredPhoneForDisplay } from "../../lib/phone";
 import {
+  birthDateBounds,
   classifyProfileSaveFailure,
   draftFromUser,
   profilePatch,
@@ -14,6 +16,7 @@ import {
 } from "../../lib/profile-edit";
 import { PrimaryButton } from "../PrimaryButton";
 import { TextField } from "../TextField";
+import { BirthDateField } from "./BirthDateField";
 
 const t = getDictionary();
 const copy = t.profile.edit;
@@ -33,7 +36,9 @@ const copy = t.profile.edit;
  * WHAT IS NOT EDITABLE, AND WHY (all verified against the Go handler and DTO,
  * not assumed):
  *   - phone: `updateMeRequest` has no phone field, and `POST /auth/otp/verify`
- *     finds-or-creates the account BY the number. Shown, with a line saying so.
+ *     finds-or-creates the account BY the number. Shown — under the sign-in
+ *     screen's own +7 (XXX) XXX-XX-XX mask, not as raw E.164 — with a line
+ *     saying why there is nothing to tap.
  *   - email: same — not in the PATCH body at all.
  *   - avatar_url / preferred_language / country_code / cuisine_category_ids:
  *     accepted by the endpoint, but this app has no honest source for any of
@@ -71,6 +76,12 @@ export function ProfileForm({
   // PATCH is not destructive (the body is the same), but it spends a request
   // and can answer out of order.
   const inFlight = useRef(false);
+
+  // Recomputed on every render rather than memoised on mount: they are two
+  // strings, so there is nothing to save, and a form left open across midnight
+  // would otherwise hand the calendar a "latest" day the validator has already
+  // started refusing.
+  const bounds = birthDateBounds(new Date());
 
   const patchField = useCallback((field: keyof ProfileDraft, value: string) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
@@ -145,24 +156,32 @@ export function ProfileForm({
         hint={copy.cityHint}
       />
 
-      <TextField
+      {/* The draft still holds "YYYY-MM-DD"; the field only changes how the
+          guest reads and enters it, so `profilePatch` and the wire are
+          untouched. Bounds come from the same function the validator uses —
+          the calendar cannot offer a day this form would then reject. */}
+      <BirthDateField
         label={copy.birthDateLabel}
         value={draft.birthDate}
-        onChangeText={(value) => patchField("birthDate", value)}
-        editable={!saving}
-        placeholder={copy.birthDatePlaceholder}
+        onChange={(value) => patchField("birthDate", value)}
+        earliest={bounds.earliest}
+        latest={bounds.latest}
+        disabled={saving}
         hint={copy.birthDateHint}
         error={errors.birthDate ? copy.errors[errors.birthDate] : undefined}
-        keyboardType="numbers-and-punctuation"
-        autoCapitalize="none"
-        maxLength={10}
       />
 
       {/* Shown, never offered for editing — the account is keyed on it. Not a
           disabled input: a greyed-out field reads as "we could not load this". */}
       <View style={styles.readOnly}>
         <Text style={styles.readOnlyLabel}>{t.profile.phoneLabel}</Text>
-        <Text style={styles.readOnlyValue}>{original.phone ?? t.profile.phoneEmpty}</Text>
+        {/* Masked with the SAME formatter the sign-in screen uses, so the
+            number reads back as the guest typed it — "+7 (701) 000-00-00", not
+            the "+77010000000" the API speaks. A number that is not a +7 one is
+            shown exactly as stored (see formatStoredPhoneForDisplay). */}
+        <Text style={styles.readOnlyValue}>
+          {original.phone ? formatStoredPhoneForDisplay(original.phone) : t.profile.phoneEmpty}
+        </Text>
         <Text style={styles.readOnlyHint}>{copy.phoneNotEditable}</Text>
       </View>
 

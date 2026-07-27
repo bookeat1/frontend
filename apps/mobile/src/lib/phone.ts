@@ -62,3 +62,28 @@ export function toE164(digits: string): string {
 export function formatE164ForDisplay(digits: string): string {
   return `+7 ${formatNationalDigits(digits)}`;
 }
+
+/**
+ * A number as the SERVER stores it ("+77010000000") shown the way the guest
+ * typed it in at sign-in: `+7 (701) 000-00-00`.
+ *
+ * Same mask as the sign-in field, deliberately: the profile shows the number
+ * the account is keyed on, and it must be recognisably the same string the
+ * guest entered — not the E.164 blob the API happens to speak.
+ *
+ * Anything that is NOT a +7 number is returned untouched. `extractNationalDigits`
+ * on its own would happily chop "+1 212 555 1234" down to ten digits and this
+ * would then print "+7 (121) 255-51-23" — a number nobody owns, presented as
+ * fact. A foreign or malformed number is shown exactly as stored instead.
+ */
+export function formatStoredPhoneForDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  const national =
+    digits.length === PHONE_NATIONAL_LENGTH
+      ? digits
+      : digits.length === PHONE_NATIONAL_LENGTH + 1 && (digits.startsWith("7") || digits.startsWith("8"))
+        ? digits.slice(1)
+        : null;
+  if (national === null) return raw;
+  return formatE164ForDisplay(national);
+}
