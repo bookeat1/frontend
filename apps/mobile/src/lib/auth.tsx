@@ -9,6 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { runPushSignOutHook } from "./push-signout";
 import {
   getFreshAccessToken,
   refreshAfterUnauthorized as gatewayRefreshAfterUnauthorized,
@@ -295,6 +296,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // Silence this phone BEFORE the token is thrown away: the deregister call
+    // is authenticated, and after `applySession(null)` it would be a
+    // guaranteed 401 — which would leave the device receiving the NEXT
+    // person's booking notifications. Bounded and non-throwing by contract,
+    // so a dead connection cannot block a sign-out.
+    await runPushSignOutHook();
     await applySession(null);
   }, [applySession]);
 

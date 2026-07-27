@@ -14,6 +14,7 @@ import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../src/lib/auth";
+import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
 import { queryClient } from "../src/lib/queryClient";
 
@@ -43,13 +44,20 @@ export default function RootLayout() {
                 reads, and mounting it here means the whole app (not just the
                 booking flow) can read the session. */}
             <AuthProvider>
-            <StatusBar style="dark" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background.surface },
-              }}
-            />
+            {/* PushProvider needs BOTH the session (whose account the token is
+                registered against) and the router (a tapped notification opens
+                the booking), so it sits inside AuthProvider and around the
+                Stack. It renders nothing and starts nothing on an unsupported
+                runtime. */}
+            <PushProvider>
+              <StatusBar style="dark" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.background.surface },
+                }}
+              />
+            </PushProvider>
             </AuthProvider>
           </RepositoryProvider>
         </QueryClientProvider>

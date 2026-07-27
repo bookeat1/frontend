@@ -10,7 +10,14 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#B33036",
+          "defaultChannel": "bookings"
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true
