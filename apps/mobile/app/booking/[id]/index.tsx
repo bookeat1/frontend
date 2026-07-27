@@ -9,6 +9,7 @@ import { BookingCard } from "../../../src/components/booking/BookingCard";
 import { CancelBookingDialog } from "../../../src/components/booking/CancelBookingDialog";
 import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
+import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
 import { FlowHeader } from "../../../src/components/FlowHeader";
@@ -51,7 +52,11 @@ const t = getDictionary();
  * the table is held — so it renders as a notice, not as an error state.
  */
 export default function ReservationScreen() {
-  const { id, preorderFailed } = useLocalSearchParams<{ id: string; preorderFailed?: string }>();
+  const { id, preorderFailed, created } = useLocalSearchParams<{
+    id: string;
+    preorderFailed?: string;
+    created?: string;
+  }>();
   const router = useRouter();
   const { status: authStatus } = useAuth();
 
@@ -176,6 +181,13 @@ export default function ReservationScreen() {
         <ReservationHeaderCard booking={data} restaurant={restaurant.data} />
 
         <WhatHappensNextCard status={data.status} />
+
+        {/* The permission ask, and the only one in the app. Shown just after
+            the booking was created, where «сообщим, когда подтвердят» answers
+            a question the guest already has — see the reasoning in
+            src/lib/push.tsx. The card hides itself on any runtime that cannot
+            do push and on any permission that has already been answered. */}
+        {created === "1" ? <PushOptInCard /> : null}
 
         {/* The booking itself succeeded — the table is held. Only attaching the
             pre-order failed (already retried once inside the mutation). There

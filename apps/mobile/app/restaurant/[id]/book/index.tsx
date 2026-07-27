@@ -247,7 +247,15 @@ export default function ReservationScreen() {
         onSuccess: ({ booking, preorderFailed }) => {
           router.replace({
             pathname: "/booking/[id]",
-            params: { id: booking.id, preorderFailed: preorderFailed ? "1" : "0" },
+            params: {
+              id: booking.id,
+              preorderFailed: preorderFailed ? "1" : "0",
+              // Marks THIS arrival as "the booking was just made here", which
+              // is the only moment the reservation screen offers to turn on
+              // notifications. A deep link or a visit from «Мои брони» carries
+              // no such flag and shows no card.
+              created: "1",
+            },
           });
         },
         onError: (error) => {

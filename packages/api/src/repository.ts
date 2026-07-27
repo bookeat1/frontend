@@ -16,6 +16,7 @@ import type {
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  RegisterPushTokenInput,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -166,6 +167,32 @@ export interface RestaurantRepository {
    * Requires a session for a booking that belongs to an account.
    */
   getBookingPayment(bookingId: string): Promise<BookingPayment | null>;
+
+  /* --- push notifications --- */
+
+  /**
+   * Registers this device's provider push token against the CALLING account
+   * (`POST /devices/push-tokens`, authenticated).
+   *
+   * Idempotent on the token value, and deliberately so: the backend upserts on
+   * the token, not on (user, token), so re-registering a token that already
+   * exists RE-POINTS it at the caller instead of creating a second row
+   * (internal/usecase/notifications/devicetokens.go). That is what makes a
+   * shared phone safe — the previous owner stops receiving the new owner's
+   * booking notifications.
+   *
+   * The server answers `{id, platform, status}` and never echoes the token
+   * back (it is a device credential). Nothing in the app needs the row id, so
+   * this returns void rather than inventing a use for it.
+   */
+  registerPushToken(input: RegisterPushTokenInput): Promise<void>;
+
+  /**
+   * Silences this device (`DELETE /devices/push-tokens`, authenticated, token
+   * in the BODY). Idempotent: an unknown or not-owned token is a no-op success
+   * server-side, so a double sign-out cannot fail.
+   */
+  unregisterPushToken(token: string): Promise<void>;
 }
 
 /**
