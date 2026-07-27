@@ -6,17 +6,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
+import { PhoneField } from "../../src/components/PhoneField";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextField } from "../../src/components/TextField";
 import { useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
-import {
-  extractNationalDigits,
-  formatE164ForDisplay,
-  formatNationalDigits,
-  isCompleteNationalNumber,
-  toE164,
-} from "../../src/lib/phone";
+import { DEFAULT_COUNTRY, nationalLength } from "../../src/lib/countries";
+import { formatStoredPhoneForDisplay, phoneFromE164 } from "../../src/lib/phone";
 
 const t = getDictionary();
 
@@ -96,11 +92,15 @@ export default function SignInScreen() {
   const toggleFavorite = useToggleFavorite();
 
   const [step, setStep] = useState<Step>("phone");
-  const [digits, setDigits] = useState("");
+  /** E.164 as the field reports it ("" until there is a number), plus the
+   * field's own verdict on whether it is finished — the screen does not
+   * re-derive a per-country digit count it has no business knowing. */
+  const [phone, setPhone] = useState("");
+  const [phoneComplete, setPhoneComplete] = useState(false);
   const [code, setCode] = useState("");
   /** The number the current code was sent to, so "изменить номер" cannot leave
    * the screen verifying a code against a different phone. */
-  const [sentToDigits, setSentToDigits] = useState("");
+  const [sentToPhone, setSentToPhone] = useState("");
   const [sentAt, setSentAt] = useState<number | null>(null);
   /** Epoch ms when the resend button becomes tappable again. */
   const [resendAt, setResendAt] = useState<number | null>(null);
@@ -179,27 +179,31 @@ export default function SignInScreen() {
     return t.auth.errorDescription;
   };
 
-  const sendCode = async (nationalDigits: string): Promise<void> => {
+  const sendCode = async (e164: string, complete: boolean): Promise<void> => {
     setFormError(null);
     setFieldError(null);
     if (submitting) return; // double-submit guard on top of the disabled button
-    if (!isCompleteNationalNumber(nationalDigits)) {
-      setFieldError(t.auth.phoneIncomplete);
+    if (!complete) {
+      // How many digits are missing is a property of the chosen country, so
+      // the number in the message comes from the country table — and is left
+      // out entirely for a country whose format we do not claim to know.
+      const expected = nationalLength(phoneFromE164(e164)?.country ?? DEFAULT_COUNTRY);
+      setFieldError(t.auth.phoneIncomplete(expected ?? null));
       return;
     }
     // Asking again inside the server's own per-phone minute is a guaranteed
     // 422; say so instead of spending the request and the guest's hourly
     // budget on it.
-    if (nationalDigits === sentToDigits && resendSecondsLeft > 0) {
+    if (e164 === sentToPhone && resendSecondsLeft > 0) {
       setFormError(t.auth.resendIn(resendSecondsLeft));
       return;
     }
 
     setSubmitting(true);
     try {
-      const result = await requestCode(toE164(nationalDigits));
+      const result = await requestCode(e164);
       const now = Date.now();
-      setSentToDigits(nationalDigits);
+      setSentToPhone(e164);
       setSentAt(now);
       setResendAt(now + RESEND_COOLDOWN_SECONDS * 1000);
       setAttempts(0);
@@ -234,7 +238,7 @@ export default function SignInScreen() {
 
     setSubmitting(true);
     try {
-      await signInWithCode({ phone: toE164(sentToDigits), code: value });
+      await signInWithCode({ phone: sentToPhone, code: value });
       // Finish the interrupted action first (the favorite), then leave. The
       // button stays in its "Проверяем код…" state for the extra request
       // rather than flashing back to Explore with a heart that is still empty.
@@ -321,31 +325,30 @@ export default function SignInScreen() {
           {isPhoneStep ? (
             <>
               <Text style={styles.subtitle}>{subtitleFor(reason)}</Text>
-              <TextField
+              {/* The country selector is here for one reason and it is not
+                  cosmetic: the account is CREATED by the number on verify
+                  (users.GetByPhone → users.Create), so a foreign guest who
+                  cannot enter their real number cannot get an account at all.
+                  Kazakhstan is preselected, and a local guest never opens it. */}
+              <PhoneField
                 label={t.auth.phoneLabel}
-                placeholder={t.auth.phonePlaceholder}
-                prefix={t.auth.phonePrefix}
-                value={formatNationalDigits(digits)}
-                onChangeText={(value) => {
-                  setDigits(extractNationalDigits(value));
+                value={phone}
+                onChange={({ e164, complete }) => {
+                  setPhone(e164);
+                  setPhoneComplete(complete);
                   if (fieldError) setFieldError(null);
                 }}
                 error={fieldError ?? undefined}
                 hint={t.auth.phoneHint}
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                textContentType="telephoneNumber"
-                // "(777) 123-45-67" is 15 characters; the cap only stops a
-                // paste from growing the field, the mask does the real work.
-                maxLength={16}
+                editable={!submitting}
                 returnKeyType="go"
-                onSubmitEditing={() => void sendCode(digits)}
+                onSubmitEditing={() => void sendCode(phone, phoneComplete)}
               />
             </>
           ) : (
             <>
               <Text style={styles.subtitle}>
-                {t.auth.codeSentTo(formatE164ForDisplay(sentToDigits))}
+                {t.auth.codeSentTo(formatStoredPhoneForDisplay(sentToPhone))}
               </Text>
 
               {/* The honest note for an environment that accepts the request
@@ -388,7 +391,7 @@ export default function SignInScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ disabled: resendSecondsLeft > 0 || submitting }}
                 disabled={resendSecondsLeft > 0 || submitting}
-                onPress={() => void sendCode(sentToDigits)}
+                onPress={() => void sendCode(sentToPhone, true)}
                 style={styles.secondaryAction}
               >
                 <Text
@@ -414,11 +417,11 @@ export default function SignInScreen() {
           <View style={styles.footer}>
             <PrimaryButton
               label={submitLabel}
-              onPress={() => void (isPhoneStep ? sendCode(digits) : verify(code))}
+              onPress={() => void (isPhoneStep ? sendCode(phone, phoneComplete) : verify(code))}
               disabled={
                 submitting ||
                 (isPhoneStep
-                  ? !isCompleteNationalNumber(digits)
+                  ? !phoneComplete
                   : code.length !== CODE_LENGTH || attemptsExhausted)
               }
             />
