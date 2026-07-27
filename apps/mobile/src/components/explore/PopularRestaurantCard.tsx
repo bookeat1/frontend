@@ -8,11 +8,11 @@ import {
   typography,
 } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRestaurantFavorite } from "../../hooks/useFavorites";
 import { formatTime } from "../../lib/format";
+import { PhotoView } from "../PhotoView";
 import { FavoriteButton } from "./FavoriteButton";
 import { EXPLORE_DEFAULT_GUESTS, useTodaySlots } from "./use-explore-data";
 
@@ -60,12 +60,11 @@ export function PopularRestaurantCard({
         style={({ pressed }) => pressed && styles.pressed}
       >
         <View>
-          <Image
-            source={{ uri: restaurant.coverPhoto.uri }}
+          <PhotoView
+            uri={restaurant.coverPhoto?.uri}
             style={styles.photo}
-            contentFit="cover"
-            transition={150}
-            accessibilityLabel={restaurant.coverPhoto.alt}
+            decorative
+            placeholderIconSize={32}
           />
           <FavoriteButton
             itemName={restaurant.name}

@@ -1,10 +1,10 @@
 import type { Booking, Restaurant } from "@bookeat/api";
 import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { formatRelativeDay, formatTime } from "../../lib/format";
+import { PhotoView } from "../PhotoView";
 import { BookingCard } from "./BookingCard";
 import { BookingStatusPill } from "./BookingStatusPill";
 
@@ -39,16 +39,11 @@ export function ReservationHeaderCard({
 
   return (
     <BookingCard corners="bottom" align="center" style={styles.card}>
-      {photoUri ? (
-        <Image
-          source={{ uri: photoUri }}
-          style={styles.avatar}
-          contentFit="cover"
-          accessibilityLabel={restaurant?.coverPhoto.alt}
-        />
-      ) : (
-        <View style={[styles.avatar, styles.avatarPlaceholder]} />
-      )}
+      {/* 72pt — слишком мало для иконки, поэтому «фото нет» и «фото не
+          загрузилось» здесь одинаково выглядят как ровный нейтральный
+          квадрат, ровно как выглядели раньше. Название заведения стоит
+          прямо под ним. */}
+      <PhotoView uri={photoUri} style={styles.avatar} decorative placeholderIcon={false} />
 
       {restaurant?.name ? (
         // Long RU venue names are real ("Fusion Rooftop на очень-очень длинной
@@ -76,9 +71,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.avatar,
     backgroundColor: colors.background.bannerPlaceholder,
     marginBottom: spacing.xs,
-  },
-  avatarPlaceholder: {
-    backgroundColor: colors.background.chip,
   },
   name: {
     ...typography.titleXl,

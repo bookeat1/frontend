@@ -1,9 +1,8 @@
 import type { MenuHighlight } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
-import { Image } from "expo-image";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { ForkKnife } from "./icons";
+import { PhotoView } from "./PhotoView";
 
 const ITEM_WIDTH = 180;
 const ITEM_HEIGHT = 120;
@@ -20,23 +19,10 @@ const ITEM_HEIGHT = 120;
 export function MenuItemCard({ item }: { item: MenuHighlight }) {
   return (
     <View style={styles.card}>
-      {item.photo ? (
-        <Image
-          source={{ uri: item.photo.uri }}
-          style={styles.image}
-          contentFit="cover"
-          accessibilityLabel={item.photo.alt}
-          transition={150}
-        />
-      ) : (
-        <View
-          style={[styles.image, styles.imageFallback]}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <ForkKnife size={28} color={colors.text.muted} weight="regular" />
-        </View>
-      )}
+      {/* Плашка «фото нет» больше не живёт здесь: она переехала в PhotoView,
+          вместе с тем же случаем для заведений и для фото, которое не
+          загрузилось. Вид у неё тот же — ровный фон и приглушённый прибор. */}
+      <PhotoView uri={item.photo?.uri} alt={item.photo?.alt} style={styles.image} />
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {item.name}
@@ -64,10 +50,6 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
-  },
-  imageFallback: {
-    alignItems: "center",
-    justifyContent: "center",
   },
   body: {
     paddingHorizontal: spacing.sm,

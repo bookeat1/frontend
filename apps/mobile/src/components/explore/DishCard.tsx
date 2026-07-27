@@ -1,7 +1,7 @@
 import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
-import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { PhotoView } from "../PhotoView";
 import { InertFavoriteHeart } from "./FavoriteButton";
 import type { DishCardData } from "./placeholder";
 
@@ -28,13 +28,7 @@ export function DishCard({
   const body = (
     <>
       <View>
-        <Image
-          source={{ uri: dish.imageUrl }}
-          style={styles.photo}
-          contentFit="cover"
-          transition={150}
-          accessibilityLabel={dish.name}
-        />
+        <PhotoView uri={dish.imageUrl} style={styles.photo} decorative placeholderIconSize={32} />
         <InertFavoriteHeart />
       </View>
 

@@ -1,6 +1,5 @@
 import { colors, exploreLayout, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import React, { useCallback, useRef, useState } from "react";
 import {
   type NativeScrollEvent,
@@ -10,6 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { PhotoView } from "../PhotoView";
 import type { HeroBanner } from "./placeholder";
 
 const t = getDictionary();
@@ -60,13 +60,11 @@ export function HeroCarousel({ banners }: { banners: readonly HeroBanner[] }) {
         scrollEventThrottle={32}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         renderItem={({ item, index: i }) => (
-          <Image
-            source={{ uri: item.imageUrl }}
+          <PhotoView
+            uri={item.imageUrl}
+            alt={`${item.alt}. ${t.explore.heroBanner(i + 1, banners.length)}`}
             style={[styles.image, { width }]}
-            contentFit="cover"
-            transition={150}
-            accessible
-            accessibilityLabel={`${item.alt}. ${t.explore.heroBanner(i + 1, banners.length)}`}
+            placeholderIconSize={40}
           />
         )}
       />

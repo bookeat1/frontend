@@ -144,7 +144,14 @@ export interface Restaurant {
   longitude?: number;
   phone?: string;
   social?: RestaurantSocialLinks;
-  coverPhoto: Photo;
+  /** Необязательно: у заведения может не быть ни одной картинки (в тестовом
+   * каталоге такое одно из 20, проверено curl'ом 2026-07-27). Раньше на это
+   * место подставлялась ссылка на СТОРОННИЙ сервис placehold.co — то есть
+   * приложение ходило в чужой домен за серой плашкой и без интернета не
+   * показывало ничего. Теперь «фото нет» — это отсутствие поля, и рисует его
+   * само приложение (см. components/PhotoView.tsx), тем же правилом, что уже
+   * действует для блюд без фото. */
+  coverPhoto?: Photo;
   photos: Photo[];
   promoBanners: PromoBanner[];
   menuHighlights: MenuHighlight[];
@@ -179,7 +186,8 @@ export interface RestaurantSummary {
   rating: number;
   reviewsCount: number;
   address: string;
-  coverPhoto: Photo;
+  /** См. Restaurant.coverPhoto — может отсутствовать. */
+  coverPhoto?: Photo;
   /** См. Restaurant.schedule — листинг, поиск и избранное отдают то же поле. */
   schedule: VenueSchedule | null;
   /** См. Restaurant.acceptsOnlineBookings. Есть и в списке, и в деталке. */

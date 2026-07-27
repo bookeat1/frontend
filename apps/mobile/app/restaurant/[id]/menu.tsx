@@ -1,13 +1,12 @@
 import type { MenuDish } from "@bookeat/api";
 import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { SectionList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../src/components/FlowHeader";
-import { ForkKnife } from "../../../src/components/icons";
+import { PhotoView } from "../../../src/components/PhotoView";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useMenuSections } from "../../../src/hooks/useBooking";
 import { formatMoneyMinor } from "../../../src/lib/format";
@@ -119,23 +118,8 @@ const DishRow = React.memo(function DishRow({ dish }: { dish: MenuDish }) {
       </View>
 
       <View style={styles.dishPhoto}>
-        {dish.imageUrl ? (
-          <Image
-            source={{ uri: dish.imageUrl }}
-            style={styles.dishImage}
-            contentFit="cover"
-            accessibilityLabel={dish.name}
-            transition={150}
-          />
-        ) : (
-          <View
-            style={[styles.dishImage, styles.dishImageFallback]}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            <ForkKnife size={24} color={colors.text.muted} weight="regular" />
-          </View>
-        )}
+        {/* Та же плашка, что и на карточке блюда, — одна на всё приложение. */}
+        <PhotoView uri={dish.imageUrl} style={styles.dishImage} decorative placeholderIconSize={24} />
       </View>
     </View>
   );
@@ -217,10 +201,5 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
-  },
-  dishImageFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background.bannerPlaceholder,
   },
 });
