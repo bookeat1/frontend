@@ -1,9 +1,9 @@
 import type { Photo } from "@bookeat/api";
 import { colors } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { PhotoView } from "./PhotoView";
 
 const t = getDictionary();
 
@@ -55,13 +55,9 @@ export function PhotoGrid({ photos, onPressPhoto }: PhotoGridProps) {
                   height: isFullRow ? 375 : 187.5,
                 }}
               >
-                <Image
-                  source={{ uri: photo.uri }}
-                  style={styles.image}
-                  contentFit="cover"
-                  accessibilityLabel={photo.alt}
-                  transition={150}
-                />
+                {/* Плитка декоративна: Pressable вокруг неё уже объявлен
+                    скринридеру как «Изображение N». */}
+                <PhotoView uri={photo.uri} style={styles.image} decorative />
               </Pressable>
             );
           })}

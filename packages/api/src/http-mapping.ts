@@ -278,9 +278,21 @@ export function priceLevelToPriceCategory(level: PriceLevel): string {
   return level;
 }
 
-function pickCoverPhoto(api: ApiRestaurant): Photo {
+/**
+ * The venue's cover, or nothing.
+ *
+ * Undefined, not a placehold.co tile. Until 2026-07-27 a venue with no image
+ * was handed `https://placehold.co/800x600?text=No+Image`, which made a grey
+ * rectangle in the guest's app depend on a third-party domain: on a bad
+ * connection or behind a blocked host it rendered as nothing at all, and the
+ * app could not tell "this venue has no photo" from "the photo failed". The
+ * same rule already applied to dishes (see mapMenuHighlights); it now applies
+ * to venues too, and the placeholder is drawn locally.
+ */
+function pickCoverPhoto(api: ApiRestaurant): Photo | undefined {
   const primary = api.images?.find((i) => i.is_primary) ?? api.images?.[0];
   const url = primary?.image_url ?? api.primary_image;
+  if (!url || !url.trim()) return undefined;
   return imageToPhoto(url, `${api.id}-cover`, text(api.name), undefined);
 }
 
@@ -288,10 +300,10 @@ function pickCoverPhoto(api: ApiRestaurant): Photo {
  * `category` is left undefined — the Photos screen's "Еда"/"Интерьер" tabs
  * will show nothing for real restaurants until the API adds that. The "Все"
  * tab is unaffected since it doesn't filter by category. */
-function imageToPhoto(url: string | undefined, id: string, alt: string, category: Photo["category"]): Photo {
+function imageToPhoto(url: string, id: string, alt: string, category: Photo["category"]): Photo {
   return {
     id,
-    uri: url ?? "https://placehold.co/800x600?text=No+Image",
+    uri: url,
     width: 800,
     height: 600,
     alt,
@@ -697,9 +709,11 @@ function coordinates(api: ApiRestaurant): { latitude?: number; longitude?: numbe
 }
 
 export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras = {}): Restaurant {
-  const photos: Photo[] = (api.images ?? []).map((img) =>
-    imageToPhoto(img.image_url, img.id, text(api.name), undefined),
-  );
+  const photos: Photo[] = (api.images ?? [])
+    // A gallery row with no URL is dropped rather than turned into a tile that
+    // can never load: the Photos screen counts what it shows.
+    .filter((img) => Boolean(img.image_url?.trim()))
+    .map((img) => imageToPhoto(img.image_url, img.id, text(api.name), undefined));
   const social = api.social_links?.length
     ? {
         website: api.social_links.find((s) => s.type === "website")?.url,

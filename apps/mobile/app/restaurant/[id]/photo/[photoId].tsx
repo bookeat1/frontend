@@ -1,12 +1,12 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useRef } from "react";
 import { FlatList, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X } from "../../../../src/components/icons";
 import { IconButton } from "../../../../src/components/IconButton";
+import { PhotoView } from "../../../../src/components/PhotoView";
 import { ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import type { Photo } from "@bookeat/api";
@@ -57,12 +57,11 @@ export default function PhotoViewerScreen() {
             }}
             renderItem={({ item }) => (
               <View style={{ width, height: width }}>
-                <Image
-                  source={{ uri: item.uri }}
+                <PhotoView
+                  uri={item.uri}
+                  alt={item.alt}
                   style={StyleSheet.absoluteFill}
                   contentFit="contain"
-                  accessibilityLabel={item.alt}
-                  transition={150}
                 />
               </View>
             )}

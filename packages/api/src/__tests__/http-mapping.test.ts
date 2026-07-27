@@ -144,6 +144,48 @@ describe("a dish without a photo is still on the menu", () => {
     const [dish] = mapMenuHighlights([apiDish()], 8);
     expect(dish.photo).toBeUndefined();
   });
+});
+
+describe("a venue without a photo does not borrow one from a stranger", () => {
+  // Until 2026-07-27 the mapper answered a photo-less venue with a URL on
+  // placehold.co. That put a third-party host on the critical path of the
+  // guest's app: with no connection to it — or with it blocked — the card
+  // showed nothing at all, and the app could not tell "this venue has no
+  // photo" from "the photo failed to load". One of the 20 venues in the test
+  // catalog is photo-less, so this was live.
+  it("no images and no primary_image — coverPhoto is undefined, not a stub URL", () => {
+    const summary = mapRestaurantSummary(apiRestaurant());
+    const detail = mapRestaurantDetail(apiRestaurant());
+    expect(summary.coverPhoto).toBeUndefined();
+    expect(detail.coverPhoto).toBeUndefined();
+  });
+
+  it("an empty primary_image is 'no photo', not an address", () => {
+    expect(mapRestaurantSummary(apiRestaurant({ primary_image: "   " })).coverPhoto).toBeUndefined();
+  });
+
+  it("nothing anywhere in the mapped venue points at placehold.co", () => {
+    const detail = mapRestaurantDetail(apiRestaurant());
+    expect(JSON.stringify(detail)).not.toContain("placehold.co");
+  });
+
+  it("a real photo still comes through untouched", () => {
+    const uri = "https://pub-41b6f06fc8e74b6e959cdd6def081e22.r2.dev/restaurants/r-1/a.webp";
+    expect(mapRestaurantSummary(apiRestaurant({ primary_image: uri })).coverPhoto?.uri).toBe(uri);
+  });
+
+  it("a gallery row with no URL is dropped instead of becoming a tile that cannot load", () => {
+    const uri = "https://pub-41b6f06fc8e74b6e959cdd6def081e22.r2.dev/restaurants/r-1/a.webp";
+    const detail = mapRestaurantDetail(
+      apiRestaurant({
+        images: [
+          { id: "i-1", image_url: uri, is_primary: true },
+          { id: "i-2", image_url: "", is_primary: false },
+        ],
+      }),
+    );
+    expect(detail.photos.map((p) => p.uri)).toEqual([uri]);
+  });
 
   it("an unavailable dish is still hidden — that IS a fact from the server", () => {
     const dishes = mapMenuHighlights(

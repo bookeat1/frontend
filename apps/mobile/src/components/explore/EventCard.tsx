@@ -1,10 +1,10 @@
 import type { EventSummary } from "@bookeat/api";
 import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatRelativeDateTime } from "../../lib/format";
+import { PhotoView } from "../PhotoView";
 import { InertFavoriteHeart } from "./FavoriteButton";
 
 const t = getDictionary();
@@ -41,21 +41,11 @@ export function EventCard({
   const body = (
     <>
       <View>
-        {event.coverImageUrl ? (
-          <Image
-            source={{ uri: event.coverImageUrl }}
-            style={styles.photo}
-            contentFit="cover"
-            transition={150}
-            accessibilityLabel={event.title}
-          />
-        ) : (
-          // The backend omits `cover_image_url` for venues that uploaded none
-          // and substitutes nothing. A flat tile in the photo's own
-          // placeholder colour keeps the card's geometry without pretending
-          // there is an image that failed to load.
-          <View style={styles.photo} />
-        )}
+        {/* The backend omits `cover_image_url` for venues that uploaded none,
+            and an uploaded file can be gone from the bucket. Both end up as
+            the app's own neutral tile, which keeps the card's geometry and
+            never pretends to be an image that is still coming. */}
+        <PhotoView uri={event.coverImageUrl} style={styles.photo} decorative placeholderIconSize={32} />
         <InertFavoriteHeart />
       </View>
 

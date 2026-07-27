@@ -13,6 +13,7 @@ import React from "react";
 import { PixelRatio, Pressable, StyleSheet, Text, View } from "react-native";
 import { openMap } from "../../lib/external-links";
 import { diagnoseMapFailure, mapPreviewsEnabled } from "../../lib/map-preview";
+import { PHOTO_CACHE_POLICY } from "../../lib/photo-source";
 import { useRepository } from "../../lib/repository";
 import { MapPin } from "../icons";
 
@@ -114,6 +115,12 @@ export function MapPreview({
           // The block already has its final height, so nothing jumps when the
           // bytes arrive; the fade just avoids a hard flash.
           transition={150}
+          // Same rule as every other remote picture (lib/photo-source.ts): the
+          // preview for a venue already opened once must not be re-downloaded.
+          // This block keeps its OWN fallback rather than PhotoView's, because
+          // "no map" is a different thing to say than "no photo" — it is a
+          // tappable block with its own text.
+          cachePolicy={PHOTO_CACHE_POLICY}
           onError={handleError}
           // Decorative — never announced. The Pressable above carries the
           // label, and "картинка карты" would add nothing to it.

@@ -1,13 +1,13 @@
 import type { MenuDish } from "@bookeat/api";
 import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { Minus, Plus } from "../../../../src/components/icons";
+import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { useMenuSections } from "../../../../src/hooks/useBooking";
@@ -194,17 +194,7 @@ const DishRow = React.memo(function DishRow({
       {/* Photo on the right with the add / quantity control floating over its
           lower edge, as in the design render. */}
       <View style={styles.dishPhoto}>
-        {dish.imageUrl ? (
-          <Image
-            source={{ uri: dish.imageUrl }}
-            style={styles.dishImage}
-            contentFit="cover"
-            accessibilityLabel={dish.name}
-            transition={150}
-          />
-        ) : (
-          <View style={[styles.dishImage, styles.dishImagePlaceholder]} />
-        )}
+        <PhotoView uri={dish.imageUrl} style={styles.dishImage} decorative placeholderIconSize={24} />
 
         {addable ? (
           quantity > 0 ? (
@@ -304,9 +294,6 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
-  },
-  dishImagePlaceholder: {
-    backgroundColor: colors.background.bannerPlaceholder,
   },
   // flex:1 is what makes long Russian dish names wrap instead of pushing the
   // add button off a 360px screen.

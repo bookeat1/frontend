@@ -1,9 +1,9 @@
 import type { PromoBanner } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { PhotoView } from "./PhotoView";
 
 const BANNER_WIDTH = 104;
 const BANNER_HEIGHT = 120;
@@ -19,15 +19,19 @@ export function PromoBannerStrip({ banners }: { banners: PromoBanner[] }) {
           <View key={banner.id} style={styles.banner}>
             {/* Промо из API приходит без картинки — тогда остаётся плитка
                 фирменного цвета с подписью, а не битая ссылка. */}
-            {banner.photo ? (
-              <Image
-                source={{ uri: banner.photo.uri }}
-                style={styles.image}
-                contentFit="cover"
-                accessibilityLabel={banner.photo.alt}
-                transition={150}
-              />
-            ) : null}
+            {/* Подпись поверх плитки уже несёт весь смысл баннера, поэтому
+                картинка декоративна; без картинки — плитка фирменного цвета,
+                без прибора, чтобы не спорить с подписью. */}
+            <PhotoView
+              uri={banner.photo?.uri}
+              style={styles.image}
+              decorative
+              placeholderIcon={false}
+              // Подпись баннера белая и лежит прямо на плитке — на светло-сером
+              // её не прочитать, поэтому «фото нет» здесь остаётся фирменного
+              // цвета, ровно как было до общего компонента.
+              placeholderColor={colors.background.bannerPlaceholder}
+            />
             <LinearGradient
               colors={[colors.overlay.bannerGradientTop, colors.overlay.bannerGradientBottom]}
               style={styles.gradient}

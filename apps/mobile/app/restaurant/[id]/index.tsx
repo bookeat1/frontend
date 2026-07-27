@@ -1,7 +1,6 @@
 import type { Restaurant } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
@@ -11,6 +10,7 @@ import { IconButton } from "../../../src/components/IconButton";
 import { useRestaurantFavorite } from "../../../src/hooks/useFavorites";
 import { MapPreview } from "../../../src/components/booking/MapPreview";
 import { MenuItemCard } from "../../../src/components/MenuItemCard";
+import { PhotoView } from "../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { PromoBannerStrip } from "../../../src/components/PromoBannerStrip";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
@@ -96,12 +96,17 @@ export default function RestaurantDetailScreen() {
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <View style={styles.coverContainer}>
-              <Image
-                source={{ uri: restaurant.coverPhoto.uri }}
+              {/* Обложка — самое тяжёлое фото экрана и первое, что видит
+                  гость: грузим её с высоким приоритетом, а пока она едет,
+                  стоит нейтральная плашка нужного размера, поэтому ничего
+                  под ней не прыгает. */}
+              <PhotoView
+                uri={restaurant.coverPhoto?.uri}
+                alt={restaurant.coverPhoto?.alt}
                 style={styles.cover}
-                contentFit="cover"
-                accessibilityLabel={restaurant.coverPhoto.alt}
                 transition={200}
+                priority="high"
+                placeholderIconSize={40}
               />
             </View>
 

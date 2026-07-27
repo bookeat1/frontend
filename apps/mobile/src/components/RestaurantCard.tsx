@@ -1,10 +1,10 @@
 import type { RestaurantSummary } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { openStateLabel } from "../lib/schedule";
+import { PhotoView } from "./PhotoView";
 
 const t = getDictionary();
 
@@ -48,12 +48,15 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
       onPress={() => onPress(restaurant.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <Image
-        source={{ uri: restaurant.coverPhoto.uri }}
+      {/* Фото карточки декоративное: всё, что оно говорит, уже сказано в
+          accessibilityLabel самой карточки выше. Заведения без фото и
+          заведения с отвалившимся фото выглядят одинаково — нейтральная
+          плашка, а не дыра в списке. */}
+      <PhotoView
+        uri={restaurant.coverPhoto?.uri}
         style={styles.image}
-        contentFit="cover"
-        accessibilityLabel={restaurant.coverPhoto.alt}
-        transition={150}
+        decorative
+        placeholderIconSize={32}
       />
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
