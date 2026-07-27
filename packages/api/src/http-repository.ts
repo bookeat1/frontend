@@ -48,6 +48,7 @@ import type {
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  RegisterPushTokenInput,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -477,6 +478,28 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       if (error instanceof RepositoryError && error.isNotFound) return null;
       throw error;
     }
+  }
+
+  /**
+   * POST /devices/push-tokens.
+   *
+   * The response (`{id, platform, status}`) is read and discarded: `id` is
+   * only useful for correlating with support, and pretending otherwise would
+   * mean carrying a value no screen renders. What matters here is that the
+   * call is authenticated — the account the token is attached to comes from
+   * the bearer token, never from the body.
+   */
+  async registerPushToken(input: RegisterPushTokenInput): Promise<void> {
+    await this.client.post<unknown>(
+      "/devices/push-tokens",
+      { token: input.token, platform: input.platform },
+      { auth: true },
+    );
+  }
+
+  /** DELETE /devices/push-tokens, token in the body (see deleteWithBody). */
+  async unregisterPushToken(token: string): Promise<void> {
+    await this.client.deleteWithBody<unknown>("/devices/push-tokens", { token }, { auth: true });
   }
 }
 

@@ -579,3 +579,21 @@ export interface EventPage {
   pages: number;
   perPage: number;
 }
+
+/**
+ * Platforms the backend accepts for a device push token
+ * (`domain.ValidDevicePlatform`: ios, android, web). "web" is listed because
+ * the column allows it, NOT because this app ever sends it — see
+ * `describePushSupport` in the mobile app: the web build has no Expo push
+ * token to register.
+ */
+export type DevicePlatform = "ios" | "android" | "web";
+
+/** Body of `POST /devices/push-tokens`. */
+export interface RegisterPushTokenInput {
+  /** The provider token, verbatim ("ExponentPushToken[…]" today). The server
+   * caps it at 512 characters and validates nothing else about its shape —
+   * the provider owns that format. */
+  token: string;
+  platform: DevicePlatform;
+}

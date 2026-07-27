@@ -12,6 +12,7 @@ import type {
   CreateBookingInput,
   Cuisine,
   DayAvailability,
+  DevicePlatform,
   EventPage,
   EventQuery,
   MenuSection,
@@ -19,6 +20,7 @@ import type {
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  RegisterPushTokenInput,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -281,6 +283,8 @@ export class MockRestaurantRepository implements RestaurantRepository {
 
   /** Favorites the mock holds for this process only. */
   private readonly favorites = new Set<string>();
+  /** token -> platform, the mock stand-in for device_push_tokens. */
+  private readonly pushTokens = new Map<string, DevicePlatform>();
 
   async getFavorites(): Promise<RestaurantSummary[]> {
     await this.simulateNetwork();
@@ -374,6 +378,22 @@ export class MockRestaurantRepository implements RestaurantRepository {
       throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
     }
     return null;
+  }
+
+  /**
+   * The mock has no push provider and nothing to deliver to, so both calls
+   * only record the last state — enough for the app to run end to end against
+   * the mock (the opt-in card, the outcome it reports) without pretending a
+   * notification could ever arrive.
+   */
+  async registerPushToken(input: RegisterPushTokenInput): Promise<void> {
+    await this.simulateNetwork();
+    this.pushTokens.set(input.token, input.platform);
+  }
+
+  async unregisterPushToken(token: string): Promise<void> {
+    await this.simulateNetwork();
+    this.pushTokens.delete(token);
   }
 }
 

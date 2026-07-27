@@ -136,9 +136,24 @@ export class HttpClient {
     return this.send<T>("PATCH", `${this.baseUrl}${path}`, path, body, options);
   }
 
-  /** DELETE with no request body — the only shape this API uses (favorites). */
+  /** DELETE with no request body — the shape favorites and most of this API
+   * use, where the thing being deleted is named by the path. */
   async delete<T>(path: string, options?: RequestOptions): Promise<T> {
     return this.send<T>("DELETE", `${this.baseUrl}${path}`, path, undefined, options);
+  }
+
+  /**
+   * DELETE that carries a JSON body.
+   *
+   * A separate method rather than an optional argument on `delete` so no
+   * existing call site changes meaning. Exactly one endpoint needs it:
+   * `DELETE /devices/push-tokens` takes `{"token": …}` in the body and binds
+   * it with `ShouldBindJSON` (backend-core devicetokens/handler.go), because
+   * a push token is a credential and has no business sitting in a URL path,
+   * a query string or a server access log.
+   */
+  async deleteWithBody<T>(path: string, body: unknown, options?: RequestOptions): Promise<T> {
+    return this.send<T>("DELETE", `${this.baseUrl}${path}`, path, body, options);
   }
 
   /**
