@@ -301,3 +301,65 @@ export interface PushSubscriptionInput {
     auth: string;
   };
 }
+
+// ---- Booking policy / capacity mode ----------------------------------------
+
+/**
+ * How a venue accounts for occupancy (domain.CapacityMode, migration 0054).
+ *
+ * `tables` — a booking is seated at a concrete table and the GiST exclusion
+ * constraint on booking_tables is the authority.
+ * `seats` — the venue declares a total number of seats and bookings are
+ * counted against per-slot capacity buckets; no tables are involved.
+ */
+export type CapacityMode = "tables" | "seats";
+
+/** The policy actually in force = global defaults with the venue's overrides
+ * applied (bookings.effectiveBookingPolicy). Read-only. */
+export interface EffectiveBookingPolicy {
+  timezone: string;
+  booking_duration_minutes: number;
+  booking_buffer_minutes: number;
+  booking_lead_minutes: number;
+  booking_horizon_days: number;
+  cancel_deadline_minutes: number;
+  confirm_sla_minutes: number;
+  max_guests_per_booking: number;
+  auto_confirm: boolean;
+  capacity_mode: CapacityMode;
+  capacity_seats: number;
+}
+
+/** What the venue has explicitly overridden; `null` = "inherit the default"
+ * (bookings.bookingPolicyOverrideBlock). */
+export interface BookingPolicyOverrides {
+  timezone: string | null;
+  booking_duration_minutes: number | null;
+  booking_buffer_minutes: number | null;
+  booking_lead_minutes: number | null;
+  booking_horizon_days: number | null;
+  cancel_deadline_minutes: number | null;
+  confirm_sla_minutes: number | null;
+  max_guests_per_booking: number | null;
+  auto_confirm: boolean | null;
+  booking_capacity_mode: CapacityMode | null;
+  booking_capacity_seats: number | null;
+}
+
+/** GET /admin/restaurants/:id/booking-policy (bookings.bookingPolicyResponse). */
+export interface BookingPolicy {
+  restaurant_id: string;
+  effective: EffectiveBookingPolicy;
+  overrides: BookingPolicyOverrides;
+}
+
+/**
+ * PATCH body. Every field is optional and an OMITTED key means "leave that
+ * column alone" — the server models them as Go pointers (bookings/request.go:
+ * bookingPolicyRequest), and a body with no field at all is a 422. Send only
+ * what the staff member actually changed.
+ */
+export interface BookingPolicyPatch {
+  booking_capacity_mode?: CapacityMode;
+  booking_capacity_seats?: number;
+}

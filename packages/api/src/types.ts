@@ -468,7 +468,44 @@ export interface AuthUser {
   id: string;
   email: string;
   fullName: string;
+  /**
+   * The number the account is keyed on. NOT editable anywhere: `PATCH
+   * /users/me` has no phone field at all (users/request.go: updateMeRequest),
+   * and OTP sign-in finds-or-creates the account BY this number, so changing
+   * it would mean a different account. Shown, never offered for editing.
+   */
   phone: string | null;
+  /** Free-form city string on the account. `null` when never filled in — the
+   * backend has no city dictionary behind this column. */
+  city: string | null;
+  /** Plain calendar date, "YYYY-MM-DD", or null. Never a timestamp. */
+  birthDate: string | null;
+}
+
+/**
+ * The subset of `PATCH /users/me` this app sends. Every key is optional and
+ * means "change this"; an ABSENT key means "leave it alone" — that is the
+ * server's own semantics (pointer fields), so the caller must diff against
+ * the current profile and send only what the guest actually changed.
+ *
+ * Deliberately narrower than the endpoint. The endpoint also accepts
+ * `avatar_url`, `preferred_language`, `country_code` and
+ * `cuisine_category_ids`; none of them has an honest source in this app today
+ * (no upload endpoint, one shipped locale, no ISO-country list, and the
+ * cuisine ids are `restaurant_categories` UUIDs the guest app never receives —
+ * its cuisine chips are built from free-text `cuisine_type` strings). They are
+ * left out rather than guessed at.
+ *
+ * Note there is NO way to clear `birthDate` through this API: the field is a
+ * `*string` parsed with time.Parse, so `null` means "unchanged" and `""` is a
+ * 422. Callers must not offer a "remove" action for it.
+ */
+export interface ProfileUpdate {
+  fullName?: string;
+  /** `""` clears the city (null would mean "leave unchanged"). */
+  city?: string;
+  /** "YYYY-MM-DD". */
+  birthDate?: string;
 }
 
 /**

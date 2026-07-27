@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
   { href: "/events", label: t.admin.nav.events },
   { href: "/promos", label: t.admin.nav.promos },
   { href: "/guests", label: t.admin.nav.guests },
-  { href: "/settings", label: t.admin.nav.settings, soon: true },
+  { href: "/settings", label: t.admin.nav.settings },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

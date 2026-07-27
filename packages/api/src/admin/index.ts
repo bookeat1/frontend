@@ -5,3 +5,8 @@
  */
 export * from "./types";
 export { AdminApiClient, AdminApiError, type AdminApiClientOptions } from "./client";
+export {
+  classifyCapacitySwitchFailure,
+  type CapacitySwitchFailure,
+  type CapacitySwitchFailureKind,
+} from "./capacity-switch";

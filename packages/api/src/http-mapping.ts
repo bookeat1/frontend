@@ -491,6 +491,10 @@ export interface ApiUser {
   email: string;
   full_name: string;
   phone: string | null;
+  /** Guest-profile columns (migration 0021). Nullable until filled in. */
+  city?: string | null;
+  /** "YYYY-MM-DD" — a date, formatted server-side with dateOnlyLayout. */
+  birth_date?: string | null;
 }
 
 const SLOT_REASONS: SlotUnavailableReason[] = [
@@ -590,6 +594,8 @@ export function mapUser(api: ApiUser): AuthUser {
     email: text(api.email),
     fullName: text(api.full_name),
     phone: text(api.phone) || null,
+    city: text(api.city) || null,
+    birthDate: text(api.birth_date) || null,
   };
 }
 

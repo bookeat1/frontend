@@ -15,6 +15,7 @@ import type {
   OtpRequest,
   Preorder,
   PreorderLineInput,
+  ProfileUpdate,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -207,6 +208,22 @@ export interface AuthRepository {
   refresh(refreshToken: string): Promise<AuthSession>;
   /** The signed-in user, used to prefill the guest's name/phone. */
   getMe(): Promise<AuthUser>;
+  /**
+   * `PATCH /users/me` — a PARTIAL update of the guest's own profile. Send only
+   * the keys that changed: an absent key means "leave that column alone"
+   * server-side, so passing the whole profile back would overwrite fields this
+   * app does not even render.
+   *
+   * Server-side rules, read from internal/usecase/users/facade.go (NOT
+   * guessed): `birth_date` must parse as "YYYY-MM-DD", must be strictly in the
+   * past and must not imply an age over 120; `full_name` and `city` have NO
+   * server validation at all. The whole update runs in one transaction, so a
+   * rejection changes nothing.
+   *
+   * Answers the updated profile, which the caller should treat as the new
+   * truth (the server may normalize).
+   */
+  updateMe(input: ProfileUpdate): Promise<AuthUser>;
 }
 
 /**

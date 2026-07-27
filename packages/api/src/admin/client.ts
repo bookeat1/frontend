@@ -9,6 +9,8 @@ import type {
   AdminPromo,
   ApiPage,
   AuthUser,
+  BookingPolicy,
+  BookingPolicyPatch,
   BookingCancelInput,
   BookingListParams,
   BookingReasonInput,
@@ -290,6 +292,40 @@ export class AdminApiClient {
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/schedule/overrides/${encodeURIComponent(
         date,
       )}`,
+    );
+  }
+
+  // ---- Booking policy / capacity mode --------------------------------------
+
+  /** NOTE the path: this pair is NOT under `/admin`. bookings.Handler's
+   * venue-cabinet routes are mounted on the plain authenticated group
+   * (bootstrap/app.go: `bookingScoped := authed.Group("")`), so the real URL is
+   * `/api/v1/restaurants/:id/booking-policy`. Staff membership is enforced by
+   * RequireRestaurantManager on that group all the same. */
+  getBookingPolicy(restaurantId: string): Promise<BookingPolicy> {
+    return this.request<BookingPolicy>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}/booking-policy`,
+    );
+  }
+
+  /**
+   * PATCH /restaurants/:id/booking-policy (not under `/admin` — see above).
+   *
+   * This is the single most consequential thing the cabinet can do to
+   * EXISTING reservations: switching between `tables` and `seats` rewrites
+   * every live booking's occupancy inside one transaction (seats every
+   * table-less booking at a real table, or backfills capacity holds). It is
+   * therefore also the one write with refusals a staff member has to be able
+   * to tell apart — see classifyCapacitySwitchFailure.
+   *
+   * Answers the whole policy (effective + overrides) on success.
+   */
+  updateBookingPolicy(restaurantId: string, patch: BookingPolicyPatch): Promise<BookingPolicy> {
+    return this.request<BookingPolicy>(
+      "PATCH",
+      `/restaurants/${encodeURIComponent(restaurantId)}/booking-policy`,
+      { body: patch },
     );
   }
 

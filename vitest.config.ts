@@ -47,6 +47,10 @@ export default defineConfig({
       // Exact match only: `react-native-web`, `react-native-svg` and
       // `react-native-safe-area-context` must NOT be rewritten.
       { find: /^react-native$/, replacement: here("./test/stubs/react-native.ts") },
+      // The admin panel's own path alias, the same one Next.js resolves from
+      // apps/admin/tsconfig.json ("@/*" -> "./src/*"). Without it every admin
+      // component is unimportable from a test.
+      { find: /^@\//, replacement: `${here("./apps/admin/src")}/` },
     ],
   },
   test: {
