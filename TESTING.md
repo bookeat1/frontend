@@ -44,7 +44,19 @@ React Native-компоненты рендерятся так же, как пр�
 packages/api/src/__tests__/              маппинг ответов API, разбор ошибок
 apps/mobile/src/lib/__tests__/           сессия, черновик брони, график работы
 apps/mobile/src/components/**/__tests__/ логика экранов и рендер компонентов
+apps/admin/src/components/__tests__/     экраны панели ресторана
 ```
+
+Тестам панели нужен её алиас `@/*`; он продублирован в `vitest.config.ts` из
+`apps/admin/tsconfig.json`. Компонент, который ходит в сеть, принимает клиента
+пропом (см. `CapacityModeCard`) — общий `apiClient` берёт базовый URL из
+окружения на этапе загрузки модуля и в тесте непригоден.
+
+Внешние библиотеки в тестах — только объявленные в `package.json`.
+`@testing-library/user-event` и `@testing-library/jest-dom` лежат в
+`node_modules` как транзитивная зависимость `expo-router`; опираться на них
+нельзя, поэтому события шлём через `fireEvent`, а утверждения пишем на
+`textContent`/`value`.
 
 Они попадают под те же `tsc --noEmit` и `eslint`, что и остальной код: тест,
 который не проходит типизацию, — не тест.
@@ -75,40 +87,21 @@ apps/mobile/src/components/**/__tests__/ логика экранов и ренд
   jsdom без правок приложения нельзя. Логика вынута туда, куда дотягиваются
   тесты (`cancellation-cost.ts`, `booking-draft.tsx`, `schedule.ts`); ветвление
   внутри `app/restaurant/[id]/book/index.tsx` остаётся непокрытым.
-- Панель `apps/admin` — раннер её видит, тестов пока нет.
+- Панель `apps/admin` — покрыт один экран (`CapacityModeCard`: разбор отказов
+  переключения режима вместимости), остальные без тестов.
+- Экран `app/profile.tsx` целиком — как и прочие маршруты. Логика вынесена в
+  `src/lib/profile-edit.ts` и `src/components/profile/ProfileForm.tsx`; не
+  покрыта только связка «сессия умерла → форму не размонтировать» внутри самого
+  маршрута.
 - Настоящий бэкенд: все тесты работают на подменённом `fetch`. Контракт с живым
   API проверяется вручную (curl) и записывается в командной памяти.
 
 ## CI
 
-Workflow в репозитории пока нет. Минимальный, который стоит завести —
-ровно три гейта, ничего больше:
+Workflow заведён — `.github/workflows/ci.yml`, ровно три гейта на каждый push
+и pull request: `pnpm run typecheck`, `pnpm run lint`, `pnpm run test`.
 
-```yaml
-# .github/workflows/check.yml
-name: check
-on:
-  pull_request:
-  push:
-    branches: [develop, main]
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run typecheck
-      - run: pnpm run lint
-      - run: pnpm run test
-```
-
-Внимание при заведении: корневой `.npmrc` (`node-linker=hoisted`) **не в гите**,
-а установка на него опирается. Без него у CI будет другая раскладка
-`node_modules`, чем у всех локально. Это надо решить отдельно — либо
-закоммитить `.npmrc`, либо снять зависимость от hoisted-раскладки.
+Внимание: корневой `.npmrc` (`node-linker=hoisted`) **не в гите**, а установка
+на него опирается. Без него у CI будет другая раскладка `node_modules`, чем у
+всех локально. Это надо решить отдельно — либо закоммитить `.npmrc`, либо снять
+зависимость от hoisted-раскладки.

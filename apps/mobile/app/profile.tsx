@@ -1,9 +1,9 @@
 import type { AuthUser } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookingCard } from "../src/components/booking/BookingCard";
@@ -11,6 +11,7 @@ import { BottomNavBar } from "../src/components/BottomNavBar";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { PrimaryButton } from "../src/components/PrimaryButton";
 import { BookOpen, Heart } from "../src/components/icons";
+import { ProfileForm } from "../src/components/profile/ProfileForm";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { useAuth } from "../src/lib/auth";
 
@@ -25,14 +26,25 @@ const t = getDictionary();
  * means it cannot tell "still loading" from "the request failed". A screen
  * whose entire content is the account has to be able to say which.
  *
- * Nothing here is editable: there is a `PATCH /users/me` on the backend, but
- * an edit form is a feature with its own validation and error surface, not a
- * side effect of building a tab. Only what the API really returns is shown.
+ * Editing goes through `PATCH /users/me` and covers exactly the fields that
+ * endpoint accepts AND this app has an honest value for: name, city, birth
+ * date. The phone is displayed but not editable — there is no phone field in
+ * the PATCH body and the account is found BY the number at sign-in. See
+ * ProfileForm for the fields deliberately left out.
+ *
+ * One piece of wiring worth naming: when a refresh fails mid-edit the auth
+ * context signs the guest out, which would normally swap this screen for «Вы
+ * не вошли» and take their unsaved text with it. `keepEditor` pins the form in
+ * place for that case, and `lastUser` keeps the profile it was built from
+ * after the ["me"] cache entry is purged on sign-out.
  */
 export default function ProfileScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { status, repository, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+
+  const [keepEditor, setKeepEditor] = useState(false);
 
   const me = useQuery<AuthUser>({
     queryKey: ["me"],
@@ -41,6 +53,15 @@ export default function ProfileScreen() {
     staleTime: 5 * 60_000,
   });
 
+  // The last profile that actually loaded. The ["me"] cache entry is REMOVED on
+  // sign-out (auth.tsx: PRIVATE_QUERY_KEYS), so without this the form would
+  // lose the account it is editing at the exact moment the session dies.
+  const lastUser = useRef<AuthUser | null>(null);
+  useEffect(() => {
+    if (me.data) lastUser.current = me.data;
+  }, [me.data]);
+  const account = me.data ?? (keepEditor ? lastUser.current : null);
+
   const handleSignOut = async () => {
     // Double-tap guard on top of the disabled button: signing out twice is
     // harmless, but a second run while the first is writing SecureStore is not
@@ -48,6 +69,11 @@ export default function ProfileScreen() {
     if (signingOut) return;
     setSigningOut(true);
     try {
+      // An explicit sign-out is not a session that died under the guest: the
+      // editor must go with it, not be pinned open holding the previous
+      // person's name.
+      setKeepEditor(false);
+      lastUser.current = null;
       await signOut();
       router.replace("/");
     } finally {
@@ -64,32 +90,40 @@ export default function ProfileScreen() {
       <View style={styles.body}>
         {status === "loading" ? (
           <LoadingState title={t.profile.loadingTitle} />
-        ) : status === "signed-out" ? (
+        ) : status === "signed-out" && !account ? (
           <EmptyState
             title={t.profile.signedOutTitle}
             description={t.profile.signedOutDescription}
             actionLabel={t.profile.signIn}
             onAction={() => router.push("/auth/sign-in")}
           />
-        ) : me.isPending ? (
-          <LoadingState title={t.profile.loadingTitle} />
-        ) : me.isError ? (
-          <ErrorState
-            title={t.profile.errorTitle}
-            description={t.profile.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => void me.refetch()}
-          />
+        ) : !account ? (
+          me.isError ? (
+            <ErrorState
+              title={t.profile.errorTitle}
+              description={t.profile.errorDescription}
+              retryLabel={t.common.retry}
+              onRetry={() => void me.refetch()}
+            />
+          ) : (
+            <LoadingState title={t.profile.loadingTitle} />
+          )
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <BookingCard title={t.profile.accountTitle}>
-              <Field label={t.profile.nameLabel} value={me.data.fullName || t.profile.nameEmpty} />
               {/* An account created by phone code has no email at all — the
                   backend leaves it blank (usecase/auth/otp.go creates the user
                   with a phone and nothing else). An empty line under «Почта»
-                  looks like a failed load, so say it plainly. */}
-              <Field label={t.profile.emailLabel} value={me.data.email || t.profile.emailEmpty} />
-              <Field label={t.profile.phoneLabel} value={me.data.phone ?? t.profile.phoneEmpty} />
+                  looks like a failed load, so say it plainly. The email is NOT
+                  editable: PATCH /users/me has no email field. */}
+              <Field label={t.profile.emailLabel} value={account.email || t.profile.emailEmpty} />
+              <ProfileForm
+                user={account}
+                onSave={(patch) => repository.updateMe(patch)}
+                onSaved={(updated) => queryClient.setQueryData(["me"], updated)}
+                onSessionExpired={() => setKeepEditor(true)}
+                onSignIn={() => router.push("/auth/sign-in")}
+              />
             </BookingCard>
 
             <BookingCard>

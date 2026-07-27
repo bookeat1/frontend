@@ -47,6 +47,7 @@ import type {
   OtpRequest,
   Preorder,
   PreorderLineInput,
+  ProfileUpdate,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -566,6 +567,25 @@ export class HttpAuthRepository implements AuthRepository {
 
   async getMe(): Promise<AuthUser> {
     const api = await this.client.get<ApiUser>("/users/me", undefined, { auth: true });
+    return mapUser(api);
+  }
+
+  /**
+   * Only the keys present in `input` are put on the wire. An absent key is the
+   * server's "leave this column alone", and `city: ""` is the only way to
+   * clear a city (null would read as "unchanged") — see ProfileUpdate.
+   *
+   * Goes through the same authenticated path as every other write, so a 401 on
+   * an access token that expired mid-edit is refreshed and the SAME body is
+   * retried once (HttpClient.send). The guest's edit is not dropped and they
+   * are not asked to retype it.
+   */
+  async updateMe(input: ProfileUpdate): Promise<AuthUser> {
+    const body: Record<string, string> = {};
+    if (input.fullName !== undefined) body.full_name = input.fullName;
+    if (input.city !== undefined) body.city = input.city;
+    if (input.birthDate !== undefined) body.birth_date = input.birthDate;
+    const api = await this.client.patch<ApiUser>("/users/me", body, { auth: true });
     return mapUser(api);
   }
 }

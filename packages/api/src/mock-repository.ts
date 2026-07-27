@@ -18,6 +18,7 @@ import type {
   OtpRequest,
   Preorder,
   PreorderLineInput,
+  ProfileUpdate,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -472,7 +473,12 @@ export class MockAuthRepository implements AuthRepository {
       id: "mock-user",
       email,
       fullName,
-      phone: null,
+      // Keep whatever the profile screen has already saved: refresh() rebuilds
+      // the session through here, and a refresh must not wipe the guest's own
+      // profile edits.
+      phone: this.user?.phone ?? null,
+      city: this.user?.city ?? null,
+      birthDate: this.user?.birthDate ?? null,
     };
     return {
       accessToken: "mock-access-token",
@@ -523,7 +529,14 @@ export class MockAuthRepository implements AuthRepository {
       throw new RepositoryError("Invalid code", undefined, 401);
     }
     const session = this.session("", "");
-    this.user = { id: "mock-user", email: "", fullName: "", phone: input.phone };
+    this.user = {
+      id: "mock-user",
+      email: "",
+      fullName: "",
+      phone: input.phone,
+      city: null,
+      birthDate: null,
+    };
     return session;
   }
 
@@ -540,6 +553,43 @@ export class MockAuthRepository implements AuthRepository {
     if (!this.user) {
       throw new RepositoryError("Not authenticated", undefined, 401);
     }
+    return this.user;
+  }
+
+  /**
+   * Applies the same partial-update semantics the real endpoint has (only the
+   * keys present are touched) and re-checks the two rules the SERVER enforces,
+   * so a validation bug in the app surfaces with no backend too: birth_date
+   * must be a real "YYYY-MM-DD" strictly in the past and no older than 120
+   * years (internal/usecase/users/facade.go). full_name and city are
+   * unvalidated server-side and are therefore unvalidated here.
+   */
+  async updateMe(input: ProfileUpdate): Promise<AuthUser> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    if (input.birthDate !== undefined) {
+      const parsed = Date.parse(`${input.birthDate}T00:00:00Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(input.birthDate) || Number.isNaN(parsed)) {
+        throw new RepositoryError("validation: birth_date must be YYYY-MM-DD", undefined, 422);
+      }
+      const now = Date.now();
+      if (parsed >= now) {
+        throw new RepositoryError("validation: birth_date must be in the past", undefined, 422);
+      }
+      const oldest = new Date();
+      oldest.setUTCFullYear(oldest.getUTCFullYear() - 120);
+      if (parsed < oldest.getTime()) {
+        throw new RepositoryError("validation: birth_date implies an age over 120", undefined, 422);
+      }
+    }
+    this.user = {
+      ...this.user,
+      fullName: input.fullName ?? this.user.fullName,
+      city: input.city === undefined ? this.user.city : input.city || null,
+      birthDate: input.birthDate ?? this.user.birthDate,
+    };
     return this.user;
   }
 }

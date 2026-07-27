@@ -127,6 +127,15 @@ export class HttpClient {
     return this.send<T>("PUT", `${this.baseUrl}${path}`, path, body, options);
   }
 
+  /** PATCH — a PARTIAL update. Every such endpoint on this backend takes
+   * pointer fields, so an omitted key means "leave this column alone" and is
+   * NOT the same as sending null: `PATCH /users/me` with `{"city": null}`
+   * leaves the city untouched, while `{"city": ""}` clears it (Go
+   * `*string`, see users/request.go). Callers must send only what changed. */
+  async patch<T>(path: string, body: unknown, options?: RequestOptions): Promise<T> {
+    return this.send<T>("PATCH", `${this.baseUrl}${path}`, path, body, options);
+  }
+
   /** DELETE with no request body — the only shape this API uses (favorites). */
   async delete<T>(path: string, options?: RequestOptions): Promise<T> {
     return this.send<T>("DELETE", `${this.baseUrl}${path}`, path, undefined, options);
