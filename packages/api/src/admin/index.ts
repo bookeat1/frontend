@@ -10,3 +10,8 @@ export {
   type CapacitySwitchFailure,
   type CapacitySwitchFailureKind,
 } from "./capacity-switch";
+export {
+  classifyGuideFailure,
+  type GuideFailure,
+  type GuideFailureKind,
+} from "./guide-failure";

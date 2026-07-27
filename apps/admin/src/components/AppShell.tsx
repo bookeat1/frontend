@@ -15,6 +15,10 @@ interface NavItem {
   label: string;
   /** Deferred screens are shown but disabled (backend not ready). */
   soon?: boolean;
+  /** Shown only to the global superadmin. Used by the gastroguide, which is
+   * platform editorial content and not a venue's own screen — a venue owner has
+   * no business seeing the entry, and the server refuses them anyway. */
+  superadminOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -24,6 +28,7 @@ const NAV: NavItem[] = [
   { href: "/events", label: t.admin.nav.events },
   { href: "/promos", label: t.admin.nav.promos },
   { href: "/guests", label: t.admin.nav.guests },
+  { href: "/gastroguide", label: t.admin.nav.gastroguide, superadminOnly: true },
   { href: "/settings", label: t.admin.nav.settings },
 ];
 
@@ -41,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav aria-label="Основная навигация" className="flex gap-xs overflow-x-auto px-md pb-md md:flex-col md:overflow-visible">
-          {NAV.map((item) => {
+          {NAV.filter((item) => !item.superadminOnly || user?.role === "admin").map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             if (item.soon) {
               return (

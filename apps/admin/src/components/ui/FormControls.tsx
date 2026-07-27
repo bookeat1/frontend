@@ -1,6 +1,11 @@
 "use client";
 
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 /**
  * Shared form primitives for the admin panel. Real <label>/<input> pairs,
@@ -50,6 +55,12 @@ export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
       }`}
     />
   );
+}
+
+/** The shared <select>. Same height and focus ring as TextInput so a form that
+ * mixes them does not look assembled from two kits. */
+export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} className={`${inputBase} ${props.className ?? ""}`} />;
 }
 
 /** A labelled checkbox row with a ≥44px hit area. */
