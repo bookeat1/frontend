@@ -1,7 +1,7 @@
 import { RepositoryError, type AuthUser } from "@bookeat/api";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileForm } from "../ProfileForm";
 
 /**
@@ -102,19 +102,88 @@ describe("сессия закончилась посреди правки", () =
   });
 });
 
-describe("форма", () => {
-  it("не отправляет запрос, пока дата рождения не по формату", async () => {
-    const onSave = vi.fn();
-    render(<ProfileForm user={user()} onSave={onSave} />);
-
-    fireEvent.change(screen.getByLabelText("Дата рождения"), { target: { value: "04.05.1990" } });
-    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
-
-    await waitFor(() => expect(screen.getByText(/ГГГГ-ММ-ДД/)).toBeTruthy());
-    expect(onSave).not.toHaveBeenCalled();
-    expect(screen.queryByText("Сохранено")).toBeNull();
+/**
+ * REGRESSION GUARD — дату рождения набирали руками, и приложение говорило с
+ * гостем на формате своего API.
+ *
+ * Поле было свободным текстом с подсказкой «ГГГГ-ММ-ДД». Гость, который писал
+ * дату так, как её пишут в Казахстане («04.05.1990»), получал красную строку
+ * после того, как всё набрал, и должен был догадаться переставить числа и
+ * сменить разделитель. Календарь физически не умеет отдать ни неверный
+ * формат, ни несуществующий день, ни будущее.
+ *
+ * Разделение форматов — то, ради чего этот describe написан: на экране
+ * ДД-ММ-ГГГГ, в теле PATCH — «YYYY-MM-DD», потому что сервер разбирает
+ * `birth_date` через time.Parse("2006-01-02") и ничего другого не принимает.
+ * Тест, который проверил бы только экран, пропустил бы поломку контракта.
+ */
+describe("дата рождения — календарь, а не поле ввода", () => {
+  /**
+   * Календарь открывается на СЕГОДНЯШНЕМ месяце, поэтому «два раза назад» — это
+   * май только в июле. Без фиксированного «сейчас» этот тест сломался бы сам
+   * собой в августе, и чинил бы его тот, кто ни при чём.
+   *
+   * `shouldAdvanceTime` обязателен: `waitFor` ниже опрашивает DOM по таймеру,
+   * и с полностью замороженными таймерами он ждал бы вечно.
+   */
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-07-27T12:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
+  it("набрать дату руками негде: поля ввода нет", () => {
+    render(<ProfileForm user={user()} onSave={vi.fn()} />);
+
+    const control = screen.getByLabelText(/^Дата рождения/);
+    // Свободное поле было <input>. Теперь это кнопка, открывающая календарь.
+    expect(control.tagName).not.toBe("INPUT");
+    expect(control.getAttribute("role")).toBe("button");
+  });
+
+  it("сохранённая дата читается как ДД-ММ-ГГГГ, а не как её формат на проводе", () => {
+    render(<ProfileForm user={user({ birthDate: "1990-05-04" })} onSave={vi.fn()} />);
+
+    expect(screen.getByText("04-05-1990")).toBeTruthy();
+    expect(screen.queryByText("1990-05-04")).toBeNull();
+  });
+
+  it("выбранная в календаре дата уходит на сервер в формате «YYYY-MM-DD»", async () => {
+    const onSave = vi.fn(async () => user({ birthDate: "1990-05-04" }));
+    render(<ProfileForm user={user()} onSave={onSave} />);
+
+    // Открываем календарь. Даты нет, поэтому он открывается на списке лет —
+    // иначе до 1990-го пришлось бы пролистать больше четырёхсот месяцев.
+    fireEvent.click(screen.getByLabelText(/^Дата рождения/));
+    fireEvent.click(screen.getByRole("button", { name: "1990" }));
+    // Список лет сменился сеткой дней того же месяца, что был открыт (июль).
+    fireEvent.click(screen.getByRole("button", { name: "Предыдущий месяц" }));
+    fireEvent.click(screen.getByRole("button", { name: "Предыдущий месяц" }));
+    fireEvent.click(screen.getByRole("button", { name: "4" }));
+    fireEvent.click(screen.getByRole("button", { name: "Готово" }));
+
+    // На экране — по-человечески.
+    expect(screen.getByText("04-05-1990")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() => expect(screen.getByText("Сохранено")).toBeTruthy());
+    // На проводе — как требует time.Parse на сервере.
+    expect(onSave).toHaveBeenCalledWith({ birthDate: "1990-05-04" });
+  });
+
+  it("«Отмена» не трогает уже сохранённую дату", () => {
+    render(<ProfileForm user={user({ birthDate: "1990-05-04" })} onSave={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText(/^Дата рождения/));
+    fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
+
+    expect(screen.getByText("04-05-1990")).toBeTruthy();
+  });
+});
+
+describe("форма", () => {
   it("двойное нажатие не отправляет второй запрос", async () => {
     let release: (value: AuthUser) => void = () => {};
     const onSave = vi.fn(
@@ -139,7 +208,10 @@ describe("форма", () => {
   it("телефон показан, но редактировать его нечем — это не поле ввода", () => {
     render(<ProfileForm user={user()} onSave={vi.fn()} />);
 
-    expect(screen.getByText("+77010000000")).toBeTruthy();
+    // Той же маской, что и на входе по номеру: «+77010000000» — формат API, а
+    // не то, что гость набирал и узнаёт.
+    expect(screen.getByText("+7 (701) 000-00-00")).toBeTruthy();
+    expect(screen.queryByText("+77010000000")).toBeNull();
     expect(screen.getByText(/по нему вы входите/)).toBeTruthy();
     // A disabled input would still be an input; there must be none at all.
     expect(screen.queryByLabelText("Телефон")).toBeNull();

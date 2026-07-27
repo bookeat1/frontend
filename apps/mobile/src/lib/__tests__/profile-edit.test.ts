@@ -1,6 +1,7 @@
 import { RepositoryError, type AuthUser } from "@bookeat/api";
 import { describe, expect, it } from "vitest";
 import {
+  birthDateBounds,
   classifyProfileSaveFailure,
   profilePatch,
   validateProfileDraft,
@@ -101,6 +102,48 @@ describe("дата рождения — границы, которые пров�
         birthDate: "birth_date_format",
       });
     }
+  });
+});
+
+/**
+ * REGRESSION GUARD — календарь предлагает день, который форма потом отвергает.
+ *
+ * Дату рождения теперь не набирают, а выбирают в календаре, и календарь
+ * получает диапазон отсюда же. Если `birthDateBounds` и `validateProfileDraft`
+ * разойдутся хотя бы на день, гость получит красную строку за то, что нажал на
+ * активную клетку — то есть за подчинение интерфейсу. Здесь эти два места
+ * сверяются друг с другом на обеих границах.
+ */
+describe("границы календаря совпадают с тем, что примет форма", () => {
+  it("диапазон — от «120 лет назад плюс день» до вчера", () => {
+    expect(birthDateBounds(NOW)).toEqual({ earliest: "1906-07-28", latest: "2026-07-26" });
+  });
+
+  it("обе крайние даты диапазона форма принимает", () => {
+    const { earliest, latest } = birthDateBounds(NOW);
+    expect(validateProfileDraft(draft({ birthDate: earliest }), user(), NOW)).toEqual({});
+    expect(validateProfileDraft(draft({ birthDate: latest }), user(), NOW)).toEqual({});
+  });
+
+  it("день сразу за каждой границей форма отклоняет — значит календарь его гасит", () => {
+    const { earliest, latest } = birthDateBounds(NOW);
+    const dayBefore = (key: string) => {
+      const d = new Date(`${key}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    };
+    const dayAfter = (key: string) => {
+      const d = new Date(`${key}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      return d.toISOString().slice(0, 10);
+    };
+
+    expect(validateProfileDraft(draft({ birthDate: dayBefore(earliest) }), user(), NOW)).toEqual({
+      birthDate: "birth_date_too_old",
+    });
+    expect(validateProfileDraft(draft({ birthDate: dayAfter(latest) }), user(), NOW)).toEqual({
+      birthDate: "birth_date_not_past",
+    });
   });
 });
 
