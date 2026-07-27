@@ -4,6 +4,9 @@ on:
   push:
     branches: [develop, main]
   pull_request:
+  # Called by deploy-admin-test.yml so the deploy is gated on exactly these
+  # checks, rather than on a second copy of them that could drift.
+  workflow_call:
 
 jobs:
   check:

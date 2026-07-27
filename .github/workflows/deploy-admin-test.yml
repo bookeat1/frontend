@@ -1,0 +1,194 @@
+name: Deploy admin panel (test)
+
+# Builds the venue panel's static export and publishes it on the test server
+# under /admin-preview. Production is deliberately not reachable from here.
+#
+# The build is gated on the same checks that run on every pull request: the
+# `checks` job below calls .github/workflows/ci.yml, so a red typecheck, lint or
+# test run stops the deploy before anything is uploaded.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "apps/admin/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/deploy-admin-test.yml"
+      - ".github/workflows/ci.yml"
+      - "deploy/admin-test/**"
+  workflow_dispatch:
+
+concurrency:
+  # Never cancel a deploy that is mid-swap; queue instead.
+  group: deploy-admin-test
+  cancel-in-progress: false
+
+env:
+  # Not secrets: both values end up verbatim in the shipped JavaScript bundle.
+  # Pinning them here means the artifact is reproducible from the repository
+  # alone instead of from whatever the person deploying happened to export.
+  NEXT_PUBLIC_API_URL: https://test.backend.book-eat.com/api/v1
+  NEXT_PUBLIC_BASE_PATH: /admin-preview
+  PUBLIC_URL: https://test.backend.book-eat.com
+  PREVIEW_ROOT: /opt/bookeat/preview
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Fail early if the deploy secrets are missing
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          TEST_SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          TEST_SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          TEST_VAPID_PUBLIC_KEY: ${{ secrets.TEST_VAPID_PUBLIC_KEY }}
+        run: |
+          missing=""
+          for name in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS TEST_SSH_HOST TEST_SSH_USER TEST_VAPID_PUBLIC_KEY; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — see docs/runbook-admin.md in bookeat1/backend"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Name this release
+        id: release
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the static export
+        env:
+          # A public VAPID key by definition, but it has to match the server's
+          # PUSH_VAPID_PUBLIC_KEY, so it is kept out of the repository.
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.TEST_VAPID_PUBLIC_KEY }}
+        run: pnpm --filter @bookeat/admin build
+
+      - name: Assert the artifact is actually a deployable static export
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          out=apps/admin/out
+          [ -d "$out" ] || {
+            echo "::error::No apps/admin/out — next.config.mjs is missing output: \"export\". This needs bookeat1/frontend PR #16 (fix/admin-session-refresh-and-basepath) merged into develop."
+            exit 1
+          }
+          for f in index.html sw.js login/index.html settings/index.html; do
+            [ -f "$out/$f" ] || { echo "::error::$out/$f missing from the build"; exit 1; }
+          done
+          grep -q "/admin-preview/_next/" "$out/login/index.html" || {
+            echo "::error::Built pages do not reference /admin-preview/_next — basePath was not applied. NEXT_PUBLIC_BASE_PATH is read at BUILD time by next.config.mjs; it cannot be injected later. Needs PR #16 merged."
+            exit 1
+          }
+          grep -rq "$NEXT_PUBLIC_API_URL" "$out/_next/static/chunks" || {
+            echo "::error::The API base URL is not baked into the bundle; the panel would not be able to log in."
+            exit 1
+          }
+          # Served as /admin-preview/release.txt, so the verification step below
+          # can prove the swap took effect instead of just proving something is up.
+          printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$out/release.txt"
+
+      - name: Set up the SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload the release next to the live one
+        id: upload
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          incoming="$PREVIEW_ROOT/admin-releases/.incoming-$RELEASE"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "mkdir -p '$PREVIEW_ROOT/admin-releases' '$PREVIEW_ROOT/bin' && rm -rf '$incoming'"
+          rsync -az --delete -e "ssh $ssh_opts" apps/admin/out/ "$SSH_USER@$SSH_HOST:$incoming/"
+          rsync -az -e "ssh $ssh_opts" deploy/admin-test/release.sh deploy/admin-test/rollback.sh \
+            "$SSH_USER@$SSH_HOST:$PREVIEW_ROOT/bin/"
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "chmod 755 '$PREVIEW_ROOT/bin/release.sh' '$PREVIEW_ROOT/bin/rollback.sh'"
+
+      - name: Swap the symlink
+        id: swap
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "PREVIEW_ROOT='$PREVIEW_ROOT' DEPLOY_ACTOR='$GITHUB_ACTOR' '$PREVIEW_ROOT/bin/release.sh' '$RELEASE'"
+
+      - name: Verify the panel is actually up and actually new
+        id: verify
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -uo pipefail
+          fail=0
+          for path in /admin-preview/ /admin-preview/sw.js /admin-preview/login/; do
+            code=""
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$PUBLIC_URL$path" || echo 000)
+              [ "$code" = "200" ] && break
+              sleep 3
+            done
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::$PUBLIC_URL$path returned $code, expected 200"; fail=1; }
+          done
+          served=$(curl -s --max-time 15 "$PUBLIC_URL/admin-preview/release.txt" | head -1 || true)
+          echo "release.txt -> ${served:-<empty>} (expected $RELEASE)"
+          if [ "$served" != "$RELEASE" ]; then
+            echo "::error::The server is not serving this release. Expected $RELEASE, got '${served:-nothing}' — the symlink swap did not take effect."
+            fail=1
+          fi
+          [ "$fail" = "0" ] || exit 1
+          echo "Panel is up and serving $RELEASE"
+
+      - name: Roll back to the previous release
+        if: failure() && steps.swap.outcome == 'success'
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          echo "::warning::Verification failed; rolling the symlink back to the previous release."
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "PREVIEW_ROOT='$PREVIEW_ROOT' '$PREVIEW_ROOT/bin/rollback.sh'"
+          for path in /admin-preview/ /admin-preview/sw.js; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$PUBLIC_URL$path" || echo 000)
+            echo "after rollback $path -> $code"
+          done
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
