@@ -6,6 +6,7 @@ import { AdminApiError } from "@bookeat/api/admin";
 
 import { useAuth } from "@/lib/auth-context";
 import { isApiConfigured } from "@/lib/api";
+import { SESSION_EXPIRED_REASON } from "@/lib/base-path";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
 
@@ -16,6 +17,15 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [expired, setExpired] = useState(false);
+
+  // Whoever sent us here says why in the query string. Read from `location`
+  // rather than useSearchParams: this page is statically exported, and the hook
+  // would force the whole screen into a Suspense boundary for one flag.
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("reason");
+    setExpired(reason === SESSION_EXPIRED_REASON);
+  }, []);
 
   // Already signed in -> leave the login page.
   useEffect(() => {
@@ -48,6 +58,12 @@ export function LoginScreen() {
       <div className="w-full max-w-[400px] rounded-card bg-surface p-huge shadow-sm">
         <h1 className="text-xl font-bold text-text">{t.admin.login.title}</h1>
         <p className="mt-sm text-sm text-text-muted">{t.admin.login.subtitle}</p>
+
+        {expired ? (
+          <p role="status" className="mt-lg rounded-card bg-amber-50 p-md text-sm text-amber-900">
+            {t.admin.login.sessionExpired}
+          </p>
+        ) : null}
 
         {!isApiConfigured ? (
           <p className="mt-lg rounded-card bg-rose-50 p-md text-sm text-rose-700">
