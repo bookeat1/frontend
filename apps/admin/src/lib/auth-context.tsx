@@ -13,7 +13,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import type { AuthUser } from "@bookeat/api/admin";
 
-import { apiClient, clearSession, STORAGE_KEYS } from "./api";
+import { apiClient, clearSession, session, STORAGE_KEYS } from "./api";
 
 /** The restaurant the panel is currently operating on. Picked from
  * GET /admin/my-restaurants (see RestaurantPicker) and kept in localStorage so
@@ -84,8 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     selectedIdRef.current = null;
     queryClient.clear();
     const pair = await apiClient.login(email.trim(), password);
-    window.localStorage.setItem(STORAGE_KEYS.accessToken, pair.access_token);
-    window.localStorage.setItem(STORAGE_KEYS.refreshToken, pair.refresh_token);
+    // The session owns token storage — it also records `expires_at`, which is
+    // what lets it renew the token before the shift is interrupted.
+    session.store(pair);
     // getToken now returns the fresh token, so getMe is authorized.
     const user = await apiClient.getMe();
     window.localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
