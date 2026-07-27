@@ -39,8 +39,14 @@ pnpm --filter @bookeat/mobile web
 ```bash
 pnpm run typecheck   # tsc --noEmit across apps/* and packages/*
 pnpm run lint        # eslint on apps/mobile
+pnpm run test        # vitest, whole monorepo, single deterministic run
+pnpm run check       # all three, in that order
 pnpm --filter @bookeat/mobile export   # expo export, headless build check
 ```
+
+Tests live next to what they cover, in `__tests__` folders. **A bug fix comes
+with the test that would have caught it** — see [TESTING.md](./TESTING.md) for
+the runner, the conventions and what is deliberately not covered.
 
 ## Data layer
 

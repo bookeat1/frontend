@@ -5,6 +5,15 @@
   "scripts": {
     "mobile": "pnpm --filter @bookeat/mobile",
     "typecheck": "pnpm -r --filter=./apps/* --filter=./packages/* exec tsc --noEmit",
-    "lint": "pnpm --filter @bookeat/mobile lint"
+    "lint": "pnpm --filter @bookeat/mobile lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^25.0.1",
+    "vitest": "^3.2.7"
   }
 }
