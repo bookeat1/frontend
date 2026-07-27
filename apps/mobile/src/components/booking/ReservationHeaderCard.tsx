@@ -43,7 +43,7 @@ export function ReservationHeaderCard({
           загрузилось» здесь одинаково выглядят как ровный нейтральный
           квадрат, ровно как выглядели раньше. Название заведения стоит
           прямо под ним. */}
-      <PhotoView uri={photoUri} style={styles.avatar} decorative placeholderIcon={false} />
+      <PhotoView uri={photoUri} style={styles.avatar} size="tile" decorative placeholderIcon={false} />
 
       {restaurant?.name ? (
         // Long RU venue names are real ("Fusion Rooftop на очень-очень длинной
