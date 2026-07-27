@@ -1,90 +1,178 @@
-# BookEat — frontend monorepo
+# BookEat — frontend
 
-Mobile app (Expo / React Native / TypeScript) with a structure ready for a
-future Next.js web app to sit alongside it.
-
-## Layout
+Мобильное приложение гостя (Expo / React Native / TypeScript) и панель заведения
+(Next.js) в одном репозитории.
 
 ```
 apps/
-  mobile/            Expo app (expo-router), screens & app-specific components
+  mobile/            приложение гостя (Expo, expo-router)
+  admin/             панель заведения (Next.js)
 packages/
-  design-tokens/      Colors, spacing, typography — no magic numbers in screens
-  i18n/               RU dictionary (kk/en to be added later, same shape)
-  api/                Domain types + RestaurantRepository interface + mock impl
+  api/               типы, репозиторий и HTTP-клиент к бэкенду
+  design-tokens/     цвета, отступы, типографика
+  i18n/              словарь (сейчас русский)
 ```
 
-## Requirements
+---
 
-- Node 20+, pnpm (via corepack: `corepack enable && corepack prepare pnpm@latest --activate`,
-  or `npm i -g pnpm` if corepack can't symlink in your environment)
+# Запуск у себя за 10 минут
 
-## Setup
+Инструкция для тех, кто будет смотреть и тестировать приложение.
+Команды копируются как есть.
+
+## 1. Что поставить заранее
+
+**Node 20 или новее.** Проверить: `node -v`. Если нет — поставить LTS с nodejs.org.
+
+**pnpm** — обычным npm проект не соберётся:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.34.5 --activate
+```
+
+Если corepack не может, есть запасной путь: `npm i -g pnpm@10.34.5`
+Проверить: `pnpm -v` → 10.34.5
+
+**Для телефона:** приложение **Expo Go** из App Store или Google Play.
+Телефон и компьютер должны быть в одной сети Wi-Fi.
+
+## 2. Скачать проект
+
+```bash
+git clone https://github.com/bookeat1/frontend.git
+cd frontend
+```
+
+## 3. Установить зависимости
 
 ```bash
 pnpm install
 ```
 
-## Run
+Первый раз — пара минут. Предупреждения про peer dependencies не страшны,
+важно, чтобы в конце было `Done`.
+
+## 4. Указать сервер
 
 ```bash
-pnpm --filter @bookeat/mobile start   # Expo dev server (scan QR with Expo Go)
-pnpm --filter @bookeat/mobile android
-pnpm --filter @bookeat/mobile ios
-pnpm --filter @bookeat/mobile web
+cp apps/mobile/.env.example apps/mobile/.env
 ```
 
-## Checks
+Файл уже настроен на тестовый сервер, менять ничего не нужно.
+
+**Шаг обязательный.** Без файла `.env` приложение поднимется на выдуманных данных:
+вы увидите заведения, которых не существует, и решите, что смотрите настоящий каталог.
+
+## 5. Запустить
 
 ```bash
-pnpm run typecheck   # tsc --noEmit across apps/* and packages/*
-pnpm run lint        # eslint on apps/mobile
-pnpm run test        # vitest, whole monorepo, single deterministic run
-pnpm run check       # all three, in that order
-pnpm --filter @bookeat/mobile export   # expo export, headless build check
+pnpm mobile start
 ```
 
-Tests live next to what they cover, in `__tests__` folders. **A bug fix comes
-with the test that would have caught it** — see [TESTING.md](./TESTING.md) for
-the runner, the conventions and what is deliberately not covered.
+В терминале появится QR-код.
 
-## Data layer
+- **На телефоне:** открыть Expo Go и отсканировать QR. На iPhone — обычной камерой.
+- **В браузере:** нажать `w`. Быстро, но это не то же самое, что телефон: шрифты,
+  жесты и клавиатура ведут себя иначе.
+- **В симуляторе iOS** (macOS + Xcode): нажать `i`.
+- **В эмуляторе Android** (Android Studio): нажать `a`.
 
-All screens read data through `useRepository()` (`apps/mobile/src/lib/repository.tsx`).
-Which implementation is live is decided by one environment variable:
+Остановить — `Ctrl+C`.
+
+---
+
+# Если что-то пошло не так
+
+**Expo Go пишет, что версия не поддерживается.**
+В сторах живёт одна версия Expo Go, и она должна совпадать с версией проекта (SDK 57).
+Обновите Expo Go из стора. Если в сторе версия новее проекта — запускайте в браузере
+(`w`) и напишите нам.
+
+**QR отсканировался, но приложение не грузится.**
+Телефон и компьютер должны быть в одной сети. Публичный или корпоративный Wi-Fi часто
+блокирует такие соединения — раздайте интернет с телефона и подключите к нему компьютер.
+
+**Пустой каталог или незнакомые названия заведений.**
+Не создан `apps/mobile/.env` — см. шаг 4. Приложение работает на выдуманных данных.
+
+**Не приходит код при входе по номеру телефона.**
+Так и задумано: на тестовом сервере отправка кодов выключена, экран об этом
+предупреждает. Пройти дальше ввода номера сейчас нельзя, это не ваша ошибка.
+
+**Ошибки установки после обновления проекта.**
 
 ```bash
-# apps/mobile/.env — see .env.example
-EXPO_PUBLIC_API_URL=https://test.backend.book-eat.com/api/v1
+rm -rf node_modules apps/*/node_modules packages/*/node_modules
+pnpm install
 ```
 
-- **set** → `HttpRestaurantRepository`, real backend-core data;
-- **unset/blank** → `MockRestaurantRepository`, the app runs with zero backend setup.
+**Непонятные ошибки на ровном месте.**
 
-Both implement the same `RestaurantRepository` interface, so no screen knows which
-one it's talking to.
+```bash
+pnpm mobile start -- --clear
+```
 
-What the real backend does and doesn't cover today (see `packages/api/src/unknown-data.ts`
-for the authoritative, per-field list):
+Очищает кэш сборщика. Помогает чаще, чем кажется.
 
-| Screen data | Source |
-|---|---|
-| Каталог, поиск, фильтры кухни/города/цены | `GET /restaurants`, `GET /restaurants/search`, `GET /cities` |
-| Карточка заведения, часы, контакты, соцсети | `GET /restaurants/:id` |
-| Рейтинг и число отзывов | `GET /restaurants/:id/reviews/summary` |
-| «Популярное в меню» | `GET /restaurants/:id/menu` |
-| Акции | `GET /restaurants/:id/promos` (без картинок — их нет в API) |
-| Расстояние, превью карты, столики, подсказки поиска | заглушки, полей в API нет |
+---
 
-Cuisines come from the venues' free-text `cuisine_type`, **not** from
-`GET /restaurant-categories` — that endpoint is empty on the live catalog and no
-venue carries a `category_id`.
+# Что тестировщику знать заранее
 
-## Known gaps (see PR description for full list)
+Данные на тестовом сервере настоящие, но неполные. Это не баги приложения:
 
-- Figma MCP tools were unavailable in the session that built this scaffold, so
-  screens follow the text spec (node names/sizes/section structure), not a
-  pixel-accurate readout of the actual file. Colors/spacing/exact copy need a
-  design review pass against fileKey `7rBjjTjp4FbxV9SCJmypWF`.
-- Photos are placeholder `picsum.photos` images, not the real exported Figma assets.
-- App icon/splash are Expo's stock placeholders, not the BookEat brand.
+- забронировать можно не везде — у части заведений не заведены столы,
+  в их карточках стоит «Только по телефону»;
+- у части заведений и блюд нет фотографий;
+- события появятся в ленте, когда их опубликуют;
+- карта на экране брони не отображается: не подключён ключ картографического сервиса.
+
+Всё остальное — поиск, карточка заведения, меню, бронирование, отмена, избранное,
+профиль — работает на живых данных.
+
+Найденное описывайте так: что нажали, что ожидали увидеть, что увидели.
+Скриншот экрана целиком помогает больше, чем описание словами.
+
+---
+
+# Разработчику
+
+```bash
+pnpm run typecheck     # типы во всех пакетах
+pnpm run lint          # линтер
+pnpm run test          # тесты (vitest)
+pnpm run check         # всё вместе, как в CI
+```
+
+CI гоняет эти же проверки на каждый push и pull request.
+
+Тесты живут рядом с тем, что покрывают, в папках `__tests__`. Правило простое:
+**исправление бага приезжает вместе с тестом, который этот баг ловит.** Подробности,
+конвенции и список того, что сознательно не покрыто, — в [TESTING.md](./TESTING.md).
+
+Сборка веб-версии:
+
+```bash
+cd apps/mobile
+CI=1 EXPO_PUBLIC_API_URL=https://test.backend.book-eat.com/api/v1 pnpm exec expo export --platform web
+```
+
+Панель заведения:
+
+```bash
+pnpm --filter @bookeat/admin dev
+```
+
+## Слой данных
+
+Экраны ходят за данными через `useRepository()` (`apps/mobile/src/lib/repository.tsx`).
+Какая реализация активна, решает одна переменная окружения:
+
+- `EXPO_PUBLIC_API_URL` задана → `HttpRestaurantRepository`, живой бэкенд;
+- не задана → `MockRestaurantRepository`, выдуманные данные без всякой настройки.
+
+Обе реализуют один интерфейс, поэтому ни один экран не знает, с кем разговаривает.
+
+Чего в API пока нет и что поэтому остаётся заглушками — перечислено по полям
+в `packages/api/src/unknown-data.ts`. Правило: если данных нет, приложение говорит
+«не знаю», а не придумывает правдоподобное значение.
