@@ -27,6 +27,8 @@ import type {
   RestaurantProfile,
   TokenPair,
   TopRestaurant,
+  VenueDashboardSummary,
+  VenueLoadSlot,
 } from "./types";
 
 /** Every backend response is wrapped in this envelope (response.Envelope). */
@@ -253,6 +255,34 @@ export class AdminApiClient {
       { params: { from: period.from, to: period.to, by, limit } },
     );
     return res?.restaurants ?? [];
+  }
+
+  // ---- Venue dashboard -----------------------------------------------------
+
+  /** GET /restaurants/:id/dashboard/summary — the venue's own counters. */
+  venueDashboardSummary(
+    restaurantId: string,
+    period: PlatformPeriod = {},
+  ): Promise<VenueDashboardSummary> {
+    return this.request<VenueDashboardSummary>(
+      "GET",
+      `/restaurants/${restaurantId}/dashboard/summary`,
+      { params: { from: period.from, to: period.to } },
+    );
+  }
+
+  /** GET /restaurants/:id/dashboard/load — occupancy by weekday and hour.
+   * Unwraps the `{slots: [...]}` envelope. */
+  async venueDashboardLoad(
+    restaurantId: string,
+    period: PlatformPeriod = {},
+  ): Promise<VenueLoadSlot[]> {
+    const res = await this.request<{ slots: VenueLoadSlot[] }>(
+      "GET",
+      `/restaurants/${restaurantId}/dashboard/load`,
+      { params: { from: period.from, to: period.to } },
+    );
+    return res?.slots ?? [];
   }
 
   // ---- Events --------------------------------------------------------------
