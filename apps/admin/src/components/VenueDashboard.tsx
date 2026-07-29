@@ -18,15 +18,20 @@ const STATUS_LABEL: Record<string, string> = {
   no_show: "Не пришли",
 };
 
-/** Reason codes the app sends today. An unknown code shows as itself rather
- * than disappearing, and an EMPTY one is the count nobody explained — the row
- * a venue most needs to see, so it is labelled, not hidden. */
+/** Reason codes the guest app actually sends, copied from its own dictionary
+ * (book-eat-app src/i18n/translations/ru.ts, cancelReason) rather than guessed
+ * — the first version of this map invented plausible names and the screen
+ * showed raw codes to staff.
+ *
+ * An unknown code still renders as itself instead of disappearing, and the
+ * EMPTY one is the count nobody explained: the row a venue most needs to see,
+ * so it is labelled, never hidden. */
 const REASON_LABEL: Record<string, string> = {
   "": "Причина не указана",
-  changed_plans: "Изменились планы",
-  found_another_place: "Выбрали другое место",
-  wrong_time: "Ошиблись со временем",
-  restaurant_request: "По просьбе заведения",
+  plans_changed: "Изменились планы",
+  found_another: "Выбрали другой ресторан",
+  wrong_details: "Ошибка в деталях брони",
+  restaurant_issue: "Проблема с рестораном",
   other: "Другое",
 };
 
