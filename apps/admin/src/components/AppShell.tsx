@@ -15,6 +15,10 @@ interface NavItem {
   label: string;
   /** Deferred screens are shown but disabled (backend not ready). */
   soon?: boolean;
+  /** Platform-wide screens: hidden from venue staff, who would only get a 403
+   * behind them. The backend gates them regardless — this is about not showing
+   * a door that is not theirs. */
+  adminOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -25,6 +29,7 @@ const NAV: NavItem[] = [
   { href: "/promos", label: t.admin.nav.promos },
   { href: "/guests", label: t.admin.nav.guests },
   { href: "/settings", label: t.admin.nav.settings },
+  { href: "/platform", label: "Платформа", adminOnly: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -41,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav aria-label="Основная навигация" className="flex gap-xs overflow-x-auto px-md pb-md md:flex-col md:overflow-visible">
-          {NAV.map((item) => {
+          {NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             if (item.soon) {
               return (
