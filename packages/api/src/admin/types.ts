@@ -429,3 +429,48 @@ export interface PlatformPeriod {
   from?: string;
   to?: string;
 }
+
+// ---- Venue dashboard (one restaurant's own numbers) -------------------------
+//
+// Separate from the platform dashboard above: these are venue-scoped, gated by
+// RequireRestaurantManager, and answer "how is MY venue doing" rather than "how
+// is BookEat doing".
+
+/** One status bucket of the venue's bookings. */
+export interface VenueStatusCount {
+  status: string;
+  count: number;
+}
+
+/** One row of the cancellation breakdown. An EMPTY reason is not missing data:
+ * it is the count of cancellations nobody gave a reason for, which is usually
+ * the largest row and the one worth acting on. */
+export interface VenueCancelReason {
+  reason: string;
+  count: number;
+}
+
+/** GET /restaurants/:id/dashboard/summary. */
+export interface VenueDashboardSummary {
+  from: string;
+  to: string;
+  total: number;
+  by_status: VenueStatusCount[];
+  /** Cancelled + no-show as a percentage of total, one decimal. 0 when the
+   * period had no bookings — never a division by zero. */
+  cancelled_share: number;
+  avg_party_size: number;
+  cancel_reasons: VenueCancelReason[];
+  preorder_bookings: number;
+  /** Integer minor units (tiyn), like every other amount in this API. */
+  preorder_total_minor: number;
+}
+
+/** One cell of the load chart. weekday follows time.Weekday (0 = Sunday), the
+ * same convention the schedule screen uses. Hour is the venue's LOCAL hour. */
+export interface VenueLoadSlot {
+  weekday: number;
+  hour: number;
+  bookings: number;
+  guests: number;
+}
