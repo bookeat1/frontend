@@ -129,10 +129,14 @@ export function PlatformDashboard() {
           <LoadingState />
         ) : bookings.isError ? (
           <ErrorState onRetry={() => bookings.refetch()} />
-        ) : bookings.data && Object.keys(bookings.data.by_status).length > 0 ? (
+        ) : bookings.data && bookings.data.by_status.length > 0 ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {Object.entries(bookings.data.by_status).map(([status, count]) => (
-              <Card key={status} title={STATUS_LABEL[status] ?? status} value={String(count)} />
+            {bookings.data.by_status.map((row) => (
+              <Card
+                key={row.status}
+                title={STATUS_LABEL[row.status] ?? row.status}
+                value={String(row.count)}
+              />
             ))}
           </div>
         ) : (

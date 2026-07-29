@@ -47,7 +47,7 @@ describe("platform dashboard client", () => {
 
   it("omits an empty period instead of sending blank dates", async () => {
     const capture: { url?: string } = {};
-    const api = clientWith({ from: "", to: "", by_status: {} }, capture);
+    const api = clientWith({ from: "", to: "", total: 0, by_status: [] }, capture);
 
     await api.platformBookings({});
 
@@ -58,12 +58,35 @@ describe("platform dashboard client", () => {
 
   it("passes the period through when it is given", async () => {
     const capture: { url?: string } = {};
-    const api = clientWith({ from: "", to: "", by_status: {} }, capture);
+    const api = clientWith({ from: "", to: "", total: 0, by_status: [] }, capture);
 
     await api.platformBookings({ from: "2026-07-01", to: "2026-07-29" });
 
     expect(capture.url).toContain("from=2026-07-01");
     expect(capture.url).toContain("to=2026-07-29");
+  });
+
+  it("reads the status breakdown as an array, not a map", async () => {
+    // The backend builds by_status as []gin.H{{status, count}} (dashboard
+    // handler). Typing it as a map made every card render "[object Object]"
+    // titled with an array index, and typescript could not catch it because the
+    // shape only exists at runtime.
+    const api = clientWith({
+      from: "",
+      to: "",
+      total: 3,
+      by_status: [
+        { status: "confirmed", count: 2 },
+        { status: "cancelled", count: 1 },
+      ],
+    });
+
+    const got = await api.platformBookings({});
+
+    expect(Array.isArray(got.by_status)).toBe(true);
+    expect(got.by_status[0].status).toBe("confirmed");
+    expect(got.by_status[0].count).toBe(2);
+    expect(got.total).toBe(3);
   });
 
   it("keeps money in integer minor units", async () => {
