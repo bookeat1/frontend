@@ -19,9 +19,14 @@ import type {
   Schedule,
   ScheduleOverrideInput,
   PromoInput,
+  PlatformBookings,
+  PlatformOverview,
+  PlatformPayments,
+  PlatformPeriod,
   PushSubscriptionInput,
   RestaurantProfile,
   TokenPair,
+  TopRestaurant,
 } from "./types";
 
 /** Every backend response is wrapped in this envelope (response.Envelope). */
@@ -204,6 +209,48 @@ export class AdminApiClient {
     const res = await this.request<{ restaurants: MyRestaurant[] }>(
       "GET",
       "/admin/my-restaurants",
+    );
+    return res?.restaurants ?? [];
+  }
+
+  // ---- Platform dashboard (superadmin) -------------------------------------
+  //
+  // Platform-wide, NOT venue-scoped: the backend gates these on the global
+  // admin role and they take no restaurant id. A staff member of one venue
+  // gets 403, which is the intended answer, not an error to work around.
+
+  /** GET /admin/dashboard/overview — counters with no period. */
+  platformOverview(): Promise<PlatformOverview> {
+    return this.request<PlatformOverview>("GET", "/admin/dashboard/overview");
+  }
+
+  /** GET /admin/dashboard/bookings — booking counts by status over a period.
+   * Omitting the period lets the backend apply its own window. */
+  platformBookings(period: PlatformPeriod = {}): Promise<PlatformBookings> {
+    return this.request<PlatformBookings>("GET", "/admin/dashboard/bookings", {
+      params: { from: period.from, to: period.to },
+    });
+  }
+
+  /** GET /admin/dashboard/payments — captured and refunded volume. Amounts come
+   * back in minor units and stay integers all the way to the formatter. */
+  platformPayments(period: PlatformPeriod = {}, currency?: string): Promise<PlatformPayments> {
+    return this.request<PlatformPayments>("GET", "/admin/dashboard/payments", {
+      params: { from: period.from, to: period.to, currency },
+    });
+  }
+
+  /** GET /admin/dashboard/top-restaurants — leaderboard by bookings or GMV.
+   * Unwraps the `{restaurants: [...]}` envelope like listMyRestaurants does. */
+  async platformTopRestaurants(
+    period: PlatformPeriod = {},
+    by: "bookings" | "gmv" = "bookings",
+    limit = 10,
+  ): Promise<TopRestaurant[]> {
+    const res = await this.request<{ restaurants: TopRestaurant[] }>(
+      "GET",
+      "/admin/dashboard/top-restaurants",
+      { params: { from: period.from, to: period.to, by, limit } },
     );
     return res?.restaurants ?? [];
   }
