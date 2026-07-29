@@ -381,11 +381,20 @@ export interface PlatformOverview {
   bookings_last_30_days: number;
 }
 
+/** One row of the status breakdown. The backend returns an ARRAY of
+ * {status, count} objects, not a status->count map — writing it as a map
+ * rendered every card as "[object Object]" with an array index for a title. */
+export interface PlatformBookingStatus {
+  status: string;
+  count: number;
+}
+
 /** GET /admin/dashboard/bookings. Counts by booking status over a period. */
 export interface PlatformBookings {
   from: string;
   to: string;
-  by_status: Record<string, number>;
+  total: number;
+  by_status: PlatformBookingStatus[];
 }
 
 /** One side of the money report. Amounts are integer MINOR units (tiyn), never
