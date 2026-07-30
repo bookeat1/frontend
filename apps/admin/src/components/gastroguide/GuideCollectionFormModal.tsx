@@ -12,11 +12,14 @@ import { guideErrorMessage } from "./guide-copy";
 
 const copy = t.admin.gastroguide;
 
-/** Cities the platform knows (domain.City). Kept as a literal list because the
- * catalog stores the city as a VARCHAR and there is no cities endpoint the panel
- * could read them from — GET /cities returns the guest-facing city cards, not
- * the enum. */
-const CITIES = ["Астана", "Алматы", "Шымкент"];
+/** Cities the platform knows. This list must match domain.Cities() on the
+ * backend exactly: the editor's create and update both refuse anything else
+ * with 422, and the panel has no message for that failure, so a city offered
+ * here but unknown there is a dead end for the editor.
+ *
+ * "Шымкент" used to be in this list and is not a known city: picking it made
+ * saving impossible. When a city is added on the backend, add it here too. */
+const CITIES = ["Астана", "Алматы"];
 
 /** Same rule the server applies (usecase/gastroguide slugPattern): lowercase
  * latin, digits, single hyphens. Checked here for the message, never trusted —
