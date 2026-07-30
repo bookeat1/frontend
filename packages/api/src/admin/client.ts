@@ -36,6 +36,8 @@ import type {
   VenueDashboardSummary,
   VenueLoadSlot,
   VenueSearchResult,
+  VenueToday,
+  VenueTodayParams,
 } from "./types";
 
 /** Every backend response is wrapped in this envelope (response.Envelope). */
@@ -290,6 +292,32 @@ export class AdminApiClient {
       { params: { from: period.from, to: period.to } },
     );
     return res?.slots ?? [];
+  }
+
+  /**
+   * GET /restaurants/:id/dashboard/today — what still needs an answer and what
+   * the venue's local day looks like. No period: the server owns "today".
+   *
+   * The arrays are defaulted so a screen never has to guard `?.map` — the Go
+   * handler always sends them, but a proxy that swallows the body should not
+   * turn into a crash on the panel's landing page.
+   */
+  async venueDashboardToday(
+    restaurantId: string,
+    params: VenueTodayParams = {},
+  ): Promise<VenueToday> {
+    const res = await this.request<VenueToday>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}/dashboard/today`,
+      { params: { awaiting_limit: params.awaiting_limit, today_limit: params.today_limit } },
+    );
+    return {
+      awaiting: res?.awaiting ?? [],
+      awaiting_total: res?.awaiting_total ?? 0,
+      today: res?.today ?? [],
+      today_total: res?.today_total ?? 0,
+      guests: res?.guests ?? 0,
+    };
   }
 
   // ---- Events --------------------------------------------------------------

@@ -11,6 +11,11 @@ export {
   type CapacitySwitchFailureKind,
 } from "./capacity-switch";
 export {
+  classifyBookingActionFailure,
+  type BookingActionFailure,
+  type BookingActionFailureKind,
+} from "./booking-action";
+export {
   classifyGuideFailure,
   type GuideFailure,
   type GuideFailureKind,

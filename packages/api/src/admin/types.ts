@@ -475,6 +475,63 @@ export interface VenueLoadSlot {
   guests: number;
 }
 
+/**
+ * One row of GET /restaurants/:id/dashboard/today
+ * (venuedashboard.todayRows / domain.VenueTodayBooking).
+ *
+ * Deliberately NOT an AdminBooking: the read model returns only the eight
+ * fields the operational screen renders, so a row here has no email, source,
+ * notes or cancellation fields. Do not widen it to AdminBooking "for
+ * convenience" — the server does not send the rest.
+ */
+export interface VenueTodayBooking {
+  id: string;
+  /** RFC3339 instant when the guest is expected. */
+  starts_at: string;
+  name: string;
+  /** The raw phone the guest typed — dial it, do not re-format it into
+   * something the venue cannot compare with what the guest reads back. */
+  phone: string;
+  guests: number;
+  status: BookingStatus;
+  /** RFC3339 instant the request arrived — the clock waiting_minutes runs on. */
+  created_at: string;
+  /**
+   * Whole minutes between created_at and the moment the SERVER rendered the
+   * view, so every device agrees. Never negative. Meaningful for `awaiting`
+   * rows; on an answered booking it is merely the age of the record.
+   */
+  waiting_minutes: number;
+}
+
+/**
+ * GET /restaurants/:id/dashboard/today — the operational top of the venue
+ * panel. Takes no period: "today" is the venue's own local calendar day,
+ * resolved server-side against the venue timezone.
+ */
+export interface VenueToday {
+  /** Requests still unanswered (status `pending`), OLDEST FIRST — and not only
+   * today's: a request for Saturday needs an answer now. */
+  awaiting: VenueTodayBooking[];
+  /** How many unanswered requests exist BEFORE `awaiting_limit` truncated the
+   * list — the number the badge shows. */
+  awaiting_total: number;
+  /** Every live booking of the venue's local day, in time order. Cancelled
+   * ones are left out; no-shows and completed ones stay. */
+  today: VenueTodayBooking[];
+  today_total: number;
+  /** Heads expected across the WHOLE local day, not just the rows above: a
+   * truncated list must not shrink the headcount with it. */
+  guests: number;
+}
+
+/** Optional limits on the today view. Absent means the server default
+ * (20 awaiting / 50 today); a non-positive value is a 422, not a default. */
+export interface VenueTodayParams {
+  awaiting_limit?: number;
+  today_limit?: number;
+}
+
 // ---- Gastroguide (superadmin editor) ---------------------------------------
 
 /**

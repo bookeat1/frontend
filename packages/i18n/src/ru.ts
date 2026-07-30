@@ -11,6 +11,27 @@ function guestsWord(count: number): string {
   return "гостей";
 }
 
+/** Русская форма слова «бронь» для числа. Как и `guestsWord`, склонение —
+ * часть словаря, а не разметки. */
+function bookingsWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "броней";
+  if (mod10 === 1) return "бронь";
+  if (mod10 >= 2 && mod10 <= 4) return "брони";
+  return "броней";
+}
+
+/** Русская форма слова «день» для числа: 1 день, 2 дня, 5 дней. */
+function daysWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "дней";
+  if (mod10 === 1) return "день";
+  if (mod10 >= 2 && mod10 <= 4) return "дня";
+  return "дней";
+}
+
 export const ru = {
   common: {
     back: "Назад",
@@ -320,6 +341,44 @@ export const ru = {
       noShow: "Не пришёл",
       actionFailed: "Не удалось изменить бронь",
       total: (n: number) => `Всего: ${n}`,
+    },
+    /** Оперативная часть главной панели: что требует ответа прямо сейчас и
+     * что происходит сегодня. Читает это хостес посреди смены, поэтому
+     * формулировки короткие и без терминов. */
+    today: {
+      awaitingTitle: "Требуют ответа",
+      awaitingMore: (n: number) => `ещё ${n} →`,
+      confirm: "Подтвердить",
+      reject: "Отклонить",
+      callAria: (name: string) => `Позвонить: ${name}`,
+      /** «ждёт 7 мин» — сколько заявка висит без ответа. */
+      waiting: (duration: string) => `ждёт ${duration}`,
+      waitingMinutes: (n: number) => `${n} мин`,
+      waitingHours: (h: number) => `${h} ч`,
+      waitingHoursMinutes: (h: number, m: number) => `${h} ч ${m} мин`,
+      waitingDays: (d: number) => `${d} ${daysWord(d)}`,
+      dayToday: "сегодня",
+      dayTomorrow: "завтра",
+      todayTitle: "Сегодня",
+      todaySubtitle: (bookings: number, guests: number) =>
+        `${bookings} ${bookingsWord(bookings)} · ${guests} ${guestsWord(guests)}`,
+      guestsCount: (n: number) => `${n} ${guestsWord(n)}`,
+      wholeDay: "весь день →",
+      loadingTitle: "Смотрим, что происходит сегодня…",
+      emptyTodayTitle: "На сегодня броней нет",
+      emptyTodayDescription: "Новые брони появятся здесь сразу, как придут",
+      /** Отказы сервера на «Подтвердить»/«Отклонить». Каждая формулировка
+       * говорит, что делать дальше: код и английский текст сервера человеку
+       * не показываем. */
+      failure: {
+        alreadyAnswered: "На эту заявку уже ответили — обновите список",
+        refused: "Заведение не может принять эту заявку",
+        forbidden: "У вас больше нет прав на это заведение",
+        unauthorized: "Сессия закончилась — войдите ещё раз",
+        notFound: "Заявки уже нет — обновите список",
+        unknown: "Не удалось связаться с сервером. Обновите список и проверьте, изменился ли статус",
+      },
+      refresh: "Обновить список",
     },
     menu: {
       title: "Меню",
