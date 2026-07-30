@@ -25,6 +25,7 @@ export function PromoBannerStrip({ banners }: { banners: PromoBanner[] }) {
             <PhotoView
               uri={banner.photo?.uri}
               style={styles.image}
+              size="tile"
               decorative
               placeholderIcon={false}
               // Подпись баннера белая и лежит прямо на плитке — на светло-сером
