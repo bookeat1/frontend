@@ -1,5 +1,7 @@
 import type { PushSubscriptionInput } from "@bookeat/api/admin";
 
+import { basePath, withBasePath } from "./base-path";
+
 /**
  * Web-push client helpers: service-worker registration, VAPID key handling and
  * the fiddly PushSubscription -> backend-shape conversion.
@@ -14,14 +16,11 @@ import type { PushSubscriptionInput } from "@bookeat/api/admin";
  * and the whole flow is disabled (no crash). */
 const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "").trim();
 
-/** Base path the panel is served under (e.g. "/admin-preview" on test, "" in
- * dev). Next does NOT auto-prefix string literals, so the service-worker URL
- * and scope must include it explicitly. Kept in sync with `basePath` in
- * next.config at deploy time. */
-const BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
-
-const SW_URL = `${BASE_PATH}/sw.js`;
-const SW_SCOPE = `${BASE_PATH}/`;
+/** Next does NOT auto-prefix a string literal handed to the browser, so the
+ * service-worker URL and scope must carry the panel's prefix explicitly. It
+ * comes from ./base-path — the same one next.config and the login redirect use. */
+const SW_URL = withBasePath("/sw.js");
+const SW_SCOPE = `${basePath()}/`;
 
 /** True when the browser can do web push AND a VAPID key was baked in. */
 export function isPushSupported(): boolean {

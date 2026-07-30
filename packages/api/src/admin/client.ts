@@ -25,9 +25,16 @@ import type {
   Schedule,
   ScheduleOverrideInput,
   PromoInput,
+  PlatformBookings,
+  PlatformOverview,
+  PlatformPayments,
+  PlatformPeriod,
   PushSubscriptionInput,
   RestaurantProfile,
   TokenPair,
+  TopRestaurant,
+  VenueDashboardSummary,
+  VenueLoadSlot,
   VenueSearchResult,
 } from "./types";
 
@@ -47,9 +54,21 @@ type Params = Record<string, string | number | boolean | undefined>;
 
 export interface AdminApiClientOptions {
   baseUrl: string;
-  /** Called before every authorized request to fetch the current bearer
-   * token. Returning null/undefined sends the request unauthenticated. */
-  getToken?: () => string | null | undefined;
+  /** Called before every authorized request to fetch the current bearer token.
+   * Returning null/undefined sends the request unauthenticated. May be async:
+   * the admin panel renews an about-to-expire token here, so the request goes
+   * out with a token that is still valid rather than one that dies in flight. */
+  getToken?: () => string | null | undefined | Promise<string | null | undefined>;
+  /**
+   * Called at most once per request when an AUTHORIZED request comes back 401,
+   * with the token that request carried. Return a fresh token to retry the
+   * request exactly once (never more — a loop here is an infinite login
+   * bounce), or null to let the 401 propagate to the caller.
+   *
+   * Unauthenticated requests (`auth: false`, i.e. login/refresh/logout) never
+   * reach this hook, so a refresh cannot recurse into itself.
+   */
+  onUnauthorized?: (usedToken: string | null) => Promise<string | null>;
   timeoutMs?: number;
 }
 
@@ -68,12 +87,14 @@ export interface AdminApiClientOptions {
  */
 export class AdminApiClient {
   private readonly baseUrl: string;
-  private readonly getToken?: () => string | null | undefined;
+  private readonly getToken?: AdminApiClientOptions["getToken"];
+  private readonly onUnauthorized?: AdminApiClientOptions["onUnauthorized"];
   private readonly timeoutMs: number;
 
   constructor(options: AdminApiClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.getToken = options.getToken;
+    this.onUnauthorized = options.onUnauthorized;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
@@ -90,25 +111,37 @@ export class AdminApiClient {
       }
     }
 
-    const headers: Record<string, string> = { Accept: "application/json" };
-    if (opts.body !== undefined) headers["Content-Type"] = "application/json";
-    if (opts.auth !== false) {
-      const token = this.getToken?.();
-      if (token) headers.Authorization = `Bearer ${token}`;
-    }
+    const authorized = opts.auth !== false;
+    const token = authorized ? ((await this.getToken?.()) ?? null) : null;
 
-    let response: Response;
-    try {
-      response = await fetch(url.toString(), {
+    const send = (bearer: string | null): Promise<Response> => {
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+      if (bearer) headers.Authorization = `Bearer ${bearer}`;
+      return fetch(url.toString(), {
         method,
         headers,
         body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        // A fresh signal per attempt: an aborted one would kill the retry too.
         signal: AbortSignal.timeout(this.timeoutMs),
       });
+    };
+
+    let response: Response;
+    try {
+      response = await send(token);
+      // The access token died (or was revoked) — give the session one chance to
+      // renew and replay the request. Exactly one: `send` is not called again
+      // after this branch, so there is no way to loop.
+      if (response.status === 401 && authorized && this.onUnauthorized) {
+        const renewed = await this.onUnauthorized(token);
+        if (renewed) response = await send(renewed);
+      }
     } catch (cause) {
       if (cause instanceof Error && cause.name === "TimeoutError") {
         throw new RepositoryError(`Request to ${path} timed out after ${this.timeoutMs}ms`, cause);
       }
+      if (cause instanceof RepositoryError) throw cause; // e.g. a failed refresh
       throw new RepositoryError(`Network error requesting ${path}`, cause);
     }
 
@@ -187,6 +220,76 @@ export class AdminApiClient {
       "/admin/my-restaurants",
     );
     return res?.restaurants ?? [];
+  }
+
+  // ---- Platform dashboard (superadmin) -------------------------------------
+  //
+  // Platform-wide, NOT venue-scoped: the backend gates these on the global
+  // admin role and they take no restaurant id. A staff member of one venue
+  // gets 403, which is the intended answer, not an error to work around.
+
+  /** GET /admin/dashboard/overview — counters with no period. */
+  platformOverview(): Promise<PlatformOverview> {
+    return this.request<PlatformOverview>("GET", "/admin/dashboard/overview");
+  }
+
+  /** GET /admin/dashboard/bookings — booking counts by status over a period.
+   * Omitting the period lets the backend apply its own window. */
+  platformBookings(period: PlatformPeriod = {}): Promise<PlatformBookings> {
+    return this.request<PlatformBookings>("GET", "/admin/dashboard/bookings", {
+      params: { from: period.from, to: period.to },
+    });
+  }
+
+  /** GET /admin/dashboard/payments — captured and refunded volume. Amounts come
+   * back in minor units and stay integers all the way to the formatter. */
+  platformPayments(period: PlatformPeriod = {}, currency?: string): Promise<PlatformPayments> {
+    return this.request<PlatformPayments>("GET", "/admin/dashboard/payments", {
+      params: { from: period.from, to: period.to, currency },
+    });
+  }
+
+  /** GET /admin/dashboard/top-restaurants — leaderboard by bookings or GMV.
+   * Unwraps the `{restaurants: [...]}` envelope like listMyRestaurants does. */
+  async platformTopRestaurants(
+    period: PlatformPeriod = {},
+    by: "bookings" | "gmv" = "bookings",
+    limit = 10,
+  ): Promise<TopRestaurant[]> {
+    const res = await this.request<{ restaurants: TopRestaurant[] }>(
+      "GET",
+      "/admin/dashboard/top-restaurants",
+      { params: { from: period.from, to: period.to, by, limit } },
+    );
+    return res?.restaurants ?? [];
+  }
+
+  // ---- Venue dashboard -----------------------------------------------------
+
+  /** GET /restaurants/:id/dashboard/summary — the venue's own counters. */
+  venueDashboardSummary(
+    restaurantId: string,
+    period: PlatformPeriod = {},
+  ): Promise<VenueDashboardSummary> {
+    return this.request<VenueDashboardSummary>(
+      "GET",
+      `/restaurants/${restaurantId}/dashboard/summary`,
+      { params: { from: period.from, to: period.to } },
+    );
+  }
+
+  /** GET /restaurants/:id/dashboard/load — occupancy by weekday and hour.
+   * Unwraps the `{slots: [...]}` envelope. */
+  async venueDashboardLoad(
+    restaurantId: string,
+    period: PlatformPeriod = {},
+  ): Promise<VenueLoadSlot[]> {
+    const res = await this.request<{ slots: VenueLoadSlot[] }>(
+      "GET",
+      `/restaurants/${restaurantId}/dashboard/load`,
+      { params: { from: period.from, to: period.to } },
+    );
+    return res?.slots ?? [];
   }
 
   // ---- Events --------------------------------------------------------------

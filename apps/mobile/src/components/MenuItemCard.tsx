@@ -22,7 +22,7 @@ export function MenuItemCard({ item }: { item: MenuHighlight }) {
       {/* Плашка «фото нет» больше не живёт здесь: она переехала в PhotoView,
           вместе с тем же случаем для заведений и для фото, которое не
           загрузилось. Вид у неё тот же — ровный фон и приглушённый прибор. */}
-      <PhotoView uri={item.photo?.uri} alt={item.photo?.alt} style={styles.image} />
+      <PhotoView uri={item.photo?.uri} alt={item.photo?.alt} style={styles.image} size="tile" />
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {item.name}

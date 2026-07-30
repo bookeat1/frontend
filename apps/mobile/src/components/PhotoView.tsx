@@ -7,6 +7,7 @@ import {
   PHOTO_CACHE_POLICY,
   PHOTO_TRANSITION_MS,
   resolvePhotoDisplay,
+  type PhotoSize,
 } from "../lib/photo-source";
 
 /**
@@ -24,7 +25,10 @@ import {
  *  - a photo that arrives fades in instead of popping;
  *  - a photo that 404s becomes the SAME "no photo" tile the app already shows
  *    for a dish without a picture — never a broken-image glyph, never a hole,
- *    and never an infinite retry.
+ *    and never an infinite retry;
+ *  - a photo is fetched at roughly the size it is drawn, not at whatever size
+ *    it was uploaded at, and if that resized copy has not been generated yet
+ *    the slot quietly falls back to the original instead of showing nothing.
  *
  * The placeholder is deliberately the one that already existed on the dish
  * card (neutral chip fill + a muted ForkKnife, hidden from screen readers
@@ -39,6 +43,10 @@ export function PhotoView({
   contentFit = "cover",
   transition = PHOTO_TRANSITION_MS,
   priority,
+  /** How big the slot is on screen, which decides which resized copy is
+   * requested. Defaults to `full`: erring towards the larger copy costs a few
+   * KB, erring towards the smaller one shows the guest a blurry photo. */
+  size = "full",
   /** Decorative photos are hidden from screen readers: their card or the
    * pressable around them already says what they are, and "изображение"
    * announced twice is noise. */
@@ -58,20 +66,29 @@ export function PhotoView({
   contentFit?: ImageContentFit;
   transition?: number;
   priority?: "low" | "normal" | "high";
+  size?: PhotoSize;
   decorative?: boolean;
   placeholderIcon?: boolean;
   placeholderIconSize?: number;
   placeholderColor?: string;
 }) {
-  const [brokenUri, setBrokenUri] = React.useState<string | null>(null);
-  const display = resolvePhotoDisplay(uri, brokenUri);
+  // A LIST of failed URIs, not one: a slot has two addresses to get through
+  // (the resized copy, then the original behind it), and remembering only the
+  // last failure would let the two take turns forever. See resolvePhotoDisplay.
+  const [brokenUris, setBrokenUris] = React.useState<string[]>([]);
+  const display = resolvePhotoDisplay(uri, brokenUris, size);
 
   // Latched on the URI, not on a boolean: see resolvePhotoDisplay. Recreating
   // the callback per URI is intentional — a stale closure here would mark the
   // wrong photo broken in a recycled row.
+  //
+  // The functional update matters: two <Image>s in the same slot can report
+  // failure in the same tick, and a plain `setBrokenUris([...brokenUris, uri])`
+  // would drop one of them and re-request it.
   const handleError = React.useCallback(() => {
     if (display.kind !== "image") return;
-    setBrokenUri(display.uri);
+    const failed = display.uri;
+    setBrokenUris((prev) => (prev.includes(failed) ? prev : [...prev, failed]));
   }, [display]);
 
   if (display.kind === "placeholder") {

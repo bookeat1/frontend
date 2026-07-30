@@ -15,21 +15,24 @@ interface NavItem {
   label: string;
   /** Deferred screens are shown but disabled (backend not ready). */
   soon?: boolean;
-  /** Shown only to the global superadmin. Used by the gastroguide, which is
-   * platform editorial content and not a venue's own screen — a venue owner has
-   * no business seeing the entry, and the server refuses them anyway. */
-  superadminOnly?: boolean;
+  /** Platform-wide screens: hidden from venue staff, who would only get a 403
+   * behind them. The backend gates them regardless — this is about not showing
+   * a door that is not theirs. The gastroguide is one of these: it is platform
+   * editorial content, not a venue's own screen. */
+  adminOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
+  { href: "/", label: "Сводка" },
   { href: "/bookings", label: t.admin.nav.bookings },
   { href: "/menu", label: t.admin.nav.menu },
   { href: "/schedule", label: t.admin.nav.schedule },
   { href: "/events", label: t.admin.nav.events },
   { href: "/promos", label: t.admin.nav.promos },
   { href: "/guests", label: t.admin.nav.guests },
-  { href: "/gastroguide", label: t.admin.nav.gastroguide, superadminOnly: true },
+  { href: "/gastroguide", label: t.admin.nav.gastroguide, adminOnly: true },
   { href: "/settings", label: t.admin.nav.settings },
+  { href: "/platform", label: "Платформа", adminOnly: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -46,8 +49,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav aria-label="Основная навигация" className="flex gap-xs overflow-x-auto px-md pb-md md:flex-col md:overflow-visible">
-          {NAV.filter((item) => !item.superadminOnly || user?.role === "admin").map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          {NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => {
+            // "/" is the dashboard, not a prefix of everything: without the
+            // exact check every screen would light up the first nav item.
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             if (item.soon) {
               return (
                 <span

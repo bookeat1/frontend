@@ -28,21 +28,22 @@
  *
  * The decision is a pure function so it can be tested; the pixels cannot be.
  *
- * PREFETCHING WAS CONSIDERED AND DELIBERATELY NOT DONE. `Image.prefetch` would
- * warm the cache for the venues just below the fold, and on a normal catalog
- * that would be worth it. On THIS catalog it is not: the 19 cover photos of
- * the test environment weigh 22.7 MB together — 1.2 MB on average, the largest
- * 7.8 MB (measured with curl on 2026-07-27) — because they are uploaded
- * originals with no resizing anywhere between the bucket and the phone. A card
- * shows them 148pt tall. Prefetching a list would mean spending tens of
- * megabytes of the guest's data on photos they may never scroll to, on exactly
- * the connection where that hurts most, and holding the decoded bitmaps in a
- * memory cache sized for thumbnails.
+ * 4. SIZE. The bucket holds upload originals: 55 venue photos weighing
+ *    81.6 MB, the largest single cover 7.79 MB (listed on 2026-07-27). A card
+ *    renders that cover 148pt tall. Asking for the original is spending
+ *    megabytes of a guest's mobile data to fill a box the size of a business
+ *    card. So a slot now asks for a resized copy of the photo and only falls
+ *    back to the original if that copy is not there — see derivedPhotoUri.
  *
- * The real fix is upstream, not here: serve a resized derivative (Cloudflare
- * Image Resizing over the same R2 bucket, or a thumbnail written at upload
- * time). Once a card can ask for a ~40 KB image instead of a 1.2 MB one,
- * prefetching the next screenful becomes cheap and should be revisited.
+ * PREFETCHING WAS CONSIDERED AND DELIBERATELY NOT DONE — and the reason it was
+ * rejected is the one that has now changed. It was rejected because prefetching
+ * a screenful of 1.2 MB originals would spend tens of megabytes on photos the
+ * guest may never scroll to. Once the backfill has run and a card is fetching
+ * ~60 KB instead of ~1.2 MB, that objection no longer holds and prefetching
+ * the next screenful should be revisited. It is deliberately NOT part of this
+ * change: it is only worth doing when the derivatives actually exist in the
+ * bucket, and it should be measured on its own rather than hidden inside a
+ * change that already moves the numbers this much.
  */
 
 /**
@@ -67,25 +68,117 @@ export type PhotoDisplay =
   | { kind: "placeholder"; reason: "absent" | "failed" };
 
 /**
+ * The public root of the media bucket.
+ *
+ * A URL that does not start with this is not ours — a static map rendered by
+ * our own API, a promo artwork still hosted on Supabase by the old web app, a
+ * third-party placeholder — and must be used exactly as given. Deriving a
+ * thumbnail address for a host that has never heard of our naming scheme would
+ * turn a working photo into a guaranteed 404 plus a fallback round trip.
+ */
+export const PHOTO_BUCKET_BASE = "https://pub-41b6f06fc8e74b6e959cdd6def081e22.r2.dev/";
+
+/**
+ * How large the slot is on screen. Not pixels — the caller should not have to
+ * know about device pixel ratios, only whether it is drawing a small tile or
+ * something full-bleed.
+ *
+ *  - `tile`: thumbnails up to ~210pt wide — dish cards (180pt), promo banners
+ *    (104pt), the popular-venue thumb (76pt).
+ *  - `full`: anything spanning the screen — the venue card cover (full width
+ *    × 148pt), the hero carousel, the gallery grid.
+ *
+ * `full` is the default on purpose. Getting it wrong towards `full` costs a
+ * few KB; getting it wrong towards `tile` shows the guest a blurry photo, and
+ * a reviewer cannot see that in a diff.
+ */
+export type PhotoSize = "tile" | "full";
+
+/**
+ * Pixel widths behind PhotoSize. They must match the generator in the backend
+ * (`internal/media`, constants WidthSmall/WidthLarge) — the two are one
+ * agreement written down twice, because the client constructs the address and
+ * the server writes the object, and neither asks the other at runtime.
+ *
+ * Derived from what this app actually renders, times 3 (the device pixel ratio
+ * of the phones in question): a 180pt dish card is 540 real pixels, so 640
+ * covers every tile; the widest phone is ~430pt, so 1280 covers every
+ * full-bleed slot.
+ */
+const WIDTH_FOR_SIZE: Record<PhotoSize, number> = { tile: 640, full: 1280 };
+
+/**
+ * The address of the resized copy of `uri`, or null when there is no such
+ * thing to ask for.
+ *
+ * The rule is a pure string transform, and that is the whole design:
+ *
+ *     <base>/restaurants/<id>/1751414713631-va1ag209cl.jpg
+ *   → <base>/derived/w640/restaurants/<id>/1751414713631-va1ag209cl.jpg.jpg
+ *
+ * WHY DERIVE INSTEAD OF READING A FIELD. The alternative is for the API to
+ * return the thumbnail URLs alongside the original. That needs a column, a
+ * migration, a backfill of rows as well as objects, and the OLD web app — which
+ * still writes image_url today and knows nothing about any of this — taught to
+ * fill it in, or every venue it touches silently loses its thumbnails. A pure
+ * function needs none of that, costs no round trip, and a third size later is
+ * a deploy instead of a data migration.
+ *
+ * The price is that this address can name an object that does not exist yet —
+ * a photo uploaded after the last backfill run. That is why the fallback in
+ * resolvePhotoDisplay is not optional: it is the other half of this decision.
+ *
+ * Returns null for a non-bucket URL and for anything already under `derived/`,
+ * so a URL that has been through here once cannot be transformed again.
+ */
+export function derivedPhotoUri(uri: string, size: PhotoSize): string | null {
+  if (!uri.startsWith(PHOTO_BUCKET_BASE)) return null;
+  const key = uri.slice(PHOTO_BUCKET_BASE.length);
+  if (!key || key.startsWith("derived/")) return null;
+  // A query string is not part of the object key and must not end up inside a
+  // bucket path.
+  if (key.includes("?") || key.includes("#")) return null;
+  return `${PHOTO_BUCKET_BASE}derived/w${WIDTH_FOR_SIZE[size]}/${key}.jpg`;
+}
+
+/**
+ * The addresses to try for one photo, best first.
+ *
+ * Always ends with the original. That is the guarantee the whole scheme rests
+ * on: a missing derivative costs one wasted request, never a hole in the card.
+ */
+export function photoCandidates(uri: string, size: PhotoSize): string[] {
+  const derived = derivedPhotoUri(uri, size);
+  return derived ? [derived, uri] : [uri];
+}
+
+/**
  * What a photo slot should render right now.
  *
- * `brokenUri` is the URI that has already failed to load in this slot (null
- * until one does). Comparing against the CURRENT uri rather than keeping a
- * boolean is what makes a recycled row behave: when the row is handed a
- * different venue, the new URI does not match the remembered broken one and
- * gets its fair chance to load. It is also what stops a retry loop — the same
- * URI is never re-attempted after it failed, because remounting an <Image> on
- * error and failing again is an unbounded request loop over the guest's data.
+ * `broken` lists the URIs that have already failed to load in THIS slot. It is
+ * a list rather than a single value because there are now two addresses in
+ * play: the resized derivative and the original behind it. With one remembered
+ * failure the slot would fall back from the derivative to the original, and
+ * then — on the original also failing — pick the derivative again, which is an
+ * unbounded request loop over the guest's data. Remembering both is what makes
+ * the chain terminate.
+ *
+ * Tracking failures by URI rather than by a counter is what makes a recycled
+ * FlatList row behave: when the row is handed a different venue, its addresses
+ * are not in the remembered list and get their fair chance to load.
  */
 export function resolvePhotoDisplay(
   uri: string | null | undefined,
-  brokenUri: string | null,
+  broken: readonly string[],
+  size: PhotoSize = "full",
 ): PhotoDisplay {
   const trimmed = uri?.trim();
   // A blank string is treated as no photo, not as a URL. It is what an empty
   // column looks like by the time it has been through JSON and a mapper, and
   // handing "" to an <Image> is a guaranteed silent failure.
   if (!trimmed) return { kind: "placeholder", reason: "absent" };
-  if (trimmed === brokenUri) return { kind: "placeholder", reason: "failed" };
-  return { kind: "image", uri: trimmed };
+
+  const next = photoCandidates(trimmed, size).find((c) => !broken.includes(c));
+  if (!next) return { kind: "placeholder", reason: "failed" };
+  return { kind: "image", uri: next };
 }

@@ -63,6 +63,7 @@ export function PopularRestaurantCard({
           <PhotoView
             uri={restaurant.coverPhoto?.uri}
             style={styles.photo}
+            size="tile"
             decorative
             placeholderIconSize={32}
           />

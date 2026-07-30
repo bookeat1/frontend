@@ -364,6 +364,117 @@ export interface BookingPolicyPatch {
   booking_capacity_seats?: number;
 }
 
+// ---- Platform dashboard (superadmin) ---------------------------------------
+//
+// These four shapes back the platform-wide dashboard, NOT the venue panel. The
+// backend gates them on the global admin role (dashboard.RegisterRoutes) and
+// they carry no restaurant scope: they answer "how is BookEat doing", not "how
+// is this venue doing".
+
+/** GET /admin/dashboard/overview. Counters, no period. */
+export interface PlatformOverview {
+  total_restaurants: number;
+  active_restaurants: number;
+  total_users: number;
+  total_bookings: number;
+  bookings_last_7_days: number;
+  bookings_last_30_days: number;
+}
+
+/** One row of the status breakdown. The backend returns an ARRAY of
+ * {status, count} objects, not a status->count map — writing it as a map
+ * rendered every card as "[object Object]" with an array index for a title. */
+export interface PlatformBookingStatus {
+  status: string;
+  count: number;
+}
+
+/** GET /admin/dashboard/bookings. Counts by booking status over a period. */
+export interface PlatformBookings {
+  from: string;
+  to: string;
+  total: number;
+  by_status: PlatformBookingStatus[];
+}
+
+/** One side of the money report. Amounts are integer MINOR units (tiyn), never
+ * floats — format at the edge, never do arithmetic on a formatted string. */
+export interface PlatformMoney {
+  amount_minor: number;
+  count: number;
+}
+
+/** GET /admin/dashboard/payments. Captured is gross volume through the
+ * acquirer, not platform revenue. */
+export interface PlatformPayments {
+  from: string;
+  to: string;
+  currency: string;
+  captured: PlatformMoney;
+  refunded: PlatformMoney;
+}
+
+/** One row of GET /admin/dashboard/top-restaurants. */
+export interface TopRestaurant {
+  restaurant_id: string;
+  name: string;
+  bookings_count: number;
+  gmv_minor: number;
+}
+
+/** Period filter shared by the three period-scoped dashboard calls. Omitted
+ * values let the backend apply its own defaults (a look-back window ending
+ * now) — the client does not invent dates. */
+export interface PlatformPeriod {
+  from?: string;
+  to?: string;
+}
+
+// ---- Venue dashboard (one restaurant's own numbers) -------------------------
+//
+// Separate from the platform dashboard above: these are venue-scoped, gated by
+// RequireRestaurantManager, and answer "how is MY venue doing" rather than "how
+// is BookEat doing".
+
+/** One status bucket of the venue's bookings. */
+export interface VenueStatusCount {
+  status: string;
+  count: number;
+}
+
+/** One row of the cancellation breakdown. An EMPTY reason is not missing data:
+ * it is the count of cancellations nobody gave a reason for, which is usually
+ * the largest row and the one worth acting on. */
+export interface VenueCancelReason {
+  reason: string;
+  count: number;
+}
+
+/** GET /restaurants/:id/dashboard/summary. */
+export interface VenueDashboardSummary {
+  from: string;
+  to: string;
+  total: number;
+  by_status: VenueStatusCount[];
+  /** Cancelled + no-show as a percentage of total, one decimal. 0 when the
+   * period had no bookings — never a division by zero. */
+  cancelled_share: number;
+  avg_party_size: number;
+  cancel_reasons: VenueCancelReason[];
+  preorder_bookings: number;
+  /** Integer minor units (tiyn), like every other amount in this API. */
+  preorder_total_minor: number;
+}
+
+/** One cell of the load chart. weekday follows time.Weekday (0 = Sunday), the
+ * same convention the schedule screen uses. Hour is the venue's LOCAL hour. */
+export interface VenueLoadSlot {
+  weekday: number;
+  hour: number;
+  bookings: number;
+  guests: number;
+}
+
 // ---- Gastroguide (superadmin editor) ---------------------------------------
 
 /**

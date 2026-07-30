@@ -17,6 +17,7 @@ import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, ForkKnife, User } from "../../../../src/components/icons";
 import { MenuItemCard } from "../../../../src/components/MenuItemCard";
+import { PhoneField } from "../../../../src/components/PhoneField";
 import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SelectRow } from "../../../../src/components/SelectRow";
@@ -29,6 +30,7 @@ import { useAuth } from "../../../../src/lib/auth";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
 import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
+import { isPhoneComplete, phoneFromE164 } from "../../../../src/lib/phone";
 import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
 
 const t = getDictionary();
@@ -48,15 +50,26 @@ interface SubmitError {
   blocksSubmit?: boolean;
 }
 
-/** Deliberately loose: KZ mobile numbers are 11 digits, but guests paste all
- * sorts of formatting and a foreign number is legitimate. We only refuse
- * something that cannot be a phone at all — the venue calls the number, the
- * app does not need to parse it. */
+/**
+ * Still deliberately loose, and for the same reason as before: a foreign
+ * number is legitimate here — the venue phones the guest, the app does not
+ * need to parse the number.
+ *
+ * What the country selector changes is WHERE the looseness lives. The old rule
+ * ("at least ten digits, anything goes") was loose in the wrong direction: it
+ * accepted "2125551234", which the server then normalized to "+72125551234",
+ * a Kazakh number nobody owns. Now the country is explicit, so a number can be
+ * checked against the country the guest actually picked — exactly, for the
+ * countries we have a format for, and by a bare minimum digit count for every
+ * other one, which is what keeps a real number from being refused.
+ *
+ * `raw` is E.164 from PhoneField, or "" — see `toE164`.
+ */
 function validatePhone(raw: string): string | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return t.booking.phoneRequired;
-  const digits = trimmed.replace(/\D/g, "");
-  if (digits.length < 10) return t.booking.phoneInvalid;
+  const value = phoneFromE164(trimmed);
+  if (!value || !isPhoneComplete(value)) return t.booking.phoneInvalid;
   return undefined;
 }
 
@@ -425,18 +438,24 @@ export default function ReservationScreen() {
                 autoComplete="name"
                 textContentType="name"
               />
-              <TextField
+              {/* This field used to have NO mask at all, deliberately: a
+                  foreign number is legitimate here — the venue simply calls
+                  it — and a hard +7 mask would have made such a booking
+                  impossible. That intent is preserved, not dropped: the
+                  country selector now covers every country in the table, and
+                  for any country whose format we do not claim to know the
+                  field takes free digits (see MIN_TOTAL_DIGITS in lib/phone).
+                  What changed is that "2125551234" typed by an American no
+                  longer leaves as "+72125551234" — a Kazakh number nobody
+                  owns, handed to the venue to dial. */}
+              <PhoneField
                 label={t.booking.phoneLabel}
-                placeholder={t.booking.phonePlaceholder}
                 value={draft.phone}
-                onChangeText={(value) => {
-                  draft.setPhone(value);
+                onChange={({ e164 }) => {
+                  draft.setPhone(e164);
                   if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
                 }}
                 error={errors.phone}
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                textContentType="telephoneNumber"
               />
             </View>
           </View>
