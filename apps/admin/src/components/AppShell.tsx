@@ -17,7 +17,8 @@ interface NavItem {
   soon?: boolean;
   /** Platform-wide screens: hidden from venue staff, who would only get a 403
    * behind them. The backend gates them regardless — this is about not showing
-   * a door that is not theirs. */
+   * a door that is not theirs. The gastroguide is one of these: it is platform
+   * editorial content, not a venue's own screen. */
   adminOnly?: boolean;
 }
 
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/events", label: t.admin.nav.events },
   { href: "/promos", label: t.admin.nav.promos },
   { href: "/guests", label: t.admin.nav.guests },
+  { href: "/gastroguide", label: t.admin.nav.gastroguide, adminOnly: true },
   { href: "/settings", label: t.admin.nav.settings },
   { href: "/platform", label: "Платформа", adminOnly: true },
 ];

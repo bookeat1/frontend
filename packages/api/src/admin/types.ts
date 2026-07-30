@@ -474,3 +474,138 @@ export interface VenueLoadSlot {
   bookings: number;
   guests: number;
 }
+
+// ---- Gastroguide (superadmin editor) ---------------------------------------
+
+/**
+ * A guide collection's publication state (domain.GuideCollectionStatus).
+ *
+ * Note it is NOT the promo/event triple: there is no "hidden", and "archived"
+ * is not the same thing — an archived collection was live once and keeps its
+ * venue links so it can be brought back, which is why the editor's badge and
+ * the promos badge cannot be the same component.
+ */
+export type GuideCollectionStatus = "draft" | "published" | "archived";
+
+/** A localized field's translation map ({"kk": "...", "en": "..."}). The base
+ * ru value lives in the plain column beside it; a missing key falls back to it,
+ * so an empty string here is never sent — it would make the app render blank. */
+export type I18nMap = Record<string, string>;
+
+/** A guide rubric as the editor sees it (GET /admin/gastroguide/categories).
+ * Unlike the guest read this includes switched-off rubrics. */
+export interface GuideCategory {
+  id: string;
+  slug: string;
+  title: string;
+  title_i18n?: I18nMap;
+  position: number;
+  is_active: boolean;
+}
+
+/** Body of POST/PUT /admin/gastroguide/categories. */
+export interface GuideCategoryInput {
+  slug: string;
+  title: string;
+  title_i18n?: I18nMap;
+  position: number;
+  is_active: boolean;
+}
+
+/** A collection row in the editor's list. */
+export interface GuideCollection {
+  id: string;
+  slug: string;
+  title: string;
+  title_i18n?: I18nMap;
+  subtitle: string;
+  subtitle_i18n?: I18nMap;
+  description: string;
+  description_i18n?: I18nMap;
+  cover_image_url: string | null;
+  /** null means the collection is shown in every city. */
+  city: string | null;
+  status: GuideCollectionStatus;
+  published_at: string | null;
+  position: number;
+  /**
+   * How many venues a GUEST can open right now — not how many the editor
+   * attached. A collection holding a deactivated venue reports fewer than it
+   * shows in the detail, and that difference is the point: it is the same
+   * number the app displays.
+   */
+  venue_count: number;
+  category_slugs: string[];
+  updated_at: string;
+}
+
+/** One venue inside a collection, as the editor sees it. */
+export interface GuideCollectionVenue {
+  restaurant_id: string;
+  position: number;
+  note: string;
+  note_i18n?: I18nMap;
+  name: string;
+  address: string;
+  cuisine_type: string;
+  city: string;
+  price_category: string;
+  primary_image_url: string | null;
+  /**
+   * The venue's catalog state. False means the venue is currently invisible to
+   * guests and does not count towards venue_count — the editor keeps the
+   * curation (deactivation is routinely temporary), but has to be able to SEE
+   * that the slot is dark.
+   */
+  is_active: boolean;
+}
+
+/** GET /admin/gastroguide/collections/:id — the collection plus everything in it. */
+export interface GuideCollectionDetail extends GuideCollection {
+  venues: GuideCollectionVenue[];
+  categories: GuideCategory[];
+}
+
+/**
+ * Body of POST/PUT /admin/gastroguide/collections — a FULL replace of the
+ * editable fields.
+ *
+ * Status and published_at are deliberately absent: publication is its own set
+ * of endpoints, so fixing a typo can never take a collection live or pull it
+ * down. `city: null` means "every city".
+ */
+export interface GuideCollectionInput {
+  slug: string;
+  title: string;
+  title_i18n?: I18nMap;
+  subtitle: string;
+  subtitle_i18n?: I18nMap;
+  description: string;
+  description_i18n?: I18nMap;
+  cover_image_url: string | null;
+  city: string | null;
+  position: number;
+}
+
+/** Query of the editor's collection listing. */
+export interface GuideCollectionListParams {
+  /** Empty/omitted = every status. */
+  status?: GuideCollectionStatus[];
+  city?: string;
+  q?: string;
+  page?: number;
+  per_page?: number;
+}
+
+/** One row of the venue catalog search used when attaching a venue
+ * (GET /restaurants/search — the public catalog endpoint, reused here). */
+export interface VenueSearchResult {
+  id: string;
+  name: string;
+  address: string;
+  cuisine_type: string;
+  city: string;
+  price_category: string;
+  is_active: boolean;
+  primary_image?: string | null;
+}

@@ -15,6 +15,12 @@ import type {
   BookingListParams,
   BookingReasonInput,
   EventInput,
+  GuideCategory,
+  GuideCategoryInput,
+  GuideCollection,
+  GuideCollectionDetail,
+  GuideCollectionInput,
+  GuideCollectionListParams,
   MyRestaurant,
   Schedule,
   ScheduleOverrideInput,
@@ -29,6 +35,7 @@ import type {
   TopRestaurant,
   VenueDashboardSummary,
   VenueLoadSlot,
+  VenueSearchResult,
 } from "./types";
 
 /** Every backend response is wrapped in this envelope (response.Envelope). */
@@ -547,6 +554,167 @@ export class AdminApiClient {
       { body: { item_ids: itemIds, available } },
     );
     return res?.updated ?? 0;
+  }
+
+  // ---- Gastroguide (superadmin editor) -------------------------------------
+  //
+  // Every route here is mounted behind RequireRole(RoleAdmin) on the server and
+  // re-checked in the usecase. A venue owner calling any of them gets 403 with
+  // code "forbidden"; the panel hides the section for them as well, but the
+  // server is what actually enforces it.
+
+  listGuideCategories(): Promise<GuideCategory[]> {
+    return this.request<{ items: GuideCategory[] }>(
+      "GET",
+      "/admin/gastroguide/categories",
+    ).then((res) => res?.items ?? []);
+  }
+
+  createGuideCategory(input: GuideCategoryInput): Promise<GuideCategory> {
+    return this.request<GuideCategory>("POST", "/admin/gastroguide/categories", { body: input });
+  }
+
+  updateGuideCategory(categoryId: string, input: GuideCategoryInput): Promise<GuideCategory> {
+    return this.request<GuideCategory>(
+      "PUT",
+      `/admin/gastroguide/categories/${encodeURIComponent(categoryId)}`,
+      { body: input },
+    );
+  }
+
+  listGuideCollections(
+    params: GuideCollectionListParams = {},
+  ): Promise<ApiPage<GuideCollection>> {
+    return this.request<ApiPage<GuideCollection>>("GET", "/admin/gastroguide/collections", {
+      params: {
+        // The server reads ?status= as one comma-separated list, so several
+        // statuses are joined rather than repeated.
+        status: params.status?.length ? params.status.join(",") : undefined,
+        city: params.city,
+        q: params.q,
+        page: params.page,
+        per_page: params.per_page,
+      },
+    });
+  }
+
+  getGuideCollection(collectionId: string): Promise<GuideCollectionDetail> {
+    return this.request<GuideCollectionDetail>(
+      "GET",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}`,
+    );
+  }
+
+  createGuideCollection(input: GuideCollectionInput): Promise<GuideCollection> {
+    return this.request<GuideCollection>("POST", "/admin/gastroguide/collections", { body: input });
+  }
+
+  updateGuideCollection(
+    collectionId: string,
+    input: GuideCollectionInput,
+  ): Promise<GuideCollection> {
+    return this.request<GuideCollection>(
+      "PUT",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}`,
+      { body: input },
+    );
+  }
+
+  /** publishedAt omitted = publish now; a future ISO timestamp schedules it. */
+  publishGuideCollection(collectionId: string, publishedAt?: string): Promise<GuideCollection> {
+    return this.request<GuideCollection>(
+      "POST",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}/publish`,
+      publishedAt ? { body: { published_at: publishedAt } } : {},
+    );
+  }
+
+  unpublishGuideCollection(collectionId: string): Promise<GuideCollection> {
+    return this.request<GuideCollection>(
+      "POST",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}/unpublish`,
+    );
+  }
+
+  archiveGuideCollection(collectionId: string): Promise<GuideCollection> {
+    return this.request<GuideCollection>(
+      "POST",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}/archive`,
+    );
+  }
+
+  /** Replaces the collection's WHOLE rubric set, in the given order. */
+  async setGuideCollectionCategories(collectionId: string, categoryIds: string[]): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}/categories`,
+      { body: { category_ids: categoryIds } },
+    );
+  }
+
+  /** Appends a venue after the last one. 409 guide_venue_already_attached when
+   * it is already in THIS collection (the same venue in other collections is
+   * fine and is the point of the guide). */
+  async attachGuideVenue(collectionId: string, restaurantId: string, note = ""): Promise<void> {
+    await this.request<unknown>(
+      "POST",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}/venues`,
+      { body: { restaurant_id: restaurantId, note } },
+    );
+  }
+
+  async detachGuideVenue(collectionId: string, restaurantId: string): Promise<void> {
+    await this.request<unknown>(
+      "DELETE",
+      `/admin/gastroguide/collections/${encodeURIComponent(
+        collectionId,
+      )}/venues/${encodeURIComponent(restaurantId)}`,
+    );
+  }
+
+  async setGuideVenueNote(
+    collectionId: string,
+    restaurantId: string,
+    note: string,
+  ): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/admin/gastroguide/collections/${encodeURIComponent(
+        collectionId,
+      )}/venues/${encodeURIComponent(restaurantId)}/note`,
+      { body: { note } },
+    );
+  }
+
+  /**
+   * Writes the intended FINAL order of a collection's venues.
+   *
+   * restaurantIds must name exactly the collection's current members, each
+   * once — the server refuses anything else with 422 guide_order_mismatch and
+   * writes nothing, because a payload that disagrees with the membership means
+   * this screen is stale and guessing would silently rewrite a curation.
+   *
+   * Because it carries the whole order rather than a move, replaying it after
+   * a lost response is harmless.
+   */
+  async reorderGuideVenues(collectionId: string, restaurantIds: string[]): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/admin/gastroguide/collections/${encodeURIComponent(collectionId)}/venues/order`,
+      { body: { restaurant_ids: restaurantIds } },
+    );
+  }
+
+  /**
+   * Venue catalog search, used when attaching a venue to a collection. This is
+   * the PUBLIC catalog endpoint (GET /restaurants/search) — there is no
+   * admin-only venue search, and inventing one would be a second contract for
+   * the same question.
+   */
+  searchVenues(query: string, perPage = 20): Promise<ApiPage<VenueSearchResult>> {
+    return this.request<ApiPage<VenueSearchResult>>("GET", "/restaurants/search", {
+      params: { q: query, per_page: perPage },
+    });
   }
 }
 
