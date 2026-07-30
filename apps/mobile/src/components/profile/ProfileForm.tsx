@@ -175,10 +175,14 @@ export function ProfileForm({
           disabled input: a greyed-out field reads as "we could not load this". */}
       <View style={styles.readOnly}>
         <Text style={styles.readOnlyLabel}>{t.profile.phoneLabel}</Text>
-        {/* Masked with the SAME formatter the sign-in screen uses, so the
-            number reads back as the guest typed it — "+7 (701) 000-00-00", not
-            the "+77010000000" the API speaks. A number that is not a +7 one is
-            shown exactly as stored (see formatStoredPhoneForDisplay). */}
+        {/* Masked with the SAME formatter the phone FIELD uses, so the number
+            reads back as the guest typed it — "+7 (701) 000-00-00", not the
+            "+77010000000" the API speaks. Since the field gained a country
+            selector this also holds for a foreign account: a US number is
+            shown as "+1 (212) 555-1234", under its own country's format, and
+            never re-attributed to Kazakhstan to make it fit a mask. A country
+            whose format we do not claim to know is still printed exactly as
+            stored (see formatStoredPhoneForDisplay). */}
         <Text style={styles.readOnlyValue}>
           {original.phone ? formatStoredPhoneForDisplay(original.phone) : t.profile.phoneEmpty}
         </Text>
