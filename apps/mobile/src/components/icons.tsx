@@ -5,6 +5,8 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
+  CaretUp,
+  Check,
   CheckCircle,
   Clock,
   Compass,
@@ -57,6 +59,11 @@ import {
  * XCircle is the circled X drawn to the left of the "Cancel" label on the
  * Reservation detail screen (node 488:9876) — read off the reference render
  * design-ref/screen-cancel-1.png, which has no per-node spec.
+ *
+ * CaretUp and Check were added for the Filters bottom-sheet (read off the
+ * figma reference PNG of the expanded sheet): CaretUp flips the collapsible
+ * section header when it is open, Check is the tick inside the square
+ * amenity checkboxes.
  */
 export type { IconProps };
 export {
@@ -66,6 +73,8 @@ export {
   CaretDown,
   CaretLeft,
   CaretRight,
+  CaretUp,
+  Check,
   CheckCircle,
   Clock,
   Compass,

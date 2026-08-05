@@ -6,6 +6,45 @@ import { useRepository } from "../lib/repository";
 
 const DEBOUNCE_MS = 350;
 
+/**
+ * Фасеты фильтра, которых В ПОИСКОВОМ ЗАПРОСЕ БЭКЕНДА ПОКА НЕТ: повод,
+ * удобства и число гостей. Шторка «Фильтры» даёт их выбрать и запоминает
+ * выбор между открытиями, но в `SearchQuery` они не уходят и результат не
+ * сужают — см. комментарии track-C в FilterSheet.tsx. Держим их отдельным
+ * типом, а не в `SearchFilters` из @bookeat/api, ровно чтобы нельзя было
+ * случайно отправить их на сервер.
+ */
+export interface UiOnlyFacets {
+  /** id поводов (см. i18n `search.filters.occasion`). */
+  occasionIds: string[];
+  /** id удобств (см. i18n `search.filters.amenities`). */
+  amenityIds: string[];
+  /** Число гостей из верхней пилюли. Не фильтр — это намерение брони, поэтому
+   * дефолт 2 сохраняется даже при сбросе фильтров. */
+  guests: number;
+}
+
+export const EMPTY_UI_FACETS: UiOnlyFacets = {
+  occasionIds: [],
+  amenityIds: [],
+  guests: 2,
+};
+
+/** Сколько ПОДДЕРЖИВАЕМЫХ бэкендом фильтров сейчас активно — это число и
+ * рисует бейдж на кнопке фильтров, и решает, показывать ли ряд чипов. Повод и
+ * удобства сюда НЕ входят намеренно: они не сужают выдачу, а показать чип
+ * «Свидание» над нефильтрованным списком — то же выдуманное состояние, от
+ * которого экран уже избавляли (invented-open-now). */
+export function countActiveFilters(filters: SearchFilters): number {
+  return (
+    filters.cuisineIds.length +
+    (filters.openNowOnly ? 1 : 0) +
+    (filters.onlineBookableOnly ? 1 : 0) +
+    (filters.city !== undefined ? 1 : 0) +
+    (filters.priceLevel !== undefined ? 1 : 0)
+  );
+}
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -19,6 +58,10 @@ export function useSearchScreen() {
   const repository = useRepository();
   const [text, setText] = useState("");
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  // Повод/удобства/гости: живут рядом с фильтрами, но отдельным состоянием,
+  // потому что в поиск не уходят (track-C). Шторка читает их как черновик и
+  // возвращает применённые обратно сюда — так выбор переживает закрытие.
+  const [uiFacets, setUiFacets] = useState<UiOnlyFacets>(EMPTY_UI_FACETS);
   const debouncedText = useDebouncedValue(text, DEBOUNCE_MS);
 
   const query: SearchQuery = useMemo(
@@ -64,6 +107,9 @@ export function useSearchScreen() {
     setText,
     filters,
     setFilters,
+    uiFacets,
+    setUiFacets,
+    activeFilterCount: countActiveFilters(filters),
     hasActiveSearch,
     isTyping: text !== debouncedText,
     searchQueryResult,

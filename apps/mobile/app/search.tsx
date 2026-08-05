@@ -1,8 +1,8 @@
-import { EMPTY_FILTERS, type PriceLevel } from "@bookeat/api";
+import { EMPTY_FILTERS, type PriceLevel, type SearchFilters } from "@bookeat/api";
 import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
@@ -10,6 +10,8 @@ import { FilterChip } from "../src/components/FilterChip";
 import { RestaurantCard } from "../src/components/RestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
+import { FilterButton } from "../src/components/search/FilterButton";
+import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
 
 const t = getDictionary();
@@ -23,12 +25,12 @@ const t = getDictionary();
  * и вкладка «Поиск», и «Смотреть все» с главного, и оба раза гость приходил в
  * пустоту с тремя выдуманными подсказками. Список заведений при пустой строке
  * — это ответ сервера на `GET /restaurants/search` без `q`.
+ *
+ * Фильтры переехали из всегда-видимых рядов чипов в нижнюю шторку
+ * (`FilterSheet`): под строкой поиска остаётся одна кнопка-ползунки со
+ * счётчиком активных фильтров и ряд чипов ТОЛЬКО выбранных фасетов, каждый из
+ * которых снимается тапом.
  */
-
-/** Ценовые ступени, которые понимает бэкенд (price_category «₸»/«₸₸»/«₸₸₸»).
- * Четвёртой ступени в каталоге нет, поэтому фильтр её и не предлагает. */
-const PRICE_FILTERS: PriceLevel[] = ["₸", "₸₸", "₸₸₸"];
-
 export default function SearchScreen() {
   const router = useRouter();
   const {
@@ -36,42 +38,21 @@ export default function SearchScreen() {
     setText,
     filters,
     setFilters,
+    uiFacets,
+    setUiFacets,
+    activeFilterCount,
     hasActiveSearch,
     isTyping,
     searchQueryResult,
     cuisinesQuery,
-    citiesQuery,
   } = useSearchScreen();
+
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
     [router],
   );
-
-  const toggleOpenNow = () =>
-    setFilters((prev) => ({ ...prev, openNowOnly: !prev.openNowOnly }));
-
-  const toggleOnlineBookable = () =>
-    setFilters((prev) => ({ ...prev, onlineBookableOnly: !prev.onlineBookableOnly }));
-
-  const toggleCuisine = (cuisineId: string) =>
-    setFilters((prev) => ({
-      ...prev,
-      cuisineIds: prev.cuisineIds.includes(cuisineId)
-        ? prev.cuisineIds.filter((id) => id !== cuisineId)
-        : [...prev.cuisineIds, cuisineId],
-    }));
-
-  // Город и цена — одиночный выбор: бэкенд сравнивает их на равенство, а
-  // повторное нажатие по выбранному чипу снимает фильтр.
-  const toggleCity = (city: string) =>
-    setFilters((prev) => ({ ...prev, city: prev.city === city ? undefined : city }));
-
-  const togglePrice = (priceLevel: PriceLevel) =>
-    setFilters((prev) => ({
-      ...prev,
-      priceLevel: prev.priceLevel === priceLevel ? undefined : priceLevel,
-    }));
 
   const items = searchQueryResult.data?.items ?? [];
 
@@ -79,6 +60,21 @@ export default function SearchScreen() {
     setFilters(EMPTY_FILTERS);
     setText("");
   };
+
+  // Ряд под строкой поиска — только ВЫБРАННЫЕ поддерживаемые фильтры, каждый
+  // снимается тапом. Кухни разворачиваем в человекочитаемые названия по
+  // ответу запроса кухонь; если названия ещё не пришли, показываем сам id — но
+  // не прячем чип, иначе выбранный фильтр становится невидимым.
+  const cuisineNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of cuisinesQuery.data ?? []) map.set(c.id, c.name);
+    return map;
+  }, [cuisinesQuery.data]);
+
+  const selectedChips = useMemo(
+    () => buildSelectedChips(filters, cuisineNameById),
+    [filters, cuisineNameById],
+  );
 
   return (
     <View style={styles.root}>
@@ -89,61 +85,32 @@ export default function SearchScreen() {
               все», мешает больше, чем помогает. */}
           <SearchBar value={text} onChangeText={setText} />
 
-          {/* Два прокручиваемых ряда вместо одного переносящегося: на 360 px
-              список кухонь иначе занимает пол-экрана до результатов. */}
-          <ChipRow>
-            <FilterChip
-              label={t.search.filterOpenNow}
-              selected={filters.openNowOnly}
-              onPress={toggleOpenNow}
-            />
-            {/* Выключен по умолчанию: каталог показывает ВСЕ заведения, в том
-                числе те, куда нужно звонить. Это выход для гостя, который
-                хочет забронировать прямо сейчас, а не способ спрятать
-                неудобные строки. */}
-            <FilterChip
-              label={t.search.filterOnlineBookable}
-              selected={filters.onlineBookableOnly}
-              onPress={toggleOnlineBookable}
-            />
-            {(citiesQuery.data ?? []).map((city) => (
-              <FilterChip
-                key={city}
-                label={city}
-                selected={filters.city === city}
-                onPress={() => toggleCity(city)}
-              />
-            ))}
-            {PRICE_FILTERS.map((priceLevel) => (
-              <FilterChip
-                key={priceLevel}
-                label={priceLevel}
-                selected={filters.priceLevel === priceLevel}
-                onPress={() => togglePrice(priceLevel)}
-              />
-            ))}
-          </ChipRow>
-
-          <ChipRow>
-            {cuisinesQuery.isError ? (
-              // Кухни грузятся отдельным запросом: если он упал, показываем
-              // именно это, а не пустой ряд, который выглядит как «кухонь нет».
-              <FilterChip
-                label={t.search.filterCuisinesFailed}
-                selected={false}
-                onPress={() => cuisinesQuery.refetch()}
-              />
-            ) : (
-              (cuisinesQuery.data ?? []).map((cuisine) => (
-                <FilterChip
-                  key={cuisine.id}
-                  label={cuisine.name}
-                  selected={filters.cuisineIds.includes(cuisine.id)}
-                  onPress={() => toggleCuisine(cuisine.id)}
-                />
-              ))
-            )}
-          </ChipRow>
+          {/* Кнопка фильтров + ряд выбранных чипов в одну строку. Ряд
+              горизонтально прокручивается: на 360px три длинных названия кухонь
+              иначе перенеслись бы на пол-экрана до результатов. */}
+          <View style={styles.filterRow}>
+            <FilterButton count={activeFilterCount} onPress={() => setSheetVisible(true)} />
+            {selectedChips.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.chipsRow}
+              >
+                {selectedChips.map((chip) => (
+                  <FilterChip
+                    key={chip.key}
+                    label={chip.label}
+                    selected
+                    selectedTone="brand"
+                    // Тап по выбранному чипу снимает именно этот фильтр —
+                    // применяется сразу, это уже поддержанный бэкендом фасет.
+                    onPress={() => setFilters(chip.remove)}
+                  />
+                ))}
+              </ScrollView>
+            ) : null}
+          </View>
         </View>
 
         {isTyping || searchQueryResult.isPending ? (
@@ -191,24 +158,81 @@ export default function SearchScreen() {
         )}
       </ScreenContainer>
 
+      <FilterSheet
+        visible={sheetVisible}
+        initialFilters={filters}
+        initialUiFacets={uiFacets}
+        cuisines={cuisinesQuery.data ?? []}
+        cuisinesFailed={cuisinesQuery.isError}
+        onRetryCuisines={() => cuisinesQuery.refetch()}
+        onApply={(nextFilters, nextFacets) => {
+          setFilters(nextFilters);
+          setUiFacets(nextFacets);
+          setSheetVisible(false);
+        }}
+        onClose={() => setSheetVisible(false)}
+      />
+
       <BottomNavBar />
     </View>
   );
 }
 
-/** Горизонтальный ряд чипов фильтра. Пустой ряд не занимает высоту. */
-function ChipRow({ children }: { children: React.ReactNode }) {
-  if (React.Children.count(children) === 0) return null;
+interface SelectedChip {
+  key: string;
+  label: string;
+  /** Как выглядят фильтры после снятия этого чипа. */
+  remove: (prev: SearchFilters) => SearchFilters;
+}
 
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.chipsRow}>{children}</View>
-    </ScrollView>
-  );
+/** Разворачивает применённые поддерживаемые фильтры в чипы «выбранного»: одна
+ * запись на кухню + по одной на «открыто сейчас»/«бронь онлайн»/город/цену.
+ * Повод и удобства сюда НЕ попадают — они выдачу не сужают (track-C). */
+function buildSelectedChips(
+  filters: SearchFilters,
+  cuisineNameById: Map<string, string>,
+): SelectedChip[] {
+  const chips: SelectedChip[] = [];
+
+  if (filters.openNowOnly) {
+    chips.push({
+      key: "openNow",
+      label: t.search.filterOpenNow,
+      remove: (prev) => ({ ...prev, openNowOnly: false }),
+    });
+  }
+  if (filters.onlineBookableOnly) {
+    chips.push({
+      key: "onlineBookable",
+      label: t.search.filterOnlineBookable,
+      remove: (prev) => ({ ...prev, onlineBookableOnly: false }),
+    });
+  }
+  if (filters.city !== undefined) {
+    const city = filters.city;
+    chips.push({
+      key: "city",
+      label: city,
+      remove: (prev) => ({ ...prev, city: undefined }),
+    });
+  }
+  if (filters.priceLevel !== undefined) {
+    const priceLevel: PriceLevel = filters.priceLevel;
+    chips.push({
+      key: "price",
+      label: priceLevel,
+      remove: (prev) => ({ ...prev, priceLevel: undefined }),
+    });
+  }
+  for (const id of filters.cuisineIds) {
+    chips.push({
+      key: `cuisine:${id}`,
+      label: cuisineNameById.get(id) ?? id,
+      remove: (prev) => ({ ...prev, cuisineIds: prev.cuisineIds.filter((x) => x !== id) }),
+    });
+  }
+
+  return chips;
 }
 
 const styles = StyleSheet.create({
@@ -221,9 +245,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.sm,
   },
+  filterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   chipsRow: {
     flexDirection: "row",
     gap: spacing.xs,
+    alignItems: "center",
   },
   listContent: {
     paddingHorizontal: spacing.lg,
