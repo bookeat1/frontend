@@ -295,6 +295,28 @@ export default function SignInScreen() {
     }
   };
 
+  // On a delivery-disabled test build the code is pre-filled from the server's
+  // echo (see requestCode). Submit it automatically the moment the code step
+  // opens instead of waiting for a manual tap on "Войти" — a pre-filled code
+  // that sits untouched goes stale (5-min TTL, or a resend rotates it) and the
+  // tester is stranded on "код не подошёл". A ref keeps a rejected code from
+  // resubmitting in a loop; a fresh request pre-fills a new code and re-arms.
+  const autoSubmittedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!DELIVERY_DISABLED) return;
+    if (step !== "code" || !sentToPhone) return;
+    if (code.length !== CODE_LENGTH) return;
+    if (submitting || verifyingRef.current || attemptsExhausted) return;
+    if (autoSubmittedRef.current === code) return;
+    autoSubmittedRef.current = code;
+    verifyingRef.current = true;
+    void verify(code).finally(() => {
+      verifyingRef.current = false;
+    });
+    // verify is a per-render closure; re-arming on a new step/code is intended.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, code, sentToPhone]);
+
   const changePhone = () => {
     setStep("phone");
     setCode("");
