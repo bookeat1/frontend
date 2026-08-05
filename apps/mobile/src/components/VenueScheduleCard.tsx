@@ -10,20 +10,28 @@ import {
   hasKnownDays,
   isForeignTimezone,
   openStateLabel,
+  openUntilTodayLabel,
   scheduleDayFor,
+  uniformDailyHours,
   venueDayOfWeek,
 } from "../lib/schedule";
 
 const t = getDictionary();
 
 /**
- * Недельный график заведения — единственное место, где часы работы рисуются
- * подробно.
+ * Компактный блок часов работы ресторана.
+ *
+ * Дизайн («Ready for dev») показывает не недельную таблицу, а короткий блок:
+ * статус «Открыто до 23:00» плюс одна сводная строка «Ежедневно с 10:00 до
+ * 23:00», когда все дни одинаковые. Разбивка по дням остаётся ЗАПАСНЫМ
+ * вариантом — её видно только у ресторанов, где часы реально разнятся.
  *
  * Что здесь принципиально:
  *   - «Открыто»/«Закрыто» берётся из серверного `openNow`, а не из строк
  *     ниже. Строка часов и статус — два независимых факта, и вывести один из
  *     другого клиент не имеет права (в разных таймзонах он получит другое).
+ *     «до 23:00» — это лишь время закрытия из сегодняшней строки, а не наш
+ *     вывод об открытости.
  *   - Неделя рисуется понедельником вперёд (RU-конвенция), хотя сервер
  *     нумерует дни с воскресенья.
  *   - Сегодняшняя строка выделена, и день определяется в таймзоне ЗАВЕДЕНИЯ.
@@ -59,10 +67,30 @@ export function VenueScheduleCard({
   }
 
   const today = venueDayOfWeek(schedule.timezone);
+  const uniform = uniformDailyHours(schedule);
+
+  // Дизайн: компактный блок. Когда все дни одинаковые — одна строка «Ежедневно
+  // с 10:00 до 23:00»; разбивка по дням остаётся запасным вариантом ровно для
+  // тех графиков, где часы действительно разнятся.
+  if (uniform) {
+    return (
+      <View style={styles.card}>
+        <Header statusLabel={openUntilTodayLabel(schedule)} />
+        <Text style={styles.summary}>
+          {t.restaurant.schedule.everyDay(uniform.opensAt, uniform.closesAt)}
+        </Text>
+        {isForeignTimezone(schedule.timezone) ? (
+          <Text style={styles.timezoneNote}>
+            {t.restaurant.schedule.timezoneNote(schedule.timezone)}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.card}>
-      <Header statusLabel={openStateLabel(schedule)} />
+      <Header statusLabel={openUntilTodayLabel(schedule)} />
       <View style={styles.week}>
         {WEEK_ORDER_MONDAY_FIRST.map((dayOfWeek) => {
           const day = scheduleDayFor(schedule, dayOfWeek);
@@ -143,6 +171,10 @@ const styles = StyleSheet.create({
   status: {
     ...typography.caption,
     color: colors.text.muted,
+  },
+  summary: {
+    ...typography.body,
+    color: colors.text.primary,
   },
   week: {
     gap: spacing.xs,

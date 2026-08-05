@@ -1,4 +1,5 @@
 import type { DayOfWeek, ScheduleDay, VenueSchedule } from "@bookeat/api";
+import { WEEK_ORDER_MONDAY_FIRST } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 
 const t = getDictionary();
@@ -100,4 +101,50 @@ export function dayHoursLabel(day: ScheduleDay | undefined): string {
 /** Есть ли в графике хоть один день, про который сервер что-то сказал. */
 export function hasKnownDays(schedule: VenueSchedule | null): boolean {
   return (schedule?.days.length ?? 0) > 0;
+}
+
+/**
+ * Статус для компактного блока часов: серверное «Открыто» + время закрытия
+ * СЕГОДНЯ («Открыто до 23:00»).
+ *
+ * Открытость по-прежнему берётся ТОЛЬКО из `openNow` — эта функция ничего не
+ * вычисляет об открытости, а лишь дописывает к уже известному «Открыто» время
+ * закрытия из сегодняшней строки графика. Если сервер не сказал «открыто» или
+ * на сегодня нет времени закрытия, возвращается обычный `openStateLabel`.
+ */
+export function openUntilTodayLabel(schedule: VenueSchedule | null): string {
+  if (openState(schedule) !== "open" || !schedule) return openStateLabel(schedule);
+  const day = scheduleDayFor(schedule, venueDayOfWeek(schedule.timezone));
+  if (day?.isOpen && day.closesAt) {
+    return t.restaurant.openUntil(day.closesAt);
+  }
+  return openStateLabel(schedule);
+}
+
+/**
+ * Когда все семь дней недели рабочие и с одинаковым окном — возвращает это окно,
+ * иначе `null`. Дизайн показывает такой график одной строкой «Ежедневно с 10:00
+ * до 23:00»; если часы разнятся (или какой-то день неизвестен/выходной), вызов
+ * возвращает `null`, и экран рисует разбивку по дням.
+ */
+export function uniformDailyHours(
+  schedule: VenueSchedule | null,
+): { opensAt: string; closesAt: string; closesNextDay: boolean } | null {
+  if (!schedule) return null;
+  const days = WEEK_ORDER_MONDAY_FIRST.map((dayOfWeek) => scheduleDayFor(schedule, dayOfWeek));
+  const first = days[0];
+  if (!first || !first.isOpen || !first.opensAt || !first.closesAt) return null;
+  const allSame = days.every(
+    (day) =>
+      day?.isOpen &&
+      day.opensAt === first.opensAt &&
+      day.closesAt === first.closesAt &&
+      day.closesNextDay === first.closesNextDay,
+  );
+  if (!allSame) return null;
+  return {
+    opensAt: first.opensAt,
+    closesAt: first.closesAt,
+    closesNextDay: first.closesNextDay,
+  };
 }

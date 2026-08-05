@@ -1,9 +1,9 @@
 import { EMPTY_FILTERS, type PriceLevel } from "@bookeat/api";
-import { colors, spacing, typography } from "@bookeat/design-tokens";
+import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { FilterChip } from "../src/components/FilterChip";
@@ -73,21 +73,7 @@ export default function SearchScreen() {
       priceLevel: prev.priceLevel === priceLevel ? undefined : priceLevel,
     }));
 
-  /**
-   * Сколько из показанных заведений реально можно забронировать в приложении.
-   * Считается по загруженной странице (весь каталог приходит одной: per_page
-   * 100 против 24 заведений), поэтому число честное, а не «из первых
-   * двадцати». Строка не показывается, когда бронировать можно везде, — и
-   * когда фильтр «бронь онлайн» уже включён, потому что тогда она тавтология.
-   */
   const items = searchQueryResult.data?.items ?? [];
-  const bookableCount = items.filter((item) => item.acceptsOnlineBookings).length;
-  const bookableNote =
-    filters.onlineBookableOnly || items.length === 0 || bookableCount === items.length
-      ? null
-      : bookableCount === 0
-        ? t.search.onlineBookableNone
-        : t.search.onlineBookableCount(bookableCount, items.length);
 
   const resetFilters = () => {
     setFilters(EMPTY_FILTERS);
@@ -192,20 +178,6 @@ export default function SearchScreen() {
             renderItem={({ item }) => (
               <RestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
-            // Заголовок списка — счётчик реальных результатов, он же объясняет
-            // при пустом запросе, что перед гостем весь каталог. Вторая строка
-            // появляется, когда часть заведений онлайн-бронь не принимает: без
-            // неё каталог читается как стена карточек, ведущих в никуда.
-            ListHeaderComponent={
-              <View style={styles.listHeader}>
-                <Text style={styles.resultsCount}>
-                  {t.search.resultsCount(searchQueryResult.data?.total ?? 0)}
-                </Text>
-                {bookableNote ? (
-                  <Text style={styles.bookableNote}>{bookableNote}</Text>
-                ) : null}
-              </View>
-            }
             ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
@@ -256,17 +228,5 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
-  },
-  listHeader: {
-    gap: spacing.xxs,
-    paddingBottom: spacing.md,
-  },
-  resultsCount: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  bookableNote: {
-    ...typography.caption,
-    color: colors.text.mutedStrong,
   },
 });

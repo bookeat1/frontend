@@ -1,7 +1,15 @@
 import type { VenueSchedule } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dayHoursLabel, openState, openStateLabel, scheduleDayFor, venueDayOfWeek } from "../schedule";
+import {
+  dayHoursLabel,
+  openState,
+  openStateLabel,
+  openUntilTodayLabel,
+  scheduleDayFor,
+  uniformDailyHours,
+  venueDayOfWeek,
+} from "../schedule";
 
 /**
  * REGRESSION GUARD — «Открыто сейчас» belongs to the server.
@@ -121,6 +129,52 @@ describe("work past midnight reads as thirteen hours, not one", () => {
     expect(dayHoursLabel(day({ closesAt: "23:00", closesNextDay: false }))).toBe(
       t.restaurant.schedule.range("12:00", "23:00"),
     );
+  });
+});
+
+describe("compact hours block — «Открыто до 23:00» + «Ежедневно с 10:00 до 23:00»", () => {
+  const everyDaySchedule = (openNow: boolean | null): VenueSchedule => ({
+    timezone: "Asia/Almaty",
+    openNow,
+    days: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+      dayOfWeek: dayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      isOpen: true,
+      opensAt: "10:00",
+      closesAt: "23:00",
+      closesNextDay: false,
+    })),
+  });
+
+  it("collapses seven identical days into one summary window", () => {
+    expect(uniformDailyHours(everyDaySchedule(true))).toEqual({
+      opensAt: "10:00",
+      closesAt: "23:00",
+      closesNextDay: false,
+    });
+  });
+
+  it("returns null when hours vary, so the per-day breakdown is shown instead", () => {
+    // Adept is open only Thu–Sat — the week is not uniform.
+    expect(uniformDailyHours(adeptSchedule(true))).toBeNull();
+    // A week missing even one day is not «ежедневно».
+    const sixDays = everyDaySchedule(true);
+    sixDays.days = sixDays.days.filter((day) => day.dayOfWeek !== 0);
+    expect(uniformDailyHours(sixDays)).toBeNull();
+    expect(uniformDailyHours(null)).toBeNull();
+  });
+
+  it("appends today's closing time to the server's «Открыто», never inventing openness", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-07-30T06:00:00.000Z")); // 11:00 in Almaty
+      expect(openUntilTodayLabel(everyDaySchedule(true))).toBe(t.restaurant.openUntil("23:00"));
+      // Server says closed → plain «Закрыто», no closing-time suffix.
+      expect(openUntilTodayLabel(everyDaySchedule(false))).toBe(t.restaurant.closedNow);
+      // Server silent → «часы работы не указаны», not «Открыто до …».
+      expect(openUntilTodayLabel(everyDaySchedule(null))).toBe(t.restaurant.hoursUnknownShort);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

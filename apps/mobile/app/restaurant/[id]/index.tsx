@@ -17,7 +17,6 @@ import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
-import { openPhone } from "../../../src/lib/external-links";
 import { openStateLabel } from "../../../src/lib/schedule";
 
 const t = getDictionary();
@@ -172,21 +171,6 @@ export default function RestaurantDetailScreen() {
                 schedule={restaurant.schedule}
                 openingHoursText={restaurant.openingHoursText}
               />
-
-              {/* Правда об онлайн-брони — ДО выбора даты, а не после того, как
-                  все слоты откажут. На живом каталоге таких 17 из 24. */}
-              {!restaurant.acceptsOnlineBookings ? (
-                <View style={styles.notice}>
-                  <Text style={styles.noticeTitle}>
-                    {t.restaurant.bookingUnavailableTitle}
-                  </Text>
-                  <Text style={styles.noticeText}>
-                    {restaurant.phone
-                      ? t.restaurant.bookingUnavailableDescription
-                      : t.restaurant.bookingUnavailableNoPhone}
-                  </Text>
-                </View>
-              ) : null}
             </View>
 
             <View style={styles.section}>
@@ -257,29 +241,13 @@ export default function RestaurantDetailScreen() {
 
           <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
             <View style={styles.footer}>
-              {/* Три состояния кнопки, и все три — правда:
-                  бронь работает → «Забронировать столик»;
-                  брони нет, но есть телефон → звонок (реальный выход, а не
-                  серая кнопка);
-                  брони нет и телефона нет → неактивная кнопка с честной
-                  подписью, потому что предлагать нечего. */}
-              {restaurant.acceptsOnlineBookings ? (
-                <PrimaryButton
-                  label={t.restaurant.bookTable}
-                  onPress={() => router.push(`/restaurant/${restaurant.id}/book`)}
-                />
-              ) : restaurant.phone ? (
-                <PrimaryButton
-                  label={t.restaurant.callToBook}
-                  onPress={() => void openPhone(restaurant.phone ?? "")}
-                />
-              ) : (
-                <PrimaryButton
-                  label={t.restaurant.bookingUnavailableAction}
-                  onPress={() => {}}
-                  disabled
-                />
-              )}
+              {/* Дизайн: единственная красная кнопка «Забронировать столик».
+                  Телефонный запасной вариант и неактивное состояние ушли вместе
+                  с блоком «онлайн-бронь здесь не работает» — их в макете нет. */}
+              <PrimaryButton
+                label={t.restaurant.bookTable}
+                onPress={() => router.push(`/restaurant/${restaurant.id}/book`)}
+              />
             </View>
           </SafeAreaView>
         </>
@@ -389,20 +357,6 @@ const styles = StyleSheet.create({
   },
   description: {
     ...typography.body,
-    color: colors.text.primary,
-  },
-  notice: {
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.status.pendingSurface,
-  },
-  noticeTitle: {
-    ...typography.labelSemiBold,
-    color: colors.status.pendingText,
-  },
-  noticeText: {
-    ...typography.caption,
     color: colors.text.primary,
   },
   menuRow: {
