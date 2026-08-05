@@ -20,7 +20,8 @@
       ]
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bookeatteam.bookeatapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,7 +30,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.bookeatteam.bookeatapp"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -38,6 +40,19 @@
     },
     "experiments": {
       "baseUrl": "/preview"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "455677ea-310b-4fa5-841f-676498838fd9"
+      }
+    },
+    "owner": "book-eat-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/455677ea-310b-4fa5-841f-676498838fd9"
     }
   }
 }

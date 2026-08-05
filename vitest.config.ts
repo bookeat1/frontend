@@ -44,6 +44,7 @@ export default defineConfig({
       // Expo native modules have no implementation loadable in a plain jsdom
       // process. Each stub is a deliberate, readable file.
       { find: /^expo-secure-store$/, replacement: here("./test/stubs/expo-secure-store.ts") },
+      { find: /^expo-updates$/, replacement: here("./test/stubs/expo-updates.ts") },
       { find: /^expo-image$/, replacement: here("./test/stubs/expo-image.tsx") },
       { find: /^phosphor-react-native$/, replacement: here("./test/stubs/phosphor-react-native.tsx") },
       // Exact match only: `react-native-web`, `react-native-svg` and
