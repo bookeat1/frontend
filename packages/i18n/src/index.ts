@@ -5,13 +5,14 @@ import { ko } from "./ko";
 import { hi } from "./hi";
 import { ar } from "./ar";
 import { zh } from "./zh";
+import { tr } from "./tr";
 
 /**
  * Every locale the app can display. `ru` is the base (the complete
  * Dictionary); the other six are translated incrementally and may be
  * incomplete — every missing key falls back to `ru`, see getDictionary.
  */
-export type Locale = "ru" | "kk" | "en" | "ko" | "hi" | "ar" | "zh";
+export type Locale = "ru" | "kk" | "en" | "ko" | "hi" | "ar" | "zh" | "tr";
 
 /**
  * A partial translation of the base Dictionary.
@@ -62,6 +63,7 @@ export const LOCALES: readonly LocaleOption[] = [
   { code: "hi", nativeName: "हिन्दी", englishName: "Hindi" },
   { code: "ar", nativeName: "العربية", englishName: "Arabic" },
   { code: "zh", nativeName: "中文", englishName: "Chinese" },
+  { code: "tr", nativeName: "Türkçe", englishName: "Turkish" },
 ];
 
 /** Right-to-left scripts. Only Arabic among the shipped locales; the layout
@@ -77,6 +79,7 @@ const overrides: Record<Exclude<Locale, "ru">, LocaleOverride<Dictionary>> = {
   hi,
   ar,
   zh,
+  tr,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
