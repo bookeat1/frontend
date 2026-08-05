@@ -18,6 +18,12 @@ const t = getDictionary();
 
 /** Поводы и удобства — ФИКСИРОВАННЫЕ id UI-состояния (в бэкенде их нет,
  * track-C). Порядок = порядок в макете. Подписи берутся из i18n по этим id. */
+// EXTRA_FACETS — «Открыто сейчас»/«Бронь онлайн»/город. Этих трёх в макете
+// шторки НЕТ; добавлены по просьбе Damir (2026-08-05), потому что бэкенд их
+// поддерживает и «бронь онлайн» реально полезен. Чтобы вернуться строго к
+// макету — поставь флаг в false (или удали блок «Ещё» в разметке и этот флаг).
+const SHOW_EXTRA_FACETS = true;
+
 const OCCASION_IDS = ["date", "friends", "kids", "business", "celebration"] as const;
 const AMENITY_IDS = [
   "terrace",
@@ -50,6 +56,8 @@ interface FilterSheetProps {
   cuisines: Cuisine[];
   cuisinesFailed: boolean;
   onRetryCuisines: () => void;
+  /** Города для группы «Ещё» (EXTRA_FACETS). Пусто/не нужно — если флаг выключен. */
+  cities: string[];
   /** Применить: коммитим черновик обратно в реальные фильтры и закрываем. */
   onApply: (filters: SearchFilters, uiFacets: UiOnlyFacets) => void;
   onClose: () => void;
@@ -74,6 +82,7 @@ export function FilterSheet({
   cuisines,
   cuisinesFailed,
   onRetryCuisines,
+  cities,
   onApply,
   onClose,
 }: FilterSheetProps) {
@@ -104,6 +113,15 @@ export function FilterSheet({
 
   const setPrice = (priceLevel: PriceLevel | undefined) =>
     setDraft((prev) => ({ ...prev, priceLevel }));
+
+  // EXTRA_FACETS: поддержаны бэкендом (уходят в реальные фильтры), поэтому живут
+  // в draft, а не в UiOnlyFacets. Город — одиночный выбор: повторный тап снимает.
+  const toggleOpenNow = () =>
+    setDraft((prev) => ({ ...prev, openNowOnly: !prev.openNowOnly }));
+  const toggleOnline = () =>
+    setDraft((prev) => ({ ...prev, onlineBookableOnly: !prev.onlineBookableOnly }));
+  const toggleCity = (city: string) =>
+    setDraft((prev) => ({ ...prev, city: prev.city === city ? undefined : city }));
 
   const reset = () => {
     setDraft(EMPTY_FILTERS);
@@ -226,6 +244,42 @@ export function FilterSheet({
                 ))}
               </CollapsibleSection>
             </View>
+
+            {/* Ещё (EXTRA_FACETS) — не из макета, добавлено по просьбе Damir.
+                Все три поддержаны бэкендом и уходят в реальные фильтры. Чтобы
+                вернуться к макету — SHOW_EXTRA_FACETS=false. */}
+            {SHOW_EXTRA_FACETS ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t.search.filters.extraTitle}</Text>
+                <View style={styles.wrap}>
+                  <FilterChip
+                    label={t.search.filterOpenNow}
+                    selected={draft.openNowOnly}
+                    selectedTone="brand"
+                    onPress={toggleOpenNow}
+                  />
+                  <FilterChip
+                    label={t.search.filterOnlineBookable}
+                    selected={draft.onlineBookableOnly}
+                    selectedTone="brand"
+                    onPress={toggleOnline}
+                  />
+                </View>
+                {cities.length > 0 ? (
+                  <View style={styles.wrap}>
+                    {cities.map((city) => (
+                      <FilterChip
+                        key={city}
+                        label={city}
+                        selected={draft.city === city}
+                        selectedTone="brand"
+                        onPress={() => toggleCity(city)}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
           </ScrollView>
 
           <View style={styles.footer}>

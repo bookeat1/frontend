@@ -45,6 +45,7 @@ export default function SearchScreen() {
     isTyping,
     searchQueryResult,
     cuisinesQuery,
+    citiesQuery,
   } = useSearchScreen();
 
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -165,6 +166,7 @@ export default function SearchScreen() {
         cuisines={cuisinesQuery.data ?? []}
         cuisinesFailed={cuisinesQuery.isError}
         onRetryCuisines={() => cuisinesQuery.refetch()}
+        cities={citiesQuery.data ?? []}
         onApply={(nextFilters, nextFacets) => {
           setFilters(nextFilters);
           setUiFacets(nextFacets);
