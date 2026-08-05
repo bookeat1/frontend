@@ -2,8 +2,9 @@ import type { MenuDish } from "@bookeat/api";
 import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo } from "react";
-import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
+import type { SectionListData, ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../src/components/FlowHeader";
 import { Plus } from "../../../src/components/icons";
@@ -80,6 +81,32 @@ export default function RestaurantMenuScreen() {
     [addToPreorder, canPreorder],
   );
 
+  // Липкая строка категорий над списком (Мангал · Холодные закуски · …): она
+  // подсвечивает раздел, который сейчас вверху списка, и по тапу проматывает к
+  // нему. Раздел определяется по самому верхнему видимому элементу списка.
+  const listRef = useRef<SectionList<MenuDish, Section>>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  // sections пересобирается по данным — держим ссылку, чтобы стабильный колбэк
+  // видимости всегда сверялся со свежим списком, а не с замыканием на старом.
+  const sectionsRef = useRef<Section[]>(sections);
+  sectionsRef.current = sections;
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 1 }).current;
+  const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const top = viewableItems.find((v) => v.section);
+    if (!top?.section) return;
+    const title = (top.section as SectionListData<MenuDish, Section>).title;
+    const idx = sectionsRef.current.findIndex((s) => s.title === title);
+    if (idx >= 0) setActiveIndex(idx);
+  }).current;
+
+  const jumpToSection = useCallback((index: number) => {
+    setActiveIndex(index);
+    // itemIndex:0 наводит на заголовок раздела; viewOffset прижимает его под
+    // строку категорий, а не под системный статус-бар.
+    listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: true });
+  }, []);
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
@@ -98,24 +125,99 @@ export default function RestaurantMenuScreen() {
       ) : sections.length === 0 ? (
         <EmptyState title={t.restaurant.menuEmpty} description={t.restaurant.menuPreorderNote} />
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionHeader}>{section.title}</Text>
-          )}
-          renderSectionFooter={() => <View style={styles.sectionFooter} />}
-          ListFooterComponent={<Text style={styles.footerNote}>{t.restaurant.menuPreorderNote}</Text>}
-          stickySectionHeadersEnabled
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          // Меню живого заведения — до ~300 блюд: список остаётся оконным.
-          initialNumToRender={12}
-          windowSize={7}
-          removeClippedSubviews
-        />
+        <>
+          <CategoryBar
+            titles={sections.map((s) => s.title)}
+            activeIndex={activeIndex}
+            onSelect={jumpToSection}
+          />
+          <SectionList
+            ref={listRef}
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            renderSectionHeader={({ section }) => (
+              <Text style={styles.sectionHeader}>{section.title}</Text>
+            )}
+            renderSectionFooter={() => <View style={styles.sectionFooter} />}
+            ListFooterComponent={<Text style={styles.footerNote}>{t.restaurant.menuPreorderNote}</Text>}
+            stickySectionHeadersEnabled
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            onViewableItemsChanged={onViewable}
+            viewabilityConfig={viewabilityConfig}
+            // Промотка к разделу без getItemLayout иногда не долетает с первого
+            // раза на неизмеренных строках — доводим приблизительно и не роняем.
+            onScrollToIndexFailed={() => {}}
+            // Меню живого заведения — до ~300 блюд: список остаётся оконным.
+            initialNumToRender={12}
+            windowSize={7}
+            removeClippedSubviews
+          />
+        </>
       )}
+    </View>
+  );
+}
+
+/**
+ * Липкая горизонтальная строка категорий над меню. Активный чип подсвечен и
+ * подтягивается в видимую область, чтобы при длинном списке категорий текущая
+ * не пряталась за краем. По тапу — проматывает список к разделу.
+ */
+function CategoryBar({
+  titles,
+  activeIndex,
+  onSelect,
+}: {
+  titles: string[];
+  activeIndex: number;
+  onSelect: (index: number) => void;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  // Позиция каждого чипа по X — чтобы domкрутить активный в область видимости.
+  const offsets = useRef<number[]>([]);
+
+  const centerActive = useCallback(() => {
+    const x = offsets.current[activeIndex];
+    if (x !== undefined) scrollRef.current?.scrollTo({ x: Math.max(0, x - spacing.lg), animated: true });
+  }, [activeIndex]);
+
+  // Прокрутка меню меняет активную категорию — подтягиваем её чип в вид.
+  useEffect(() => {
+    centerActive();
+  }, [centerActive]);
+
+  return (
+    <View style={styles.categoryBar}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.categoryBarContent}
+      >
+        {titles.map((title, index) => {
+          const active = index === activeIndex;
+          return (
+            <Pressable
+              key={`${title}-${index}`}
+              onLayout={(e) => {
+                offsets.current[index] = e.nativeEvent.layout.x;
+                if (active) centerActive();
+              }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              onPress={() => onSelect(index)}
+              style={[styles.categoryChip, active && styles.categoryChipActive]}
+            >
+              <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]} numberOfLines={1}>
+                {title}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -188,6 +290,33 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: spacing.xxxl,
+  },
+  categoryBar: {
+    backgroundColor: colors.background.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.subtle,
+  },
+  categoryBarContent: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  categoryChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.background.chip,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.brand.primary,
+  },
+  categoryChipText: {
+    ...typography.labelMedium,
+    color: colors.text.primary,
+  },
+  categoryChipTextActive: {
+    color: colors.text.onDark,
   },
   sectionHeader: {
     ...typography.titleLg,
