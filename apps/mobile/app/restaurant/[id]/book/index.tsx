@@ -1,9 +1,8 @@
-import type { AvailabilitySlot, BookingConflictKind, DayOfWeek } from "@bookeat/api";
-import { RepositoryError } from "@bookeat/api";
+import type { AvailabilitySlot, DayOfWeek } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -17,60 +16,34 @@ import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, ForkKnife, User } from "../../../../src/components/icons";
 import { MenuItemCard } from "../../../../src/components/MenuItemCard";
-import { PhoneField } from "../../../../src/components/PhoneField";
 import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
+import { SegmentedTabs } from "../../../../src/components/SegmentedTabs";
 import { SelectRow } from "../../../../src/components/SelectRow";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { TextField } from "../../../../src/components/TextField";
 import { TimeSlotGrid } from "../../../../src/components/TimeSlotGrid";
-import { useAvailability, useCreateBooking } from "../../../../src/hooks/useBooking";
+import { useAvailability } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { useAuth } from "../../../../src/lib/auth";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
 import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
-import { isPhoneComplete, phoneFromE164 } from "../../../../src/lib/phone";
 import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
 
 const t = getDictionary();
 
-interface FieldErrors {
-  name?: string;
-  phone?: string;
-}
-
-/** What the guest is shown after a failed submit. `action` is the way out of
- * the failure (their bookings list, the party-size picker); `blocksSubmit`
- * means we KNOW a booking already exists, so the button must not fire again. */
-interface SubmitError {
-  title: string;
-  description: string;
-  action?: { label: string; onPress: () => void };
-  blocksSubmit?: boolean;
-}
-
 /**
- * Still deliberately loose, and for the same reason as before: a foreign
- * number is legitimate here — the venue phones the guest, the app does not
- * need to parse the number.
- *
- * What the country selector changes is WHERE the looseness lives. The old rule
- * ("at least ten digits, anything goes") was loose in the wrong direction: it
- * accepted "2125551234", which the server then normalized to "+72125551234",
- * a Kazakh number nobody owns. Now the country is explicit, so a number can be
- * checked against the country the guest actually picked — exactly, for the
- * countries we have a format for, and by a bare minimum digit count for every
- * other one, which is what keeps a real number from being refused.
- *
- * `raw` is E.164 from PhoneField, or "" — see `toE164`.
+ * The hour that splits the day's slots into the «Обед» and «Ужин» tabs (node
+ * 918:11747). A threshold, not the venue's real schedule: every venue keeps
+ * its own hours, and this only decides which of two tabs a slot lands under so
+ * a long day of times reads as two short lists instead of one tall one.
  */
-function validatePhone(raw: string): string | undefined {
-  const trimmed = raw.trim();
-  if (!trimmed) return t.booking.phoneRequired;
-  const value = phoneFromE164(trimmed);
-  if (!value || !isPhoneComplete(value)) return t.booking.phoneInvalid;
-  return undefined;
+const LUNCH_ENDS_HOUR = 18;
+
+/** Which tab a slot belongs to, by its LOCAL start hour. */
+function isLunchSlot(startsAt: string): boolean {
+  return new Date(startsAt).getHours() < LUNCH_ENDS_HOUR;
 }
 
 export default function ReservationScreen() {
@@ -87,13 +60,16 @@ export default function ReservationScreen() {
     // Заведение без онлайн-брони не спрашиваем вообще — см. useAvailability.
     acceptsOnlineBookings: restaurant?.acceptsOnlineBookings,
   });
-  const createBooking = useCreateBooking();
 
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitError, setSubmitError] = useState<SubmitError | null>(null);
+  // Обед / Ужин. Держим индекс здесь, а не в списке слотов, чтобы он пережил
+  // перерисовку грида при смене выбранного времени.
+  const [activeTab, setActiveTab] = useState(0);
 
-  // Prefill from the account once it is known, without touching anything the
-  // guest has already typed (see prefillContact).
+  // Prefill name/phone from the account once it is known, so the Confirmation
+  // screen has a contact to show and the create-booking body matches the draft
+  // the Idempotency-Key was built from. Never clobbers anything (prefillContact
+  // only fills an empty field), and the reservation screen no longer collects
+  // either one — they are read-only on Confirmation, per the account.
   //
   // Depends on the CALLBACK, not on `draft`: the draft object's identity
   // changes on every keystroke, so `[draft, user]` would re-run this effect
@@ -113,6 +89,18 @@ export default function ReservationScreen() {
   useEffect(() => {
     if (availabilitySlots) resolvePrefill(availabilitySlots);
   }, [availabilitySlots, resolvePrefill]);
+
+  // Land on the tab that actually has free time. Runs once, when the first real
+  // list arrives: after that the tab is the guest's to switch, and re-picking
+  // it under them on every refetch would be a bug.
+  const didInitTab = useRef(false);
+  useEffect(() => {
+    if (didInitTab.current || !availabilitySlots || availabilitySlots.length === 0) return;
+    didInitTab.current = true;
+    const lunchFree = availabilitySlots.some((s) => s.available && isLunchSlot(s.startsAt));
+    const dinnerFree = availabilitySlots.some((s) => s.available && !isLunchSlot(s.startsAt));
+    if (!lunchFree && dinnerFree) setActiveTab(1);
+  }, [availabilitySlots]);
 
   const selectedDate = useMemo(() => fromDateKey(draft.date), [draft.date]);
   const dateLabel = useMemo(() => {
@@ -142,173 +130,24 @@ export default function ReservationScreen() {
   const preorderCount = draft.preorder.reduce((sum, line) => sum + line.quantity, 0);
 
   const handleSelectSlot = (slot: AvailabilitySlot) => {
-    setSubmitError(null);
     draft.setSlot(slot);
   };
 
-  const validate = (): boolean => {
-    const next: FieldErrors = {
-      name: draft.name.trim() ? undefined : t.booking.nameRequired,
-      phone: validatePhone(draft.phone),
-    };
-    setErrors(next);
-    return !next.name && !next.phone;
-  };
-
-  const goToMyBookings = () => router.push("/bookings");
-
   /**
-   * The four ways POST /bookings can answer 409, and the only two questions
-   * that matter for each: does the guest have a booking, and may they submit
-   * again?
-   *
-   * IDEMPOTENCY-KEY, per branch:
-   *   - slot_taken / no_table_available — no booking exists. The selected time
-   *     is cleared, and clearing it rotates the key (BookingDraftProvider
-   *     rotates on any change to the request body: venue, day, party size,
-   *     slot, contacts). The guest's next submit is a genuinely new request.
-   *   - idempotency_key_reused — a booking DOES exist. Nothing about the draft
-   *     is touched, so the key does NOT rotate, and the submit button is
-   *     locked on top of that: rotating the key and resending is exactly what
-   *     would produce a second table.
-   *   - unknown — the draft is frozen for the same reason. Because the key
-   *     stays put, pressing "Забронировать" again resolves the ambiguity
-   *     safely by itself: if the earlier submit did go through, the backend
-   *     replays that same booking (identical body + identical key); if it did
-   *     not, the request is simply attempted again.
+   * "Продолжить" is where the auth-gate lives now (owner's rule): a guest who is
+   * not signed in the moment they move to confirm is sent to sign-in and lands
+   * back on THIS screen afterwards (the gate is pushed on top of the stack, so
+   * the draft survives). Identity is never collected here — name and phone come
+   * from the account and are shown read-only on the Confirmation screen.
    */
-  const handleBookingConflict = (conflict: BookingConflictKind) => {
-    switch (conflict) {
-      case "slot_taken":
-        // No booking was created. The slot went while the guest was typing:
-        // drop it and refetch so the grid they look at next is the truth.
-        draft.setSlot(null);
-        void availability.refetch();
-        setSubmitError({
-          title: t.booking.createErrorConflictTitle,
-          description: t.booking.createErrorConflictDescription,
-        });
-        return;
-      case "no_table_available":
-        // No booking either — but picking another time is not the only fix,
-        // a smaller party may still fit, so offer that route explicitly.
-        draft.setSlot(null);
-        void availability.refetch();
-        setSubmitError({
-          title: t.booking.createErrorNoTableTitle,
-          description: t.booking.createErrorNoTableDescription(draft.guests),
-          action: {
-            label: t.booking.createErrorChangeGuests,
-            onPress: () => router.push(`/restaurant/${id}/book/guests`),
-          },
-        });
-        return;
-      case "idempotency_key_reused":
-        // The OPPOSITE of a lost slot: this exact request already produced a
-        // booking. Keep the draft intact and stop the flow here.
-        setSubmitError({
-          title: t.booking.createErrorDuplicateTitle,
-          description: t.booking.createErrorDuplicateDescription,
-          action: { label: t.booking.createErrorOpenMyBookings, onPress: goToMyBookings },
-          blocksSubmit: true,
-        });
-        return;
-      case "unknown":
-        // An older server build: the same 409 covers both outcomes and we
-        // cannot tell them apart. Say nothing we do not know — claiming a
-        // booking that does not exist is what makes a guest not turn up —
-        // and send them to check. The draft is left exactly as it is.
-        setSubmitError({
-          title: t.booking.createErrorAmbiguousTitle,
-          description: t.booking.createErrorAmbiguousDescription,
-          action: { label: t.booking.createErrorOpenMyBookings, onPress: goToMyBookings },
-        });
-        return;
-    }
-  };
-
-  const handleSubmit = () => {
-    setSubmitError(null);
+  const handleContinue = () => {
     if (!draft.slot || !id) return;
-    if (!validate()) return;
-
-    // Not signed in: park the guest at the gate and come straight back here.
-    // The draft survives because the gate is pushed on top of this stack.
     if (authStatus !== "signed-in") {
       router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
       return;
     }
-
-    createBooking.mutate(
-      {
-        input: {
-          restaurantId: id,
-          startsAt: draft.slot.startsAt,
-          guests: draft.guests,
-          name: draft.name.trim(),
-          phone: draft.phone.trim(),
-          notes: draft.notes,
-        },
-        idempotencyKey: draft.idempotencyKey,
-        preorder: draft.preorder.map((line) => ({
-          menuItemId: line.menuItemId,
-          quantity: line.quantity,
-          comment: line.comment,
-        })),
-      },
-      {
-        onSuccess: ({ booking, preorderFailed }) => {
-          router.replace({
-            pathname: "/booking/[id]",
-            params: {
-              id: booking.id,
-              preorderFailed: preorderFailed ? "1" : "0",
-              // Marks THIS arrival as "the booking was just made here", which
-              // is the only moment the reservation screen offers to turn on
-              // notifications. A deep link or a visit from «Мои брони» carries
-              // no such flag and shows no card.
-              created: "1",
-            },
-          });
-        },
-        onError: (error) => {
-          if (error instanceof RepositoryError && error.isUnauthorized) {
-            router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
-            return;
-          }
-          // A 409 is FOUR different outcomes, told apart only by the server's
-          // machine-readable `code` (never by the English message, which is
-          // the same "already exists" for all of them). Two of them mean the
-          // guest has NO booking, one means they DO, and the fourth is an
-          // older server build that will not say which.
-          const conflict =
-            error instanceof RepositoryError ? error.bookingConflict : null;
-          if (conflict) {
-            handleBookingConflict(conflict);
-            return;
-          }
-          if (error instanceof RepositoryError && error.isValidation) {
-            setSubmitError({
-              title: t.booking.createErrorValidationTitle,
-              description: t.booking.createErrorValidationDescription,
-            });
-            return;
-          }
-          setSubmitError({
-            title: t.booking.createErrorTitle,
-            description: t.booking.createErrorDescription,
-          });
-        },
-      },
-    );
+    router.push(`/restaurant/${id}/book/confirm`);
   };
-
-  const submitting = createBooking.isPending;
-  // `blocksSubmit` is set only when the server told us a booking already
-  // exists. It is deliberately NOT cleared by editing the form: any edit
-  // rotates the Idempotency-Key, so an "edit and resend" is what would create
-  // the second table. The way out is the bookings list.
-  const canSubmit = Boolean(draft.slot) && !submitting && !submitError?.blocksSubmit;
 
   /**
    * Заведение вообще не принимает онлайн-бронь (`accepts_online_bookings:
@@ -416,59 +255,22 @@ export default function ReservationScreen() {
                 onPickAnotherDate={() => router.push(`/restaurant/${id}/book/date`)}
                 dayHint={selectedDayHint}
                 phone={restaurant?.phone}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
               />
             </View>
           </View>
 
+          {/* "Special Requests" is its own card in the design (node 471:3946 /
+              918:11747): a titled card with one bare rounded box, no field
+              label. It stays editable here; Confirmation shows it read-only. */}
           <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.contactSectionTitle}</Text>
+              <Text style={styles.sectionTitle}>{t.booking.specialRequestsTitle}</Text>
             </View>
             <View style={styles.sectionBody}>
               <TextField
-                label={t.booking.nameLabel}
-                placeholder={t.booking.namePlaceholder}
-                value={draft.name}
-                onChangeText={(value) => {
-                  draft.setName(value);
-                  if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
-                }}
-                error={errors.name}
-                autoCapitalize="words"
-                autoComplete="name"
-                textContentType="name"
-              />
-              {/* This field used to have NO mask at all, deliberately: a
-                  foreign number is legitimate here — the venue simply calls
-                  it — and a hard +7 mask would have made such a booking
-                  impossible. That intent is preserved, not dropped: the
-                  country selector now covers every country in the table, and
-                  for any country whose format we do not claim to know the
-                  field takes free digits (see MIN_TOTAL_DIGITS in lib/phone).
-                  What changed is that "2125551234" typed by an American no
-                  longer leaves as "+72125551234" — a Kazakh number nobody
-                  owns, handed to the venue to dial. */}
-              <PhoneField
-                label={t.booking.phoneLabel}
-                value={draft.phone}
-                onChange={({ e164 }) => {
-                  draft.setPhone(e164);
-                  if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
-                }}
-                error={errors.phone}
-              />
-            </View>
-          </View>
-
-          {/* "Special Requests" is its own card in the design (node 471:3946):
-              a titled card with one bare rounded box, no field label. */}
-          <View style={[styles.section, styles.sectionRounded]}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.notesLabel}</Text>
-            </View>
-            <View style={styles.sectionBody}>
-              <TextField
-                label={t.booking.notesLabel}
+                label={t.booking.specialRequestsTitle}
                 labelHidden
                 placeholder={t.booking.notesPlaceholder}
                 value={draft.notes}
@@ -524,38 +326,15 @@ export default function ReservationScreen() {
               </ScrollView>
             </View>
           ) : null}
-
-          {submitError ? (
-            <View style={styles.submitError} accessibilityRole="alert">
-              <Text style={styles.submitErrorTitle}>{submitError.title}</Text>
-              <Text style={styles.submitErrorText}>{submitError.description}</Text>
-              {submitError.action ? (
-                <PrimaryButton
-                  label={submitError.action.label}
-                  onPress={submitError.action.onPress}
-                  variant="secondary"
-                />
-              ) : null}
-            </View>
-          ) : null}
         </ScrollView>
 
         <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
           <View style={styles.footer}>
-            {authStatus !== "signed-in" ? (
-              <Text style={styles.gateNote}>{t.booking.signInGateNote}</Text>
-            ) : null}
             <PrimaryButton
               size="lg"
-              label={
-                submitting
-                  ? t.booking.submitting
-                  : authStatus === "signed-in"
-                    ? t.booking.submit
-                    : t.booking.signInToConfirm
-              }
-              onPress={handleSubmit}
-              disabled={!canSubmit}
+              label={t.booking.continueToConfirm}
+              onPress={handleContinue}
+              disabled={!draft.slot}
             />
           </View>
         </SafeAreaView>
@@ -580,6 +359,10 @@ export default function ReservationScreen() {
  * `accepts_online_bookings` is known before the first request and the screen
  * returns its own state above. That flag is what replaced the old guesswork
  * (ASSUMED_IS_BOOKABLE + "all slots came back capacity, so probably…").
+ *
+ * The available times are split into «Обед / Ужин» tabs (node 918:11747): the
+ * closed / all-taken / no-table states are read from the WHOLE day, so a venue
+ * that is shut is not reported as merely "no dinner slots".
  */
 function SlotsSection({
   query,
@@ -588,6 +371,8 @@ function SlotsSection({
   onPickAnotherDate,
   dayHint,
   phone,
+  activeTab,
+  onTabChange,
 }: {
   query: ReturnType<typeof useAvailability>;
   selected: string | null;
@@ -597,6 +382,8 @@ function SlotsSection({
    * про этот день ничего не сказал. */
   dayHint: string | null;
   phone?: string;
+  activeTab: number;
+  onTabChange: (index: number) => void;
 }) {
   if (query.isPending) {
     return <LoadingState title={t.booking.slotsLoading} compact />;
@@ -656,7 +443,26 @@ function SlotsSection({
     );
   }
 
-  return <TimeSlotGrid slots={slots} selected={selected} onSelect={onSelect} />;
+  // Both tabs are always shown once the day has any time at all: the split is a
+  // grouping, not a claim about the venue, so an empty tab reads "не в этот
+  // период" — it never means the venue is closed (that state is handled above).
+  const tabSlots = slots.filter((slot) =>
+    activeTab === 0 ? isLunchSlot(slot.startsAt) : !isLunchSlot(slot.startsAt),
+  );
+  return (
+    <View style={styles.slotsBlock}>
+      <SegmentedTabs
+        labels={[t.booking.lunch, t.booking.dinner]}
+        activeIndex={activeTab}
+        onChange={onTabChange}
+      />
+      {tabSlots.length > 0 ? (
+        <TimeSlotGrid slots={tabSlots} selected={selected} onSelect={onSelect} />
+      ) : (
+        <Text style={styles.tabEmpty}>{t.booking.slotsNoneInPeriod}</Text>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -739,8 +545,17 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.muted,
   },
-  // Same block the submit errors use, minus the screen gutter: this one sits
-  // INSIDE a card that already carries the padding.
+  // Tabs sit above the grid with the same 16 gap the card body uses between
+  // its rows.
+  slotsBlock: {
+    gap: spacing.md,
+  },
+  tabEmpty: {
+    ...typography.body,
+    color: colors.text.muted,
+  },
+  // Same block the notices use, minus the screen gutter: this one sits INSIDE
+  // a card that already carries the padding.
   notice: {
     padding: spacing.md,
     borderRadius: radius.card,
@@ -752,21 +567,6 @@ const styles = StyleSheet.create({
     color: colors.brand.primary,
   },
   noticeText: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  submitError: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
-    gap: spacing.xs,
-  },
-  submitErrorTitle: {
-    ...typography.labelSemiBold,
-    color: colors.brand.primary,
-  },
-  submitErrorText: {
     ...typography.body,
     color: colors.text.primary,
   },
@@ -783,10 +583,5 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.md,
     gap: spacing.sm,
-  },
-  gateNote: {
-    ...typography.caption,
-    color: colors.text.muted,
-    textAlign: "center",
   },
 });

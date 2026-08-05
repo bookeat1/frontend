@@ -62,6 +62,14 @@ export interface BookingPrefill {
   guests?: string | number;
   /** RFC3339 start of the slot the guest tapped. */
   startsAt?: string;
+  /**
+   * A dish to seed the pre-order with — set when the guest entered the flow by
+   * tapping «+» on the venue menu (node 918:11820). Quantity is always 1; they
+   * refine it on the pre-order or confirmation step. `priceMinor` is the
+   * client-side estimate only and never travels to the server (the create call
+   * sends ids, not money — see useCreateBooking).
+   */
+  preorderSeed?: { menuItemId: string; name: string; priceMinor: number | null };
 }
 
 /**
@@ -183,7 +191,15 @@ export function BookingDraftProvider({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [preorder, setPreorder] = useState<PreorderDraftLine[]>([]);
+  // Seeded ONCE from the prefill (lazy, so it does not re-run per render): a
+  // dish tapped on the venue menu arrives here as the first pre-order line. A
+  // seed with no id or no name is ignored rather than trusted — it comes off a
+  // URL, same as the date and party size.
+  const [preorder, setPreorder] = useState<PreorderDraftLine[]>(() => {
+    const seed = prefill?.preorderSeed;
+    if (!seed?.menuItemId || !seed.name) return [];
+    return [{ menuItemId: seed.menuItemId, name: seed.name, priceMinor: seed.priceMinor, quantity: 1 }];
+  });
   const [idempotencyKey, setIdempotencyKey] = useState(randomKey);
 
   // Which draft the current key belongs to. Compared as a ref rather than

@@ -3,12 +3,14 @@ import { colors, controlHeight, radius, spacing, typography } from "@bookeat/des
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
-import { SectionList, StyleSheet, Text, View } from "react-native";
+import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../src/components/FlowHeader";
+import { Plus } from "../../../src/components/icons";
 import { PhotoView } from "../../../src/components/PhotoView";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useMenuSections } from "../../../src/hooks/useBooking";
+import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { formatMoneyMinor } from "../../../src/lib/format";
 
 const t = getDictionary();
@@ -35,6 +37,12 @@ export default function RestaurantMenuScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const menu = useMenuSections(id);
+  const { data: restaurant } = useRestaurant(id);
+
+  // «+» ведёт в бронь с этим блюдом в предзаказе (макет 918:11820). У заведения
+  // без онлайн-брони кнопки нет: она увела бы в тупик — экран брони таких сразу
+  // разворачивает на телефон.
+  const canPreorder = restaurant?.acceptsOnlineBookings ?? false;
 
   const sections = useMemo<Section[]>(
     () =>
@@ -47,7 +55,30 @@ export default function RestaurantMenuScreen() {
     [menu.data],
   );
 
-  const renderItem = useCallback(({ item }: { item: MenuDish }) => <DishRow dish={item} />, []);
+  // Заводит флоу брони с блюдом как первой позицией предзаказа. Данные едут
+  // параметрами (id/имя/цена уже на карточке) — их подхватывает book/_layout и
+  // кладёт в черновик. Цена только для клиентской оценки, серверу не уходит.
+  const addToPreorder = useCallback(
+    (dish: MenuDish) => {
+      router.push({
+        pathname: "/restaurant/[id]/book",
+        params: {
+          id: id ?? "",
+          addItemId: dish.id,
+          addItemName: dish.name,
+          ...(dish.priceMinor !== null ? { addItemPrice: String(dish.priceMinor) } : {}),
+        },
+      });
+    },
+    [id, router],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: MenuDish }) => (
+      <DishRow dish={item} onAdd={canPreorder ? () => addToPreorder(item) : undefined} />
+    ),
+    [addToPreorder, canPreorder],
+  );
 
   return (
     <View style={styles.root}>
@@ -95,7 +126,16 @@ export default function RestaurantMenuScreen() {
  * потеряло данные. Фото у живых блюд нет ни у одного — вместо картинки
  * осознанная плашка, как в ленте «Из меню».
  */
-const DishRow = React.memo(function DishRow({ dish }: { dish: MenuDish }) {
+const DishRow = React.memo(function DishRow({
+  dish,
+  onAdd,
+}: {
+  dish: MenuDish;
+  /** Есть только когда заведение принимает онлайн-бронь; блюдо из стоп-листа
+   * или без цены добавить всё равно нельзя — заказать его заранее не выйдет. */
+  onAdd?: () => void;
+}) {
+  const addable = onAdd && dish.isAvailable && dish.priceMinor !== null;
   return (
     <View style={styles.dish}>
       <View style={styles.dishText}>
@@ -120,6 +160,19 @@ const DishRow = React.memo(function DishRow({ dish }: { dish: MenuDish }) {
       <View style={styles.dishPhoto}>
         {/* Та же плашка, что и на карточке блюда, — одна на всё приложение. */}
         <PhotoView uri={dish.imageUrl} style={styles.dishImage} decorative placeholderIconSize={24} />
+        {/* Белый кружок с плюсом на нижнем крае фото (макет 918:11849). 32pt
+            видимого круга + 8 hitSlop перекрывают правило 44pt. */}
+        {addable ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t.booking.dishAdd}: ${dish.name}`}
+            onPress={onAdd}
+            hitSlop={8}
+            style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
+          >
+            <Plus size={20} color={colors.text.primary} weight="bold" />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -195,11 +248,34 @@ const styles = StyleSheet.create({
   dishPhoto: {
     width: controlHeight.dishPhotoWidth,
     height: controlHeight.dishPhotoHeight,
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
   dishImage: {
     width: "100%",
     height: "100%",
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
+  },
+  // Тот же «+», что и на экране предзаказа (book/menu.tsx): белый круг с тенью
+  // на нижнем крае фото.
+  addButton: {
+    position: "absolute",
+    right: spacing.sm,
+    bottom: spacing.sm,
+    width: spacing.xxxl,
+    height: spacing.xxxl,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background.surface,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  addButtonPressed: {
+    opacity: 0.7,
   },
 });

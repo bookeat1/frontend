@@ -18,15 +18,37 @@ export default function BookingFlowLayout() {
   // Nothing is trusted: BookingDraftProvider validates all three (see
   // sanitizeDate / sanitizeGuests / sanitizeStartsAt) because these come from
   // a URL and a stale link is the normal case, not the exception.
-  const { id, date, startsAt, guests } = useLocalSearchParams<{
-    id: string;
-    date?: string;
-    startsAt?: string;
-    guests?: string;
-  }>();
+  //
+  // `addItemId` / `addItemName` / `addItemPrice` arrive when the guest entered
+  // by tapping «+» on the venue menu (restaurant/[id]/menu.tsx): that dish
+  // becomes the first pre-order line. The price is a client-side estimate — the
+  // create call sends ids, not money — and is `null` when the dish has none.
+  const { id, date, startsAt, guests, addItemId, addItemName, addItemPrice } =
+    useLocalSearchParams<{
+      id: string;
+      date?: string;
+      startsAt?: string;
+      guests?: string;
+      addItemId?: string;
+      addItemName?: string;
+      addItemPrice?: string;
+    }>();
+
+  const parsedPrice = addItemPrice ? Number.parseInt(addItemPrice, 10) : NaN;
+  const preorderSeed =
+    addItemId && addItemName
+      ? {
+          menuItemId: addItemId,
+          name: addItemName,
+          priceMinor: Number.isFinite(parsedPrice) ? parsedPrice : null,
+        }
+      : undefined;
 
   return (
-    <BookingDraftProvider restaurantId={id ?? ""} prefill={{ date, startsAt, guests }}>
+    <BookingDraftProvider
+      restaurantId={id ?? ""}
+      prefill={{ date, startsAt, guests, preorderSeed }}
+    >
       <Stack screenOptions={{ headerShown: false }} />
     </BookingDraftProvider>
   );
