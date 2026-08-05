@@ -100,11 +100,25 @@ export default function RestaurantMenuScreen() {
     if (idx >= 0) setActiveIndex(idx);
   }).current;
 
+  // Целевой раздел для промотки: если scrollToLocation срывается на ещё не
+  // отрисованном разделе (onScrollToIndexFailed), список подтягивает строки к
+  // нему и мы повторяем попытку по этому же индексу.
+  const pendingSectionRef = useRef<number | null>(null);
   const jumpToSection = useCallback((index: number) => {
     setActiveIndex(index);
+    pendingSectionRef.current = index;
     // itemIndex:0 наводит на заголовок раздела; viewOffset прижимает его под
     // строку категорий, а не под системный статус-бар.
     listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: true });
+  }, []);
+  const retryJump = useCallback(() => {
+    const index = pendingSectionRef.current;
+    if (index === null) return;
+    // Дожидаемся, пока список домонтирует строки до целевого раздела, и
+    // повторяем — уже без анимации, чтобы прыжок был мгновенным.
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: false });
+    });
   }, []);
 
   return (
@@ -146,9 +160,10 @@ export default function RestaurantMenuScreen() {
             showsVerticalScrollIndicator={false}
             onViewableItemsChanged={onViewable}
             viewabilityConfig={viewabilityConfig}
-            // Промотка к разделу без getItemLayout иногда не долетает с первого
-            // раза на неизмеренных строках — доводим приблизительно и не роняем.
-            onScrollToIndexFailed={() => {}}
+            // Промотка к разделу без getItemLayout не долетает с первого раза на
+            // неизмеренных строках — SectionList подтягивает строки к цели, а мы
+            // повторяем прыжок по сохранённому индексу (см. retryJump).
+            onScrollToIndexFailed={retryJump}
             // Меню живого заведения — до ~300 блюд: список остаётся оконным.
             initialNumToRender={12}
             windowSize={7}
