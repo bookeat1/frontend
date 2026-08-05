@@ -612,4 +612,19 @@ export class MockAuthRepository implements AuthRepository {
     };
     return this.user;
   }
+
+  /**
+   * Mock soft-delete: a no-op success. Drops the in-memory user so a later
+   * getMe in the same process behaves like a signed-out account, matching what
+   * the real endpoint does to the session. There is no backend to reach here
+   * (this repository only runs with EXPO_PUBLIC_API_URL unset).
+   */
+  async deleteAccount(): Promise<void> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    this.user = null;
+    this.otpPhone = null;
+  }
 }

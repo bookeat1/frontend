@@ -14,7 +14,9 @@ import {
   type ProfileErrors,
   type ProfileSaveFailure,
 } from "../../lib/profile-edit";
+import { MapPin } from "../icons";
 import { PrimaryButton } from "../PrimaryButton";
+import { SelectRow } from "../SelectRow";
 import { TextField } from "../TextField";
 import { BirthDateField } from "./BirthDateField";
 
@@ -52,6 +54,7 @@ export function ProfileForm({
   onSaved,
   onSessionExpired,
   onSignIn,
+  onEditCity,
 }: {
   user: AuthUser;
   onSave: (patch: ProfileUpdate) => Promise<AuthUser>;
@@ -62,6 +65,13 @@ export function ProfileForm({
    * would take the guest's unsaved text with it. */
   onSessionExpired?: () => void;
   onSignIn?: () => void;
+  /**
+   * Opens the city picker. Given the current city and an `apply` callback to
+   * write the chosen one back into the draft. When omitted (e.g. in tests, which
+   * mount this form without a router) the city stays a free-text field — the
+   * navigation, not the field, is what needs a router.
+   */
+  onEditCity?: (currentCity: string, apply: (city: string) => void) => void;
 }) {
   // `original` is what the last successful load/save returned; the draft is
   // what the guest typed. They are separate so a failure can leave the draft
@@ -147,14 +157,29 @@ export function ProfileForm({
         textContentType="name"
       />
 
-      <TextField
-        label={copy.cityLabel}
-        value={draft.city}
-        onChangeText={(value) => patchField("city", value)}
-        editable={!saving}
-        placeholder={copy.cityPlaceholder}
-        hint={copy.cityHint}
-      />
+      {/* City is a picker when a router is available (the real screen), a
+          free-text field otherwise. The draft value is a plain string either
+          way, so `profilePatch` and the wire are identical — clearing it (the
+          picker's "не указывать город") writes "" exactly as typing nothing
+          did, which is how PATCH /users/me clears the column. */}
+      {onEditCity ? (
+        <SelectRow
+          icon={MapPin}
+          label={copy.cityLabel}
+          value={draft.city}
+          placeholder={copy.cityPlaceholder}
+          onPress={() => onEditCity(draft.city, (city) => patchField("city", city))}
+        />
+      ) : (
+        <TextField
+          label={copy.cityLabel}
+          value={draft.city}
+          onChangeText={(value) => patchField("city", value)}
+          editable={!saving}
+          placeholder={copy.cityPlaceholder}
+          hint={copy.cityHint}
+        />
+      )}
 
       {/* The draft still holds "YYYY-MM-DD"; the field only changes how the
           guest reads and enters it, so `profilePatch` and the wire are

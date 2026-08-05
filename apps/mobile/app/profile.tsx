@@ -10,10 +10,11 @@ import { BookingCard } from "../src/components/booking/BookingCard";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { PrimaryButton } from "../src/components/PrimaryButton";
-import { BookOpen, Heart } from "../src/components/icons";
+import { BookOpen, GearSix, Heart } from "../src/components/icons";
 import { ProfileForm } from "../src/components/profile/ProfileForm";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { useAuth } from "../src/lib/auth";
+import { requestCitySelection } from "../src/lib/city-select";
 
 const t = getDictionary();
 
@@ -123,6 +124,13 @@ export default function ProfileScreen() {
                 onSaved={(updated) => queryClient.setQueryData(["me"], updated)}
                 onSessionExpired={() => setKeepEditor(true)}
                 onSignIn={() => router.push("/auth/sign-in")}
+                // Opening the city picker lives here (the form is router-free so
+                // it stays mountable in a test): leave the setter in the mailbox,
+                // then push the picker. `apply` is the form's own patchField.
+                onEditCity={(current, apply) => {
+                  requestCitySelection((city) => apply(city ?? ""));
+                  router.push({ pathname: "/city", params: { selected: current, purpose: "profile" } });
+                }}
               />
             </BookingCard>
 
@@ -138,6 +146,12 @@ export default function ProfileScreen() {
                 icon={Heart}
                 label={t.profile.myFavorites}
                 onPress={() => router.replace("/favorites")}
+              />
+              <PrimaryButton
+                variant="secondary"
+                icon={GearSix}
+                label={t.profile.settings}
+                onPress={() => router.push("/settings")}
               />
             </BookingCard>
 

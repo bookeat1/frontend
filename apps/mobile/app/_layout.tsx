@@ -14,6 +14,7 @@ import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../src/lib/auth";
+import { LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
 import { queryClient } from "../src/lib/queryClient";
@@ -37,6 +38,10 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        {/* LocaleProvider sits at the top so every screen (and every provider
+            below) can read the current language. It owns no session and no
+            query, only the chosen locale + its persisted value. */}
+        <LocaleProvider>
         <QueryClientProvider client={queryClient}>
           <RepositoryProvider>
             {/* AuthProvider sits INSIDE RepositoryProvider on purpose: it
@@ -61,6 +66,7 @@ export default function RootLayout() {
             </AuthProvider>
           </RepositoryProvider>
         </QueryClientProvider>
+        </LocaleProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

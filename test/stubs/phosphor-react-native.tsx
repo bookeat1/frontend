@@ -40,6 +40,7 @@ export const Compass = icon("Compass");
 export const Export = icon("Export");
 export const FadersHorizontal = icon("FadersHorizontal");
 export const ForkKnife = icon("ForkKnife");
+export const GearSix = icon("GearSix");
 export const GlobeSimple = icon("GlobeSimple");
 export const Heart = icon("Heart");
 export const Info = icon("Info");

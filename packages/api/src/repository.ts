@@ -251,6 +251,22 @@ export interface AuthRepository {
    * truth (the server may normalize).
    */
   updateMe(input: ProfileUpdate): Promise<AuthUser>;
+
+  /**
+   * Soft-deletes the caller's own account (`DELETE /users/me`, authenticated).
+   *
+   * SOFT delete: the backend marks the account deleted and hides it, but keeps
+   * it recoverable for a retention window (a later sign-in with the same phone
+   * restores it). The exact window is the server's to define — this frontend
+   * does not encode a number of days, because the endpoint is still being
+   * built and inventing the retention period here would be inventing a
+   * contract. The agreed frontend contract is only the verb + path.
+   *
+   * The caller must sign the guest out afterwards (the token now belongs to a
+   * deleted account). Returns nothing: there is no post-delete account to hand
+   * back.
+   */
+  deleteAccount(): Promise<void>;
 }
 
 /**

@@ -611,6 +611,16 @@ export class HttpAuthRepository implements AuthRepository {
     const api = await this.client.patch<ApiUser>("/users/me", body, { auth: true });
     return mapUser(api);
   }
+
+  /**
+   * `DELETE /users/me` — soft delete. Authenticated; the server marks the
+   * account deleted and answers success, and the caller (auth.tsx) signs the
+   * guest out right after. The endpoint is being built on the backend
+   * separately; the contract this client commits to is the verb + path only.
+   */
+  async deleteAccount(): Promise<void> {
+    await this.client.delete<unknown>("/users/me", { auth: true });
+  }
 }
 
 /** Resolves to undefined instead of rejecting — for the venue screen's
