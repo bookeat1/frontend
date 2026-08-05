@@ -6,6 +6,7 @@ import {
   CaretLeft,
   CaretRight,
   CaretUp,
+  ChatCircle,
   Check,
   CheckCircle,
   Clock,
@@ -24,6 +25,9 @@ import {
   Note,
   Phone,
   Plus,
+  Question,
+  SignOut,
+  ThumbsUp,
   User,
   UserCircle,
   Users,
@@ -64,6 +68,11 @@ import {
  * figma reference PNG of the expanded sheet): CaretUp flips the collapsible
  * section header when it is open, Check is the tick inside the square
  * amenity checkboxes.
+ *
+ * ChatCircle, Question, ThumbsUp and SignOut were added for the «Профиль»
+ * vitrina (read off the Figma profile reference): ChatCircle marks «Мои
+ * отзывы», Question «Центр помощи», ThumbsUp «Оценить приложение», and SignOut
+ * the «Выйти из аккаунта» row. Same Phosphor set as the rest.
  */
 export type { IconProps };
 export {
@@ -74,6 +83,7 @@ export {
   CaretLeft,
   CaretRight,
   CaretUp,
+  ChatCircle,
   Check,
   CheckCircle,
   Clock,
@@ -92,6 +102,9 @@ export {
   Note,
   Phone,
   Plus,
+  Question,
+  SignOut,
+  ThumbsUp,
   User,
   UserCircle,
   Users,

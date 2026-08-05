@@ -1,53 +1,45 @@
 import type { AuthUser } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, radius, spacing } from "@bookeat/design-tokens";
+import { LOCALES } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BookingCard } from "../src/components/booking/BookingCard";
 import { BottomNavBar } from "../src/components/BottomNavBar";
-import { FlowHeader } from "../src/components/FlowHeader";
-import { PrimaryButton } from "../src/components/PrimaryButton";
-import { BookOpen, GearSix, Heart } from "../src/components/icons";
-import { ProfileForm } from "../src/components/profile/ProfileForm";
+import { ChatCircle, ForkKnife, GearSix, GlobeSimple, MapPin, Question, SignOut, ThumbsUp } from "../src/components/icons";
+import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
+import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
+import { ProfileMenuRow } from "../src/components/profile/ProfileMenuRow";
+import { ProfileStats } from "../src/components/profile/ProfileStats";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
+import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
 import { useLocale } from "../src/lib/locale";
 
 /**
- * «Профиль» — the account behind the bookings (`GET /users/me`).
+ * «Профиль» — a display vitrina, not an edit form (Figma profile reference).
  *
- * The account is re-read here with its own query instead of using the
- * `user` the auth context keeps: that one is a best-effort prefill for the
- * booking form (a failed /users/me is swallowed there on purpose), which
- * means it cannot tell "still loading" from "the request failed". A screen
- * whose entire content is the account has to be able to say which.
+ * The account is re-read here with its own query instead of the best-effort
+ * `user` the auth context keeps for the booking form (a failed /users/me is
+ * swallowed there on purpose, so it cannot tell "loading" from "failed"); a
+ * screen that IS the account has to say which.
  *
- * Editing goes through `PATCH /users/me` and covers exactly the fields that
- * endpoint accepts AND this app has an honest value for: name, city, birth
- * date. The phone is displayed but not editable — there is no phone field in
- * the PATCH body and the account is found BY the number at sign-in. See
- * ProfileForm for the fields deliberately left out.
- *
- * One piece of wiring worth naming: when a refresh fails mid-edit the auth
- * context signs the guest out, which would normally swap this screen for «Вы
- * не вошли» and take their unsaved text with it. `keepEditor` pins the form in
- * place for that case, and `lastUser` keeps the profile it was built from
- * after the ["me"] cache entry is purged on sign-out.
+ * Editing moved off this screen entirely: the identity block at the top is the
+ * entry point (`/profile/edit`), where the same ProfileForm and PATCH
+ * /users/me wiring now lives. The vitrina only reads — name, phone, one real
+ * counter, the current city and language — and routes.
  */
 export default function ProfileScreen() {
-  // The settings entry point reads the dictionary through the context so it
-  // re-renders in the chosen language the instant it changes, without waiting
-  // for a reload — the switch itself lives one tap deeper (in /settings).
-  const { dictionary: t } = useLocale();
+  // The dictionary comes through the context so this screen re-renders in the
+  // chosen language the instant it changes (the switch lives in /settings/language).
+  const { dictionary: t, locale } = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status, repository, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
-
-  const [keepEditor, setKeepEditor] = useState(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   const me = useQuery<AuthUser>({
     queryKey: ["me"],
@@ -55,15 +47,17 @@ export default function ProfileScreen() {
     enabled: status === "signed-in",
     staleTime: 5 * 60_000,
   });
+  const account = me.data ?? null;
 
-  // The last profile that actually loaded. The ["me"] cache entry is REMOVED on
-  // sign-out (auth.tsx: PRIVATE_QUERY_KEYS), so without this the form would
-  // lose the account it is editing at the exact moment the session dies.
-  const lastUser = useRef<AuthUser | null>(null);
-  useEffect(() => {
-    if (me.data) lastUser.current = me.data;
-  }, [me.data]);
-  const account = me.data ?? (keepEditor ? lastUser.current : null);
+  // «Брони» — the only stat with a backend behind it: the same list the bookings
+  // screen reads (`GET /bookings`), whose first page carries the true `total`.
+  // Session-gated inside the hook, so a signed-out guest never fires it.
+  // «Отзывов» and «Друзья» have no endpoint yet — shown as a real 0 below, not
+  // a plausible-looking number. TODO(track-C backend): wire when they exist.
+  const bookings = useMyBookings();
+  const bookingsCount = bookings.data?.pages[0]?.total ?? 0;
+
+  const currentLanguage = LOCALES.find((option) => option.code === locale)?.nativeName ?? "";
 
   const handleSignOut = async () => {
     // Double-tap guard on top of the disabled button: signing out twice is
@@ -72,36 +66,47 @@ export default function ProfileScreen() {
     if (signingOut) return;
     setSigningOut(true);
     try {
-      // An explicit sign-out is not a session that died under the guest: the
-      // editor must go with it, not be pinned open holding the previous
-      // person's name.
-      setKeepEditor(false);
-      lastUser.current = null;
       await signOut();
+      setConfirmingSignOut(false);
       router.replace("/");
     } finally {
       setSigningOut(false);
     }
   };
 
+  // Opening the city picker straight from the vitrina: persist the choice with
+  // the same PATCH /users/me the edit form uses, writing the server's answer
+  // back into the ["me"] cache so the row updates without a refetch. The cache
+  // is touched only on success, so a failed save simply leaves the stored city
+  // in place — no invented value on screen.
+  const editCity = () => {
+    requestCitySelection((city) => {
+      void repository
+        .updateMe({ city: city ?? "" })
+        .then((updated) => queryClient.setQueryData(["me"], updated))
+        .catch(() => {
+          // Keep the last stored city; the row already shows the real value.
+        });
+    });
+    router.push({ pathname: "/city", params: { selected: account?.city ?? "", purpose: "profile" } });
+  };
+
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        <FlowHeader title={t.profile.title} />
-      </SafeAreaView>
+      <SafeAreaView edges={["top"]} style={styles.topSafeArea} />
 
       <View style={styles.body}>
         {status === "loading" ? (
           <LoadingState title={t.profile.loadingTitle} />
-        ) : status === "signed-out" && !account ? (
-          <EmptyState
-            title={t.profile.signedOutTitle}
-            description={t.profile.signedOutDescription}
-            actionLabel={t.profile.signIn}
-            onAction={() => router.push("/auth/sign-in")}
-          />
-        ) : !account ? (
-          me.isError ? (
+        ) : status === "signed-out" || !account ? (
+          status === "signed-out" ? (
+            <EmptyState
+              title={t.profile.signedOutTitle}
+              description={t.profile.signedOutDescription}
+              actionLabel={t.profile.signIn}
+              onAction={() => router.push("/auth/sign-in")}
+            />
+          ) : me.isError ? (
             <ErrorState
               title={t.profile.errorTitle}
               description={t.profile.errorDescription}
@@ -113,75 +118,111 @@ export default function ProfileScreen() {
           )
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <BookingCard title={t.profile.accountTitle}>
-              {/* An account created by phone code has no email at all — the
-                  backend leaves it blank (usecase/auth/otp.go creates the user
-                  with a phone and nothing else). An empty line under «Почта»
-                  looks like a failed load, so say it plainly. The email is NOT
-                  editable: PATCH /users/me has no email field. */}
-              <Field label={t.profile.emailLabel} value={account.email || t.profile.emailEmpty} />
-              <ProfileForm
-                user={account}
-                onSave={(patch) => repository.updateMe(patch)}
-                onSaved={(updated) => queryClient.setQueryData(["me"], updated)}
-                onSessionExpired={() => setKeepEditor(true)}
-                onSignIn={() => router.push("/auth/sign-in")}
-                // Opening the city picker lives here (the form is router-free so
-                // it stays mountable in a test): leave the setter in the mailbox,
-                // then push the picker. `apply` is the form's own patchField.
-                onEditCity={(current, apply) => {
-                  requestCitySelection((city) => apply(city ?? ""));
-                  router.push({ pathname: "/city", params: { selected: current, purpose: "profile" } });
-                }}
-              />
-            </BookingCard>
+            <ProfileIdentity
+              name={account.fullName}
+              phone={account.phone}
+              editLabel={t.profile.editIdentityA11y}
+              namePlaceholder={t.profile.nameEmpty}
+              onPress={() => router.push("/profile/edit")}
+            />
 
-            <BookingCard>
-              <PrimaryButton
-                variant="secondary"
-                icon={BookOpen}
-                label={t.profile.myBookings}
-                onPress={() => router.replace("/bookings")}
+            <ProfileStats
+              bookings={bookingsCount}
+              reviews={0}
+              friends={0}
+              labels={t.profile.stats}
+            />
+
+            {/* Фуди-профиль / Мои отзывы — track-C: no screen yet, so both rows
+                are non-interactive «Скоро» rather than dead chevrons.
+                TODO(track-C backend): give them an onPress once the screens land. */}
+            <View style={styles.group}>
+              <ProfileMenuRow
+                icon={ForkKnife}
+                label={t.profile.menu.foodProfile}
+                comingSoonLabel={t.profile.comingSoon}
               />
-              <PrimaryButton
-                variant="secondary"
-                icon={Heart}
-                label={t.profile.myFavorites}
-                onPress={() => router.replace("/favorites")}
+              <Divider />
+              <ProfileMenuRow
+                icon={ChatCircle}
+                label={t.profile.menu.myReviews}
+                comingSoonLabel={t.profile.comingSoon}
               />
-              <PrimaryButton
-                variant="secondary"
+            </View>
+
+            <View style={styles.group}>
+              <ProfileMenuRow
+                icon={MapPin}
+                label={t.profile.menu.city}
+                value={account.city || t.profile.menu.cityEmpty}
+                onPress={editCity}
+                comingSoonLabel={t.profile.comingSoon}
+              />
+              <Divider />
+              <ProfileMenuRow
+                icon={GlobeSimple}
+                label={t.profile.menu.language}
+                value={currentLanguage}
+                onPress={() => router.push("/settings/language")}
+                comingSoonLabel={t.profile.comingSoon}
+              />
+            </View>
+
+            {/* Центр помощи / Оценить приложение — track-C placeholders; Настройки
+                is real. TODO(track-C backend): wire the first two. */}
+            <View style={styles.group}>
+              <ProfileMenuRow
+                icon={Question}
+                label={t.profile.menu.helpCenter}
+                comingSoonLabel={t.profile.comingSoon}
+              />
+              <Divider />
+              <ProfileMenuRow
+                icon={ThumbsUp}
+                label={t.profile.menu.rateApp}
+                comingSoonLabel={t.profile.comingSoon}
+              />
+              <Divider />
+              <ProfileMenuRow
                 icon={GearSix}
                 label={t.profile.settings}
                 onPress={() => router.push("/settings")}
+                comingSoonLabel={t.profile.comingSoon}
               />
-            </BookingCard>
+            </View>
 
-            <View style={styles.signOut}>
-              <PrimaryButton
-                variant="secondary"
-                label={signingOut ? t.profile.signingOut : t.profile.signOut}
-                onPress={() => void handleSignOut()}
-                disabled={signingOut}
+            <View style={styles.group}>
+              <ProfileMenuRow
+                icon={SignOut}
+                label={t.profile.logout.row}
+                onPress={() => setConfirmingSignOut(true)}
+                comingSoonLabel={t.profile.comingSoon}
               />
             </View>
           </ScrollView>
         )}
       </View>
 
+      <ProfileLogoutSheet
+        visible={confirmingSignOut}
+        signingOut={signingOut}
+        title={t.profile.logout.confirmTitle}
+        confirmLabel={t.profile.logout.confirm}
+        confirmBusyLabel={t.profile.signingOut}
+        cancelLabel={t.profile.logout.cancel}
+        onConfirm={() => void handleSignOut()}
+        onCancel={() => setConfirmingSignOut(false)}
+      />
+
       <BottomNavBar />
     </View>
   );
 }
 
-/** Label above value — the same two-line shape the reservation cards use. */
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Text style={styles.fieldValue}>{value}</Text>
-    </View>
-  );
+/** Hairline between rows of one menu group, inset past the leading icon so it
+ * reads as "same group" rather than a full-bleed cut. */
+function Divider() {
+  return <View style={styles.divider} />;
 }
 
 const styles = StyleSheet.create({
@@ -189,8 +230,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.screen,
   },
-  headerSafeArea: {
-    backgroundColor: colors.background.surface,
+  topSafeArea: {
+    backgroundColor: colors.background.screen,
   },
   body: {
     flex: 1,
@@ -199,20 +240,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  field: {
-    gap: spacing.xxs,
-  },
-  fieldLabel: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  fieldValue: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  signOut: {
-    paddingTop: spacing.sm,
-    paddingHorizontal: spacing.xs,
+  group: {
+    backgroundColor: colors.background.surface,
     borderRadius: radius.card,
+    overflow: "hidden",
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: spacing.lg + 24 + spacing.md,
+    backgroundColor: colors.border.control,
   },
 });
