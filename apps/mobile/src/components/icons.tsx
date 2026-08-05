@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bell,
   BookOpen,
   CalendarBlank,
   CaretDown,
@@ -26,6 +27,7 @@ import {
   Phone,
   Plus,
   Question,
+  Shield,
   SignOut,
   ThumbsUp,
   User,
@@ -73,10 +75,15 @@ import {
  * vitrina (read off the Figma profile reference): ChatCircle marks «Мои
  * отзывы», Question «Центр помощи», ThumbsUp «Оценить приложение», and SignOut
  * the «Выйти из аккаунта» row. Same Phosphor set as the rest.
+ *
+ * Bell and Shield were added for the «Настройки» group card (Figma node
+ * 906:10384): Bell leads the «Уведомления» toggle row, Shield the «Безопасность»
+ * row. Same Phosphor set as the rest.
  */
 export type { IconProps };
 export {
   ArrowLeft,
+  Bell,
   BookOpen,
   CalendarBlank,
   CaretDown,
@@ -103,6 +110,7 @@ export {
   Phone,
   Plus,
   Question,
+  Shield,
   SignOut,
   ThumbsUp,
   User,
