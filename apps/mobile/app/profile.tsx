@@ -1,6 +1,5 @@
 import type { AuthUser } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
-import { getDictionary } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -15,8 +14,7 @@ import { ProfileForm } from "../src/components/profile/ProfileForm";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
-
-const t = getDictionary();
+import { useLocale } from "../src/lib/locale";
 
 /**
  * «Профиль» — the account behind the bookings (`GET /users/me`).
@@ -40,6 +38,10 @@ const t = getDictionary();
  * after the ["me"] cache entry is purged on sign-out.
  */
 export default function ProfileScreen() {
+  // The settings entry point reads the dictionary through the context so it
+  // re-renders in the chosen language the instant it changes, without waiting
+  // for a reload — the switch itself lives one tap deeper (in /settings).
+  const { dictionary: t } = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status, repository, signOut } = useAuth();

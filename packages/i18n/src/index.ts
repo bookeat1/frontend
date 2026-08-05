@@ -112,12 +112,50 @@ function deepMerge(base: unknown, override: unknown): unknown {
 const cache = new Map<Locale, Dictionary>();
 
 /**
+ * Module-level "current locale".
+ *
+ * The whole app is peppered with `const t = getDictionary()` at MODULE scope.
+ * Those call sites cannot thread a React context through, yet they must still
+ * follow the guest's language choice. So `getDictionary()` with no argument
+ * resolves against this shared cell instead of hard-coding "ru".
+ *
+ * Contract:
+ *   - defaults to "ru" (unchanged behaviour until someone sets it);
+ *   - `setCurrentLocale` must be called as early as possible on boot (before
+ *     the screen modules evaluate) so a cold start in another language is
+ *     resolved correctly — see the app's LocaleProvider bootstrap;
+ *   - an EXPLICIT argument to `getDictionary(locale)` always wins over this
+ *     cell, so existing `getDictionary("ru")` / `getDictionary(locale)` call
+ *     sites are completely unaffected.
+ */
+let currentLocale: Locale = "ru";
+
+/**
+ * Sets the process-wide default locale that `getDictionary()` (no argument)
+ * resolves against. Idempotent and cheap — it only flips a variable; the merge
+ * itself is still lazy and cached. Returns nothing.
+ */
+export function setCurrentLocale(locale: Locale): void {
+  currentLocale = locale;
+}
+
+/** The locale `getDictionary()` currently defaults to when called with no
+ * argument. Defaults to "ru". */
+export function getCurrentLocale(): Locale {
+  return currentLocale;
+}
+
+/**
  * The single entry point for translated strings. Always returns a COMPLETE
  * Dictionary: for a non-base locale it deep-merges that locale's partial over
  * `ru`, so any key the translators have not reached yet is answered in Russian
  * rather than showing a blank or a key name.
+ *
+ * With no argument it follows the module-level current locale (see
+ * `setCurrentLocale`), which is "ru" until the app applies the persisted
+ * choice. An explicit `locale` argument always overrides that cell.
  */
-export function getDictionary(locale: Locale = "ru"): Dictionary {
+export function getDictionary(locale: Locale = currentLocale): Dictionary {
   if (locale === "ru") return ru;
   const cached = cache.get(locale);
   if (cached) return cached;

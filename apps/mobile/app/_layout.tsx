@@ -14,10 +14,18 @@ import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../src/lib/auth";
-import { LocaleProvider } from "../src/lib/locale";
+import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
 import { queryClient } from "../src/lib/queryClient";
+
+// Apply the persisted language to the i18n module as early as the JS bundle
+// allows — at entry-module evaluation, before RootLayout (and the route screens
+// it hosts) render. Route screens are imported lazily by expo-router, so the
+// ones reached after this async read resolves get the right language on a cold
+// start; a language change reloads the bundle so the rest re-resolve too. Kept
+// module-scope (not inside the component) so it fires once, ahead of render.
+void bootstrapLocale();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({

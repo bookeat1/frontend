@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { getDictionary, isRTL, LOCALES, ru } from "../index";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  getCurrentLocale,
+  getDictionary,
+  isRTL,
+  LOCALES,
+  ru,
+  setCurrentLocale,
+} from "../index";
 
 /**
  * The point of the seven-locale plumbing is that a PARTIAL translation still
@@ -44,6 +51,39 @@ describe("getDictionary — deep-merge fallback over ru", () => {
 
   it("caches the merged dictionary (same reference on repeat calls)", () => {
     expect(getDictionary("kk")).toBe(getDictionary("kk"));
+  });
+});
+
+describe("current-locale — module-level default for getDictionary()", () => {
+  // The module cell is process-wide; every test here restores the "ru" default
+  // so neither these tests nor the fallback suite above can leak into one
+  // another regardless of run order.
+  afterEach(() => setCurrentLocale("ru"));
+
+  it("defaults to ru until something sets it", () => {
+    expect(getCurrentLocale()).toBe("ru");
+    expect(getDictionary()).toBe(ru);
+  });
+
+  it("getDictionary() with no argument follows setCurrentLocale()", () => {
+    setCurrentLocale("en");
+    expect(getCurrentLocale()).toBe("en");
+    expect(getDictionary()).toBe(getDictionary("en"));
+    expect(getDictionary().common.back).toBe("Back");
+  });
+
+  it("an explicit argument always overrides the current locale", () => {
+    setCurrentLocale("en");
+    // Explicit "ru" wins over the "en" default.
+    expect(getDictionary("ru")).toBe(ru);
+    // Explicit non-ru wins too.
+    expect(getDictionary("kk")).toBe(getDictionary("kk"));
+  });
+
+  it("falls back to ru after setCurrentLocale('ru')", () => {
+    setCurrentLocale("en");
+    setCurrentLocale("ru");
+    expect(getDictionary()).toBe(ru);
   });
 });
 
