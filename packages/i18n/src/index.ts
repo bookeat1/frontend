@@ -48,16 +48,20 @@ export type LocaleOverride<T> = T extends Function
 export interface LocaleOption {
   code: Locale;
   nativeName: string;
+  /** English name shown as the muted second line in the picker, matching the
+   * design's two-line rows (native name over English name). Like nativeName it
+   * is not a translated string. */
+  englishName: string;
 }
 
 export const LOCALES: readonly LocaleOption[] = [
-  { code: "ru", nativeName: "Русский" },
-  { code: "kk", nativeName: "Қазақша" },
-  { code: "en", nativeName: "English" },
-  { code: "ko", nativeName: "한국어" },
-  { code: "hi", nativeName: "हिन्दी" },
-  { code: "ar", nativeName: "العربية" },
-  { code: "zh", nativeName: "中文" },
+  { code: "ru", nativeName: "Русский", englishName: "Russian" },
+  { code: "kk", nativeName: "Қазақша", englishName: "Kazakh" },
+  { code: "en", nativeName: "English", englishName: "English" },
+  { code: "ko", nativeName: "한국어", englishName: "Korean" },
+  { code: "hi", nativeName: "हिन्दी", englishName: "Hindi" },
+  { code: "ar", nativeName: "العربية", englishName: "Arabic" },
+  { code: "zh", nativeName: "中文", englishName: "Chinese" },
 ];
 
 /** Right-to-left scripts. Only Arabic among the shipped locales; the layout

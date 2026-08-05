@@ -34,6 +34,7 @@ export default function LanguageScreen() {
           <OptionRow
             key={option.code}
             label={option.nativeName}
+            caption={option.englishName}
             selected={option.code === locale}
             onPress={() => {
               setLocale(option.code);

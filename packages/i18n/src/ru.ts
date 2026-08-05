@@ -50,7 +50,7 @@ export const ru = {
    * секций переведены, а «Гастрогид» оставлен именем собственным.
    */
   explore: {
-    searchPlaceholder: "Заведение, кухня или блюдо",
+    searchPlaceholder: "Ресторан, кухня или блюдо",
 
     popularTitle: "Популярные заведения",
     popularLoading: "Загружаем заведения…",
@@ -97,7 +97,7 @@ export const ru = {
    * состояния «начните вводить» на экране больше не существует.
    */
   search: {
-    placeholder: "Ресторан, кухня, блюдо",
+    placeholder: "Ресторан, кухня или блюдо",
     resultsCount: (count: number) => {
       const mod10 = count % 10;
       const mod100 = count % 100;
