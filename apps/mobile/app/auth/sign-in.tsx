@@ -207,10 +207,21 @@ export default function SignInScreen() {
       setSentAt(now);
       setResendAt(now + RESEND_COOLDOWN_SECONDS * 1000);
       setAttempts(0);
-      setCode("");
       // Only ever non-null when the deployment runs with AUTH_OTP_DEV_EXPOSE,
       // and only rendered in a development build (see below).
       setDevCode(result.devCode);
+      // On a test deployment whose delivery channels are off, the server's echo
+      // is the ONLY way the code reaches the tester — so pre-fill it and let
+      // them sign in with one tap. Double-gated: it needs BOTH the env flag AND
+      // a code actually present in the response, so it is inert on production
+      // (where `devCode` is always null) and on any build without the flag. The
+      // pre-fill is set directly, NOT through onCodeChange, so it never
+      // auto-submits — the tap on "Войти" stays deliberate.
+      if (DELIVERY_DISABLED && result.devCode) {
+        setCode(result.devCode.replace(/\D/g, "").slice(0, CODE_LENGTH));
+      } else {
+        setCode("");
+      }
       setStep("code");
     } catch (error) {
       setFormError(describeRequestError(error));
