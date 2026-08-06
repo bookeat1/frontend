@@ -28,10 +28,10 @@ const t = getDictionary();
  * control, not decoration.
  */
 export function EventsListSection({
-  onOpenRestaurant,
+  onOpenEvent,
   onSeeAll,
 }: {
-  onOpenRestaurant: (restaurantId: string) => void;
+  onOpenEvent: (eventId: string) => void;
   onSeeAll?: () => void;
 }) {
   const query = useExploreEvents();
@@ -69,7 +69,7 @@ export function EventsListSection({
           {events.map((event, index) => (
             <React.Fragment key={event.id}>
               {index > 0 ? <View style={styles.separator} /> : null}
-              <EventRow event={event} onOpenRestaurant={onOpenRestaurant} />
+              <EventRow event={event} onOpenEvent={onOpenEvent} />
             </React.Fragment>
           ))}
         </View>

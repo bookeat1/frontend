@@ -24,10 +24,10 @@ const t = getDictionary();
  */
 export function EventRow({
   event,
-  onOpenRestaurant,
+  onOpenEvent,
 }: {
   event: EventSummary;
-  onOpenRestaurant: (restaurantId: string) => void;
+  onOpenEvent: (eventId: string) => void;
 }) {
   const dateBlock = formatEventDateBlock(event.startsAt);
   const time = formatTime(event.startsAt);
@@ -60,11 +60,9 @@ export function EventRow({
     </>
   );
 
-  // The mapper is defensive about the host venue id — without one there is
-  // nowhere to navigate, so the row stays a plain block instead of a button
-  // that does nothing.
-  const restaurantId = event.restaurant.id || event.restaurantId;
-  if (!restaurantId) {
+  // Tapping a row opens the event's detail card (same target as the full «Афиша»
+  // list). Without an event id there is nowhere to go, so it stays a plain block.
+  if (!event.id) {
     return <View style={styles.row}>{body}</View>;
   }
 
@@ -76,7 +74,7 @@ export function EventRow({
         formatRelativeDateTime(event.startsAt),
         event.restaurant.name,
       )}
-      onPress={() => onOpenRestaurant(restaurantId)}
+      onPress={() => onOpenEvent(event.id)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       {body}
