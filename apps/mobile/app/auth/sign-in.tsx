@@ -5,9 +5,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AuthPhoneField } from "../../src/components/auth/AuthPhoneField";
 import { OtpInput } from "../../src/components/auth/OtpInput";
 import { FlowHeader } from "../../src/components/FlowHeader";
-import { PhoneField } from "../../src/components/PhoneField";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
@@ -378,13 +378,10 @@ export default function SignInScreen() {
                   "why you're here" line (завершить бронирование / избранное). */}
               {reason ? <Text style={styles.subtitle}>{subtitleFor(reason)}</Text> : null}
 
-              {/* The country selector is here for one reason and it is not
-                  cosmetic: the account is CREATED by the number on verify
-                  (users.GetByPhone → users.Create), so a foreign guest who
-                  cannot enter their real number cannot get an account at all.
-                  Kazakhstan is preselected, and a local guest never opens it. */}
-              <PhoneField
-                label={t.auth.phoneLabel}
+              {/* Clean +7 field, no flag/dropdown/label — the account is still
+                  created by whatever leaves in E.164, the country is just pinned
+                  to Kazakhstan to match the registration design. */}
+              <AuthPhoneField
                 value={phone}
                 onChange={({ e164, complete }) => {
                   setPhone(e164);
@@ -392,10 +389,10 @@ export default function SignInScreen() {
                   if (fieldError) setFieldError(null);
                 }}
                 error={fieldError ?? undefined}
-                hint={t.auth.phoneHint}
                 editable={!submitting}
                 autoFocus
                 returnKeyType="go"
+                accessibilityLabel={t.auth.phoneLabel}
                 onSubmitEditing={() => void sendCode(phone, phoneComplete)}
               />
 
@@ -547,7 +544,9 @@ const styles = StyleSheet.create({
   },
   consentLink: {
     ...typography.caption,
-    color: colors.brand.primary,
+    // Muted + underlined, like the design — not a red call-to-action.
+    color: colors.text.mutedStrong,
+    textDecorationLine: "underline",
   },
   codeActions: {
     gap: spacing.sm,
