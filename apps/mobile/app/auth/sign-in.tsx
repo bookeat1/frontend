@@ -3,12 +3,12 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { OtpInput } from "../../src/components/auth/OtpInput";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { PhoneField } from "../../src/components/PhoneField";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
-import { TextField } from "../../src/components/TextField";
 import { useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
 import { DEFAULT_COUNTRY, nationalLength } from "../../src/lib/countries";
@@ -36,6 +36,14 @@ const MAX_CODE_ATTEMPTS = 5;
  * would sit in front of an empty field forever with no way to know why.
  */
 const DELIVERY_DISABLED = process.env.EXPO_PUBLIC_OTP_DELIVERY_DISABLED === "1";
+
+/**
+ * The privacy policy the consent line links to. Left null until the real URL is
+ * confirmed — while null the phrase renders as plain styled text with no dead
+ * link, so we never ship a tap that lands on a 404. TODO(auth): set to the
+ * confirmed book-eat.com policy URL and the link goes live.
+ */
+const PRIVACY_POLICY_URL: string | null = null;
 
 /**
  * Why the guest was sent here, carried as a route param by whoever pushed the
@@ -326,23 +334,26 @@ export default function SignInScreen() {
   };
 
   const isPhoneStep = step === "phone";
-  const submitLabel = isPhoneStep
-    ? submitting
-      ? t.auth.requestingCode
-      : t.auth.submitRequestCode
-    : submitting
-      ? t.auth.verifying
-      : t.auth.submitVerify;
+  const requestLabel = submitting ? t.auth.requestingCode : t.auth.submitRequestCode;
+
+  // The consent link is inert until a real policy URL is configured — see
+  // PRIVACY_POLICY_URL. Then it opens in the system browser.
+  const openPrivacy = useCallback(() => {
+    if (PRIVACY_POLICY_URL) void Linking.openURL(PRIVACY_POLICY_URL);
+  }, []);
 
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+        {/* No centred title — the big left-aligned heading lives in the content
+            (Figma node 997:10239). The arrow only appears where there is
+            somewhere to go: "back to the number" on the code step, and, on the
+            phone step, back out of the gate only when it was pushed onto a
+            stack (a booking/favourite flow) — the happy path from «Профиль»
+            has no arrow, matching the design. */}
         <FlowHeader
-          title={isPhoneStep ? t.auth.signInTitle : t.auth.codeTitle}
-          // On the code step the arrow means "back to the number", which is
-          // where a guest who mistyped it needs to go. On the first step it
-          // leaves the gate — and never dead-ends when there is no history.
-          onBack={isPhoneStep ? leave : changePhone}
+          title=""
+          onBack={isPhoneStep ? (router.canGoBack() ? leave : undefined) : changePhone}
         />
       </SafeAreaView>
 
@@ -357,7 +368,13 @@ export default function SignInScreen() {
         >
           {isPhoneStep ? (
             <>
-              <Text style={styles.subtitle}>{subtitleFor(reason)}</Text>
+              <Text style={styles.heading} accessibilityRole="header">
+                {t.auth.phoneStepTitle}
+              </Text>
+              {/* The design's happy path has no subtitle; a gated flow keeps its
+                  "why you're here" line (завершить бронирование / избранное). */}
+              {reason ? <Text style={styles.subtitle}>{subtitleFor(reason)}</Text> : null}
+
               {/* The country selector is here for one reason and it is not
                   cosmetic: the account is CREATED by the number on verify
                   (users.GetByPhone → users.Create), so a foreign guest who
@@ -374,12 +391,34 @@ export default function SignInScreen() {
                 error={fieldError ?? undefined}
                 hint={t.auth.phoneHint}
                 editable={!submitting}
+                autoFocus
                 returnKeyType="go"
                 onSubmitEditing={() => void sendCode(phone, phoneComplete)}
               />
+
+              <PrimaryButton
+                label={requestLabel}
+                size="lg"
+                onPress={() => void sendCode(phone, phoneComplete)}
+                disabled={submitting || !phoneComplete}
+              />
+
+              <Text style={styles.consent}>
+                {t.auth.consentPrefix}
+                <Text
+                  style={styles.consentLink}
+                  onPress={PRIVACY_POLICY_URL ? openPrivacy : undefined}
+                >
+                  {t.auth.consentLink}
+                </Text>
+                {t.auth.consentSuffix}
+              </Text>
             </>
           ) : (
             <>
+              <Text style={styles.heading} accessibilityRole="header">
+                {t.auth.codeTitle}
+              </Text>
               <Text style={styles.subtitle}>
                 {t.auth.codeSentTo(formatStoredPhoneForDisplay(sentToPhone))}
               </Text>
@@ -400,42 +439,45 @@ export default function SignInScreen() {
                 <Text style={styles.notice}>{t.auth.devCodeNotice(devCode)}</Text>
               ) : null}
 
-              <TextField
-                label={t.auth.codeLabel}
-                placeholder={t.auth.codePlaceholder}
+              {/* Six segmented cells. Verification fires automatically when the
+                  last digit lands (onCodeChange), so the code step has no
+                  primary button — matching the design. */}
+              <OtpInput
                 value={code}
-                onChangeText={onCodeChange}
-                error={fieldError ?? undefined}
-                keyboardType="number-pad"
-                // iOS lifts the code straight out of the SMS; Android's
-                // autofill uses the sms-otp hint.
-                textContentType="oneTimeCode"
-                autoComplete="sms-otp"
-                maxLength={CODE_LENGTH}
-                returnKeyType="go"
-                onSubmitEditing={() => void verify(code)}
+                onChange={onCodeChange}
+                length={CODE_LENGTH}
+                autoFocus
+                editable={!submitting && !attemptsExhausted}
+                error={Boolean(formError) || Boolean(fieldError)}
+                accessibilityLabel={t.auth.codeLabel}
               />
 
               {codeProbablyExpired ? (
                 <Text style={styles.hint}>{t.auth.codeProbablyExpired}</Text>
               ) : null}
 
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: resendSecondsLeft > 0 || submitting }}
-                disabled={resendSecondsLeft > 0 || submitting}
-                onPress={() => void sendCode(sentToPhone, true)}
-                style={styles.secondaryAction}
-              >
-                <Text
-                  style={[
-                    styles.secondaryActionLabel,
-                    resendSecondsLeft > 0 && styles.secondaryActionLabelDisabled,
-                  ]}
+              <View style={styles.codeActions}>
+                {resendSecondsLeft > 0 ? (
+                  <Text style={styles.countdown}>{t.auth.resendCountdown(resendSecondsLeft)}</Text>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: submitting }}
+                    disabled={submitting}
+                    onPress={() => void sendCode(sentToPhone, true)}
+                    style={styles.linkRow}
+                  >
+                    <Text style={styles.link}>{t.auth.resend}</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={changePhone}
+                  style={styles.linkRow}
                 >
-                  {resendSecondsLeft > 0 ? t.auth.resendIn(resendSecondsLeft) : t.auth.resend}
-                </Text>
-              </Pressable>
+                  <Text style={styles.link}>{t.auth.changePhone}</Text>
+                </Pressable>
+              </View>
             </>
           )}
 
@@ -445,31 +487,14 @@ export default function SignInScreen() {
             </Text>
           ) : null}
         </ScrollView>
-
-        <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
-          <View style={styles.footer}>
-            <PrimaryButton
-              label={submitLabel}
-              onPress={() => void (isPhoneStep ? sendCode(phone, phoneComplete) : verify(code))}
-              disabled={
-                submitting ||
-                (isPhoneStep
-                  ? !phoneComplete
-                  : code.length !== CODE_LENGTH || attemptsExhausted)
-              }
-            />
-            {isPhoneStep ? null : (
-              <Pressable
-                accessibilityRole="button"
-                onPress={changePhone}
-                style={styles.secondaryAction}
-              >
-                <Text style={styles.secondaryActionLabel}>{t.auth.changePhone}</Text>
-              </Pressable>
-            )}
-          </View>
-        </SafeAreaView>
       </KeyboardAvoidingView>
+
+      {/* Dim + spinner while the code request is in flight (design state 3). */}
+      {submitting && isPhoneStep ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.brand.primary} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -486,12 +511,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
   },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
     gap: spacing.lg,
+  },
+  heading: {
+    ...typography.titleXl,
+    color: colors.text.primary,
   },
   subtitle: {
     ...typography.body,
     color: colors.text.muted,
+    // Pull up under the heading: the section gap is meant for block spacing.
+    marginTop: -spacing.sm,
+  },
+  consent: {
+    ...typography.caption,
+    color: colors.text.muted,
+    marginTop: -spacing.sm,
+  },
+  consentLink: {
+    ...typography.caption,
+    color: colors.brand.primary,
+  },
+  codeActions: {
+    gap: spacing.sm,
+  },
+  countdown: {
+    ...typography.body,
+    color: colors.text.muted,
+  },
+  linkRow: {
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  link: {
+    ...typography.labelMedium,
+    color: colors.brand.primary,
   },
   formError: {
     ...typography.labelMedium,
@@ -511,24 +567,14 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.muted,
   },
-  footerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
-  footer: {
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  secondaryAction: {
-    minHeight: 44,
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-  },
-  secondaryActionLabel: {
-    ...typography.labelMedium,
-    color: colors.brand.primary,
-    textAlign: "center",
-  },
-  secondaryActionLabelDisabled: {
-    color: colors.text.muted,
+    backgroundColor: colors.overlay.dialogScrim,
   },
 });
