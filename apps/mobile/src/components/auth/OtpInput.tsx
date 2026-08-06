@@ -42,7 +42,15 @@ export function OtpInput({
   const focus = () => inputRef.current?.focus();
 
   return (
-    <Pressable onPress={focus} accessibilityRole="none" style={styles.row}>
+    <Pressable
+      onPress={focus}
+      // The row is a tap-to-focus surface only. Marking it non-accessible keeps
+      // it from swallowing its children into one opaque node, so the hidden
+      // TextInput below is exposed to VoiceOver/TalkBack with its own label
+      // (the cells themselves are decorative and stay hidden from the tree).
+      accessible={false}
+      style={styles.row}
+    >
       {Array.from({ length }).map((_, i) => {
         const char = value[i] ?? "";
         // The active cell is the one the next digit will land in — the first
@@ -52,6 +60,10 @@ export function OtpInput({
         return (
           <View
             key={i}
+            // Decorative: the code value is owned and announced by the hidden
+            // TextInput, so the cells stay out of the accessibility tree.
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
             style={[
               styles.cell,
               isActive && styles.cellActive,

@@ -331,6 +331,9 @@ export default function SignInScreen() {
     setFieldError(null);
     setFormError(null);
     setAttempts(0);
+    // Re-arm the dev-prefill auto-submit so a fresh code can fire again even if
+    // a fixed debug code happens to repeat (see the effect above).
+    autoSubmittedRef.current = null;
   };
 
   const isPhoneStep = step === "phone";
@@ -452,6 +455,16 @@ export default function SignInScreen() {
                 accessibilityLabel={t.auth.codeLabel}
               />
 
+              {/* The code-step field error as TEXT, not just red cells: verify()
+                  can set it on a 422 from /auth/otp/verify, and with no submit
+                  button here the message is the only thing telling the guest
+                  what went wrong. */}
+              {fieldError ? (
+                <Text style={styles.codeError} accessibilityRole="alert">
+                  {fieldError}
+                </Text>
+              ) : null}
+
               {codeProbablyExpired ? (
                 <Text style={styles.hint}>{t.auth.codeProbablyExpired}</Text>
               ) : null}
@@ -489,8 +502,10 @@ export default function SignInScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Dim + spinner while the code request is in flight (design state 3). */}
-      {submitting && isPhoneStep ? (
+      {/* Dim + spinner while a request is in flight (design state 3 for the
+          code request; also covers the auto-verify on the code step so a slow
+          verify does not look like a frozen screen). */}
+      {submitting ? (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
         </View>
@@ -540,6 +555,10 @@ const styles = StyleSheet.create({
   countdown: {
     ...typography.body,
     color: colors.text.muted,
+  },
+  codeError: {
+    ...typography.labelMedium,
+    color: colors.brand.primary,
   },
   linkRow: {
     minHeight: 44,
