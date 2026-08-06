@@ -92,49 +92,92 @@ export default function RestaurantMenuScreen() {
   sectionsRef.current = sections;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 1 }).current;
+  // Реальные метрики скролла. Промотку к разделу ведём по ФАКТИЧЕСКОЙ позиции и
+  // фактической видимости, а не по оценке высот: высоты блюд разные (описание
+  // 0–3 строки, название 1–2), поэтому любая оценка врёт на дальних разделах, а
+  // getItemLayout с неверными высотами ломает отрисовку (ячейки наезжают).
+  const scrollYRef = useRef(0);
+  const contentHRef = useRef(0);
+  const layoutHRef = useRef(0);
+  // Раздел, который сейчас реально вверху списка (по видимости).
+  const visibleTopRef = useRef(0);
+  // Цель активной промотки. Пока не null — держим подсветку на цели, чтобы чип
+  // не мигал по промежуточным разделам во время долистывания.
+  const jumpTargetRef = useRef<number | null>(null);
+  const jumpStepsRef = useRef(0);
+
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const top = viewableItems.find((v) => v.section);
     if (!top?.section) return;
     const title = (top.section as SectionListData<MenuDish, Section>).title;
     const idx = sectionsRef.current.findIndex((s) => s.title === title);
-    if (idx >= 0) setActiveIndex(idx);
+    if (idx < 0) return;
+    visibleTopRef.current = idx;
+    // Во время прыжка подсветку держит цель; вернём управление видимости, как
+    // долистаем.
+    if (jumpTargetRef.current === null) setActiveIndex(idx);
   }).current;
 
-  // Целевой раздел для промотки: если scrollToLocation срывается на ещё не
-  // отрисованном разделе (onScrollToIndexFailed), список подтягивает строки к
-  // нему и мы повторяем попытку по этому же индексу.
-  const pendingSectionRef = useRef<number | null>(null);
-  const retryCountRef = useRef(0);
-  const jumpToSection = useCallback((index: number) => {
-    setActiveIndex(index);
-    pendingSectionRef.current = index;
-    retryCountRef.current = 0;
-    // itemIndex:0 наводит на заголовок раздела.
-    listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: true });
-  }, []);
-  // scrollToLocation не может допрыгнуть до раздела, чьи строки ещё не
-  // отрисованы, а getItemLayout мы не задаём (высоты блюд разные) → RN зовёт
-  // этот колбэк. Прошлые сборки просто повторяли тот же прыжок — он срывался
-  // снова с той же точки, и список стоял на месте (подсветка чипа уезжала на
-  // тапнутую категорию, а содержимое оставалось на первой). Правильно: сперва
-  // проматываем скролл ПРИМЕРНО к цели по средней высоте строки, которую RN уже
-  // измерил (info.averageItemLength × плоский индекс) — это домонтирует
-  // промежуточные строки, — и только потом повторяем точный scrollToLocation.
-  // Каждая итерация реально приближает, поэтому сходится за пару повторов даже
-  // на нижней категории.
-  const retryJump = useCallback((info: { index: number; averageItemLength: number }) => {
-    const target = pendingSectionRef.current;
-    if (target === null) return;
-    if (retryCountRef.current >= 6) return;
-    retryCountRef.current += 1;
-    const scroller = listRef.current?.getScrollResponder() as
-      | { scrollTo?: (opts: { x?: number; y?: number; animated?: boolean }) => void }
+  // Прямой доступ к нижележащему ScrollView — им и двигаем список к цели.
+  // scrollToLocation на дальний, ещё не отрисованный раздел тут не срабатывает
+  // (и даже не всегда зовёт onScrollToIndexFailed), поэтому не полагаемся на него.
+  const scrollViewTo = useCallback((y: number, animated: boolean) => {
+    const r = listRef.current?.getScrollResponder() as
+      | {
+          scrollTo?: (o: { x?: number; y?: number; animated?: boolean }) => void;
+          scrollResponderScrollTo?: (o: { x?: number; y?: number; animated?: boolean }) => void;
+        }
       | undefined;
-    scroller?.scrollTo?.({ y: info.averageItemLength * info.index, animated: false });
-    setTimeout(() => {
-      listRef.current?.scrollToLocation({ sectionIndex: target, itemIndex: 0, viewOffset: 0, animated: false });
-    }, 60);
+    if (r?.scrollTo) r.scrollTo({ y, animated });
+    else r?.scrollResponderScrollTo?.({ y, animated });
   }, []);
+
+  // Один шаг долистывания к jumpTargetRef. Шагаем примерно на экран в сторону
+  // цели по РЕАЛЬНОЙ позиции скролла — это домонтирует промежуточные разделы, а
+  // onViewable сообщает прогресс. Когда цель рядом (сосед уже отрисован) —
+  // добиваем точной scrollToLocation к заголовку. Сходится и на нижней
+  // категории, потому что каждый шаг реально двигает список.
+  const stepJump = useCallback(() => {
+    const target = jumpTargetRef.current;
+    if (target === null) return;
+    const cur = visibleTopRef.current;
+    if (cur === target) {
+      jumpTargetRef.current = null;
+      setActiveIndex(target);
+      return;
+    }
+    if (jumpStepsRef.current >= 24) {
+      jumpTargetRef.current = null;
+      setActiveIndex(visibleTopRef.current);
+      return;
+    }
+    jumpStepsRef.current += 1;
+    if (Math.abs(target - cur) <= 1) {
+      listRef.current?.scrollToLocation({ sectionIndex: target, itemIndex: 0, viewOffset: 0, animated: true });
+      setTimeout(stepJump, 200); // прибытие подтвердит onViewable на след. шаге
+      return;
+    }
+    const dir = target > cur ? 1 : -1;
+    const maxY = Math.max(0, contentHRef.current - layoutHRef.current);
+    const nextY = Math.min(maxY, Math.max(0, scrollYRef.current + dir * layoutHRef.current * 0.85));
+    if (nextY === scrollYRef.current) {
+      jumpTargetRef.current = null; // упёрлись в край — дальше некуда
+      setActiveIndex(visibleTopRef.current);
+      return;
+    }
+    scrollViewTo(nextY, true);
+    setTimeout(stepJump, 200);
+  }, [scrollViewTo]);
+
+  const jumpToSection = useCallback(
+    (index: number) => {
+      setActiveIndex(index);
+      jumpTargetRef.current = index;
+      jumpStepsRef.current = 0;
+      stepJump();
+    },
+    [stepJump],
+  );
 
   return (
     <View style={styles.root}>
@@ -175,10 +218,22 @@ export default function RestaurantMenuScreen() {
             showsVerticalScrollIndicator={false}
             onViewableItemsChanged={onViewable}
             viewabilityConfig={viewabilityConfig}
-            // Промотка к разделу без getItemLayout не долетает с первого раза на
-            // неизмеренных строках — SectionList подтягивает строки к цели, а мы
-            // повторяем прыжок по сохранённому индексу (см. retryJump).
-            onScrollToIndexFailed={retryJump}
+            // Реальные метрики для промотки к разделу (см. stepJump).
+            onScroll={(e) => {
+              scrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            onContentSizeChange={(_, h) => {
+              contentHRef.current = h;
+            }}
+            onLayout={(e) => {
+              layoutHRef.current = e.nativeEvent.layout.height;
+            }}
+            // Соседний раздел мог ещё не отрисоваться к точной scrollToLocation —
+            // следующий шаг долистывания доберёт.
+            onScrollToIndexFailed={() => {
+              if (jumpTargetRef.current !== null) setTimeout(stepJump, 150);
+            }}
             // Меню живого заведения — до ~300 блюд: список остаётся оконным.
             initialNumToRender={12}
             windowSize={7}
@@ -326,27 +381,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border.subtle,
   },
+  // Макет (Menu, node «Grill · Mains · Cold Appetizers»): не «таблетки», а
+  // текстовые вкладки — активная жирнее, тёмная, с короткой подчёркивающей
+  // линией; неактивные — серый текст без фона.
   categoryBarContent: {
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: spacing.xl,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
   },
   categoryChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.background.chip,
+    paddingVertical: spacing.md,
+    // Прозрачная линия у неактивных — чтобы активная подчёркнутая не сдвигала
+    // соседей по высоте.
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   categoryChipActive: {
-    backgroundColor: colors.brand.primary,
+    borderBottomColor: colors.text.strong,
   },
   categoryChipText: {
-    ...typography.labelMedium,
-    color: colors.text.primary,
+    ...typography.body,
+    color: colors.text.muted,
   },
   categoryChipTextActive: {
-    color: colors.text.onDark,
+    ...typography.labelSemiBold,
+    color: colors.text.strong,
   },
   sectionHeader: {
     ...typography.titleLg,
