@@ -38,6 +38,22 @@ const MONTHS_NOMINATIVE = [
   "Декабрь",
 ];
 
+/** Short uppercase month names for the «Афиша» date block ("18 МАЙ"). */
+const MONTHS_SHORT_UPPER = [
+  "ЯНВ",
+  "ФЕВ",
+  "МАР",
+  "АПР",
+  "МАЙ",
+  "ИЮН",
+  "ИЮЛ",
+  "АВГ",
+  "СЕН",
+  "ОКТ",
+  "НОЯ",
+  "ДЕК",
+];
+
 /** Monday-first, matching the RU calendar convention. */
 export const WEEKDAY_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -102,6 +118,17 @@ export function formatDayMonth(date: Date): string {
 /** "Июль 2026" — calendar header. */
 export function formatMonthYear(date: Date): string {
   return `${MONTHS_NOMINATIVE[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/**
+ * The two lines of an «Афиша» row's left date block: the day number and the
+ * short uppercase month ("18" / "МАЙ"). Returns null for an unparseable date so
+ * the caller can drop the block rather than draw "NaN".
+ */
+export function formatEventDateBlock(iso: string): { day: string; month: string } | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return { day: String(date.getDate()), month: MONTHS_SHORT_UPPER[date.getMonth()] };
 }
 
 /** "19:00" in the device's timezone. */

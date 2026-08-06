@@ -54,10 +54,18 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-export function useSearchScreen() {
+export function useSearchScreen(options?: { initialCuisineId?: string }) {
   const repository = useRepository();
   const [text, setText] = useState("");
-  const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  // A `cuisine` seed from the Home «Выберите кухню» chip pre-selects that
+  // filter. Read once (useState initializer): the guest is free to clear it,
+  // and re-reading the param would fight that. The id is casefold(cuisine_type)
+  // — the exact value the backend's cuisine filter matches on.
+  const [filters, setFilters] = useState<SearchFilters>(() =>
+    options?.initialCuisineId
+      ? { ...EMPTY_FILTERS, cuisineIds: [options.initialCuisineId] }
+      : EMPTY_FILTERS,
+  );
   // Повод/удобства/гости: живут рядом с фильтрами, но отдельным состоянием,
   // потому что в поиск не уходят (track-C). Шторка читает их как черновик и
   // возвращает применённые обратно сюда — так выбор переживает закрытие.

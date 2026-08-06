@@ -18,11 +18,15 @@ export function CardStrip<T>({
   keyExtractor,
   renderItem,
   accessibilityLabel,
+  itemWidth = exploreLayout.cardWidth,
 }: {
   data: readonly T[];
   keyExtractor: (item: T) => string;
   renderItem: ListRenderItem<T>;
   accessibilityLabel: string;
+  /** Fixed width of one item, so `getItemLayout` stays exact. Defaults to the
+   * standard Explore card; the circular cuisine rail passes its own width. */
+  itemWidth?: number;
 }) {
   const separator = useCallback(() => <View style={styles.separator} />, []);
 
@@ -42,8 +46,8 @@ export function CardStrip<T>({
       // Constant width cards: telling the list the geometry up front avoids a
       // measurement pass per card on a slow device.
       getItemLayout={(_, index) => ({
-        length: exploreLayout.cardWidth + spacing.sm,
-        offset: (exploreLayout.cardWidth + spacing.sm) * index,
+        length: itemWidth + spacing.sm,
+        offset: (itemWidth + spacing.sm) * index,
         index,
       })}
     />

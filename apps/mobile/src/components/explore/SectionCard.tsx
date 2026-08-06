@@ -26,7 +26,17 @@ export function SectionCard({ children }: { children: React.ReactNode }) {
  * the caret renders as plain decoration instead of a control that does nothing
  * when tapped.
  */
-export function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll?: () => void }) {
+export function SectionHeader({
+  title,
+  onSeeAll,
+  showChevron = true,
+}: {
+  title: string;
+  onSeeAll?: () => void;
+  /** «Выберите кухню» carries no chevron in the design; pass false to drop it.
+   * Ignored when `onSeeAll` is set — a navigable header always shows its caret. */
+  showChevron?: boolean;
+}) {
   const caret = <CaretRight size={24} color={colors.text.mutedStrong} weight="regular" />;
 
   if (!onSeeAll) {
@@ -35,7 +45,7 @@ export function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll?: (
         <Text style={styles.title} numberOfLines={2}>
           {title}
         </Text>
-        {caret}
+        {showChevron ? caret : null}
       </View>
     );
   }

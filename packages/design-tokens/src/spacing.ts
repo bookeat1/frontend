@@ -85,6 +85,12 @@ export const exploreLayout = {
    * peeking on a 375-wide screen (and still peeking at 360). */
   cardWidth: 256,
   cardPhotoHeight: 144,
+  /** Rebuilt home (Figma home design, 2026-08-06). Circular cuisine avatar in
+   * the «Выберите кухню» rail — a 72 diameter circle leaves ~4 chips visible
+   * on a 360-wide screen with the next one peeking. */
+  cuisineChip: 72,
+  /** Square thumbnail on the right of a vertical «Афиша» event row. */
+  eventThumb: 72,
 } as const;
 
 /** Stroke widths from the design. */

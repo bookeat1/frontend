@@ -45,6 +45,14 @@ export const colors = {
     socialIcon: "#F2F2F2",
     /** Placeholder fill behind promo banner images while loading. */
     bannerPlaceholder: "#E7E7E7",
+    /**
+     * Solid fill of the rebuilt home header (Figma home design, 2026-08-06).
+     * The design draws a dark restaurant photo behind the greeting, but the
+     * backend has no home-header image endpoint yet, so the header is a flat
+     * dark surface instead of a fabricated/placeholder photo. Dark charcoal so
+     * the white greeting, city and bell stay legible without a scrim.
+     */
+    header: "#2A2321",
     /** Full-bleed photo viewer backdrop (Figma node 340:2455). */
     photoViewer: "#000000",
   },

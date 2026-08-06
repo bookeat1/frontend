@@ -1,126 +1,50 @@
 /**
- * PLACEHOLDER DATA FOR THE EXPLORE SCREEN — nothing here comes from the API.
+ * PLACEHOLDER SEAM FOR THE REBUILT HOME SCREEN — nothing here comes from the API.
  *
- * Every block below exists because backend-core has NO endpoint the guest app
- * can call for it today. The components that render this data are real and
- * final; only the source is fake, and it is fake in exactly one place (this
- * file) so switching a section to a real query is a one-line change in
- * `use-explore-data.ts` — never edit a component to hard-code content.
+ * Two home sections have no backend endpoint the guest app can call today, so
+ * their data source lives here, isolated in one file. The COMPONENTS that
+ * render them are real and final; only the source is a stub, and each stub is
+ * an EMPTY array on purpose — the sections hide themselves cleanly when there
+ * is nothing to show (see PromotionsSection / ArticlesSection), so the home
+ * screen looks finished on today's real data.
  *
- * Missing endpoints, one per section (checked against `packages/api/src/
- * repository.ts` — the guest-facing contract — and the backend conventions in
- * team-memory as of 2026-07-25):
+ * Missing endpoints (checked against `packages/api/src/repository.ts` — the
+ * guest-facing contract — and the backend conventions in team-memory):
  *
- *   heroBanners      — GET /promo-banners (platform-wide merchandising banners
- *                      for the home screen). The venue-scoped
- *                      GET /restaurants/:id/promos DOES exist but is a
- *                      different thing (one venue, no image field at all).
- *                      The backend branch `feat/promo-feed` (migration 0050)
- *                      is building a platform feed — when it ships, this is
- *                      the first block to replace.
- *   chefsPicks       — GET /menu-items/featured (cross-venue "chef's picks").
- *                      Menu items exist per venue (GET /restaurants/:id/menu)
- *                      but carry no featured/popular flag, and there is no
- *                      cross-venue dish endpoint.
- *   gastroguide      — GET /gastroguide (editorial picks). No such entity in
- *                      the backend at all — not even an admin-side one.
- *   favourites       — WIRED UP. GET /favorites + PUT/DELETE
- *                      /favorites/:restaurantId are real and the venue cards'
- *                      heart now uses them (see useFavorites +
- *                      FavoriteButton). The dish cards keep an INERT heart
- *                      because the dish under them is still a placeholder;
- *                      the EVENT card keeps one for a different reason — the
- *                      events are real now, but /favorites is
- *                      restaurant-scoped end to end and there is no
- *                      favourite-an-event endpoint to call.
+ *   promotions — no live GLOBAL promotions endpoint. Only per-restaurant
+ *                `GET /restaurants/:id/promos` (a single venue, and its payload
+ *                carries NO image field) and a unified `/feed` exist. TODO:
+ *                wire `useExplorePromotions` to `GET /promotions` or
+ *                `GET /feed?kind=promo` once the backend ships a cross-venue
+ *                promo feed (backend branch `feat/promo-feed`, migration 0050).
  *
- * Photos are placehold.co URLs on purpose, matching the convention already
- * used by `packages/api/src/unknown-data.ts`: a stub must LOOK like a stub, so
- * nobody demos this screen believing the content is real.
+ *   articles   — no editorial/articles entity anywhere in the backend. TODO:
+ *                wire `useExploreArticles` to `GET /articles` when it exists.
  */
 
-export interface HeroBanner {
+/** One promo tile in the «Акции» strip. Shape the real feed is expected to
+ * carry, so wiring it up later is a mapper change, not a component change. */
+export interface PromoStripItem {
   id: string;
-  /** Alt text — the reference banners carry no caption, just the photo. */
-  alt: string;
-  imageUrl: string;
+  /** Discount percentage shown in the red badge. */
+  discountPercent: number;
+  title: string;
+  /** «Mongol Bar · 12:00–18:00» — venue name plus the promo's time window. */
+  subtitle: string;
+  imageUrl: string | null;
 }
 
-export interface DishCardData {
+/** One editorial card in the «Статьи» strip. */
+export interface ArticleCardData {
   id: string;
-  name: string;
-  description: string;
-  /** Pre-formatted display price, same convention as `MenuHighlight.price`. */
-  price: string;
-  imageUrl: string;
-  /** Venue the dish belongs to, so the card can open its restaurant screen
-   * once a real endpoint returns one. Null while placeholder. */
-  restaurantId: string | null;
+  title: string;
+  /** Byline, e.g. «От BookEat» / «От ресторанного критика». */
+  author: string;
+  coverImageUrl: string | null;
 }
 
-const stubPhoto = (label: string) =>
-  `https://placehold.co/600x400?text=${encodeURIComponent(label)}`;
+/** MISSING ENDPOINT: GET /promotions (or /feed?kind=promo). Empty ⇒ section hidden. */
+export const PLACEHOLDER_PROMOTIONS: readonly PromoStripItem[] = [];
 
-/** MISSING ENDPOINT: GET /promo-banners */
-export const PLACEHOLDER_HERO_BANNERS: HeroBanner[] = [
-  { id: "hero-1", alt: "Заглушка баннера 1", imageUrl: stubPhoto("Banner 1") },
-  { id: "hero-2", alt: "Заглушка баннера 2", imageUrl: stubPhoto("Banner 2") },
-  { id: "hero-3", alt: "Заглушка баннера 3", imageUrl: stubPhoto("Banner 3") },
-  { id: "hero-4", alt: "Заглушка баннера 4", imageUrl: stubPhoto("Banner 4") },
-];
-
-/** MISSING ENDPOINT: GET /menu-items/featured */
-export const PLACEHOLDER_CHEFS_PICKS: DishCardData[] = [
-  {
-    id: "pick-1",
-    name: "Карбонара",
-    description: "Спагетти, сливочный соус, морепродукты, сырой желток",
-    price: "4 590 ₸",
-    imageUrl: stubPhoto("Dish 1"),
-    restaurantId: null,
-  },
-  {
-    id: "pick-2",
-    name: "Павлова с ягодами",
-    description: "Меренга, крем-чиз, сезонные ягоды",
-    price: "3 290 ₸",
-    imageUrl: stubPhoto("Dish 2"),
-    restaurantId: null,
-  },
-  {
-    id: "pick-3",
-    name: "Стейк рибай",
-    description: "Мраморная говядина, спаржа, соус демиглас",
-    price: "12 900 ₸",
-    imageUrl: stubPhoto("Dish 3"),
-    restaurantId: null,
-  },
-];
-
-/** MISSING ENDPOINT: GET /gastroguide */
-export const PLACEHOLDER_GASTROGUIDE: DishCardData[] = [
-  {
-    id: "guide-1",
-    name: "Бешбармак по-домашнему",
-    description: "Тесто ручной раскатки, конина, лук-соус",
-    price: "5 400 ₸",
-    imageUrl: stubPhoto("Guide 1"),
-    restaurantId: null,
-  },
-  {
-    id: "guide-2",
-    name: "Том ям с креветками",
-    description: "Кокосовое молоко, лемонграсс, тигровые креветки",
-    price: "4 900 ₸",
-    imageUrl: stubPhoto("Guide 2"),
-    restaurantId: null,
-  },
-  {
-    id: "guide-3",
-    name: "Хачапури по-аджарски",
-    description: "Сулугуни, сливочное масло, желток",
-    price: "3 700 ₸",
-    imageUrl: stubPhoto("Guide 3"),
-    restaurantId: null,
-  },
-];
+/** MISSING ENDPOINT: GET /articles. Empty ⇒ section hidden. */
+export const PLACEHOLDER_ARTICLES: readonly ArticleCardData[] = [];

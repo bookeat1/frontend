@@ -1,36 +1,34 @@
-import type { AvailabilitySlot, RestaurantSummary } from "@bookeat/api";
 import { colors, exploreLayout, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { EmptyState, ErrorState } from "../StateViews";
 import { CardStrip } from "./CardStrip";
-import { PopularRestaurantCard } from "./PopularRestaurantCard";
-import { SectionHeader } from "./SectionCard";
-import { usePopularRestaurants } from "./use-explore-data";
+import { RecommendedRestaurantCard } from "./RecommendedRestaurantCard";
+import { SectionCard, SectionHeader } from "./SectionCard";
+import { useRecommendedRestaurants } from "./use-explore-data";
 
 const t = getDictionary();
 
 /**
- * "Популярные заведения" — the one section of Explore on real data, so it is
- * the one that needs all four states. Loading is a skeleton rather than a
- * spinner because the section sits inside a scrolling page: a spinner would
- * collapse the layout and make everything below jump when the data lands.
+ * «Выбрали для вас» — the one home section on real data, so it carries all four
+ * states. Loading is a skeleton rather than a spinner because the section sits
+ * inside a scrolling page: a spinner would collapse the layout and make
+ * everything below jump when the data lands. Reuses the same popular-restaurant
+ * query and copy the old PopularSection used.
  */
-export function PopularSection({
+export function RecommendedSection({
   onSeeAll,
   onOpenRestaurant,
-  onPickSlot,
 }: {
   onSeeAll: () => void;
   onOpenRestaurant: (id: string) => void;
-  onPickSlot: (restaurant: RestaurantSummary, slot: AvailabilitySlot) => void;
 }) {
-  const query = usePopularRestaurants();
+  const query = useRecommendedRestaurants();
 
   return (
-    <>
-      <SectionHeader title={t.explore.popularTitle} onSeeAll={onSeeAll} />
+    <SectionCard>
+      <SectionHeader title={t.explore.recommendedTitle} onSeeAll={onSeeAll} />
 
       {query.isLoading ? (
         <SkeletonStrip />
@@ -58,24 +56,24 @@ export function PopularSection({
         <CardStrip
           data={query.data ?? []}
           keyExtractor={(restaurant) => restaurant.id}
-          accessibilityLabel={t.explore.popularTitle}
+          accessibilityLabel={t.explore.recommendedTitle}
           renderItem={({ item }) => (
-            <PopularRestaurantCard
-              restaurant={item}
-              onOpenRestaurant={onOpenRestaurant}
-              onPickSlot={onPickSlot}
-            />
+            <RecommendedRestaurantCard restaurant={item} onOpenRestaurant={onOpenRestaurant} />
           )}
         />
       )}
-    </>
+    </SectionCard>
   );
 }
 
 /** Two card-shaped grey blocks, same geometry as the real cards. */
 function SkeletonStrip() {
   return (
-    <View style={styles.skeletonRow} accessibilityRole="progressbar" accessibilityLabel={t.explore.popularLoading}>
+    <View
+      style={styles.skeletonRow}
+      accessibilityRole="progressbar"
+      accessibilityLabel={t.explore.popularLoading}
+    >
       {[0, 1].map((key) => (
         <View key={key} style={styles.skeletonCard}>
           <View style={styles.skeletonPhoto} />
@@ -95,8 +93,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    // Clipped rather than scrollable: a skeleton the user can swipe is a lie
-    // about how much content there is.
     overflow: "hidden",
   },
   skeletonCard: {

@@ -1,7 +1,7 @@
 import { EMPTY_FILTERS, type PriceLevel, type SearchFilters } from "@bookeat/api";
 import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
@@ -33,6 +33,10 @@ const t = getDictionary();
  */
 export default function SearchScreen() {
   const router = useRouter();
+  // Optional cuisine seed from the Home «Выберите кухню» chip. `useLocalSearchParams`
+  // hands a string (or string[]), so narrow it to a single id.
+  const { cuisine } = useLocalSearchParams<{ cuisine?: string }>();
+  const initialCuisineId = Array.isArray(cuisine) ? cuisine[0] : cuisine;
   const {
     text,
     setText,
@@ -46,7 +50,7 @@ export default function SearchScreen() {
     searchQueryResult,
     cuisinesQuery,
     citiesQuery,
-  } = useSearchScreen();
+  } = useSearchScreen({ initialCuisineId });
 
   const [sheetVisible, setSheetVisible] = useState(false);
 
