@@ -1,12 +1,10 @@
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
-import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocale } from "../../lib/locale";
 import { PillSelect } from "../PillSelect";
 import { Bell, CalendarBlank, MapPin, User } from "../icons";
-
-const t = getDictionary();
 
 /**
  * Rebuilt home header (Figma home design, 2026-08-06). Replaces the old promo
@@ -42,6 +40,7 @@ export function HomeHeader({
   guestsValue: string;
   onOpenSearch: () => void;
 }) {
+  const { dictionary: t } = useLocale();
   const insets = useSafeAreaInsets();
 
   return (

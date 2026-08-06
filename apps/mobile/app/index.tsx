@@ -1,6 +1,6 @@
 import { colors, spacing } from "@bookeat/design-tokens";
-import { getDictionary } from "@bookeat/i18n";
-import type { Cuisine } from "@bookeat/api";
+import type { AuthUser, Cuisine } from "@bookeat/api";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback } from "react";
@@ -14,8 +14,7 @@ import { PromotionsSection } from "../src/components/explore/PromotionsSection";
 import { RecommendedSection } from "../src/components/explore/RecommendedSection";
 import { EXPLORE_DEFAULT_GUESTS } from "../src/components/explore/use-explore-data";
 import { useAuth } from "../src/lib/auth";
-
-const t = getDictionary();
+import { useLocale } from "../src/lib/locale";
 
 /**
  * Home — the first screen (rebuilt to the Figma home design, 2026-08-06),
@@ -31,16 +30,33 @@ const t = getDictionary();
  * [] — see use-explore-data.ts), so the screen looks finished on real data.
  */
 export default function HomeScreen() {
+  // Dictionary through the context so the greeting/city labels re-render in the
+  // chosen language the instant it changes (the switch lives in /settings/language).
+  const { dictionary: t } = useLocale();
   const router = useRouter();
-  const { user } = useAuth();
+  const { status, repository } = useAuth();
 
-  // Greeting name and city come from the signed-in profile (GET /users/me via
-  // AuthProvider). Both are best-effort: a cold start with no session, or a
-  // profile that hasn't answered yet, falls back to the no-name greeting and
-  // the default city rather than gating the screen.
-  const firstName = user?.fullName?.trim().split(/\s+/)[0];
+  // Greeting name and city read from the SAME ["me"] query cache the profile
+  // screens edit (profile.tsx / profile/edit / profile/personal-data all write
+  // it via queryClient.setQueryData(["me"], updated)). Reading the auth
+  // context's best-effort `user` instead left the header stale after an edit —
+  // that state is only refreshed at sign-in, never after a PATCH. Same query
+  // shape as profile.tsx so the two views share one source of truth, and the
+  // stored city survives a restart because GET /users/me returns it.
+  const me = useQuery<AuthUser>({
+    queryKey: ["me"],
+    queryFn: () => repository.getMe(),
+    enabled: status === "signed-in",
+    staleTime: 5 * 60_000,
+  });
+  const account = me.data ?? null;
+
+  // Both are best-effort: a cold start with no session, or a profile that
+  // hasn't answered yet, falls back to the no-name greeting and the default
+  // city rather than gating the screen.
+  const firstName = account?.fullName?.trim().split(/\s+/)[0];
   const greeting = firstName ? t.explore.greeting(firstName) : t.explore.greetingNoName;
-  const city = user?.city?.trim() || t.explore.cityFallback;
+  const city = account?.city?.trim() || t.explore.cityFallback;
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
 
