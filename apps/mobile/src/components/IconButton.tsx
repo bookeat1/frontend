@@ -8,7 +8,13 @@ interface IconButtonProps {
   icon: React.ComponentType<IconProps>;
   onPress: () => void;
   accessibilityLabel: string;
-  tone?: "onLight" | "onImage";
+  /**
+   * `onLight` (default): dark glyph on a transparent button, for white
+   * surfaces. `onImage`: white glyph on a dark scrim circle, for controls
+   * placed over a photo. `onDark`: white glyph on a transparent button, for a
+   * dark solid surface (the home header) where a scrim circle would be noise.
+   */
+  tone?: "onLight" | "onImage" | "onDark";
   /**
    * Makes this a TOGGLE: the glyph fills in the brand's favourite colour and
    * the button reports `accessibilityState.checked` to a screen reader.
@@ -32,7 +38,7 @@ export function IconButton({
   const onImage = tone === "onImage";
   const color = selected
     ? colors.brand.favorite
-    : onImage
+    : onImage || tone === "onDark"
       ? colors.text.onDark
       : colors.text.primary;
   return (

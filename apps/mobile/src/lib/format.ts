@@ -163,6 +163,27 @@ export function formatRelativeDateTime(iso: string, now: Date = new Date()): str
   return `${day}, ${formatTime(iso)}`;
 }
 
+/**
+ * "Сегодня, 16:42" / "Вчера, 12:53" / "28 июля, 19:00" — the muted timestamp
+ * line of a notification row. Unlike `formatRelativeDateTime` (which handles
+ * future days for a booking deadline: Сегодня/Завтра), an inbox item is in the
+ * past, so this resolves Сегодня/Вчера instead. The day words are passed in
+ * from the dictionary so the screen stays reactive to a live language switch —
+ * `formatRelativeDay` hardcodes them, which is why it is not reused here.
+ */
+export function formatNotificationTimestamp(
+  iso: string,
+  labels: { today: string; yesterday: string },
+  now: Date = new Date(),
+): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const time = formatTime(iso);
+  if (isSameDay(date, now)) return `${labels.today}, ${time}`;
+  if (isSameDay(date, addDays(now, -1))) return `${labels.yesterday}, ${time}`;
+  return `${formatDayMonth(date)}, ${time}`;
+}
+
 /** "28 июля, 19:00" — the one-line "when" of a booking. */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);

@@ -24,6 +24,7 @@ import {
   MapPin,
   Minus,
   Note,
+  Percent,
   Phone,
   Plus,
   Question,
@@ -79,6 +80,11 @@ import {
  * Bell and Shield were added for the «Настройки» group card (Figma node
  * 906:10384): Bell leads the «Уведомления» toggle row, Shield the «Безопасность»
  * row. Same Phosphor set as the rest.
+ *
+ * Percent was added for the «Уведомления» inbox screen (notifications render
+ * 2026-08-06): the tinted leading icon of a promo/discount notification row
+ * («−20% на завтраки»). Bell (reminder) and ForkKnife (booking) reuse the
+ * existing glyphs. Same Phosphor set as the rest.
  */
 export type { IconProps };
 export {
@@ -107,6 +113,7 @@ export {
   MapPin,
   Minus,
   Note,
+  Percent,
   Phone,
   Plus,
   Question,

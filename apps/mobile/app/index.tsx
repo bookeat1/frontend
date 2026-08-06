@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const city = account?.city?.trim() || t.explore.cityFallback;
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
+  const openNotifications = useCallback(() => router.push("/notifications"), [router]);
 
   // The «Афиша» section chevron opens the dedicated events list screen.
   const openEvents = useCallback(() => router.push("/events"), [router]);
@@ -99,6 +100,7 @@ export default function HomeScreen() {
           dateValue={t.booking.today}
           guestsValue={t.booking.guestsCount(EXPLORE_DEFAULT_GUESTS)}
           onOpenSearch={openSearch}
+          onOpenNotifications={openNotifications}
         />
 
         <View style={styles.sheet}>

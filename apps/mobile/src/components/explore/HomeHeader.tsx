@@ -1,16 +1,18 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../../lib/locale";
+import { IconButton } from "../IconButton";
 import { PillSelect } from "../PillSelect";
 import { Bell, CalendarBlank, MapPin, User } from "../icons";
 
 /**
  * Rebuilt home header (Figma home design, 2026-08-06). Replaces the old promo
  * `HeroCarousel`: a compact dark block that runs under the status bar and
- * holds — the city (top-left), a static notification bell (top-right, no
- * badge: there is no notifications endpoint yet), a large personalised
+ * holds — the city (top-left), a notification bell (top-right, no badge: the
+ * notifications feed endpoint does not exist yet, so there is no real unread
+ * count to show and a fabricated one would lie), a large personalised
  * greeting, and a date/guests selector row.
  *
  * The dark fill (`colors.background.header`) stands in for the design's dark
@@ -22,10 +24,10 @@ import { Bell, CalendarBlank, MapPin, User } from "../icons";
  * uses) and route into `/search` — the home screen keeps no date/guests state
  * of its own, so a tap simply opens the catalog where the real picker lives.
  *
- * The bell is a STATIC icon, not a button: there is no notifications endpoint
- * or screen to open, and a control that navigates nowhere is worse than none.
- * It is hidden from screen readers for the same reason (nothing to announce).
- * Turn it into an `IconButton` the day a notifications screen exists.
+ * The bell opens the «Уведомления» screen (`/notifications`). It carries no
+ * unread badge yet: there is no feed endpoint to count from, and a made-up
+ * count would be a lie. Add the badge here the day the feed exists and can
+ * supply a real number.
  */
 export function HomeHeader({
   greeting,
@@ -33,12 +35,14 @@ export function HomeHeader({
   dateValue,
   guestsValue,
   onOpenSearch,
+  onOpenNotifications,
 }: {
   greeting: string;
   city: string;
   dateValue: string;
   guestsValue: string;
   onOpenSearch: () => void;
+  onOpenNotifications: () => void;
 }) {
   const { dictionary: t } = useLocale();
   const insets = useSafeAreaInsets();
@@ -53,13 +57,12 @@ export function HomeHeader({
           </Text>
         </View>
 
-        <View
-          style={styles.bell}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <Bell size={24} color={colors.text.onDark} weight="regular" />
-        </View>
+        <IconButton
+          icon={Bell}
+          tone="onDark"
+          accessibilityLabel={t.notifications.title}
+          onPress={onOpenNotifications}
+        />
       </View>
 
       {/* Long RU first names wrap to a second line instead of pushing the
@@ -113,12 +116,6 @@ const styles = StyleSheet.create({
     ...typography.labelSemiBold,
     color: colors.text.onDark,
     flexShrink: 1,
-  },
-  bell: {
-    width: hitSlop.minTouchTarget,
-    height: hitSlop.minTouchTarget,
-    alignItems: "center",
-    justifyContent: "center",
   },
   greeting: {
     ...typography.titleXl,
