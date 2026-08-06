@@ -9,6 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../src/components/FlowHeader";
 import { Plus } from "../../../src/components/icons";
 import { PhotoView } from "../../../src/components/PhotoView";
+import { DishDetailSheet } from "../../../src/components/restaurant/DishDetailSheet";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useMenuSections } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
@@ -56,17 +57,22 @@ export default function RestaurantMenuScreen() {
     [menu.data],
   );
 
+  // Блюдо, открытое в шторке деталей (тап по строке). null — шторка закрыта.
+  const [openedDish, setOpenedDish] = useState<MenuDish | null>(null);
+
   // Заводит флоу брони с блюдом как первой позицией предзаказа. Данные едут
-  // параметрами (id/имя/цена уже на карточке) — их подхватывает book/_layout и
-  // кладёт в черновик. Цена только для клиентской оценки, серверу не уходит.
+  // параметрами (id/имя/цена/кол-во уже на карточке) — их подхватывает
+  // book/_layout и кладёт в черновик. Цена только для клиентской оценки,
+  // серверу не уходит.
   const addToPreorder = useCallback(
-    (dish: MenuDish) => {
+    (dish: MenuDish, quantity = 1) => {
       router.push({
         pathname: "/restaurant/[id]/book",
         params: {
           id: id ?? "",
           addItemId: dish.id,
           addItemName: dish.name,
+          addItemQty: String(Math.max(1, Math.floor(quantity))),
           ...(dish.priceMinor !== null ? { addItemPrice: String(dish.priceMinor) } : {}),
         },
       });
@@ -74,9 +80,20 @@ export default function RestaurantMenuScreen() {
     [id, router],
   );
 
+  // Можно ли добавить это блюдо в предзаказ: заведение с онлайн-бронью, блюдо в
+  // наличии и с ценой. Та же логика, что и у «+» в строке.
+  const canAddDish = useCallback(
+    (dish: MenuDish) => canPreorder && dish.isAvailable && dish.priceMinor !== null,
+    [canPreorder],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: MenuDish }) => (
-      <DishRow dish={item} onAdd={canPreorder ? () => addToPreorder(item) : undefined} />
+      <DishRow
+        dish={item}
+        onOpen={() => setOpenedDish(item)}
+        onAdd={canPreorder ? () => addToPreorder(item) : undefined}
+      />
     ),
     [addToPreorder, canPreorder],
   );
@@ -252,6 +269,19 @@ export default function RestaurantMenuScreen() {
             windowSize={7}
             removeClippedSubviews
           />
+
+          {/* Детали блюда по тапу на строку — фото, описание, цена и, если блюдо
+              можно заказать, счётчик количества + «Добавить». */}
+          <DishDetailSheet
+            dish={openedDish}
+            canAdd={openedDish ? canAddDish(openedDish) : false}
+            onAdd={(quantity) => {
+              const dish = openedDish;
+              setOpenedDish(null);
+              if (dish) addToPreorder(dish, quantity);
+            }}
+            onClose={() => setOpenedDish(null)}
+          />
         </>
       )}
     </View>
@@ -328,16 +358,24 @@ function CategoryBar({
  */
 const DishRow = React.memo(function DishRow({
   dish,
+  onOpen,
   onAdd,
 }: {
   dish: MenuDish;
+  /** Тап по строке открывает шторку с деталями блюда (для любого блюда). */
+  onOpen: () => void;
   /** Есть только когда заведение принимает онлайн-бронь; блюдо из стоп-листа
    * или без цены добавить всё равно нельзя — заказать его заранее не выйдет. */
   onAdd?: () => void;
 }) {
   const addable = onAdd && dish.isAvailable && dish.priceMinor !== null;
   return (
-    <View style={styles.dish}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={dish.name}
+      onPress={onOpen}
+      style={({ pressed }) => [styles.dish, pressed && styles.dishPressed]}
+    >
       <View style={styles.dishText}>
         <Text style={[styles.dishName, !dish.isAvailable && styles.dishMuted]} numberOfLines={2}>
           {dish.name}
@@ -374,7 +412,7 @@ const DishRow = React.memo(function DishRow({
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 });
 
@@ -450,6 +488,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+  },
+  dishPressed: {
+    backgroundColor: colors.background.chip,
   },
   // flex:1 — длинные русские названия переносятся, а не выдавливают плашку с
   // фото за край 360-пиксельного экрана.

@@ -64,12 +64,18 @@ export interface BookingPrefill {
   startsAt?: string;
   /**
    * A dish to seed the pre-order with — set when the guest entered the flow by
-   * tapping «+» on the venue menu (node 918:11820). Quantity is always 1; they
-   * refine it on the pre-order or confirmation step. `priceMinor` is the
-   * client-side estimate only and never travels to the server (the create call
-   * sends ids, not money — see useCreateBooking).
+   * tapping «+» on the venue menu or «Добавить» in the dish sheet (node
+   * 918:11820). `quantity` is what the sheet's stepper picked (defaults to 1
+   * for the row «+»); they can still refine it on the pre-order or confirmation
+   * step. `priceMinor` is the client-side estimate only and never travels to
+   * the server (the create call sends ids, not money — see useCreateBooking).
    */
-  preorderSeed?: { menuItemId: string; name: string; priceMinor: number | null };
+  preorderSeed?: {
+    menuItemId: string;
+    name: string;
+    priceMinor: number | null;
+    quantity?: number;
+  };
 }
 
 /**
@@ -198,7 +204,8 @@ export function BookingDraftProvider({
   const [preorder, setPreorder] = useState<PreorderDraftLine[]>(() => {
     const seed = prefill?.preorderSeed;
     if (!seed?.menuItemId || !seed.name) return [];
-    return [{ menuItemId: seed.menuItemId, name: seed.name, priceMinor: seed.priceMinor, quantity: 1 }];
+    const quantity = Math.max(1, Math.floor(seed.quantity ?? 1));
+    return [{ menuItemId: seed.menuItemId, name: seed.name, priceMinor: seed.priceMinor, quantity }];
   });
   const [idempotencyKey, setIdempotencyKey] = useState(randomKey);
 

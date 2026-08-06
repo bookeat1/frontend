@@ -23,7 +23,7 @@ export default function BookingFlowLayout() {
   // by tapping «+» on the venue menu (restaurant/[id]/menu.tsx): that dish
   // becomes the first pre-order line. The price is a client-side estimate — the
   // create call sends ids, not money — and is `null` when the dish has none.
-  const { id, date, startsAt, guests, addItemId, addItemName, addItemPrice } =
+  const { id, date, startsAt, guests, addItemId, addItemName, addItemPrice, addItemQty } =
     useLocalSearchParams<{
       id: string;
       date?: string;
@@ -32,15 +32,19 @@ export default function BookingFlowLayout() {
       addItemId?: string;
       addItemName?: string;
       addItemPrice?: string;
+      addItemQty?: string;
     }>();
 
   const parsedPrice = addItemPrice ? Number.parseInt(addItemPrice, 10) : NaN;
+  const parsedQty = addItemQty ? Number.parseInt(addItemQty, 10) : NaN;
   const preorderSeed =
     addItemId && addItemName
       ? {
           menuItemId: addItemId,
           name: addItemName,
           priceMinor: Number.isFinite(parsedPrice) ? parsedPrice : null,
+          // Chosen in the dish sheet; a stale/absent value falls back to 1.
+          quantity: Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1,
         }
       : undefined;
 

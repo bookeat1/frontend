@@ -353,6 +353,10 @@ export const ru = {
     menuDishUnavailable: "Сейчас нет в наличии",
     menuDishNoPrice: "Цену уточняйте в ресторане",
     menuPreorderNote: "Заказать блюда можно при бронировании столика",
+    /** Шторка блюда: кнопка добавления с итоговой суммой (кол-во × цена). */
+    menuDishAddPrice: (price: string) => `Добавить · ${price}`,
+    menuDishQtyLess: "Уменьшить количество",
+    menuDishQtyMore: "Увеличить количество",
     photosEmptyTitle: "Пока нет фотографий",
     photosEmptyDescription: "Ресторан ещё не загрузил снимки — они появятся здесь",
     rating: (average: number) => `★ ${average.toFixed(1)}`,
