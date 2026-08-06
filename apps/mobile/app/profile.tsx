@@ -131,6 +131,8 @@ export default function ProfileScreen() {
               reviews={0}
               friends={0}
               labels={t.profile.stats}
+              // Same destination as the «Мои брони» tab — the count is a shortcut.
+              onPressBookings={() => router.push("/bookings")}
             />
 
             {/* Фуди-профиль / Мои отзывы — track-C: no screen yet, so both rows

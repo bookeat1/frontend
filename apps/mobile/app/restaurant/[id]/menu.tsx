@@ -222,6 +222,19 @@ export default function RestaurantMenuScreen() {
             onScroll={(e) => {
               scrollYRef.current = e.nativeEvent.contentOffset.y;
             }}
+            // Как только гость сам потянул список — отменяем программный прыжок
+            // от тапа по категории. Иначе, пока долистывание к цели не сошлось
+            // (до ~5 c), подсветка держится на цели и не следует за пальцем —
+            // именно этот рассинхрон («подсветка не там, потом догоняет») и был
+            // виден. С отменой подсветка сразу отдаётся onViewable и идёт за
+            // реально видимым разделом.
+            onScrollBeginDrag={() => {
+              if (jumpTargetRef.current !== null) {
+                jumpTargetRef.current = null;
+                jumpStepsRef.current = 0;
+                setActiveIndex(visibleTopRef.current);
+              }
+            }}
             scrollEventThrottle={16}
             onContentSizeChange={(_, h) => {
               contentHRef.current = h;

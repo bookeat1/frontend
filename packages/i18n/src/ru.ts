@@ -406,7 +406,7 @@ export const ru = {
   nav: {
     overview: "Обзор",
     search: "Поиск",
-    bookings: "Бронь",
+    bookings: "Мои брони",
     favorites: "Избранные",
     profile: "Профиль",
   },
