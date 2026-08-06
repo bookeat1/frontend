@@ -23,20 +23,23 @@ const t = getDictionary();
  * already a ScrollView, and a VirtualizedList inside one both warns and scrolls
  * badly. The list is capped at ~12 events upstream, so mapping is fine.
  *
- * There is no «смотреть все» target (no events screen exists yet), so the
- * header chevron is decoration rather than a dead button.
+ * The header chevron now navigates to the dedicated «Афиша» list screen
+ * (`onSeeAll` → `/events`), which reads the SAME query — so it is a real
+ * control, not decoration.
  */
 export function EventsListSection({
   onOpenRestaurant,
+  onSeeAll,
 }: {
   onOpenRestaurant: (restaurantId: string) => void;
+  onSeeAll?: () => void;
 }) {
   const query = useExploreEvents();
   const events = query.data?.items ?? [];
 
   return (
     <SectionCard>
-      <SectionHeader title={t.explore.afishaTitle} />
+      <SectionHeader title={t.explore.afishaTitle} onSeeAll={onSeeAll} />
 
       {query.isLoading ? (
         <SkeletonList />

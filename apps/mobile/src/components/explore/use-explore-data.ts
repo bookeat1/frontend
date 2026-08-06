@@ -1,4 +1,4 @@
-import type { Cuisine, EventPage, RestaurantSummary } from "@bookeat/api";
+import type { Cuisine, EventPage, EventSummary, RestaurantSummary } from "@bookeat/api";
 import { useQuery } from "@tanstack/react-query";
 import { useRepository } from "../../lib/repository";
 import {
@@ -81,6 +81,38 @@ export function useExploreEvents() {
     // Events are announced days ahead, not minute by minute.
     staleTime: 5 * 60_000,
   });
+}
+
+/**
+ * REAL DATA — one event for the «Карточка афиши» detail screen.
+ *
+ * There is NO single-event endpoint (`GET /events/:id` does not exist — checked
+ * the repository, only the cross-venue list does). So a single event is read
+ * by SELECTING it out of the same `/events` page the list and Home already
+ * fetched: the query key is shared, so opening a card that came from either
+ * screen is a cache hit, not a new request.
+ *
+ * The one honest limitation of this: an event outside that page (e.g. a cold
+ * deep link to an id beyond the first `EXPLORE_EVENTS_LIMIT`, or one that has
+ * since finished) resolves to `event: null` once loaded, and the screen shows
+ * its "not found" state rather than inventing data.
+ */
+export function useEvent(id: string | undefined): {
+  event: EventSummary | null;
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
+} {
+  const query = useExploreEvents();
+  const event = id ? (query.data?.items.find((item) => item.id === id) ?? null) : null;
+  return {
+    event,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: () => {
+      void query.refetch();
+    },
+  };
 }
 
 /* --------------------------------------------------------------------------

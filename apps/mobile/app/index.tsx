@@ -44,6 +44,9 @@ export default function HomeScreen() {
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
 
+  // The «Афиша» section chevron opens the dedicated events list screen.
+  const openEvents = useCallback(() => router.push("/events"), [router]);
+
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
     [router],
@@ -83,7 +86,7 @@ export default function HomeScreen() {
           <CuisineSection onPickCuisine={pickCuisine} />
           {/* Hidden today (no promo endpoint) — renders nothing. */}
           <PromotionsSection />
-          <EventsListSection onOpenRestaurant={openRestaurant} />
+          <EventsListSection onOpenRestaurant={openRestaurant} onSeeAll={openEvents} />
           {/* Hidden today (no articles endpoint) — renders nothing. */}
           <ArticlesSection />
         </View>
