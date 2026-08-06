@@ -104,9 +104,11 @@ export default function RestaurantMenuScreen() {
   // отрисованном разделе (onScrollToIndexFailed), список подтягивает строки к
   // нему и мы повторяем попытку по этому же индексу.
   const pendingSectionRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
   const jumpToSection = useCallback((index: number) => {
     setActiveIndex(index);
     pendingSectionRef.current = index;
+    retryCountRef.current = 0;
     // itemIndex:0 наводит на заголовок раздела; viewOffset прижимает его под
     // строку категорий, а не под системный статус-бар.
     listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: true });
@@ -114,11 +116,16 @@ export default function RestaurantMenuScreen() {
   const retryJump = useCallback(() => {
     const index = pendingSectionRef.current;
     if (index === null) return;
-    // Дожидаемся, пока список домонтирует строки до целевого раздела, и
-    // повторяем — уже без анимации, чтобы прыжок был мгновенным.
-    requestAnimationFrame(() => {
+    // Дальний раздел ещё не отрисован → scrollToLocation срывается. Даём списку
+    // ~130мс домонтировать строки к цели и повторяем; так до 12 раз, чтобы даже
+    // самая нижняя категория гарантированно долистывалась и не оставляла
+    // подсветку рассинхронной с содержимым. requestAnimationFrame был слишком
+    // быстрым — список не успевал отрисоваться между попытками.
+    if (retryCountRef.current >= 12) return;
+    retryCountRef.current += 1;
+    setTimeout(() => {
       listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: false });
-    });
+    }, 130);
   }, []);
 
   return (
