@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar } from "../src/components/BottomNavBar";
-import { ChatCircle, ForkKnife, GearSix, GlobeSimple, MapPin, Question, SignOut, ThumbsUp } from "../src/components/icons";
+import { ChatCircle, ForkKnife, GearSix, GlobeSimple, MapPin, Question, SignOut, ThumbsUp, User } from "../src/components/icons";
 import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
 import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
 import { ProfileMenuRow } from "../src/components/profile/ProfileMenuRow";
@@ -151,6 +151,13 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.group}>
+              <ProfileMenuRow
+                icon={User}
+                label={t.profile.menu.personalData}
+                onPress={() => router.push("/profile/personal-data")}
+                comingSoonLabel={t.profile.comingSoon}
+              />
+              <Divider />
               <ProfileMenuRow
                 icon={MapPin}
                 label={t.profile.menu.city}
