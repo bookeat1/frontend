@@ -8,9 +8,11 @@ import { UserCircle } from "../icons";
  * The identity block at the top of the «Профиль» vitrina: a brand-red avatar
  * circle carrying the guest's initials, their name and phone below it.
  *
- * The whole block is the entry point to editing — there is no edit form on the
- * vitrina itself, so tapping here is how a guest changes their name/city/birth
- * date (see app/profile/edit.tsx). It is a real button: keyboard-reachable and
+ * Only the AVATAR is the edit entry point — tapping the avatar opens the edit
+ * screen (app/profile/edit.tsx). The name and phone below are plain, static
+ * text: tapping them does nothing. (Previously the whole block was one
+ * Pressable, so a tap on the name unexpectedly opened editing — Damir flagged
+ * that 2026-08-06.) The avatar is a real button: keyboard-reachable and
  * labelled, not a bare Pressable.
  *
  * Initials are derived, never stored: the account has no avatar upload (see
@@ -37,13 +39,14 @@ export function ProfileIdentity({
   const displayName = name.trim().length > 0 ? name : namePlaceholder;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={editLabel}
-      onPress={onPress}
-      style={({ pressed }) => [styles.root, pressed && styles.pressed]}
-    >
-      <View style={styles.avatar}>
+    <View style={styles.root}>
+      {/* Only the avatar opens editing — the name/phone below are static text. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={editLabel}
+        onPress={onPress}
+        style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+      >
         {initials ? (
           <Text style={styles.initials} accessibilityElementsHidden importantForAccessibility="no">
             {initials}
@@ -52,7 +55,7 @@ export function ProfileIdentity({
           // No name to build initials from — a neutral figure, not invented letters.
           <UserCircle size={56} color={colors.text.onBrand} weight="regular" />
         )}
-      </View>
+      </Pressable>
       <Text style={styles.name} numberOfLines={2}>
         {displayName}
       </Text>
@@ -61,7 +64,7 @@ export function ProfileIdentity({
           {formatStoredPhoneForDisplay(phone)}
         </Text>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
