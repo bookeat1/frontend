@@ -109,23 +109,31 @@ export default function RestaurantMenuScreen() {
     setActiveIndex(index);
     pendingSectionRef.current = index;
     retryCountRef.current = 0;
-    // itemIndex:0 наводит на заголовок раздела; viewOffset прижимает его под
-    // строку категорий, а не под системный статус-бар.
+    // itemIndex:0 наводит на заголовок раздела.
     listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: true });
   }, []);
-  const retryJump = useCallback(() => {
-    const index = pendingSectionRef.current;
-    if (index === null) return;
-    // Дальний раздел ещё не отрисован → scrollToLocation срывается. Даём списку
-    // ~130мс домонтировать строки к цели и повторяем; так до 12 раз, чтобы даже
-    // самая нижняя категория гарантированно долистывалась и не оставляла
-    // подсветку рассинхронной с содержимым. requestAnimationFrame был слишком
-    // быстрым — список не успевал отрисоваться между попытками.
-    if (retryCountRef.current >= 12) return;
+  // scrollToLocation не может допрыгнуть до раздела, чьи строки ещё не
+  // отрисованы, а getItemLayout мы не задаём (высоты блюд разные) → RN зовёт
+  // этот колбэк. Прошлые сборки просто повторяли тот же прыжок — он срывался
+  // снова с той же точки, и список стоял на месте (подсветка чипа уезжала на
+  // тапнутую категорию, а содержимое оставалось на первой). Правильно: сперва
+  // проматываем скролл ПРИМЕРНО к цели по средней высоте строки, которую RN уже
+  // измерил (info.averageItemLength × плоский индекс) — это домонтирует
+  // промежуточные строки, — и только потом повторяем точный scrollToLocation.
+  // Каждая итерация реально приближает, поэтому сходится за пару повторов даже
+  // на нижней категории.
+  const retryJump = useCallback((info: { index: number; averageItemLength: number }) => {
+    const target = pendingSectionRef.current;
+    if (target === null) return;
+    if (retryCountRef.current >= 6) return;
     retryCountRef.current += 1;
+    const scroller = listRef.current?.getScrollResponder() as
+      | { scrollTo?: (opts: { x?: number; y?: number; animated?: boolean }) => void }
+      | undefined;
+    scroller?.scrollTo?.({ y: info.averageItemLength * info.index, animated: false });
     setTimeout(() => {
-      listRef.current?.scrollToLocation({ sectionIndex: index, itemIndex: 0, viewOffset: 0, animated: false });
-    }, 130);
+      listRef.current?.scrollToLocation({ sectionIndex: target, itemIndex: 0, viewOffset: 0, animated: false });
+    }, 60);
   }, []);
 
   return (
