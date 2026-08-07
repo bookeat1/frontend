@@ -13,3 +13,6 @@ android/
 *.key
 *.mobileprovision
 .metro-health-check*
+
+# iOS signing material — never commit (local paths / secrets)
+apps/mobile/credentials.json
