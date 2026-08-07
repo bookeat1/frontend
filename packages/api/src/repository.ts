@@ -15,6 +15,7 @@ import type {
   GuideCollectionDetail,
   HomePromo,
   MenuSection,
+  NotificationFeed,
   OtpRequest,
   Preorder,
   PreorderLineInput,
@@ -242,6 +243,34 @@ export interface RestaurantRepository {
    * server-side, so a double sign-out cannot fail.
    */
   unregisterPushToken(token: string): Promise<void>;
+
+  /* --- notifications feed («Уведомления») --- */
+
+  /**
+   * The caller's notifications inbox (`GET /notifications?cursor=&limit=`).
+   * Requires a session — an anonymous call is a 401, not an empty list.
+   *
+   * Cursor pagination: pass the previous page's `nextCursor` to read the next
+   * page; omit it (or pass `undefined`) for the first page. `nextCursor` is
+   * `null` on the last page. The screen reads only the first page today, but
+   * the cursor is returned so infinite scroll is an additive change.
+   *
+   * `unreadCount` is the WHOLE-inbox unread total the server reports (the
+   * home-header bell badge), not the count on this page.
+   */
+  listNotifications(cursor?: string): Promise<NotificationFeed>;
+
+  /**
+   * Marks ONE notification read (`POST /notifications/:id/read`). Requires a
+   * session; a 404 means the id is not the caller's (or no longer exists).
+   * Marking an already-read item is harmless, so a double tap cannot corrupt
+   * anything.
+   */
+  markNotificationRead(id: string): Promise<void>;
+
+  /** Marks the whole inbox read (`POST /notifications/read-all`). Requires a
+   * session. Idempotent — an inbox with nothing unread still answers 200. */
+  markAllNotificationsRead(): Promise<void>;
 }
 
 /**
