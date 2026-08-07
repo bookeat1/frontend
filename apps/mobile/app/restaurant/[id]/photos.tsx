@@ -13,7 +13,7 @@ import { useRestaurant } from "../../../src/hooks/useRestaurant";
 
 const t = getDictionary();
 
-const TABS = [t.restaurant.photoAllFilter, "Еда", "Интерьер"] as const;
+const TABS = [t.restaurant.photoAllFilter, t.restaurant.photoTabFood, t.restaurant.photoTabInterior] as const;
 
 export default function RestaurantPhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

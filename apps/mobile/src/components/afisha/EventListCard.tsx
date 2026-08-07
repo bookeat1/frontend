@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   cover: {
     width: "100%",
-    height: 180,
+    height: 148,
     borderRadius: radius.photoHero,
     backgroundColor: colors.background.chip,
   },

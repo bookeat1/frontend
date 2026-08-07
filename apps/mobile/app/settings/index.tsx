@@ -1,12 +1,11 @@
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
-import { LOCALES } from "@bookeat/i18n";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
-import { Bell, GlobeSimple, type IconProps, Info, Shield, WarningCircle } from "../../src/components/icons";
+import { Bell, type IconProps, Info, Shield, WarningCircle } from "../../src/components/icons";
 import { SelectRow } from "../../src/components/SelectRow";
 import { ToggleRow } from "../../src/components/ToggleRow";
 import { useLocale } from "../../src/lib/locale";
@@ -15,26 +14,26 @@ import { useNotificationsPref } from "../../src/lib/notifications-pref";
 /**
  * «Настройки» — the entry point reached from the gear/row on «Профиль».
  *
- * Top to bottom: the interface language (opens the language picker, current
- * choice shown as the row's value), then the design's group card — a
- * notifications toggle, a «Безопасность» row and the app-version row — and
- * finally the account group whose only action is the soft delete.
+ * Top to bottom: the design's group card — a notifications toggle, a
+ * «Безопасность» row and the app-version row — and finally the account group
+ * whose only action is the soft delete.
  *
- * Only the language and delete rows navigate. «Безопасность» has no screen yet
- * (track-C): it is drawn NON-interactive with a muted «Скоро» rather than a
- * chevron that leads nowhere — a dead affordance is the same lie as a fake
- * stat. The version row is pure info. The notifications toggle is a genuinely
- * stored client preference (see useNotificationsPref), not a server switch.
+ * Language selection lives on «Профиль», not here — the language row was
+ * removed from Settings to match the design.
+ *
+ * Only the delete row navigates. «Безопасность» has no screen yet (track-C):
+ * it is drawn NON-interactive with a muted «Скоро» rather than a chevron that
+ * leads nowhere — a dead affordance is the same lie as a fake stat. The
+ * version row is pure info. The notifications toggle is a genuinely stored
+ * client preference (see useNotificationsPref), not a server switch.
  *
  * Strings come from the CURRENT locale via useLocale, so the screen re-renders
  * in the chosen language.
  */
 export default function SettingsScreen() {
   const router = useRouter();
-  const { locale, dictionary: t } = useLocale();
+  const { dictionary: t } = useLocale();
   const { enabled: notificationsEnabled, setEnabled: setNotificationsEnabled } = useNotificationsPref();
-
-  const currentLanguage = LOCALES.find((option) => option.code === locale)?.nativeName ?? "";
 
   // Build/version read off the compiled app config, not hardcoded, so it stays
   // truthful across releases. iOS carries buildNumber (string), Android
@@ -51,13 +50,6 @@ export default function SettingsScreen() {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <SelectRow
-          icon={GlobeSimple}
-          label={t.settings.language}
-          value={currentLanguage}
-          onPress={() => router.push("/settings/language")}
-        />
-
         <ToggleRow
           icon={Bell}
           label={t.settings.notifications}

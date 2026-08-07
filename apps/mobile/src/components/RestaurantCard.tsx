@@ -33,7 +33,7 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
     <Pressable
       accessibilityRole="button"
       // Скринридер слышит ровно то, что видно глазами.
-      accessibilityLabel={[restaurant.name, cuisineLabel, statusLabel]
+      accessibilityLabel={[restaurant.name, restaurant.description, cuisineLabel, statusLabel]
         .filter(Boolean)
         .join(", ")}
       onPress={() => onPress(restaurant.id)}
@@ -53,6 +53,14 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
         <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
           {restaurant.name}
         </Text>
+        {/* Venue description, two lines max — the same plain-text field the
+            detail screen shows under «О ресторане». Hidden entirely when the
+            venue left it blank, rather than leaving a gap. */}
+        {restaurant.description ? (
+          <Text style={styles.description} numberOfLines={2} ellipsizeMode="tail">
+            {restaurant.description}
+          </Text>
+        ) : null}
         <Text style={styles.status}>{statusLabel}</Text>
         <View style={styles.chipsRow}>
           {/* У части заведений в каталоге cuisine_type пустой — тогда чипа
@@ -95,6 +103,10 @@ const styles = StyleSheet.create({
   name: {
     ...typography.titleSm,
     color: colors.text.primary,
+  },
+  description: {
+    ...typography.body,
+    color: colors.text.muted,
   },
   status: {
     ...typography.body,

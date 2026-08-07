@@ -710,6 +710,9 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     rating: 0,
     reviewsCount: 0,
     address: text(api.address),
+    // Descriptions come from the old CMS as HTML — same field, same cleanup as
+    // the detail read (see mapRestaurantDetail).
+    description: plainText(api.description),
     // Расстояния тут нет и не появится само: у API нет геопоиска, а у
     // приложения — доступа к геопозиции гостя. Раньше здесь стоял хеш от id,
     // который рисовался как «3.4 км» рядом с адресом.

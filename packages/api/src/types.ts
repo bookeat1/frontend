@@ -186,6 +186,11 @@ export interface RestaurantSummary {
   rating: number;
   reviewsCount: number;
   address: string;
+  /** Plain-text venue description. The listing/search endpoint carries the same
+   * `description` field the detail read does (only images/features/tags/social
+   * are detail-only — see http-mapping ApiRestaurant). Used as a 2-line muted
+   * line on the search card. May be empty when the venue left it blank. */
+  description: string;
   /** См. Restaurant.coverPhoto — может отсутствовать. */
   coverPhoto?: Photo;
   /** См. Restaurant.schedule — листинг, поиск и избранное отдают то же поле. */

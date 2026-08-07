@@ -200,7 +200,9 @@ export const en: LocaleOverride<Dictionary> = {
     tabOverview: "Overview",
     tabPhotos: "Photos",
     photoAllFilter: "All",
-    menuHighlights: "Top Picks",
+    photoTabFood: "Food",
+    photoTabInterior: "Interior",
+    menuHighlights: "Popular on the menu",
     menuEmpty: "This restaurant hasn't added a menu yet",
     menuTitle: "Menu",
     menuLoading: "Loading menu…",
@@ -947,6 +949,16 @@ export const en: LocaleOverride<Dictionary> = {
       nameInputPlaceholder: "Your name",
       phoneNotEditable: "The number can't be changed: you use it to sign in to the app",
       editNameA11y: "Edit name",
+    },
+  },
+  onboarding: {
+    name: {
+      title: "What's your name?",
+      subtitle: "Your name is used in bookings — you can't continue without it",
+      label: "Name",
+      placeholder: "Your name",
+      save: "Save",
+      saving: "Saving…",
     },
   },
   auth: {

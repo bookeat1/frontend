@@ -93,7 +93,7 @@ function subtitleFor(reason: SignInReason | undefined): string {
  */
 export default function SignInScreen() {
   const router = useRouter();
-  const { requestCode, signInWithCode } = useAuth();
+  const { requestCode, signInWithCode, repository } = useAuth();
   const params = useLocalSearchParams<{ reason?: string; restaurantId?: string }>();
   const reason = parseReason(params.reason);
   const restaurantId = params.restaurantId;
@@ -262,7 +262,25 @@ export default function SignInScreen() {
       // button stays in its "Проверяем код…" state for the extra request
       // rather than flashing back to Explore with a heart that is still empty.
       await completeIntent();
-      leave();
+      // A first-time guest is created by /auth/otp/verify with no name, and a
+      // name is mandatory (it is stamped onto every booking). Read the account
+      // and, if it has none, send the guest to the required name step instead
+      // of releasing them into the app — from there Home is a `replace`, so the
+      // gate is not on the back stack. If /users/me can't be read we do NOT
+      // trap the guest on a blank wall: we leave as usual and the name can be
+      // filled later from «Профиль».
+      let needsName = false;
+      try {
+        const account = await repository.getMe();
+        needsName = account.fullName.trim().length === 0;
+      } catch {
+        // Fall through to the normal exit.
+      }
+      if (needsName) {
+        router.replace("/onboarding/name");
+      } else {
+        leave();
+      }
     } catch (error) {
       // The typed code is deliberately left in the field: an input that is
       // wiped on failure is the fastest way to lose a guest who mistyped one

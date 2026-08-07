@@ -204,7 +204,9 @@ export const kk: LocaleOverride<Dictionary> = {
     tabOverview: "Шолу",
     tabPhotos: "Фото",
     photoAllFilter: "Барлығы",
-    menuHighlights: "Танымал",
+    photoTabFood: "Тағам",
+    photoTabInterior: "Интерьер",
+    menuHighlights: "Мәзірдегі танымал",
     menuEmpty: "Мейрамхана әзірге мәзір қоспаған",
     menuTitle: "Мәзір",
     menuLoading: "Мәзірді жүктеп жатырмыз…",
@@ -953,6 +955,16 @@ export const kk: LocaleOverride<Dictionary> = {
       nameInputPlaceholder: "Атыңыз",
       phoneNotEditable: "Нөмірді өзгертуге болмайды: сіз онымен қосымшаға кіресіз",
       editNameA11y: "Атын өзгерту",
+    },
+  },
+  onboarding: {
+    name: {
+      title: "Атыңыз кім?",
+      subtitle: "Аты броньдарда қолданылады — онсыз әрі қарай жүру мүмкін емес",
+      label: "Аты",
+      placeholder: "Атыңыз",
+      save: "Сақтау",
+      saving: "Сақталуда…",
     },
   },
   auth: {

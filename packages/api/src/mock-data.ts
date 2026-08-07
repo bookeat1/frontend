@@ -330,6 +330,7 @@ export function toSummary(r: Restaurant): RestaurantSummary {
     rating: r.rating,
     reviewsCount: r.reviewsCount,
     address: r.address,
+    description: r.description,
     coverPhoto: r.coverPhoto,
     schedule: r.schedule,
     acceptsOnlineBookings: r.acceptsOnlineBookings,
