@@ -20,15 +20,12 @@ import { classifyProfileSaveFailure } from "../../src/lib/profile-edit";
  * value. «Имя» opens a bottom-sheet editor and saves through the SAME PATCH
  * /users/me the profile edit form uses (repository.updateMe).
  *
- * «Номер телефона» is READ-ONLY here, and that is a contract fact, not a
- * shortcut: `updateMeRequest` has no phone field, and OTP sign-in
- * finds-or-creates the account BY the number, so changing it would mean a
- * different account. Changing it safely needs a re-verification flow (send a
- * code to the NEW number, prove it, then move the account) that this app does
- * not have yet. So the row shows the number with a line saying why it cannot be
- * changed here — never a fake save that the backend would silently ignore.
- * TODO(auth): when a phone-change flow lands, make this row route into OTP
- * re-verification (POST /auth/otp/request + /verify), not a PATCH.
+ * «Номер телефона» is NOT a `PATCH /users/me` field — `updateMeRequest` has no
+ * phone, and OTP sign-in finds-or-creates the account BY the number, so moving
+ * it safely needs a re-verification flow: send a code to the NEW number, prove
+ * it, then move the account. That flow now exists (app/profile/change-phone.tsx
+ * over POST /users/me/phone/otp/request + /verify), so the row routes into it
+ * instead of a PATCH — never a fake save the backend would silently ignore.
  *
  * The `me` query, the session-dies-mid-edit guard (`keepEditor` + `lastUser`)
  * and the four states mirror app/profile/edit.tsx on purpose — this is the same
@@ -154,7 +151,8 @@ export default function PersonalDataScreen() {
                 label={t.profile.personalData.phoneRow}
                 value={account.phone ? formatStoredPhoneForDisplay(account.phone) : ""}
                 placeholder={t.profile.personalData.phoneEmpty}
-                hint={t.profile.personalData.phoneNotEditable}
+                onPress={() => router.push("/profile/change-phone")}
+                editA11y={t.profile.personalData.editPhoneA11y}
               />
             </View>
           </ScrollView>

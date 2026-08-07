@@ -518,10 +518,12 @@ export interface AuthUser {
   email: string;
   fullName: string;
   /**
-   * The number the account is keyed on. NOT editable anywhere: `PATCH
-   * /users/me` has no phone field at all (users/request.go: updateMeRequest),
-   * and OTP sign-in finds-or-creates the account BY this number, so changing
-   * it would mean a different account. Shown, never offered for editing.
+   * The number the account is keyed on. NOT a `PATCH /users/me` field
+   * (users/request.go: updateMeRequest has no phone) — OTP sign-in
+   * finds-or-creates the account BY this number, so it can only be changed
+   * through the dedicated re-verification flow: `requestPhoneChangeOtp` +
+   * `confirmPhoneChange` (POST /users/me/phone/otp/request + /verify), which
+   * proves the NEW number and returns the updated user.
    */
   phone: string | null;
   /** Free-form city string on the account. `null` when never filled in — the

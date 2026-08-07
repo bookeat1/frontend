@@ -529,6 +529,12 @@ function formatClock(minuteOfDay: number): string {
  */
 /** The code the mock accepts. Only reachable with no backend configured. */
 const MOCK_OTP_CODE = "000000";
+/**
+ * A number the mock pretends already belongs to another account, so the 409
+ * «этот номер уже привязан к другому аккаунту» path of the phone-change flow is
+ * exercisable with no backend. Any other number is treated as free.
+ */
+const MOCK_TAKEN_PHONE = "+77010000009";
 
 export class MockAuthRepository implements AuthRepository {
   private user: AuthUser | null = null;
@@ -665,6 +671,56 @@ export class MockAuthRepository implements AuthRepository {
       city: input.city === undefined ? this.user.city : input.city || null,
       birthDate: input.birthDate ?? this.user.birthDate,
     };
+    return this.user;
+  }
+
+  /**
+   * Mock of `POST /users/me/phone/otp/request`. Reproduces the two rejections
+   * the real endpoint has so both error paths are reachable with no backend:
+   * 422 when the new number equals the current one, 409 when it is
+   * MOCK_TAKEN_PHONE ("already attached to another account"). Otherwise it
+   * "sends" MOCK_OTP_CODE, the same way requestOtp does.
+   */
+  async requestPhoneChangeOtp(newPhone: string): Promise<OtpRequest> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    const next = newPhone.trim();
+    if (!next) {
+      throw new RepositoryError("Phone required", undefined, 422);
+    }
+    if (next === this.user.phone) {
+      throw new RepositoryError("validation: same phone number", undefined, 422);
+    }
+    if (next === MOCK_TAKEN_PHONE) {
+      throw new RepositoryError("phone already in use", undefined, 409);
+    }
+    this.otpPhone = next;
+    return { sent: true, devCode: MOCK_OTP_CODE };
+  }
+
+  /**
+   * Mock of `POST /users/me/phone/otp/verify`. Accepts ANY six-digit code (the
+   * mock has no real code to check against), rejecting anything else as the same
+   * 401 the backend gives a wrong/expired code, and re-checks the 409 taken-number
+   * rule. On success it swaps the in-memory user's phone and returns the updated
+   * account — the exact shape getMe/updateMe return.
+   */
+  async confirmPhoneChange(input: { newPhone: string; code: string }): Promise<AuthUser> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    const next = input.newPhone.trim();
+    if (next === MOCK_TAKEN_PHONE) {
+      throw new RepositoryError("phone already in use", undefined, 409);
+    }
+    if (!/^\d{6}$/.test(input.code)) {
+      throw new RepositoryError("Invalid code", undefined, 401);
+    }
+    this.otpPhone = null;
+    this.user = { ...this.user, phone: next };
     return this.user;
   }
 
