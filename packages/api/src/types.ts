@@ -70,6 +70,18 @@ export interface VenueSchedule {
  */
 export type PriceLevel = "₸" | "₸₸" | "₸₸₸" | "₸₸₸₸";
 
+/**
+ * Числовой диапазон среднего чека в тенге (МАЖОРНЫЕ единицы, не тийины:
+ * `{ min: 4000, max: 9000 }` = «4 000–9 000 ₸»). Бэкенд отдаёт его в поле
+ * `price_range` рядом с символьной ступенью `price_category` и ОПУСКАЕТ,
+ * когда не задан. Поэтому поле необязательное: у большинства заведений
+ * диапазона ещё нет, и UI обязан откатываться на ступень `priceLevel`.
+ */
+export interface PriceRange {
+  min: number;
+  max: number;
+}
+
 export interface Photo {
   id: string;
   /** Local require() asset or remote uri, resolved by the caller. */
@@ -131,6 +143,9 @@ export interface Restaurant {
   name: string;
   cuisines: Cuisine[];
   priceLevel: PriceLevel;
+  /** Числовой диапазон среднего чека, если бэкенд его прислал. Опущен у
+   * заведений без данных — тогда показывается символьная ступень `priceLevel`. */
+  priceRange?: PriceRange;
   rating: number; // 0..5
   reviewsCount: number;
   address: string;
@@ -183,6 +198,8 @@ export interface RestaurantSummary {
   name: string;
   cuisines: Cuisine[];
   priceLevel: PriceLevel;
+  /** См. Restaurant.priceRange — листинг, поиск и избранное отдают то же поле. */
+  priceRange?: PriceRange;
   rating: number;
   reviewsCount: number;
   address: string;

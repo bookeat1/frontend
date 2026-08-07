@@ -89,6 +89,25 @@ describe("prices are in tenge", () => {
     expect(priceLevelToPriceCategory("₸₸₸")).toBe("₸₸₸");
   });
 
+  it("a numeric price_range is mapped onto summary and detail alike", () => {
+    const range = { min: 4000, max: 9000 };
+    expect(mapRestaurantSummary(apiRestaurant({ price_range: range })).priceRange).toEqual(range);
+    expect(mapRestaurantDetail(apiRestaurant({ price_range: range })).priceRange).toEqual(range);
+  });
+
+  it("an OMITTED price_range stays undefined — most venues have no range yet", () => {
+    expect(mapRestaurantSummary(apiRestaurant()).priceRange).toBeUndefined();
+    expect(mapRestaurantDetail(apiRestaurant()).priceRange).toBeUndefined();
+  });
+
+  it("a half-filled or non-finite price_range is dropped, not rendered as NaN", () => {
+    const half = { min: 4000 } as { min: number; max: number };
+    expect(mapRestaurantSummary(apiRestaurant({ price_range: half })).priceRange).toBeUndefined();
+    const nan = { min: Number.NaN, max: 9000 };
+    expect(mapRestaurantSummary(apiRestaurant({ price_range: nan })).priceRange).toBeUndefined();
+    expect(mapRestaurantSummary(apiRestaurant({ price_range: null })).priceRange).toBeUndefined();
+  });
+
   it("a dish price is formatted as grouped tenge", () => {
     const [dish] = mapMenuHighlights([apiDish({ price: "5500.00" })], 8);
     expect(dish.price).toMatch(/₸$/);

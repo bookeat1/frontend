@@ -2,6 +2,7 @@ import type { RestaurantSummary } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { formatPriceRange } from "../lib/format";
 import { openStateLabel } from "../lib/schedule";
 import { PhotoView } from "./PhotoView";
 
@@ -71,11 +72,14 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
             </View>
           ) : null}
           <View style={styles.chip}>
-            {/* NOTE: the mockup shows a tenge price range chip ("12 000-20 000 ₸");
-                the schema only carries a symbolic tier, which the app now
-                renders in the backend's own alphabet (₸/₸₸/₸₸₸) instead of the
-                dollars it used to show. The range itself is still a schema gap. */}
-            <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
+            {/* Числовой диапазон среднего чека («4 000–9 000 ₸»), когда бэкенд
+                его прислал. У большинства заведений его ещё нет — тогда откат на
+                символьную ступень (₸/₸₸/₸₸₸), тот же чип, тот же стиль. */}
+            <Text style={styles.chipText}>
+              {restaurant.priceRange
+                ? formatPriceRange(restaurant.priceRange)
+                : restaurant.priceLevel}
+            </Text>
           </View>
         </View>
       </View>

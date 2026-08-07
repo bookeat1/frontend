@@ -313,6 +313,8 @@ export const restaurants: Restaurant[] = [
     name: "Дастархан у Розы Ахметовны",
     cuisines: [cuisines[3], cuisines[4]],
     priceLevel: "₸₸",
+    // Числовой диапазон есть — карточка и деталка покажут «4 000–9 000 ₸».
+    priceRange: { min: 4000, max: 9000 },
     rating: 4.7,
     reviewsCount: 328,
     address: "ул. Достык, 89",
@@ -411,6 +413,8 @@ export const restaurants: Restaurant[] = [
     name: "Fusion Rooftop на очень-очень длинной улице имени Абылай хана",
     cuisines: [cuisines[4], cuisines[5]],
     priceLevel: "₸₸₸₸",
+    // Пятизначные границы — проверка группировки разрядов «25 000–60 000 ₸».
+    priceRange: { min: 25000, max: 60000 },
     rating: 4.9,
     reviewsCount: 412,
     address: "ул. Абылай хана, 123, 18 этаж",
@@ -458,6 +462,7 @@ export function toSummary(r: Restaurant): RestaurantSummary {
     name: r.name,
     cuisines: r.cuisines,
     priceLevel: r.priceLevel,
+    priceRange: r.priceRange,
     rating: r.rating,
     reviewsCount: r.reviewsCount,
     address: r.address,
