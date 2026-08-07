@@ -18,6 +18,7 @@ import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { openPhone } from "../../../src/lib/external-links";
+import { formatPriceRange } from "../../../src/lib/format";
 import { openStateLabel } from "../../../src/lib/schedule";
 
 const t = getDictionary();
@@ -131,7 +132,13 @@ export default function RestaurantDetailScreen() {
                   <Text style={styles.chipText}>{openStateLabel(restaurant.schedule)}</Text>
                 </View>
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
+                  {/* Числовой диапазон среднего чека, если бэкенд его прислал;
+                      иначе — символьная ступень (₸/₸₸/₸₸₸). Тот же чип и стиль. */}
+                  <Text style={styles.chipText}>
+                    {restaurant.priceRange
+                      ? formatPriceRange(restaurant.priceRange)
+                      : restaurant.priceLevel}
+                  </Text>
                 </View>
                 {/* Рейтинг показываем только когда отзывы реально есть:
                     «0,0» у заведения без отзывов читается как плохая оценка. */}

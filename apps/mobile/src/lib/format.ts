@@ -156,3 +156,30 @@ export function formatMoneyMinor(minor: number): string {
   const NBSP = "\u00A0";
   return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}${NBSP}₸`;
 }
+
+/** Whole tenge (MAJOR units) grouped ru-style: 25000 -> "25 000". Same
+ * non-breaking group separator as formatMoneyMinor so the number never wraps
+ * mid-digits. Kept private — callers want a labelled range, not a bare number. */
+function groupTenge(value: number): string {
+  const NBSP = "\u00A0";
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+}
+
+/**
+ * Числовой диапазон среднего чека в «4 000–9 000 ₸»: неразрывный пробел между
+ * разрядами (как в formatMoneyMinor), тире «–» (U+2013) между границами и «₸» в
+ * конце через неразрывный пробел. Границы — в МАЖОРНЫХ тенге, не в тийинах.
+ *
+ * min === max (сервер прислал точку, а не диапазон) сворачивается в одно число
+ * «5 000 ₸»: «5 000–5 000 ₸» читается как ошибка. Перевёрнутый диапазон
+ * (min > max) нормализуется, чтобы битые данные не рисовали тире задом наперёд.
+ */
+export function formatPriceRange(range: { min: number; max: number }): string {
+  const NBSP = "\u00A0";
+  const low = Math.min(range.min, range.max);
+  const high = Math.max(range.min, range.max);
+  if (low === high) return `${groupTenge(low)}${NBSP}₸`;
+  return `${groupTenge(low)}–${groupTenge(high)}${NBSP}₸`;
+}
