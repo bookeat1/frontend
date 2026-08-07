@@ -31,6 +31,7 @@ import type {
   Photo,
   Preorder,
   PriceLevel,
+  PriceRange,
   PromoBanner,
   Restaurant,
   RestaurantSummary,
@@ -71,6 +72,10 @@ export interface ApiRestaurant {
   opening_hours: string;
   city: string;
   price_category: string;
+  /** Числовой диапазон среднего чека в тенге. ОПУЩЕН целиком, когда не задан
+   * (проверено на живом бэкенде). min/max могут прийти мусором — маппер их
+   * проверяет, см. mapPriceRange. */
+  price_range?: { min?: number; max?: number } | null;
   email: string;
   phone: string;
   latitude: number | null;
@@ -671,12 +676,30 @@ export interface RestaurantExtras {
   promos?: ApiPromo[];
 }
 
+/**
+ * `price_range`, or nothing at all. The field is optional server-side and its
+ * bounds are only trusted when BOTH are finite numbers — a half-filled or
+ * NaN-carrying range is dropped rather than rendered as «4 000–NaN ₸». The
+ * caller then falls back to the symbolic `priceLevel` tier.
+ */
+function mapPriceRange(raw: ApiRestaurant["price_range"]): PriceRange | undefined {
+  if (!raw) return undefined;
+  const { min, max } = raw;
+  if (typeof min !== "number" || typeof max !== "number") return undefined;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+  // Bounds are money, never negative. The backend CHECK already enforces this,
+  // but guarding here too keeps a bad row from rendering «-500–9 000 ₸».
+  if (min < 0 || max < 0) return undefined;
+  return { min, max };
+}
+
 export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
   return {
     id: api.id,
     name: text(api.name),
     cuisines: cuisineForRestaurant(api),
     priceLevel: mapPriceLevel(api.price_category),
+    priceRange: mapPriceRange(api.price_range),
     // The listing endpoint carries no rating; fetching a per-venue summary
     // for every card would be an N+1 on the search screen. Real ratings are
     // read on the venue screen only — see getRestaurant.
@@ -727,6 +750,7 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     name: text(api.name),
     cuisines: cuisineForRestaurant(api),
     priceLevel: mapPriceLevel(api.price_category),
+    priceRange: mapPriceRange(api.price_range),
     // Real, from GET /restaurants/:id/reviews/summary. 0/0 when the summary
     // request failed or the venue has no published reviews yet — the screen
     // hides the rating entirely at reviewsCount === 0 rather than showing a
