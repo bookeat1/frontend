@@ -478,9 +478,9 @@ export function toSummary(r: Restaurant): RestaurantSummary {
  * with hard-coded 2026 dates would quietly become an empty list and make the
  * mock stop matching the contract it exists to stand in for.
  *
- * Note there are no tags/categories here either — the backend has none, so
- * inventing them in the mock would let a card be built against a field that
- * cannot exist in production.
+ * Each event carries a couple of `tags` — the backend now returns them (always
+ * an array, `[]` when none), so the offline mock shows the chip row too. One
+ * event is left with `[]` on purpose, to exercise the hidden-when-empty branch.
  */
 export function upcomingEvents(now: Date = new Date()): EventSummary[] {
   const at = (days: number, hour: number): string => {
@@ -510,6 +510,7 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       ticketsRefundable: true,
       ticketRefundCutoffMinutes: 1440,
       restaurant: host(0),
+      tags: ["Сет-меню", "Ужин"],
     },
     {
       id: "e2",
@@ -526,6 +527,7 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       ticketsRefundable: false,
       ticketRefundCutoffMinutes: 0,
       restaurant: host(1),
+      tags: ["Дегустация", "Вино"],
     },
     {
       id: "e3",
@@ -545,6 +547,8 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       ticketsRefundable: false,
       ticketRefundCutoffMinutes: 0,
       restaurant: host(2),
+      // Left empty on purpose — exercises the hidden-when-empty chip row.
+      tags: [],
     },
   ];
 }

@@ -5,19 +5,18 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatDayMonth, formatRelativeDateTime, formatTime } from "../../lib/format";
 import { PhotoView } from "../PhotoView";
+import { TagChips } from "../TagChips";
 
 const t = getDictionary();
 
 /**
  * One card of the «Афиша» list screen (design: full-width cover on top, then a
- * bold title and a «venue · date · time» line).
+ * bold title, a «venue · date · time» line, and the event's `tags` as grey
+ * chips under it).
  *
- * NO TAG CHIPS. The design draws grey chips ("Бранч", "Живая музыка"), but an
- * event carries no tags/categories anywhere in the backend (no column, no join
- * table, nothing on the payload — see types.ts EventSummary and the same call
- * in EventRow). Rendering a fabricated label would be inventing data, so the
- * chip row is omitted until the backend grows real tags. The layout already
- * reads complete without it.
+ * Tags are the venue's own labels ("Бранч", "Живая музыка"), carried on the
+ * event payload. The chip row hides itself when the event has none (see
+ * TagChips) — no fabricated labels.
  *
  * Unlike EventRow (the compact Home row that opens the venue), this card opens
  * the event DETAIL screen — the whole card is one button.
@@ -56,6 +55,7 @@ export function EventListCard({
             {subtitle}
           </Text>
         ) : null}
+        <TagChips tags={event.tags} />
       </View>
     </Pressable>
   );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MENU_HIGHLIGHT_LIMIT,
+  mapEventSummary,
   mapHomePromos,
   mapMenuHighlights,
   mapRestaurantDetail,
@@ -8,6 +9,7 @@ import {
   mapSchedule,
   parsePriceMinor,
   priceLevelToPriceCategory,
+  type ApiEventListItem,
   type ApiFeedItem,
   type ApiMenuItem,
   type ApiRestaurant,
@@ -330,5 +332,40 @@ describe("mapHomePromos — the Home «Акции» feed", () => {
   it("survives a null/undefined items array (an empty feed hides the section)", () => {
     expect(mapHomePromos(null)).toEqual([]);
     expect(mapHomePromos(undefined)).toEqual([]);
+  });
+});
+
+describe("mapEventSummary — event tags for the «Афиша» chips", () => {
+  const apiEvent = (overrides: Partial<ApiEventListItem> = {}): ApiEventListItem => ({
+    id: "e-1",
+    restaurant_id: "r-1",
+    title: "Бранч выходного дня",
+    description: "",
+    starts_at: "2026-08-10T09:00:00Z",
+    ends_at: "2026-08-10T13:00:00Z",
+    status: "published",
+    ticketed: false,
+    tickets_refundable: false,
+    ticket_refund_cutoff_minutes: 0,
+    created_at: "2026-08-01T00:00:00Z",
+    updated_at: "2026-08-01T00:00:00Z",
+    ...overrides,
+  });
+
+  it("passes real tags through in order", () => {
+    expect(mapEventSummary(apiEvent({ tags: ["Бранч", "Живая музыка"] })).tags).toEqual([
+      "Бранч",
+      "Живая музыка",
+    ]);
+  });
+
+  it("folds an absent or null tags field to [] (old build, hidden chip row)", () => {
+    expect(mapEventSummary(apiEvent({ tags: undefined })).tags).toEqual([]);
+    expect(mapEventSummary(apiEvent({ tags: null })).tags).toEqual([]);
+    expect(mapEventSummary(apiEvent({ tags: [] })).tags).toEqual([]);
+  });
+
+  it("drops blank and non-string entries so no empty grey pill renders", () => {
+    expect(mapEventSummary(apiEvent({ tags: ["Ужин", "   ", ""] })).tags).toEqual(["Ужин"]);
   });
 });

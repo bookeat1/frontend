@@ -548,10 +548,10 @@ export interface ProfileUpdate {
  * from the client (internal/transport/rest/events/handler.go: listUpcoming),
  * so there is no `status` field here: it would be the constant "published".
  *
- * IMPORTANT — there are NO tags or categories on an event, anywhere in the
- * backend: no column in `events`, no join table, nothing in domain.Event. The
- * Explore design shows chips ("Brunch", "Special Event"); they are not
- * derivable from any field, so the card does not render them (see EventCard).
+ * Tags ("Бранч", "Живая музыка") are free-text labels the venue attaches to an
+ * event. The backend now returns them as a top-level `tags` array on both the
+ * listing and the detail; it is ALWAYS an array (`[]` when none, never null),
+ * so the field here is a plain `string[]` — the chip row simply hides when empty.
  */
 export interface EventSummary {
   id: string;
@@ -578,6 +578,9 @@ export interface EventSummary {
   /** The hosting venue, so a card can open the restaurant screen without a
    * second request. */
   restaurant: EventRestaurant;
+  /** Free-text labels shown as grey chips under the «venue · date» line.
+   * Always an array — `[]` when the event has none (the chip row then hides). */
+  tags: string[];
 }
 
 /** The minimal venue identity carried on an event of the public listing. */

@@ -5,6 +5,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatEventDateBlock, formatRelativeDateTime, formatTime } from "../../lib/format";
 import { PhotoView } from "../PhotoView";
+import { TagChips } from "../TagChips";
 
 const t = getDictionary();
 
@@ -12,15 +13,11 @@ const t = getDictionary();
  * One row of the vertical «Афиша» list — REAL DATA (GET /events).
  *
  * Layout: a left date block (число + месяц), the title with a «venue · time»
- * line, and a right thumbnail.
+ * line, real `tags` chips under it, and a right thumbnail.
  *
- * NO TAG CHIPS. The design draws grey chips under the venue line ("Бранч",
- * "Живая музыка"), but an event carries NO tags/categories ANYWHERE in the
- * backend (no column on `events`, no join table, nothing on domain.Event —
- * checked, not assumed). Nothing on the payload stands in for them (`venue` is
- * a room name, `ticketed` a payment flag). So the chip row is omitted rather
- * than filled with a fabricated label — same call the old EventCard made. Bring
- * it back when (and only when) the backend grows real tags.
+ * Tags are the venue's own labels ("Бранч", "Живая музыка"), now carried on the
+ * event payload as a top-level `tags` array. The chip row hides itself when the
+ * event has none (see TagChips) — no fabricated labels.
  */
 export function EventRow({
   event,
@@ -54,6 +51,7 @@ export function EventRow({
             {subtitle}
           </Text>
         ) : null}
+        <TagChips tags={event.tags} />
       </View>
 
       <PhotoView uri={event.coverImageUrl} style={styles.thumb} decorative placeholderIconSize={24} />

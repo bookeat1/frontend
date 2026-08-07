@@ -828,6 +828,10 @@ export interface ApiEvent {
   capacity?: number | null;
   tickets_refundable: boolean;
   ticket_refund_cutoff_minutes: number;
+  /** Free-text labels for the chip row. Contract: always an array (`[]` when
+   * none, never null); typed optional here purely to stay defensive against an
+   * old build that predates the field. */
+  tags?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -869,6 +873,12 @@ export function mapEventSummary(api: ApiEventListItem): EventSummary {
       name: text(api.restaurant?.name),
       city: text(api.restaurant?.city),
     },
+    // Always an array in the contract; an absent/null field (old build) folds to
+    // [], and blank/non-string entries are dropped so the chip row never shows
+    // an empty grey pill.
+    tags: Array.isArray(api.tags)
+      ? api.tags.map((tag) => text(tag)).filter((tag) => tag.length > 0)
+      : [],
   };
 }
 

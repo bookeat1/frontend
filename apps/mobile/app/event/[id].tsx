@@ -21,6 +21,7 @@ import { IconButton } from "../../src/components/IconButton";
 import { PhotoView } from "../../src/components/PhotoView";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
+import { TagChips } from "../../src/components/TagChips";
 import { useRestaurantFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
 import { formatDateTime, formatDayMonth, formatTime } from "../../src/lib/format";
@@ -167,6 +168,7 @@ export default function EventDetailScreen() {
         <View style={styles.summary}>
           <Text style={styles.title}>{event.title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          <TagChips tags={event.tags} />
           {favorite.failed ? (
             <Text style={styles.favoriteFailed} accessibilityRole="alert">
               {t.restaurant.favoriteFailed}
