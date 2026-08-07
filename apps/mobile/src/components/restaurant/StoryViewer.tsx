@@ -43,6 +43,13 @@ export function StoryViewer({
   const insets = useSafeAreaInsets();
   const [index, setIndex] = React.useState(initialIndex);
   const progress = React.useRef(new Animated.Value(0)).current;
+  // Bumped to replay the CURRENT story without changing the index (a back-tap on
+  // the first story). It is a dependency of the auto-advance effect, so bumping
+  // it re-runs that effect and starts a fresh timer — calling progress.setValue
+  // here directly would only STOP the in-flight animation (RN's setValue kills
+  // the running node) and, since the index is unchanged, the effect would never
+  // restart it, freezing auto-advance for the rest of the session.
+  const [restartTick, setRestartTick] = React.useState(0);
 
   // Каждое открытие начинает с той истории, по которой тапнули в ленте.
   React.useEffect(() => {
@@ -58,10 +65,11 @@ export function StoryViewer({
   }, [clampedIndex, stories.length, onClose]);
 
   const goPrev = React.useCallback(() => {
-    // На первой истории «назад» перезапускает её, а не закрывает просмотр.
+    // На первой истории «назад» перезапускает её, а не закрывает просмотр —
+    // через restartTick, чтобы эффект автопрокрутки завёл таймер заново.
     if (clampedIndex > 0) setIndex(clampedIndex - 1);
-    else progress.setValue(0);
-  }, [clampedIndex, progress]);
+    else setRestartTick((n) => n + 1);
+  }, [clampedIndex]);
 
   // Автопрокрутка: активный сегмент заполняется за STORY_DURATION_MS, затем
   // переход дальше. Перезапускается на каждой смене истории и останавливается,
@@ -80,7 +88,9 @@ export function StoryViewer({
       if (finished) goNext();
     });
     return () => animation.stop();
-  }, [visible, clampedIndex, current, goNext, progress]);
+    // restartTick re-runs this effect to replay the current story (back-tap on
+    // the first one) even though the index has not changed.
+  }, [visible, clampedIndex, current, goNext, progress, restartTick]);
 
   const topInset = Math.max(insets.top, MIN_TOP_INSET);
   const bottomInset = insets.bottom + spacing.lg;
