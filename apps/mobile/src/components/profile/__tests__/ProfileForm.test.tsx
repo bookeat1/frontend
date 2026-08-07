@@ -205,15 +205,33 @@ describe("форма", () => {
     await waitFor(() => expect(screen.getByText("Сохранено")).toBeTruthy());
   });
 
-  it("телефон показан, но редактировать его нечем — это не поле ввода", () => {
+  it("телефон показан маской, без поля ввода, без старой подсказки «изменить нельзя»", () => {
+    // Router-free (no onEditPhone): the number is a plain read-out.
     render(<ProfileForm user={user()} onSave={vi.fn()} />);
 
     // Той же маской, что и на входе по номеру: «+77010000000» — формат API, а
     // не то, что гость набирал и узнаёт.
     expect(screen.getByText("+7 (701) 000-00-00")).toBeTruthy();
     expect(screen.queryByText("+77010000000")).toBeNull();
-    expect(screen.getByText(/по нему вы входите/)).toBeTruthy();
+    // The old "номер изменить нельзя…" hint is GONE — the number IS changeable
+    // now (see /profile/change-phone), so a screen still saying otherwise would
+    // contradict /profile/personal-data.
+    expect(screen.queryByText(/по нему вы входите/)).toBeNull();
     // A disabled input would still be an input; there must be none at all.
     expect(screen.queryByLabelText("Телефон")).toBeNull();
+  });
+
+  it("с onEditPhone ряд телефона — кнопка в change-phone, а не поле", () => {
+    const onEditPhone = vi.fn();
+    render(<ProfileForm user={user()} onSave={vi.fn()} onEditPhone={onEditPhone} />);
+
+    // Still shown masked, still not an input.
+    expect(screen.getByText("+7 (701) 000-00-00")).toBeTruthy();
+    expect(screen.queryByLabelText("Телефон")).toBeNull();
+    // The row is a real button with the same a11y label personal-data uses, and
+    // it routes into the change-phone flow instead of editing in place.
+    const row = screen.getByRole("button", { name: "Изменить номер телефона" });
+    fireEvent.click(row);
+    expect(onEditPhone).toHaveBeenCalledTimes(1);
   });
 });

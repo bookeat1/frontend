@@ -583,6 +583,16 @@ interface ApiOtpRequested {
   code?: string;
 }
 
+/** The shared `{sent, devCode}` mapping used by every OTP-request endpoint
+ * (sign-in and phone-change). `devCode` is the server's debug echo, present
+ * only with AUTH_OTP_DEV_EXPOSE=true — carried, never depended on. */
+function mapOtpRequested(api: ApiOtpRequested): OtpRequest {
+  return {
+    sent: api.sent === true,
+    devCode: typeof api.code === "string" && api.code !== "" ? api.code : null,
+  };
+}
+
 export class HttpAuthRepository implements AuthRepository {
   private readonly client: HttpClient;
 
@@ -625,12 +635,7 @@ export class HttpAuthRepository implements AuthRepository {
    */
   async requestOtp(phone: string): Promise<OtpRequest> {
     const api = await this.client.post<ApiOtpRequested>("/auth/otp/request", { phone });
-    return {
-      sent: api.sent === true,
-      // Present only when the deployment sets AUTH_OTP_DEV_EXPOSE=true. Absent
-      // on test. Carried, never depended on.
-      devCode: typeof api.code === "string" && api.code !== "" ? api.code : null,
-    };
+    return mapOtpRequested(api);
   }
 
   /** `POST /auth/otp/verify` — the ONLY sign-in step for a phone: the backend
@@ -671,6 +676,38 @@ export class HttpAuthRepository implements AuthRepository {
     if (input.city !== undefined) body.city = input.city;
     if (input.birthDate !== undefined) body.birth_date = input.birthDate;
     const api = await this.client.patch<ApiUser>("/users/me", body, { auth: true });
+    return mapUser(api);
+  }
+
+  /**
+   * `POST /users/me/phone/otp/request` — sends a code to the NEW number the
+   * guest wants to move to. AUTHENTICATED: goes through the same bearer path as
+   * updateMe (`{ auth: true }`), NOT the anonymous sign-in path — the server
+   * has to know which account is asking, and the code is delivered to the new
+   * number rather than the current one. Same `{sent, devCode}` mapping as
+   * requestOtp.
+   */
+  async requestPhoneChangeOtp(newPhone: string): Promise<OtpRequest> {
+    const api = await this.client.post<ApiOtpRequested>(
+      "/users/me/phone/otp/request",
+      { new_phone: newPhone },
+      { auth: true },
+    );
+    return mapOtpRequested(api);
+  }
+
+  /**
+   * `POST /users/me/phone/otp/verify` — proves the new number and moves the
+   * account onto it. AUTHENTICATED. Answers the UPDATED user (same shape as
+   * `updateMe`/`getMe`), mapped with the SAME `mapUser`, so the caller can drop
+   * it straight into the `["me"]` cache.
+   */
+  async confirmPhoneChange(input: { newPhone: string; code: string }): Promise<AuthUser> {
+    const api = await this.client.post<ApiUser>(
+      "/users/me/phone/otp/verify",
+      { new_phone: input.newPhone, code: input.code },
+      { auth: true },
+    );
     return mapUser(api);
   }
 

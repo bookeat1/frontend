@@ -97,6 +97,9 @@ export default function ProfileEditScreen() {
                   requestCitySelection((city) => apply(city ?? ""));
                   router.push({ pathname: "/city", params: { selected: current, purpose: "profile" } });
                 }}
+                // Same change-phone flow as /profile/personal-data: the row is
+                // navigation, so the router lives here, not in the form.
+                onEditPhone={() => router.push("/profile/change-phone")}
               />
             </BookingCard>
           </ScrollView>

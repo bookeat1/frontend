@@ -302,6 +302,33 @@ export interface AuthRepository {
   updateMe(input: ProfileUpdate): Promise<AuthUser>;
 
   /**
+   * `POST /users/me/phone/otp/request` — asks the backend to send a one-time
+   * code to a NEW phone number the signed-in guest wants to move their account
+   * to. AUTHENTICATED (bearer token, same path as updateMe): the server has to
+   * know which account is asking, and the code goes to the NEW number, not the
+   * current one.
+   *
+   * Answer shape mirrors `requestOtp` (`{sent, devCode}`): `sent: true` means
+   * the request was accepted and handed to the delivery waterfall, NOT that
+   * anything was delivered; `devCode` is the server's debug echo, present only
+   * with `AUTH_OTP_DEV_EXPOSE=true` and never depended on.
+   *
+   * Server outcomes worth branching on: 409 if the number already belongs to
+   * another account; 422 if it is the same as the current number or malformed.
+   */
+  requestPhoneChangeOtp(newPhone: string): Promise<OtpRequest>;
+  /**
+   * `POST /users/me/phone/otp/verify` — proves ownership of the NEW number with
+   * the code sent to it and moves the account onto it. AUTHENTICATED. Answers
+   * the UPDATED user object (same shape as `updateMe`/`getMe`), which the caller
+   * should write into the `["me"]` cache as the new truth.
+   *
+   * Server outcomes: 401 for a wrong/expired code; 409 if the number was taken
+   * between request and verify; 422 for the same-number / invalid case.
+   */
+  confirmPhoneChange(input: { newPhone: string; code: string }): Promise<AuthUser>;
+
+  /**
    * Soft-deletes the caller's own account (`DELETE /users/me`, authenticated).
    *
    * SOFT delete: the backend marks the account deleted and hides it, but keeps
