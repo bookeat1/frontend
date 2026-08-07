@@ -156,6 +156,7 @@ export const kk: LocaleOverride<Dictionary> = {
     loadingTitle: "Мейрамханаларды іздеп жатырмыз…",
     catalogEmptyTitle: "Каталог әзірге бос",
     catalogEmptyDescription: "Мейрамханалар қосылысымен осында пайда болады",
+    frequentTitle: "Жиі іздейді",
 
     filters: {
       title: "Сүзгілер",
