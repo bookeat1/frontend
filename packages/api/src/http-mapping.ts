@@ -718,6 +718,9 @@ function mapPriceRange(raw: ApiRestaurant["price_range"]): PriceRange | undefine
   const { min, max } = raw;
   if (typeof min !== "number" || typeof max !== "number") return undefined;
   if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+  // Bounds are money, never negative. The backend CHECK already enforces this,
+  // but guarding here too keeps a bad row from rendering «-500–9 000 ₸».
+  if (min < 0 || max < 0) return undefined;
   return { min, max };
 }
 
