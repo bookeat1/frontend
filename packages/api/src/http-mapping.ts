@@ -29,6 +29,9 @@ import type {
   GuideCollectionVenue,
   MenuHighlight,
   MenuSection,
+  AppNotification,
+  NotificationFeed,
+  NotificationType,
   PaymentPurpose,
   HomePromo,
   PaymentStatus,
@@ -618,6 +621,66 @@ export function mapUser(api: ApiUser): AuthUser {
     phone: text(api.phone) || null,
     city: text(api.city) || null,
     birthDate: text(api.birth_date) || null,
+  };
+}
+
+/**
+ * One item of `GET /notifications`. `booking_id` / `restaurant_id` are carried
+ * on the wire but not mapped into AppNotification — no row deep-links yet (see
+ * AppNotification). Every field is read defensively: a missing key degrades one
+ * row, it does not throw and blank the whole inbox.
+ */
+export interface ApiNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  booking_id?: string | null;
+  restaurant_id?: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+/** The whole `GET /notifications` payload (the envelope's `data`): the page's
+ * items plus the whole-inbox unread total and an opaque next-page cursor. */
+export interface ApiNotificationFeed {
+  items?: ApiNotification[];
+  unread_count?: number;
+  next_cursor?: string | null;
+}
+
+const NOTIFICATION_TYPES: NotificationType[] = ["booking", "reminder", "promo"];
+
+/** An unrecognised type maps to "reminder": a bell is the generic notification
+ * glyph, so an item of a kind this build has not shipped yet still renders
+ * honestly (under «Все» and «Брони») instead of being dropped. */
+function mapNotificationType(raw: string | null | undefined): NotificationType {
+  const value = text(raw).trim();
+  return NOTIFICATION_TYPES.find((type) => type === value) ?? "reminder";
+}
+
+export function mapNotification(api: ApiNotification): AppNotification {
+  return {
+    id: text(api.id),
+    type: mapNotificationType(api.type),
+    title: text(api.title),
+    body: text(api.body),
+    createdAt: text(api.created_at),
+    read: api.read === true,
+  };
+}
+
+/**
+ * Maps a `GET /notifications` page. `unread_count` that is absent or non-numeric
+ * becomes 0 (no badge) rather than NaN, and an absent `next_cursor` is `null`
+ * ("this was the last page"), so a partial payload never turns into a bad
+ * badge or a broken pagination token.
+ */
+export function mapNotificationFeed(api: ApiNotificationFeed): NotificationFeed {
+  return {
+    items: (api.items ?? []).map(mapNotification),
+    unreadCount: typeof api.unread_count === "number" ? api.unread_count : 0,
+    nextCursor: text(api.next_cursor) || null,
   };
 }
 

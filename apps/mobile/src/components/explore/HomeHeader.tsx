@@ -2,6 +2,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useUnreadNotificationsCount } from "../../hooks/useNotifications";
 import { useLocale } from "../../lib/locale";
 import { IconButton } from "../IconButton";
 import { PillSelect } from "../PillSelect";
@@ -24,10 +25,11 @@ import { Bell, CalendarBlank, CaretDown, MapPin, User } from "../icons";
  * uses) and route into `/search` — the home screen keeps no date/guests state
  * of its own, so a tap simply opens the catalog where the real picker lives.
  *
- * The bell opens the «Уведомления» screen (`/notifications`). It carries no
- * unread badge yet: there is no feed endpoint to count from, and a made-up
- * count would be a lie. Add the badge here the day the feed exists and can
- * supply a real number.
+ * The bell opens the «Уведомления» screen (`/notifications`) and carries an
+ * unread badge fed by the real feed's `unread_count` (B5 Part 2), read from the
+ * SAME `["notifications"]` query the screen uses — so the badge and the inbox
+ * can never disagree, and it costs no extra request. The badge hides at 0 and,
+ * for a signed-out guest, the query is disabled so the count is 0 (no badge).
  */
 export function HomeHeader({
   greeting,
@@ -49,6 +51,7 @@ export function HomeHeader({
 }) {
   const { dictionary: t } = useLocale();
   const insets = useSafeAreaInsets();
+  const unreadCount = useUnreadNotificationsCount();
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
@@ -66,12 +69,29 @@ export function HomeHeader({
           <CaretDown size={14} color={colors.text.onDark} weight="bold" />
         </Pressable>
 
-        <IconButton
-          icon={Bell}
-          tone="onDark"
-          accessibilityLabel={t.notifications.title}
-          onPress={onOpenNotifications}
-        />
+        <View style={styles.bellWrap}>
+          <IconButton
+            icon={Bell}
+            tone="onDark"
+            accessibilityLabel={t.notifications.bell(unreadCount)}
+            onPress={onOpenNotifications}
+          />
+          {unreadCount > 0 ? (
+            // Decorative: the count is already spoken through the bell's own
+            // accessibilityLabel, so the badge is hidden from the screen reader
+            // and non-interactive (taps go to the button underneath).
+            <View
+              style={styles.badge}
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Text style={styles.badgeText} numberOfLines={1}>
+                {unreadCount > 9 ? "9+" : String(unreadCount)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       {/* Long RU first names wrap to a second line instead of pushing the
@@ -98,6 +118,11 @@ export function HomeHeader({
   );
 }
 
+/** Diameter of the unread badge on the bell. A local layout constant like
+ * NotificationRow's ICON_CIRCLE — not a design token, since it exists only
+ * here. */
+const BADGE_SIZE = 18;
+
 const styles = StyleSheet.create({
   root: {
     backgroundColor: colors.background.header,
@@ -114,6 +139,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
+  },
+  bellWrap: {
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    // Sits over the bell's top-right without pushing the 44pt touch target.
+    top: 4,
+    right: 2,
+    minWidth: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: BADGE_SIZE / 2,
+    paddingHorizontal: 4,
+    backgroundColor: colors.brand.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    // A ring in the header fill separates the badge from the white glyph.
+    borderWidth: 2,
+    borderColor: colors.background.header,
+  },
+  badgeText: {
+    ...typography.captionMedium,
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.text.onDark,
   },
   city: {
     flexDirection: "row",

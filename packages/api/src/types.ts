@@ -742,3 +742,54 @@ export interface RegisterPushTokenInput {
   token: string;
   platform: DevicePlatform;
 }
+
+/* ------------------------------------------------------------------------ *
+ * Notifications feed («Уведомления»)
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The kind of a single inbox item — drives the leading icon and the chip
+ * filter on the «Уведомления» screen:
+ *   - "booking"  → a confirmed/updated reservation (ForkKnife glyph)
+ *   - "reminder" → a visit reminder (Bell glyph)
+ *   - "promo"    → a discount/offer from a venue (Percent glyph)
+ *
+ * These are the three values `GET /notifications` emits in its `type` field.
+ * A value the server grows later that this build does not know is mapped to a
+ * neutral "reminder" rather than dropped — a bell is the generic notification
+ * glyph, so an unknown item still shows honestly instead of vanishing.
+ */
+export type NotificationType = "booking" | "reminder" | "promo";
+
+/**
+ * One item of the guest notifications inbox, already mapped off the wire
+ * (`created_at` → `createdAt`, `read` passed through). The API item also
+ * carries `booking_id` / `restaurant_id`, deliberately NOT modelled here: no
+ * screen deep-links from a row yet, and inventing a field nothing renders is
+ * exactly the kind of speculative shape this codebase avoids. Add them the day
+ * a row needs to open a booking.
+ */
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  /** RFC3339, server time. Rendered via the app's relative-time formatter. */
+  createdAt: string;
+  read: boolean;
+}
+
+/**
+ * One page of the notifications feed (`GET /notifications?cursor=&limit=`).
+ *
+ * `unreadCount` is the WHOLE-inbox unread total the server reports, not just
+ * the unread items on this page — it is what the home-header bell badge shows.
+ * `nextCursor` is an opaque continuation token, or `null` on the last page;
+ * v1 of the screen reads only the first page, but the field is carried so
+ * infinite scroll is a later addition, not a reshape.
+ */
+export interface NotificationFeed {
+  items: AppNotification[];
+  unreadCount: number;
+  nextCursor: string | null;
+}

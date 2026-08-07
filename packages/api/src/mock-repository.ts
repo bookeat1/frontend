@@ -28,6 +28,8 @@ import type {
   GuideCollectionDetail,
   HomePromo,
   MenuSection,
+  AppNotification,
+  NotificationFeed,
   OtpRequest,
   Preorder,
   PreorderLineInput,
@@ -450,6 +452,71 @@ export class MockRestaurantRepository implements RestaurantRepository {
     await this.simulateNetwork();
     this.pushTokens.delete(token);
   }
+
+  /**
+   * The mock inbox for this process. Seeded with a small mixed set including one
+   * UNREAD item, so the screen's list state, the unread dot, the bell badge and
+   * the mark-read paths are all exercisable with no backend. mark-read flips one
+   * item; mark-all clears every unread flag — the same effect the real endpoints
+   * have. There is no second page, so `nextCursor` is always null.
+   */
+  private notifications: AppNotification[] = buildMockNotifications();
+
+  async listNotifications(cursor?: string): Promise<NotificationFeed> {
+    await this.simulateNetwork();
+    // Single-page mock: the cursor is accepted for interface parity but there is
+    // never a second page to walk to.
+    void cursor;
+    return {
+      items: [...this.notifications],
+      unreadCount: this.notifications.filter((n) => !n.read).length,
+      nextCursor: null,
+    };
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    await this.simulateNetwork();
+    this.notifications = this.notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await this.simulateNetwork();
+    this.notifications = this.notifications.map((n) => ({ ...n, read: true }));
+  }
+}
+
+/** A small mixed inbox with one unread item and recent timestamps, so the
+ * relative-time line («Сегодня …» / «Вчера …») and the unread badge/dot both
+ * have something to render with no backend. */
+function buildMockNotifications(): AppNotification[] {
+  const now = Date.now();
+  const minutesAgo = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
+  return [
+    {
+      id: "mock-notif-1",
+      type: "booking",
+      title: "Бронь подтверждена",
+      body: "Ваш столик в «Del Papa» на сегодня в 19:00 подтверждён.",
+      createdAt: minutesAgo(45),
+      read: false,
+    },
+    {
+      id: "mock-notif-2",
+      type: "reminder",
+      title: "Напоминание о визите",
+      body: "Завтра в 13:30 вас ждут в «Barashka». До встречи!",
+      createdAt: minutesAgo(60 * 22),
+      read: true,
+    },
+    {
+      id: "mock-notif-3",
+      type: "promo",
+      title: "−20% на ужин по будням",
+      body: "«Nedelka» дарит скидку на всё меню с понедельника по четверг.",
+      createdAt: minutesAgo(60 * 30),
+      read: true,
+    },
+  ];
 }
 
 

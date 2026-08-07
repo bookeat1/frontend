@@ -13,6 +13,7 @@ import {
   mapGuideCollectionDetail,
   mapHomePromos,
   mapMenuSections,
+  mapNotificationFeed,
   mapPayment,
   mapPreorder,
   mapRestaurantDetail,
@@ -28,6 +29,7 @@ import {
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
   type ApiMenuItem,
+  type ApiNotificationFeed,
   type ApiPayment,
   type ApiPreorder,
   type ApiPromo,
@@ -55,6 +57,7 @@ import type {
   GuideCollectionDetail,
   HomePromo,
   MenuSection,
+  NotificationFeed,
   OtpRequest,
   Preorder,
   PreorderLineInput,
@@ -97,6 +100,10 @@ const BOOKINGS_PAGE_SIZE = 20;
  * scrolls it by hand, so a page bigger than a handful of cards would download
  * rows nobody swipes to. The server caps per_page at 100. */
 const EVENTS_PAGE_SIZE = 12;
+/** One page of the notifications inbox. The screen shows a single vertical
+ * list a guest scrolls by hand, so a page of this size covers the recent inbox
+ * without a burst; older items are reachable later via `next_cursor`. */
+const NOTIFICATIONS_PAGE_SIZE = 30;
 /** The server rejects nothing above 100 — it silently clamps — but sending a
  * value it will not honour makes the response's `per_page` disagree with what
  * the caller asked for, so the clamp happens here too. */
@@ -562,6 +569,38 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   /** DELETE /devices/push-tokens, token in the body (see deleteWithBody). */
   async unregisterPushToken(token: string): Promise<void> {
     await this.client.deleteWithBody<unknown>("/devices/push-tokens", { token }, { auth: true });
+  }
+
+  /* --- notifications feed («Уведомления») --- */
+
+  /**
+   * GET /notifications?cursor=&limit= — the caller's inbox, authenticated (the
+   * server derives the owner from the bearer token, same as GET /bookings).
+   * An absent `cursor` reads the first page; the empty-string guard in
+   * HttpClient.get drops `cursor: undefined` from the query string.
+   */
+  async listNotifications(cursor?: string): Promise<NotificationFeed> {
+    const feed = await this.client.get<ApiNotificationFeed>(
+      "/notifications",
+      { cursor, limit: NOTIFICATIONS_PAGE_SIZE },
+      { auth: true },
+    );
+    return mapNotificationFeed(feed);
+  }
+
+  /** POST /notifications/:id/read — authenticated; a 404 means the id is not
+   * the caller's, surfaced as a RepositoryError with `isNotFound`. */
+  async markNotificationRead(id: string): Promise<void> {
+    await this.client.post<unknown>(
+      `/notifications/${encodeURIComponent(id)}/read`,
+      undefined,
+      { auth: true },
+    );
+  }
+
+  /** POST /notifications/read-all — authenticated; idempotent server-side. */
+  async markAllNotificationsRead(): Promise<void> {
+    await this.client.post<unknown>("/notifications/read-all", undefined, { auth: true });
   }
 }
 
