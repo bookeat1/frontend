@@ -11,6 +11,7 @@ import type {
   Cuisine,
   DayOfWeek,
   EventSummary,
+  HomePromo,
   MenuHighlight,
   Photo,
   PromoBanner,
@@ -174,6 +175,54 @@ export function restaurantStories(restaurantId: string): RestaurantStory[] {
       sortOrder: 2,
     },
   ];
+}
+
+/**
+ * Cross-venue promotions for the offline mock (`GET /feed?city=…`, promo items
+ * — see RestaurantRepository.getPromotions).
+ *
+ * Built as a FUNCTION of the current time so the campaign windows stay in the
+ * future, the same reason `upcomingEvents` is a function. `city` is filtered on
+ * the HOST venue's city, mirroring the live feed's required `city` param. One
+ * promo deliberately has NO `discountPercent` (null) so the "no badge" path is
+ * exercisable with no backend.
+ */
+export function homePromotions(city?: string, now: Date = new Date()): HomePromo[] {
+  const at = (days: number): string => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + days);
+    return d.toISOString();
+  };
+  const promos: (HomePromo & { city: string })[] = [
+    {
+      id: "promo-1",
+      restaurantId: restaurants[0].id,
+      restaurantName: restaurants[0].name,
+      title: "−30% на завтраки",
+      description: "Скидка на всё меню завтраков до полудня.",
+      startsAt: at(0),
+      endsAt: at(14),
+      coverImageUrl: photo("foodDessertBerry", "promo-1-cover", "Завтраки").uri,
+      discountPercent: 30,
+      city: restaurants[0].city,
+    },
+    {
+      id: "promo-2",
+      restaurantId: restaurants[1].id,
+      restaurantName: restaurants[1].name,
+      // Промо без процента — карточка показывает фото без красного бейджа.
+      title: "Дегустационный сет вечера",
+      description: "Специальное предложение по будням.",
+      startsAt: at(0),
+      endsAt: at(7),
+      coverImageUrl: photo("interiorWineTable", "promo-2-cover", "Дегустация").uri,
+      discountPercent: null,
+      city: restaurants[1].city,
+    },
+  ];
+  return promos
+    .filter((p) => (city ? p.city === city : true))
+    .map(({ city: _city, ...promo }) => promo);
 }
 
 export const restaurants: Restaurant[] = [

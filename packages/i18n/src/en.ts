@@ -85,7 +85,7 @@ export const en: LocaleOverride<Dictionary> = {
     afishaTitle: "What's on",
 
     promotionsTitle: "Deals",
-    promoDiscount: (percent: number) => `${percent}% off`,
+    promoDiscount: (percent: number) => `−${percent}%`,
 
     articlesTitle: "Articles",
     articleAuthorDefault: "By BookEat",

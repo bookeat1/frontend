@@ -27,6 +27,7 @@ import type {
   MenuHighlight,
   MenuSection,
   PaymentPurpose,
+  HomePromo,
   PaymentStatus,
   Photo,
   Preorder,
@@ -866,4 +867,53 @@ export function mapEventSummary(api: ApiEventListItem): EventSummary {
       city: text(api.restaurant?.city),
     },
   };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Home feed (cross-venue promotions)
+ *
+ * `GET /feed?city=…` → `{ data: { items: [...] } }`, a MIXED list whose items
+ * are discriminated by `kind` ("promo", "event", possibly more). Only `promo`
+ * items feed the Home «Акции» strip; every other kind is dropped here so a new
+ * feed kind added server-side can never blank or misrender the section.
+ *
+ * On a promo item `restaurant_name`, `cover_image_url` and `discount_percent`
+ * may all be ABSENT — each is optional here and folds to an empty/`null` value.
+ * ------------------------------------------------------------------------ */
+
+/** One raw item of the unified feed. Only the fields the promo card needs are
+ * modelled; `kind` is the discriminator every item carries. */
+export interface ApiFeedItem {
+  kind: string;
+  id?: string;
+  restaurant_id?: string;
+  restaurant_name?: string;
+  title?: string;
+  description?: string;
+  starts_at?: string;
+  ends_at?: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
+}
+
+/**
+ * Keeps only `kind === "promo"` items and maps them to the domain `HomePromo`.
+ * An item without an id is dropped (it cannot be a stable list key), the same
+ * defensive stance the stories mapper takes for a missing image.
+ */
+export function mapHomePromos(items: ApiFeedItem[] | null | undefined): HomePromo[] {
+  return (items ?? [])
+    .filter((item) => item?.kind === "promo")
+    .map((item) => ({
+      id: text(item.id),
+      restaurantId: text(item.restaurant_id),
+      restaurantName: text(item.restaurant_name).trim(),
+      title: text(item.title),
+      description: plainText(item.description),
+      startsAt: text(item.starts_at),
+      endsAt: text(item.ends_at),
+      coverImageUrl: text(item.cover_image_url).trim() || null,
+      discountPercent: typeof item.discount_percent === "number" ? item.discount_percent : null,
+    }))
+    .filter((promo) => promo.id !== "");
 }

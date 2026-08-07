@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   MENU_HIGHLIGHT_LIMIT,
+  mapHomePromos,
   mapMenuHighlights,
   mapRestaurantDetail,
   mapRestaurantSummary,
   mapSchedule,
   parsePriceMinor,
   priceLevelToPriceCategory,
+  type ApiFeedItem,
   type ApiMenuItem,
   type ApiRestaurant,
 } from "../http-mapping";
@@ -284,5 +286,49 @@ describe("mapSchedule reports what the server said and nothing more", () => {
     expect(
       mapRestaurantSummary(apiRestaurant({ accepts_online_bookings: undefined })).acceptsOnlineBookings,
     ).toBe(false);
+  });
+});
+
+describe("mapHomePromos — the Home «Акции» feed", () => {
+  const promo = (overrides: Partial<ApiFeedItem> = {}): ApiFeedItem => ({
+    kind: "promo",
+    id: "p-1",
+    restaurant_id: "r-1",
+    restaurant_name: "Abay",
+    title: "−30% на завтраки",
+    discount_percent: 30,
+    ...overrides,
+  });
+
+  it("keeps only promo items and drops every other feed kind", () => {
+    const promos = mapHomePromos([
+      promo({ id: "p-1" }),
+      { kind: "event", id: "e-1", title: "Ужин с шефом" },
+      promo({ id: "p-2" }),
+    ]);
+    expect(promos.map((p) => p.id)).toEqual(["p-1", "p-2"]);
+  });
+
+  it("carries a real discount as a number and an absent one as null (no badge)", () => {
+    expect(mapHomePromos([promo({ discount_percent: 30 })])[0].discountPercent).toBe(30);
+    expect(mapHomePromos([promo({ discount_percent: undefined })])[0].discountPercent).toBeNull();
+    expect(mapHomePromos([promo({ discount_percent: null })])[0].discountPercent).toBeNull();
+  });
+
+  it("folds an absent or blank cover image to null rather than an empty string", () => {
+    expect(mapHomePromos([promo({ cover_image_url: undefined })])[0].coverImageUrl).toBeNull();
+    expect(mapHomePromos([promo({ cover_image_url: "   " })])[0].coverImageUrl).toBeNull();
+    expect(mapHomePromos([promo({ cover_image_url: "https://x/c.jpg" })])[0].coverImageUrl).toBe(
+      "https://x/c.jpg",
+    );
+  });
+
+  it("drops a promo with no id — it cannot be a stable list key", () => {
+    expect(mapHomePromos([promo({ id: undefined })])).toEqual([]);
+  });
+
+  it("survives a null/undefined items array (an empty feed hides the section)", () => {
+    expect(mapHomePromos(null)).toEqual([]);
+    expect(mapHomePromos(undefined)).toEqual([]);
   });
 });

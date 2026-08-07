@@ -26,8 +26,9 @@
  * carry, so wiring it up later is a mapper change, not a component change. */
 export interface PromoStripItem {
   id: string;
-  /** Discount percentage shown in the red badge. */
-  discountPercent: number;
+  /** Discount percentage shown in the red «−N%» badge, or `null` when the feed
+   * carries no `discount_percent` for this promo — the card then draws no badge. */
+  discountPercent: number | null;
   title: string;
   /** «Mongol Bar · 12:00–18:00» — venue name plus the promo's time window. */
   subtitle: string;
@@ -43,7 +44,11 @@ export interface ArticleCardData {
   coverImageUrl: string | null;
 }
 
-/** MISSING ENDPOINT: GET /promotions (or /feed?kind=promo). Empty ⇒ section hidden. */
+/** Stable empty result for «Акции» while the feed is loading, on error, or
+ * when there is nothing to show — the section hides on it. `useExplorePromotions`
+ * is now wired to the live `GET /feed?city=…` promo feed; this is only its
+ * empty/loading/error fallback, returned by reference so the section does not
+ * re-render on every home render. */
 export const PLACEHOLDER_PROMOTIONS: readonly PromoStripItem[] = [];
 
 /** MISSING ENDPOINT: GET /articles. Empty ⇒ section hidden. */

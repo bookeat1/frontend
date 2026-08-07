@@ -613,6 +613,33 @@ export interface EventPage {
 }
 
 /**
+ * One promo of the cross-venue home feed (`GET /feed?city=…`, items with
+ * `kind: "promo"`) — the Home «Акции» strip. The feed also carries `event`
+ * items, which this type deliberately does NOT model: the promotions section
+ * reads only promos (see RestaurantRepository.getPromotions), and the events
+ * strip has its own `/events` endpoint.
+ *
+ * Shape read from the feed contract, not guessed: `restaurant_name`,
+ * `cover_image_url` and `discount_percent` may all be ABSENT from a promo item,
+ * so each degrades to an empty/`null` value here rather than to a thrown mapper.
+ */
+export interface HomePromo {
+  id: string;
+  restaurantId: string;
+  /** Host venue name, shown as the card subtitle. Empty when the feed omits it. */
+  restaurantName: string;
+  title: string;
+  description: string;
+  /** RFC3339 campaign window. Present on the feed but not shown on the card today. */
+  startsAt: string;
+  endsAt: string;
+  /** Null when the promo carries no cover — the card shows its photo placeholder. */
+  coverImageUrl: string | null;
+  /** Percentage for the «−N%» badge, or `null` when the feed omits it (no badge). */
+  discountPercent: number | null;
+}
+
+/**
  * Platforms the backend accepts for a device push token
  * (`domain.ValidDevicePlatform`: ios, android, web). "web" is listed because
  * the column allows it, NOT because this app ever sends it — see

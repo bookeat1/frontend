@@ -22,9 +22,13 @@ export function PromoCard({ promo }: { promo: PromoStripItem }) {
     <View style={styles.card}>
       <View>
         <PhotoView uri={promo.imageUrl ?? undefined} style={styles.photo} decorative placeholderIconSize={32} />
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{t.explore.promoDiscount(promo.discountPercent)}</Text>
-        </View>
+        {/* The «−N%» badge is drawn only when the feed carried a discount for
+            this promo; a promo without one shows the photo with no badge. */}
+        {promo.discountPercent !== null ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{t.explore.promoDiscount(promo.discountPercent)}</Text>
+          </View>
+        ) : null}
         <InertFavoriteHeart />
       </View>
 

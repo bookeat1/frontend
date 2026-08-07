@@ -89,7 +89,7 @@ export const kk: LocaleOverride<Dictionary> = {
     afishaTitle: "Афиша",
 
     promotionsTitle: "Акциялар",
-    promoDiscount: (percent: number) => `${percent}% жеңілдік`,
+    promoDiscount: (percent: number) => `−${percent}%`,
 
     articlesTitle: "Мақалалар",
     articleAuthorDefault: "BookEat-тен",

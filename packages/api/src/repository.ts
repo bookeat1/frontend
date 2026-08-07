@@ -11,6 +11,7 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  HomePromo,
   MenuSection,
   OtpRequest,
   Preorder,
@@ -75,6 +76,18 @@ export interface RestaurantRepository {
    * as listMyBookings).
    */
   listUpcomingEvents(query?: EventQuery): Promise<EventPage>;
+
+  /**
+   * Cross-venue promotions for the Home «Акции» strip, read from the unified
+   * home feed (`GET /feed?city=…`) and filtered to `kind: "promo"` — the feed
+   * also returns `event` items, which this method drops.
+   *
+   * Public, no session. `city` is REQUIRED: the endpoint answers 422
+   * (`city_required`) without it, so the caller must resolve a city before
+   * asking (the Home header's city). An empty array is a real "no promos here"
+   * answer, so the section hides on it rather than showing an error.
+   */
+  getPromotions(city: string): Promise<HomePromo[]>;
 
   /* --- reservation flow --- */
 

@@ -1,5 +1,14 @@
-import type { Cuisine, EventPage, EventSummary, RestaurantSummary } from "@bookeat/api";
+import type {
+  AuthUser,
+  Cuisine,
+  EventPage,
+  EventSummary,
+  HomePromo,
+  RestaurantSummary,
+} from "@bookeat/api";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../../lib/auth";
+import { useLocale } from "../../lib/locale";
 import { useRepository } from "../../lib/repository";
 import {
   PLACEHOLDER_ARTICLES,
@@ -122,10 +131,61 @@ export function useEvent(id: string | undefined): {
  * an EMPTY array today, and their sections hide themselves when empty.
  * ----------------------------------------------------------------------- */
 
-/** PLACEHOLDER — no global promotions endpoint. TODO: GET /promotions or
- * /feed?kind=promo. Returns [] ⇒ «Акции» is hidden. */
+/** Maps one home-feed promo to the strip-card shape. The subtitle is the host
+ * venue name alone: the promo's `startsAt`/`endsAt` are a CAMPAIGN date range,
+ * not a daily open window, so rendering a «12:00–18:00» time from them would be
+ * fabricated — the venue name is the one honest secondary line. */
+function toPromoStripItem(promo: HomePromo): PromoStripItem {
+  return {
+    id: promo.id,
+    discountPercent: promo.discountPercent,
+    title: promo.title,
+    subtitle: promo.restaurantName,
+    imageUrl: promo.coverImageUrl,
+  };
+}
+
+/**
+ * REAL DATA — «Акции».
+ * GET /feed?city=<city> (RestaurantRepository.getPromotions), filtered to
+ * `kind: "promo"` in the mapper.
+ *
+ * CITY: the feed's `city` param is required (422 `city_required` without it),
+ * so the query is gated on a resolved city. The city is read from the SAME
+ * `["me"]` query the Home header uses (GET /users/me), falling back to the
+ * locale's default city (`t.explore.cityFallback` — «Алматы») exactly as
+ * app/index.tsx resolves it, so both views agree on one city with no extra
+ * request (the two `["me"]` queries share a cache key).
+ *
+ * EMPTY/LOADING/ERROR: returns the stable empty array (PLACEHOLDER_PROMOTIONS)
+ * until real promos arrive, so «Акции» stays hidden while loading, on error,
+ * and when the feed has no promos for the city — the behaviour PromotionsSection
+ * relies on.
+ */
 export function useExplorePromotions(): readonly PromoStripItem[] {
-  return PLACEHOLDER_PROMOTIONS;
+  const repository = useRepository();
+  const { status, repository: authRepository } = useAuth();
+  const { dictionary: t } = useLocale();
+
+  // Same query key + fetcher + gate as app/index.tsx, so this shares that
+  // cache entry rather than issuing a second GET /users/me.
+  const me = useQuery<AuthUser>({
+    queryKey: ["me"],
+    queryFn: () => authRepository.getMe(),
+    enabled: status === "signed-in",
+    staleTime: 5 * 60_000,
+  });
+  const city = me.data?.city?.trim() || t.explore.cityFallback;
+
+  const promotions = useQuery<PromoStripItem[]>({
+    queryKey: ["home-feed", "promos", city],
+    queryFn: async () => (await repository.getPromotions(city)).map(toPromoStripItem),
+    enabled: city.length > 0,
+    // Promos change on an editorial timescale, like the rest of the home feed.
+    staleTime: 5 * 60_000,
+  });
+
+  return promotions.data ?? PLACEHOLDER_PROMOTIONS;
 }
 
 /** PLACEHOLDER — no articles endpoint. TODO: GET /articles. Returns [] ⇒

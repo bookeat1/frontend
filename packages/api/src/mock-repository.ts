@@ -1,4 +1,11 @@
-import { cuisines, restaurants, restaurantStories, toSummary, upcomingEvents } from "./mock-data";
+import {
+  cuisines,
+  homePromotions,
+  restaurants,
+  restaurantStories,
+  toSummary,
+  upcomingEvents,
+} from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { isCancellableBookingStatus } from "./types";
 import type {
@@ -15,6 +22,7 @@ import type {
   DevicePlatform,
   EventPage,
   EventQuery,
+  HomePromo,
   MenuSection,
   OtpRequest,
   Preorder,
@@ -164,6 +172,14 @@ export class MockRestaurantRepository implements RestaurantRepository {
       pages: Math.ceil(all.length / perPage),
       perPage,
     };
+  }
+
+  /** The mock's cross-venue promotions, filtered by host city the way the live
+   * `GET /feed?city=…` is. An unknown city yields an empty list (the section
+   * then hides), never an error. */
+  async getPromotions(city: string): Promise<HomePromo[]> {
+    await this.simulateNetwork();
+    return homePromotions(city);
   }
 
   /* --- reservation flow --- */

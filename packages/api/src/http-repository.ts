@@ -9,6 +9,7 @@ import {
   mapAvailability,
   mapBooking,
   mapEventSummary,
+  mapHomePromos,
   mapMenuSections,
   mapPayment,
   mapPreorder,
@@ -21,6 +22,7 @@ import {
   type ApiAvailability,
   type ApiBooking,
   type ApiEventListItem,
+  type ApiFeedItem,
   type ApiMenuItem,
   type ApiPayment,
   type ApiPreorder,
@@ -45,6 +47,7 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  HomePromo,
   MenuSection,
   OtpRequest,
   Preorder,
@@ -299,6 +302,21 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       pages: typeof page.pages === "number" ? page.pages : 0,
       perPage: typeof page.per_page === "number" ? page.per_page : perPage,
     };
+  }
+
+  /**
+   * GET /feed?city=… — the unified home feed. Returns `{ items: [...] }` (the
+   * standard envelope's `data`), a MIXED list of `promo` and `event` items;
+   * this keeps only the promos for the «Акции» strip.
+   *
+   * `city` is REQUIRED — the endpoint 422s with code `city_required` without
+   * it — so the caller must pass a resolved city. It is URL-encoded by the
+   * client's `URLSearchParams`, so a city with spaces or Cyrillic goes over the
+   * wire safely.
+   */
+  async getPromotions(city: string): Promise<HomePromo[]> {
+    const feed = await this.client.get<{ items?: ApiFeedItem[] }>("/feed", { city });
+    return mapHomePromos(feed.items);
   }
 
   /* --- reservation flow --- */

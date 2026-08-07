@@ -121,7 +121,7 @@ export const ru = {
     /** «Акции» — витрина скидок. Данных пока нет (нет глобального эндпоинта
      * промо), секция скрывается целиком. */
     promotionsTitle: "Акции",
-    promoDiscount: (percent: number) => `${percent}% скидка`,
+    promoDiscount: (percent: number) => `−${percent}%`,
 
     /** «Статьи» — редакционные карточки. Эндпоинта пока нет, секция скрыта. */
     articlesTitle: "Статьи",
