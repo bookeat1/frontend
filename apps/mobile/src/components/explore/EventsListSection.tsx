@@ -9,6 +9,9 @@ import { useExploreEvents } from "./use-explore-data";
 
 const t = getDictionary();
 
+/** How many events the Home teaser shows before «смотреть все» takes over. */
+const HOME_EVENTS_PREVIEW = 3;
+
 /**
  * «Афиша» — cross-venue upcoming events on real data (GET /events), rendered as
  * a VERTICAL list (the old EventsSection was a horizontal strip).
@@ -35,7 +38,9 @@ export function EventsListSection({
   onSeeAll?: () => void;
 }) {
   const query = useExploreEvents();
-  const events = query.data?.items ?? [];
+  // The Home «Афиша» block is a teaser — at most 3 events; «смотреть все» opens
+  // the full list (/events), which reads the same query.
+  const events = (query.data?.items ?? []).slice(0, HOME_EVENTS_PREVIEW);
 
   return (
     <SectionCard>

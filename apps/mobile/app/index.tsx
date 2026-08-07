@@ -1,6 +1,6 @@
 import { colors, spacing } from "@bookeat/design-tokens";
 import type { AuthUser, Cuisine } from "@bookeat/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback } from "react";
@@ -14,6 +14,7 @@ import { PromotionsSection } from "../src/components/explore/PromotionsSection";
 import { RecommendedSection } from "../src/components/explore/RecommendedSection";
 import { EXPLORE_DEFAULT_GUESTS } from "../src/components/explore/use-explore-data";
 import { useAuth } from "../src/lib/auth";
+import { requestCitySelection } from "../src/lib/city-select";
 import { useLocale } from "../src/lib/locale";
 
 /**
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   // chosen language the instant it changes (the switch lives in /settings/language).
   const { dictionary: t } = useLocale();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { status, repository } = useAuth();
 
   // Greeting name and city read from the SAME ["me"] query cache the profile
@@ -60,6 +62,22 @@ export default function HomeScreen() {
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
   const openNotifications = useCallback(() => router.push("/notifications"), [router]);
+
+  // Tapping the city in the header opens the same picker the profile uses and
+  // persists the choice to the account, writing the server's answer back into
+  // the ["me"] cache so the greeting/city update everywhere without a refetch —
+  // exactly the flow profile.tsx runs. Cache is touched only on success.
+  const openCity = useCallback(() => {
+    requestCitySelection((city) => {
+      void repository
+        .updateMe({ city: city ?? "" })
+        .then((updated) => queryClient.setQueryData(["me"], updated))
+        .catch(() => {
+          // Keep the last stored city; the header already shows the real value.
+        });
+    });
+    router.push({ pathname: "/city", params: { selected: account?.city ?? "", purpose: "profile" } });
+  }, [account?.city, queryClient, repository, router]);
 
   // The «Афиша» section chevron opens the dedicated events list screen.
   const openEvents = useCallback(() => router.push("/events"), [router]);
@@ -101,6 +119,7 @@ export default function HomeScreen() {
           guestsValue={t.booking.guestsCount(EXPLORE_DEFAULT_GUESTS)}
           onOpenSearch={openSearch}
           onOpenNotifications={openNotifications}
+          onOpenCity={openCity}
         />
 
         <View style={styles.sheet}>

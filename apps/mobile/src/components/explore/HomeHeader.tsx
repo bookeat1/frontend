@@ -1,11 +1,11 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../../lib/locale";
 import { IconButton } from "../IconButton";
 import { PillSelect } from "../PillSelect";
-import { Bell, CalendarBlank, MapPin, User } from "../icons";
+import { Bell, CalendarBlank, CaretDown, MapPin, User } from "../icons";
 
 /**
  * Rebuilt home header (Figma home design, 2026-08-06). Replaces the old promo
@@ -36,6 +36,7 @@ export function HomeHeader({
   guestsValue,
   onOpenSearch,
   onOpenNotifications,
+  onOpenCity,
 }: {
   greeting: string;
   city: string;
@@ -43,6 +44,8 @@ export function HomeHeader({
   guestsValue: string;
   onOpenSearch: () => void;
   onOpenNotifications: () => void;
+  /** Opens the city picker (same screen the profile uses). */
+  onOpenCity: () => void;
 }) {
   const { dictionary: t } = useLocale();
   const insets = useSafeAreaInsets();
@@ -50,12 +53,18 @@ export function HomeHeader({
   return (
     <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
       <View style={styles.topRow}>
-        <View style={styles.city} accessibilityRole="text" accessibilityLabel={t.explore.cityLabel(city)}>
+        <Pressable
+          style={({ pressed }) => [styles.city, pressed && styles.cityPressed]}
+          accessibilityRole="button"
+          accessibilityLabel={t.explore.cityLabel(city)}
+          onPress={onOpenCity}
+        >
           <MapPin size={20} color={colors.text.onDark} weight="fill" />
           <Text style={styles.cityLabel} numberOfLines={1}>
             {city}
           </Text>
-        </View>
+          <CaretDown size={14} color={colors.text.onDark} weight="bold" />
+        </Pressable>
 
         <IconButton
           icon={Bell}
@@ -111,6 +120,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
     flexShrink: 1,
+    // A comfortable tap target for the city picker without shifting the layout.
+    minHeight: 44,
+  },
+  cityPressed: {
+    opacity: 0.6,
   },
   cityLabel: {
     ...typography.labelSemiBold,
