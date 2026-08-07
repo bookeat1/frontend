@@ -14,6 +14,7 @@ import { PhotoView } from "../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { PromoBannerStrip } from "../../../src/components/PromoBannerStrip";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
+import { StoriesRail } from "../../../src/components/restaurant/StoriesRail";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
@@ -158,6 +159,10 @@ export default function RestaurantDetailScreen() {
               />
 
               <PromoBannerStrip banners={restaurant.promoBanners} />
+
+              {/* Лента промо-историй: сама себя прячет, когда историй нет или
+                  запрос упал — как и любая необязательная лента экрана. */}
+              <StoriesRail restaurantId={restaurant.id} />
 
               <View style={styles.textBlock}>
                 <Text style={styles.sectionTitle}>{t.restaurant.about}</Text>

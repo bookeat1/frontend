@@ -302,6 +302,25 @@ export interface MenuSection {
   dishes: MenuDish[];
 }
 
+/**
+ * One promo "story" — an Instagram-highlight-style card the venue pins to its
+ * screen (`GET /restaurants/:id/stories`). The rail under the Обзор/Фото tabs
+ * shows them in `sortOrder` ascending, and tapping one opens the fullscreen
+ * viewer.
+ */
+export interface RestaurantStory {
+  id: string;
+  /** Absolute URL of the story image. The backend never returns a story
+   * without one, but the mapper still drops any that arrives blank rather than
+   * drawing an empty red-bordered tile. */
+  imageUrl: string;
+  /** Overlaid caption, or `null` when the venue left it blank — the API omits
+   * the key entirely in that case, and the card then shows just the image. */
+  caption: string | null;
+  /** The venue's own ordering. Ties keep the server's array order. */
+  sortOrder: number;
+}
+
 export type BookingStatus =
   | "pending"
   | "confirmed"

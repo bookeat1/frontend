@@ -213,6 +213,10 @@ export const en: LocaleOverride<Dictionary> = {
     photosEmptyDescription: "This restaurant hasn't uploaded photos — they'll appear here",
     rating: (average: number) => `★ ${average.toFixed(1)}`,
     viewMenu: "View menu",
+    storyCard: (caption: string) => `Story: ${caption}`,
+    storyCardGeneric: "Story",
+    storyPrevious: "Previous story",
+    storyNext: "Next story",
     contacts: "Contacts",
     phoneLabel: "Phone",
     schedule: {

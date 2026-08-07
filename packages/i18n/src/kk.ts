@@ -220,6 +220,10 @@ export const kk: LocaleOverride<Dictionary> = {
     photosEmptyDescription: "Мейрамхана әзірге суреттерді жүктемеген — олар осында пайда болады",
     rating: (average: number) => `★ ${average.toFixed(1)}`,
     viewMenu: "Мәзірді қарау",
+    storyCard: (caption: string) => `Оқиға: ${caption}`,
+    storyCardGeneric: "Оқиға",
+    storyPrevious: "Алдыңғы оқиға",
+    storyNext: "Келесі оқиға",
     contacts: "Байланыстар",
     phoneLabel: "Телефон",
     schedule: {

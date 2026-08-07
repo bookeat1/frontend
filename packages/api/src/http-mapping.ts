@@ -33,6 +33,7 @@ import type {
   PriceLevel,
   PromoBanner,
   Restaurant,
+  RestaurantStory,
   RestaurantSummary,
   ScheduleDay,
   SlotUnavailableReason,
@@ -660,6 +661,32 @@ export function mapMenuSections(items: ApiMenuItem[] | null | undefined): MenuSe
   const sections = [...byCategory.values()];
   // Uncategorised dishes go last so the named sections stay on top.
   return [...sections.filter((s) => s.title !== ""), ...sections.filter((s) => s.title === "")];
+}
+
+/** storyResponse — one promo "story" card of a venue. `caption` is omitted by
+ * the server when the venue left it blank, so it is optional AND nullable. */
+export interface ApiStory {
+  id: string;
+  image_url: string;
+  caption?: string | null;
+  sort_order: number;
+}
+
+/**
+ * Sorted by `sort_order` ascending here so no screen has to re-sort the rail.
+ * A story whose `image_url` is missing is dropped rather than rendered as an
+ * empty red-bordered tile — the card is nothing but the image plus a caption.
+ */
+export function mapRestaurantStories(items: ApiStory[] | null | undefined): RestaurantStory[] {
+  return [...(items ?? [])]
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((item) => ({
+      id: text(item.id),
+      imageUrl: text(item.image_url),
+      caption: text(item.caption) || null,
+      sortOrder: typeof item.sort_order === "number" ? item.sort_order : 0,
+    }))
+    .filter((story) => story.imageUrl !== "");
 }
 
 /** Everything the venue screen needs that lives behind its own endpoint.

@@ -15,6 +15,7 @@ import type {
   Photo,
   PromoBanner,
   Restaurant,
+  RestaurantStory,
   RestaurantSummary,
   ScheduleDay,
   VenueSchedule,
@@ -140,6 +141,37 @@ function menuHighlights(restaurantId: string): MenuHighlight[] {
       description: "Меренга, крем и сезонные ягоды",
       price: "3 290 ₸",
       photo: photo("foodDessertBerry", `${restaurantId}-menu-2`, "Павлова с ягодами"),
+    },
+  ];
+}
+
+/**
+ * The mock's promo stories for one venue — a small, ordered set that mirrors
+ * the live shape: a couple of captioned cards and one WITHOUT a caption, so the
+ * rail's "image-only card" path is exercised offline too. The last card is a
+ * remote URL rather than a bundled asset so the fullscreen viewer's network
+ * image load is exercised as well.
+ */
+export function restaurantStories(restaurantId: string): RestaurantStory[] {
+  return [
+    {
+      id: `${restaurantId}-story-1`,
+      imageUrl: photo("foodDessertBerry", `${restaurantId}-story-1`, "Десерт дня").uri,
+      caption: "Сладкий четверг — десерт в подарок",
+      sortOrder: 0,
+    },
+    {
+      id: `${restaurantId}-story-2`,
+      imageUrl: photo("interiorCheers", `${restaurantId}-story-2`, "Вечер в ресторане").uri,
+      caption: "Живая музыка каждую пятницу",
+      sortOrder: 1,
+    },
+    {
+      id: `${restaurantId}-story-3`,
+      imageUrl: photo("foodGrillSkewers", `${restaurantId}-story-3`, "Стейки на гриле").uri,
+      // История без подписи — карточка показывает только фото.
+      caption: null,
+      sortOrder: 2,
     },
   ];
 }

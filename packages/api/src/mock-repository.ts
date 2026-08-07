@@ -1,4 +1,4 @@
-import { cuisines, restaurants, toSummary, upcomingEvents } from "./mock-data";
+import { cuisines, restaurants, restaurantStories, toSummary, upcomingEvents } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { isCancellableBookingStatus } from "./types";
 import type {
@@ -22,6 +22,7 @@ import type {
   ProfileUpdate,
   RegisterPushTokenInput,
   Restaurant,
+  RestaurantStory,
   RestaurantSummary,
   SearchQuery,
   SearchResult,
@@ -219,6 +220,18 @@ export class MockRestaurantRepository implements RestaurantRepository {
         })),
       },
     ];
+  }
+
+  /** The mock's promo stories for the highlight rail. Throws 404 for an
+   * unknown venue, like getMenuSections; a known venue always has a small
+   * fixture set so the rail and its viewer are exercisable with no backend. */
+  async getRestaurantStories(restaurantId: string): Promise<RestaurantStory[]> {
+    await this.simulateNetwork();
+    const restaurant = restaurants.find((r) => r.id === restaurantId);
+    if (!restaurant) {
+      throw new RepositoryError(`Restaurant ${restaurantId} not found`, undefined, 404);
+    }
+    return restaurantStories(restaurantId);
   }
 
   /** Keyed by idempotency key, exactly like the backend: replaying a key

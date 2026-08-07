@@ -35,3 +35,25 @@ export function useRestaurantSummary(id: string | undefined) {
     staleTime: 5 * 60_000,
   });
 }
+
+/**
+ * The venue's promo "stories" for the highlight rail. Its OWN cache key and
+ * request on purpose: the rail is an optional strip that must degrade on its
+ * own (empty array = hidden, error = hidden) without touching the
+ * four-endpoint `useRestaurant` read that builds the rest of the screen.
+ *
+ * Same editorial staleTime as the summary — the pinned stories change no more
+ * often than the catalog does.
+ */
+export function useRestaurantStories(id: string | undefined) {
+  const repository = useRepository();
+  return useQuery({
+    queryKey: ["restaurant-stories", id],
+    queryFn: () => {
+      if (!id) throw new Error("Missing restaurant id");
+      return repository.getRestaurantStories(id);
+    },
+    enabled: Boolean(id),
+    staleTime: 5 * 60_000,
+  });
+}

@@ -18,6 +18,7 @@ import type {
   ProfileUpdate,
   RegisterPushTokenInput,
   Restaurant,
+  RestaurantStory,
   RestaurantSummary,
   SearchQuery,
   SearchResult,
@@ -90,6 +91,17 @@ export interface RestaurantRepository {
 
   /** The venue's whole menu grouped by category, for the pre-order step. */
   getMenuSections(restaurantId: string): Promise<MenuSection[]>;
+
+  /**
+   * The venue's promo "stories" (`GET /restaurants/:id/stories`) — the
+   * horizontal highlight rail under the Обзор/Фото tabs.
+   *
+   * Public, no session. A venue with no stories answers an empty array, which
+   * is a real "nothing pinned" answer, not a permissions problem — the rail
+   * hides itself on it, exactly as it does on a failed request. Ordered by
+   * `sortOrder` ascending, so the caller renders the array as received.
+   */
+  getRestaurantStories(restaurantId: string): Promise<RestaurantStory[]>;
 
   /**
    * Creates the booking. Requires a session.

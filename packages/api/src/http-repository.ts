@@ -13,6 +13,7 @@ import {
   mapPayment,
   mapPreorder,
   mapRestaurantDetail,
+  mapRestaurantStories,
   mapRestaurantSummary,
   mapSession,
   mapUser,
@@ -26,6 +27,7 @@ import {
   type ApiPromo,
   type ApiRestaurant,
   type ApiReviewSummary,
+  type ApiStory,
   type ApiTokenPair,
   type ApiUser,
 } from "./http-mapping";
@@ -50,6 +52,7 @@ import type {
   ProfileUpdate,
   RegisterPushTokenInput,
   Restaurant,
+  RestaurantStory,
   RestaurantSummary,
   SearchQuery,
   SearchResult,
@@ -325,6 +328,16 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       `/restaurants/${encodeURIComponent(restaurantId)}/menu`,
     );
     return mapMenuSections(items);
+  }
+
+  /** GET /restaurants/:id/stories — a bare array inside the standard envelope
+   * (no Page wrapper). An empty array is the normal "no stories" answer, so
+   * the rail hides on it rather than showing an error. */
+  async getRestaurantStories(restaurantId: string): Promise<RestaurantStory[]> {
+    const items = await this.client.get<ApiStory[]>(
+      `/restaurants/${encodeURIComponent(restaurantId)}/stories`,
+    );
+    return mapRestaurantStories(items);
   }
 
   /**
