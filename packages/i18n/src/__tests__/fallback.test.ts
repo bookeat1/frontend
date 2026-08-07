@@ -28,18 +28,25 @@ describe("getDictionary — deep-merge fallback over ru", () => {
 
   it("falls back to ru for any key the locale has not translated", () => {
     const en = getDictionary("en");
-    // Not in en.ts → Russian base.
-    expect(en.profile.title).toBe(ru.profile.title);
-    expect(en.deleteAccount.heading).toBe(ru.deleteAccount.heading);
-    // A sibling key inside a partially-translated section is still Russian.
-    expect(en.settings.deleteAccount).toBe(ru.settings.deleteAccount);
+    // en (and kk) are now fully translated EXCEPT the two array-typed keys —
+    // `LocaleOverride` cannot widen a readonly tuple, so `admin.schedule.days`
+    // and `booking.whatsNextSteps` are intentionally never overridden and stay
+    // on the Russian base. They are the stable anchor for the fallback contract:
+    // a key a locale does not translate must resolve to ru, and (as a reference,
+    // not a copy) the deep-merge leaves the base array untouched.
+    expect(en.admin.schedule.days).toBe(ru.admin.schedule.days);
+    expect(en.booking.whatsNextSteps).toBe(ru.booking.whatsNextSteps);
   });
 
   it("keeps function-valued entries callable (they are not deep-merged away)", () => {
     const en = getDictionary("en");
-    // resultsCount is a pluralising function only defined on the base.
+    // resultsCount is a pluralising function. en translates it, so it no longer
+    // equals the ru wording — what matters here is that the merge kept it a
+    // callable that returns a string rather than clobbering it.
     expect(typeof en.search.resultsCount).toBe("function");
-    expect(en.search.resultsCount(3)).toBe(ru.search.resultsCount(3));
+    expect(typeof en.search.resultsCount(3)).toBe("string");
+    // kk translates the same function too — still callable, still a string.
+    expect(typeof getDictionary("kk").search.resultsCount(3)).toBe("string");
   });
 
   it("every non-ru locale merges to a full dictionary with the base's key set", () => {
