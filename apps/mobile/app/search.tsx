@@ -1,9 +1,9 @@
 import { EMPTY_FILTERS, type PriceLevel, type SearchFilters } from "@bookeat/api";
-import { colors, spacing } from "@bookeat/design-tokens";
+import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { FilterChip } from "../src/components/FilterChip";
@@ -15,6 +15,9 @@ import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
 
 const t = getDictionary();
+
+/** Сколько чипов «Часто ищут» показываем максимум. */
+const FREQUENT_CUISINE_LIMIT = 8;
 
 /**
  * Каталог с поиском и фильтрами. Раньше это был экран `/` — он переехал сюда
@@ -81,6 +84,35 @@ export default function SearchScreen() {
     [filters, cuisineNameById],
   );
 
+  // «Часто ищут»: короткий ряд быстрых чипов из РЕАЛЬНЫХ кухонь каталога.
+  // У `Cuisine` нет поля популярности/счётчика (это {id, name}, собранный
+  // дедупом ответа /restaurants/search и отсортированный по названию), поэтому
+  // сортировать не по чему — берём первые FREQUENT_CUISINE_LIMIT в том порядке,
+  // как их вернул запрос. id — это casefold(cuisine_type), ровно та форма, на
+  // которую матчит фильтр (cuisineIdFor), так что чип сразу сузит выдачу и
+  // всплывёт в ряду выбранных. Пусто/грузится/ошибка — не рисуем ничего: блок
+  // необязательный, скелет и ошибка здесь были бы шумом.
+  const frequentCuisines = useMemo(
+    () => (cuisinesQuery.data ?? []).slice(0, FREQUENT_CUISINE_LIMIT),
+    [cuisinesQuery.data],
+  );
+
+  // Нейтральное состояние «просто листаю каталог»: строка пуста И ни одного
+  // активного фильтра. Как только гость печатает или применяет фильтр — блок
+  // исчезает, чтобы не конкурировать с результатами и рядом выбранных чипов.
+  const showFrequent =
+    text.trim().length === 0 && activeFilterCount === 0 && frequentCuisines.length > 0;
+
+  const applyCuisine = useCallback(
+    (id: string) =>
+      setFilters((prev) =>
+        prev.cuisineIds.includes(id)
+          ? prev
+          : { ...prev, cuisineIds: [...prev.cuisineIds, id] },
+      ),
+    [setFilters],
+  );
+
   return (
     <View style={styles.root}>
       <ScreenContainer padded={false}>
@@ -117,6 +149,21 @@ export default function SearchScreen() {
             ) : null}
           </View>
         </View>
+
+        {showFrequent ? (
+          <View style={styles.frequentBlock}>
+            <Text style={styles.frequentTitle}>{t.search.frequentTitle}</Text>
+            <View style={styles.frequentChips}>
+              {frequentCuisines.map((cuisine) => (
+                <FilterChip
+                  key={cuisine.id}
+                  label={cuisine.name}
+                  onPress={() => applyCuisine(cuisine.id)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {isTyping || searchQueryResult.isPending ? (
           <LoadingState title={t.search.loadingTitle} />
@@ -264,5 +311,21 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
+  },
+  frequentBlock: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  frequentTitle: {
+    ...typography.labelMedium,
+    color: colors.text.mutedStrong,
+  },
+  // Перенос по строкам, а не горизонтальный скролл: длинные русские названия
+  // кухонь на 360px иначе уезжают за край и половина чипов не видна.
+  frequentChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
   },
 });
