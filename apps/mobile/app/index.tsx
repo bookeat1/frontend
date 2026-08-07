@@ -82,6 +82,14 @@ export default function HomeScreen() {
   // The «Афиша» section chevron opens the dedicated events list screen.
   const openEvents = useCallback(() => router.push("/events"), [router]);
 
+  // «Статьи»: the chevron opens the full collections list; a card opens that
+  // collection's detail (the id carried by the card IS the slug).
+  const openArticles = useCallback(() => router.push("/articles"), [router]);
+  const openArticle = useCallback(
+    (slug: string) => router.push(`/articles/${slug}`),
+    [router],
+  );
+
   // Tapping an «Афиша» row opens that event's detail card (same target as the
   // dedicated list), instead of jumping to the host restaurant.
   const openEvent = useCallback((id: string) => router.push(`/event/${id}`), [router]);
@@ -128,8 +136,8 @@ export default function HomeScreen() {
           {/* Hidden today (no promo endpoint) — renders nothing. */}
           <PromotionsSection />
           <EventsListSection onOpenEvent={openEvent} onSeeAll={openEvents} />
-          {/* Hidden today (no articles endpoint) — renders nothing. */}
-          <ArticlesSection />
+          {/* Live GASTROGUIDE collections; hides itself when nothing is published. */}
+          <ArticlesSection onSeeAll={openArticles} onOpenArticle={openArticle} />
         </View>
       </ScrollView>
 

@@ -1,0 +1,184 @@
+import { RepositoryError } from "@bookeat/api";
+import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { GuideVenueBlock } from "../../src/components/articles/GuideVenueBlock";
+import { useGuideCollection } from "../../src/components/explore/use-explore-data";
+import { ArrowLeft } from "../../src/components/icons";
+import { IconButton } from "../../src/components/IconButton";
+import { PhotoView } from "../../src/components/PhotoView";
+import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
+
+const t = getDictionary();
+
+/**
+ * «Статья» — one editorial collection's detail (GET /gastroguide/collections/:slug).
+ *
+ * Hero cover, title, a «Подборка» chip, the collection description, then the
+ * ordered venue blocks. Tapping a venue block opens that restaurant
+ * (`/restaurant/:restaurantId`) — the same nav the catalog uses.
+ *
+ * There is no Heart/Share in the header on purpose: there is no
+ * favourite-an-article endpoint, and a dead control is worse than none (the
+ * task allows omitting them, which is what we do rather than shipping inert
+ * icons — see the fake-favorite-heart bug in team-memory).
+ *
+ * States: an unknown slug is a 404 → an honest "not found" (no retry, there is
+ * nothing to re-fetch that would exist); any other failure → a retryable error.
+ */
+export default function ArticleDetailScreen() {
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const router = useRouter();
+  const query = useGuideCollection(slug);
+  const collection = query.data;
+
+  const openRestaurant = useCallback(
+    (restaurantId: string) => router.push(`/restaurant/${restaurantId}`),
+    [router],
+  );
+
+  const notFound =
+    query.isError && query.error instanceof RepositoryError && query.error.isNotFound;
+
+  const header = (
+    <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+      <View style={styles.header}>
+        <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={() => router.back()} />
+      </View>
+    </SafeAreaView>
+  );
+
+  if (query.isLoading) {
+    return (
+      <View style={styles.root}>
+        {header}
+        <LoadingState title={t.articles.loading} />
+      </View>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <View style={styles.root}>
+        {header}
+        <EmptyState title={t.articles.notFoundTitle} description={t.articles.notFoundDescription} />
+      </View>
+    );
+  }
+
+  if (query.isError || !collection) {
+    return (
+      <View style={styles.root}>
+        {header}
+        <ErrorState
+          title={t.articles.errorTitle}
+          description={t.articles.errorDescription}
+          retryLabel={t.common.retry}
+          onRetry={() => query.refetch()}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+      {header}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.coverContainer}>
+          <PhotoView
+            uri={collection.coverImageUrl}
+            style={styles.cover}
+            transition={200}
+            priority="high"
+            placeholderIconSize={40}
+            decorative
+          />
+        </View>
+
+        <View style={styles.summary}>
+          <Text style={styles.title}>{collection.title}</Text>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>{t.articles.collectionChip}</Text>
+          </View>
+          {collection.subtitle ? <Text style={styles.subtitle}>{collection.subtitle}</Text> : null}
+          {collection.description ? <Text style={styles.description}>{collection.description}</Text> : null}
+        </View>
+
+        {collection.venues.length > 0 ? (
+          <View style={styles.venues}>
+            {collection.venues.map((venue) => (
+              <GuideVenueBlock key={venue.restaurantId} venue={venue} onPress={openRestaurant} />
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background.screen,
+  },
+  headerSafeArea: {
+    backgroundColor: colors.background.surface,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 56,
+    paddingHorizontal: spacing.sm,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xxxl,
+    gap: spacing.sm,
+  },
+  coverContainer: {
+    padding: spacing.sm,
+    backgroundColor: colors.background.surface,
+  },
+  cover: {
+    width: "100%",
+    height: 240,
+    borderRadius: radius.photoHero,
+    backgroundColor: colors.background.chip,
+  },
+  summary: {
+    backgroundColor: colors.background.surface,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  title: {
+    ...typography.titleLg,
+    color: colors.text.primary,
+  },
+  chip: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.background.chip,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  chipLabel: {
+    ...typography.captionMedium,
+    color: colors.text.mutedStrong,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.text.muted,
+  },
+  description: {
+    ...typography.body,
+    color: colors.text.primary,
+  },
+  venues: {
+    padding: spacing.lg,
+    gap: spacing.lg,
+  },
+});

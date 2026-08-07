@@ -9,6 +9,8 @@ import {
   mapAvailability,
   mapBooking,
   mapEventSummary,
+  mapGuideCollections,
+  mapGuideCollectionDetail,
   mapHomePromos,
   mapMenuSections,
   mapPayment,
@@ -23,6 +25,8 @@ import {
   type ApiBooking,
   type ApiEventListItem,
   type ApiFeedItem,
+  type ApiGuideCollection,
+  type ApiGuideCollectionDetail,
   type ApiMenuItem,
   type ApiPayment,
   type ApiPreorder,
@@ -47,6 +51,8 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  GuideCollection,
+  GuideCollectionDetail,
   HomePromo,
   MenuSection,
   OtpRequest,
@@ -317,6 +323,31 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   async getPromotions(city: string): Promise<HomePromo[]> {
     const feed = await this.client.get<{ items?: ApiFeedItem[] }>("/feed", { city });
     return mapHomePromos(feed.items);
+  }
+
+  /* --- gastroguide / «Статьи» --- */
+
+  /**
+   * GET /gastroguide/collections — the editorial collections list. The standard
+   * page envelope wraps `{ items, total, pages, page, per_page }`; the «Статьи»
+   * list only needs the cards, so this returns the mapped `items` and drops the
+   * paging (the strip and screen show the first page). Public, no session.
+   */
+  async getGuideCollections(): Promise<GuideCollection[]> {
+    const page = await this.client.get<ApiPage<ApiGuideCollection>>("/gastroguide/collections");
+    return mapGuideCollections(page.items);
+  }
+
+  /**
+   * GET /gastroguide/collections/:slug — one collection with its venue blocks.
+   * An unknown slug is a 404, surfaced as a RepositoryError with `isNotFound`
+   * so the detail screen shows its "not found" state. Public, no session.
+   */
+  async getGuideCollection(slug: string): Promise<GuideCollectionDetail> {
+    const api = await this.client.get<ApiGuideCollectionDetail>(
+      `/gastroguide/collections/${encodeURIComponent(slug)}`,
+    );
+    return mapGuideCollectionDetail(api);
   }
 
   /* --- reservation flow --- */

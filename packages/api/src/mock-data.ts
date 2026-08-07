@@ -11,6 +11,8 @@ import type {
   Cuisine,
   DayOfWeek,
   EventSummary,
+  GuideCollection,
+  GuideCollectionDetail,
   HomePromo,
   MenuHighlight,
   Photo,
@@ -223,6 +225,86 @@ export function homePromotions(city?: string, now: Date = new Date()): HomePromo
   return promos
     .filter((p) => (city ? p.city === city : true))
     .map(({ city: _city, ...promo }) => promo);
+}
+
+/**
+ * GASTROGUIDE collections for the offline mock — the guest-facing «Статьи».
+ * Deliberately mirrors the live shape's edges so the UI states can be exercised
+ * with no backend: one collection WITHOUT a subtitle and WITHOUT a cover (null),
+ * and a venue block WITHOUT a note (the block hides its description line). There
+ * is no author anywhere — the byline is a UI constant.
+ */
+function guideCollectionsData(): GuideCollectionDetail[] {
+  return [
+  {
+    slug: "romantic-dinners",
+    title: "Где провести романтический ужин",
+    subtitle: "Пять мест для особенного вечера",
+    description:
+      "Панорамные крыши, приглушённый свет и авторские сеты — подборка ресторанов, куда стоит прийти вдвоём.",
+    coverImageUrl: photo("interiorWineTable", "guide-1-cover", "Романтический ужин").uri,
+    venueCount: 2,
+    categorySlugs: ["evropeyskaya", "avtorskaya"],
+    venues: [
+      {
+        restaurantId: restaurants[3].id,
+        name: restaurants[3].name,
+        note: "Панорама города с 18 этажа и fusion-меню от шефа — лучший стол у окна на закате.",
+        address: restaurants[3].address,
+        cuisineType: restaurants[3].cuisines[0]?.name ?? "",
+        city: restaurants[3].city,
+        priceCategory: restaurants[3].priceLevel,
+        imageUrl: restaurants[3].coverPhoto?.uri ?? null,
+      },
+      {
+        restaurantId: restaurants[0].id,
+        name: restaurants[0].name,
+        // Заведение без редакционной заметки — блок скрывает строку описания.
+        note: "",
+        address: restaurants[0].address,
+        cuisineType: restaurants[0].cuisines[0]?.name ?? "",
+        city: restaurants[0].city,
+        priceCategory: restaurants[0].priceLevel,
+        imageUrl: restaurants[0].coverPhoto?.uri ?? null,
+      },
+    ],
+  },
+  {
+    slug: "family-brunch",
+    // Подборка без подзаголовка и без обложки — карточка показывает плейсхолдер.
+    title: "Семейный бранч по выходным",
+    subtitle: "",
+    description:
+      "Просторные залы, детское меню и неспешные завтраки до полудня — куда пойти всей семьёй в субботу.",
+    coverImageUrl: null,
+    venueCount: 1,
+    categorySlugs: ["italyanskaya"],
+    venues: [
+      {
+        restaurantId: restaurants[1].id,
+        name: restaurants[1].name,
+        note: "Дровяная печь, терраса с видом на горы и большие столы для компании.",
+        address: restaurants[1].address,
+        cuisineType: restaurants[1].cuisines[0]?.name ?? "",
+        city: restaurants[1].city,
+        priceCategory: restaurants[1].priceLevel,
+        imageUrl: restaurants[1].coverPhoto?.uri ?? null,
+      },
+    ],
+  },
+  ];
+}
+
+/** The «Статьи» list (cards only — no venues), like `GET /gastroguide/collections`. */
+export function guideCollections(): GuideCollection[] {
+  return guideCollectionsData().map(({ venues: _venues, ...card }) => card);
+}
+
+/** One collection with its venues, like `GET /gastroguide/collections/:slug`.
+ * Returns `undefined` for an unknown slug so the mock repository can answer 404
+ * exactly as the live endpoint does. */
+export function guideCollection(slug: string): GuideCollectionDetail | undefined {
+  return guideCollectionsData().find((c) => c.slug === slug);
 }
 
 export const restaurants: Restaurant[] = [

@@ -24,6 +24,9 @@ import type {
   Cuisine,
   DayAvailability,
   EventSummary,
+  GuideCollection,
+  GuideCollectionDetail,
+  GuideCollectionVenue,
   MenuHighlight,
   MenuSection,
   PaymentPurpose,
@@ -916,4 +919,97 @@ export function mapHomePromos(items: ApiFeedItem[] | null | undefined): HomeProm
       discountPercent: typeof item.discount_percent === "number" ? item.discount_percent : null,
     }))
     .filter((promo) => promo.id !== "");
+}
+
+/**
+ * GASTROGUIDE collection DTOs — the guest-facing «Статьи» feature. Shapes read
+ * from the live contract (test.backend), not guessed:
+ *   list:   GET /gastroguide/collections → Page<collectionListItem>
+ *   detail: GET /gastroguide/collections/:slug → collectionDetail (+ venues)
+ *
+ * There is NO author field on either shape — the byline is a UI constant. A
+ * venue block carries only `address` (no social links / instagram), so the
+ * detail mapper never invents one.
+ */
+export interface ApiGuideCollection {
+  slug?: string;
+  title?: string;
+  subtitle?: string | null;
+  description?: string | null;
+  cover_image_url?: string | null;
+  venue_count?: number;
+  category_slugs?: string[] | null;
+}
+
+export interface ApiGuideVenue {
+  restaurant_id?: string;
+  position?: number;
+  note?: string | null;
+  name?: string;
+  address?: string | null;
+  cuisine_type?: string | null;
+  city?: string | null;
+  price_category?: string | null;
+  primary_image_url?: string | null;
+}
+
+export interface ApiGuideCollectionDetail extends ApiGuideCollection {
+  venues?: ApiGuideVenue[] | null;
+}
+
+/**
+ * The card fields shared by the list and detail shapes. Every field is treated
+ * as possibly absent even where the Go struct always emits it — one missing key
+ * must degrade a card, never blank the whole «Статьи» list. `description` runs
+ * through `plainText` because the editorial blurb can carry the same legacy CMS
+ * HTML the venue descriptions do.
+ */
+function mapGuideCollectionCard(api: ApiGuideCollection): GuideCollection {
+  return {
+    slug: text(api.slug),
+    title: text(api.title),
+    subtitle: plainText(api.subtitle),
+    description: plainText(api.description),
+    coverImageUrl: text(api.cover_image_url) || null,
+    venueCount: typeof api.venue_count === "number" ? api.venue_count : 0,
+    categorySlugs: (api.category_slugs ?? []).map(text).filter((s) => s !== ""),
+  };
+}
+
+/**
+ * The «Статьи» list. A collection without a slug is dropped: the slug is both
+ * the route param and the list key, so a blank one is unusable — the same
+ * defensive stance the promo mapper takes for a missing id.
+ */
+export function mapGuideCollections(
+  items: ApiGuideCollection[] | null | undefined,
+): GuideCollection[] {
+  return (items ?? []).map(mapGuideCollectionCard).filter((c) => c.slug !== "");
+}
+
+/** One venue block of a collection detail. Ordered by `position` ascending so
+ * no screen has to re-sort; a venue without a restaurant id is dropped (it
+ * cannot open a restaurant screen or be a stable key). */
+function mapGuideVenue(api: ApiGuideVenue): GuideCollectionVenue {
+  return {
+    restaurantId: text(api.restaurant_id),
+    name: text(api.name),
+    note: plainText(api.note),
+    address: text(api.address),
+    cuisineType: text(api.cuisine_type),
+    city: text(api.city),
+    priceCategory: text(api.price_category),
+    imageUrl: text(api.primary_image_url) || null,
+  };
+}
+
+export function mapGuideCollectionDetail(api: ApiGuideCollectionDetail): GuideCollectionDetail {
+  const venues = [...(api.venues ?? [])]
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    .map(mapGuideVenue)
+    .filter((v) => v.restaurantId !== "");
+  return {
+    ...mapGuideCollectionCard(api),
+    venues,
+  };
 }

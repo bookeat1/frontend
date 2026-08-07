@@ -640,6 +640,70 @@ export interface HomePromo {
 }
 
 /**
+ * One editorial collection of venues — the guest-facing «Статьи» feature, which
+ * maps to the backend's GASTROGUIDE (`GET /gastroguide/collections`). This is
+ * the LIST shape (card): the venues themselves are only on the detail read
+ * (`GuideCollectionDetail`).
+ *
+ * There is NO author field anywhere in the payload: this is editorial content
+ * and the byline is a constant («От BookEat»), supplied by the UI, not the API —
+ * so no fabricated critic name ever appears. `subtitle`, `description` and
+ * `coverImageUrl` may all be absent server-side and degrade to empty/`null`.
+ */
+export interface GuideCollection {
+  /** Stable identifier used in the URL (`/articles/:slug`) and as the list key. */
+  slug: string;
+  title: string;
+  /** One-line strapline under the title. Empty when the collection omits it. */
+  subtitle: string;
+  /** Editorial blurb shown on the detail screen. Empty when absent. */
+  description: string;
+  /** Null when the collection has no cover — the card shows its placeholder. */
+  coverImageUrl: string | null;
+  /** How many venues the collection holds, for a subtitle/count without
+   * fetching the whole detail. */
+  venueCount: number;
+  /** Cuisine/category slugs the collection is tagged with. Empty when absent. */
+  categorySlugs: string[];
+}
+
+/**
+ * One venue inside a collection's detail read. Carries just enough to render a
+ * venue block and open the restaurant screen (`/restaurant/:restaurantId`).
+ *
+ * There is deliberately NO `instagram` (or any social link) here: the payload
+ * carries only the postal `address`, so the block shows the address and nothing
+ * social is invented. `note` is the collection's editorial line about this
+ * venue (why it made the list); empty when the editor left it blank.
+ */
+export interface GuideCollectionVenue {
+  restaurantId: string;
+  name: string;
+  /** The editor's note about this venue — the block's description line. Empty
+   * when absent. */
+  note: string;
+  address: string;
+  /** Empty when the venue has no cuisine recorded — the block hides the line. */
+  cuisineType: string;
+  city: string;
+  /** «₸»/«₸₸»/«₸₸₸» tier, empty when unset. */
+  priceCategory: string;
+  /** `primary_image_url` of the venue, or `null` when it has no photo. */
+  imageUrl: string | null;
+}
+
+/**
+ * A single collection with its venues — the «Статья» detail read
+ * (`GET /gastroguide/collections/:slug`). Extends the card shape with the
+ * ordered venue blocks.
+ */
+export interface GuideCollectionDetail extends GuideCollection {
+  /** Venues in the collection's own order (the backend returns them by
+   * `position`); rendered as received. */
+  venues: GuideCollectionVenue[];
+}
+
+/**
  * Platforms the backend accepts for a device push token
  * (`domain.ValidDevicePlatform`: ios, android, web). "web" is listed because
  * the column allows it, NOT because this app ever sends it — see

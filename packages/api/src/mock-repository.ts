@@ -1,5 +1,7 @@
 import {
   cuisines,
+  guideCollection,
+  guideCollections,
   homePromotions,
   restaurants,
   restaurantStories,
@@ -22,6 +24,8 @@ import type {
   DevicePlatform,
   EventPage,
   EventQuery,
+  GuideCollection,
+  GuideCollectionDetail,
   HomePromo,
   MenuSection,
   OtpRequest,
@@ -180,6 +184,28 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async getPromotions(city: string): Promise<HomePromo[]> {
     await this.simulateNetwork();
     return homePromotions(city);
+  }
+
+  /* --- gastroguide / «Статьи» --- */
+
+  /** The mock's editorial collections (cards only). An empty list is a real
+   * answer; here the fixtures always carry a couple so the «Статьи» list and
+   * strip are exercisable with no backend. */
+  async getGuideCollections(): Promise<GuideCollection[]> {
+    await this.simulateNetwork();
+    return guideCollections();
+  }
+
+  /** One collection with its venues. Throws 404 for an unknown slug, exactly as
+   * the live endpoint does, so the detail screen's "not found" branch can be
+   * exercised offline. */
+  async getGuideCollection(slug: string): Promise<GuideCollectionDetail> {
+    await this.simulateNetwork();
+    const collection = guideCollection(slug);
+    if (!collection) {
+      throw new RepositoryError(`Collection ${slug} not found`, undefined, 404);
+    }
+    return collection;
   }
 
   /* --- reservation flow --- */

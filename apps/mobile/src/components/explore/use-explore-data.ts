@@ -3,10 +3,13 @@ import type {
   Cuisine,
   EventPage,
   EventSummary,
+  GuideCollection,
+  GuideCollectionDetail,
   HomePromo,
   RestaurantSummary,
 } from "@bookeat/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useAuth } from "../../lib/auth";
 import { useLocale } from "../../lib/locale";
 import { useRepository } from "../../lib/repository";
@@ -39,6 +42,10 @@ const RECOMMENDED_LIMIT = 8;
 /** How many events «Афиша» asks for. The vertical list stays short on the home
  * screen; a dedicated events screen would paginate. */
 const EXPLORE_EVENTS_LIMIT = 12;
+
+/** How many collections the Home «Статьи» strip shows. The list screen shows
+ * them all; the strip is capped, like «Выбрали для вас». */
+const ARTICLES_LIMIT = 6;
 
 /**
  * REAL DATA — «Выбрали для вас».
@@ -188,10 +195,76 @@ export function useExplorePromotions(): readonly PromoStripItem[] {
   return promotions.data ?? PLACEHOLDER_PROMOTIONS;
 }
 
-/** PLACEHOLDER — no articles endpoint. TODO: GET /articles. Returns [] ⇒
- * «Статьи» is hidden. */
+/**
+ * REAL DATA — «Статьи» (GASTROGUIDE).
+ * GET /gastroguide/collections (RestaurantRepository.getGuideCollections).
+ *
+ * The editorial collections list, shared by the Home strip and the `/articles`
+ * screen. Public, no session. An empty answer is the normal "nothing published"
+ * — the section hides on it (see useExploreArticles).
+ */
+export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
+  const repository = useRepository();
+  return useQuery<GuideCollection[]>({
+    queryKey: ["guide", "collections"],
+    queryFn: () => repository.getGuideCollections(),
+    // Editorial content changes on a slow timescale, like the rest of Home.
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * REAL DATA — one collection with its venues, for the «Статья» detail screen.
+ * GET /gastroguide/collections/:slug (RestaurantRepository.getGuideCollection).
+ *
+ * Its OWN cache key (`["guide","collection",slug]`) — the list and the detail
+ * have different shapes (the detail carries venues), so sharing a key would let
+ * the cheap list read evict the expensive detail. Gated on the slug, like
+ * useRestaurant.
+ */
+export function useGuideCollection(
+  slug: string | undefined,
+): UseQueryResult<GuideCollectionDetail> {
+  const repository = useRepository();
+  return useQuery<GuideCollectionDetail>({
+    queryKey: ["guide", "collection", slug],
+    queryFn: () => {
+      if (!slug) throw new Error("Missing collection slug");
+      return repository.getGuideCollection(slug);
+    },
+    enabled: Boolean(slug),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Maps one collection to the Home strip card. The byline is a UI CONSTANT
+ * («От BookEat») — the payload has no author, this is editorial content — and
+ * the card's `id` is the slug so a tap can route to `/articles/:slug`. */
+function toArticleCardData(collection: GuideCollection, author: string): ArticleCardData {
+  return {
+    id: collection.slug,
+    title: collection.title,
+    author,
+    coverImageUrl: collection.coverImageUrl,
+  };
+}
+
+/**
+ * «Статьи» on Home — now wired to the live GASTROGUIDE collections.
+ *
+ * Returns the stable empty PLACEHOLDER_ARTICLES (by reference) while loading, on
+ * error, and when there are no collections — so ArticlesSection keeps its
+ * hide-on-empty/error behaviour unchanged (its code did not change). The byline
+ * comes from the dictionary so it follows the guest's language.
+ */
 export function useExploreArticles(): readonly ArticleCardData[] {
-  return PLACEHOLDER_ARTICLES;
+  const { dictionary: t } = useLocale();
+  const query = useGuideCollections();
+  const author = t.explore.articleAuthorDefault;
+  return useMemo(() => {
+    if (!query.data || query.data.length === 0) return PLACEHOLDER_ARTICLES;
+    return query.data.slice(0, ARTICLES_LIMIT).map((c) => toArticleCardData(c, author));
+  }, [query.data, author]);
 }
 
 export type { ArticleCardData, PromoStripItem };

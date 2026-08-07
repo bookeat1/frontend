@@ -105,6 +105,21 @@ export const kk: LocaleOverride<Dictionary> = {
     card: (title: string, when: string, restaurant: string) =>
       restaurant ? `${title}, ${when}, ${restaurant}` : `${title}, ${when}`,
   },
+  articles: {
+    title: "Мақалалар",
+    loading: "Мақалалар жүктелуде…",
+    emptyTitle: "Әзірге мақала жоқ",
+    emptyDescription:
+      "BookEat редакциясы мекемелер топтамасын дайындап жатыр. Пайда болса, осында көрсетеміз.",
+    errorTitle: "Мақалалар жүктелмеді",
+    errorDescription: "Байланысты тексеріп, қайталап көріңіз",
+    collectionChip: "Топтама",
+    notFoundTitle: "Топтама табылмады",
+    notFoundDescription:
+      "Ол жарияланымнан алынған болуы мүмкін. Тізімге оралып, басқасын таңдаңыз.",
+    card: (title: string, author: string) => `${title}, ${author}`,
+    openVenue: (name: string) => `«${name}» ашу`,
+  },
   notifications: {
     title: "Хабарламалар",
     filterAll: "Барлығы",

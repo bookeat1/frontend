@@ -1,24 +1,40 @@
 import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { PhotoView } from "../PhotoView";
-import { InertFavoriteHeart } from "./FavoriteButton";
 import type { ArticleCardData } from "./placeholder";
 
+const t = getDictionary();
+
 /**
- * One «Статьи» editorial card: cover, an inert heart, a title and a byline.
+ * One «Статьи» editorial card: cover, title and the constant «От BookEat»
+ * byline. The whole card is one button that opens the collection's detail
+ * (`/articles/:slug`, the id IS the slug).
  *
- * DATA IS PLACEHOLDER (no articles endpoint — see ./placeholder.ts), so the
- * section that renders this is hidden today. The heart is INERT: there is no
- * favourite-an-article endpoint to back it.
+ * NO favourite heart: there is no favourite-an-article endpoint, and a dead
+ * toggle is worse than none (see the fake-favorite-heart bug in team-memory).
  */
-export function ArticleCard({ article }: { article: ArticleCardData }) {
+export function ArticleCard({
+  article,
+  onPress,
+}: {
+  article: ArticleCardData;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.card}>
-      <View>
-        <PhotoView uri={article.coverImageUrl ?? undefined} style={styles.photo} decorative placeholderIconSize={32} />
-        <InertFavoriteHeart />
-      </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.articles.card(article.title, article.author)}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
+      <PhotoView
+        uri={article.coverImageUrl ?? undefined}
+        style={styles.photo}
+        decorative
+        placeholderIconSize={32}
+      />
 
       <View style={styles.text}>
         <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
@@ -28,7 +44,7 @@ export function ArticleCard({ article }: { article: ArticleCardData }) {
           {article.author}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -36,6 +52,9 @@ const styles = StyleSheet.create({
   card: {
     width: exploreLayout.cardWidth,
     gap: spacing.sm,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   photo: {
     width: exploreLayout.cardWidth,

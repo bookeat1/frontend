@@ -11,6 +11,8 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  GuideCollection,
+  GuideCollectionDetail,
   HomePromo,
   MenuSection,
   OtpRequest,
@@ -88,6 +90,28 @@ export interface RestaurantRepository {
    * answer, so the section hides on it rather than showing an error.
    */
   getPromotions(city: string): Promise<HomePromo[]>;
+
+  /* --- gastroguide / «Статьи» --- */
+
+  /**
+   * The editorial collections of venues (`GET /gastroguide/collections`) — the
+   * guest-facing «Статьи» list.
+   *
+   * Public, no session. The card shape only (no venues): the collection's
+   * venues are read per-collection with `getGuideCollection`. An empty array is
+   * a real "no collections published" answer, so the section/screen hides or
+   * shows a calm empty state rather than an error. There is no author field on
+   * the wire — the byline is a UI constant.
+   */
+  getGuideCollections(): Promise<GuideCollection[]>;
+
+  /**
+   * One collection with its venues (`GET /gastroguide/collections/:slug`), for
+   * the «Статья» detail screen. Public, no session. An unknown slug is a 404
+   * (RepositoryError.isNotFound), which the screen renders as "not found", not
+   * as a transport error.
+   */
+  getGuideCollection(slug: string): Promise<GuideCollectionDetail>;
 
   /* --- reservation flow --- */
 

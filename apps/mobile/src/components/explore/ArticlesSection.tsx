@@ -8,15 +8,22 @@ import { useExploreArticles } from "./use-explore-data";
 const t = getDictionary();
 
 /**
- * «Статьи» — editorial cards.
+ * «Статьи» — editorial collections (GASTROGUIDE), wired to the live
+ * `GET /gastroguide/collections` via `useExploreArticles`.
  *
- * GRACEFUL EMPTY STATE: there is no articles endpoint yet
- * (`useExploreArticles` returns [] with a TODO), so this renders NOTHING —
- * header and white block included. It owns its own `SectionCard`, so hiding it
- * leaves no empty block in the screen's stack; the moment the hook returns real
- * articles the section appears with no other change.
+ * GRACEFUL EMPTY STATE: the hook returns [] while loading, on error, and when
+ * nothing is published, so this renders NOTHING (header and white block
+ * included). It owns its own `SectionCard`, so hiding it leaves no empty block
+ * in the screen's stack. The header chevron opens the full `/articles` list;
+ * tapping a card opens `/articles/:slug`.
  */
-export function ArticlesSection() {
+export function ArticlesSection({
+  onSeeAll,
+  onOpenArticle,
+}: {
+  onSeeAll: () => void;
+  onOpenArticle: (slug: string) => void;
+}) {
   const articles = useExploreArticles();
 
   if (articles.length === 0) {
@@ -25,12 +32,14 @@ export function ArticlesSection() {
 
   return (
     <SectionCard>
-      <SectionHeader title={t.explore.articlesTitle} />
+      <SectionHeader title={t.explore.articlesTitle} onSeeAll={onSeeAll} />
       <CardStrip
         data={articles}
         keyExtractor={(article) => article.id}
         accessibilityLabel={t.explore.articlesTitle}
-        renderItem={({ item }) => <ArticleCard article={item} />}
+        renderItem={({ item }) => (
+          <ArticleCard article={item} onPress={() => onOpenArticle(item.id)} />
+        )}
       />
     </SectionCard>
   );

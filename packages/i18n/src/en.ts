@@ -101,6 +101,20 @@ export const en: LocaleOverride<Dictionary> = {
     card: (title: string, when: string, restaurant: string) =>
       restaurant ? `${title}, ${when}, ${restaurant}` : `${title}, ${when}`,
   },
+  articles: {
+    title: "Articles",
+    loading: "Loading articles…",
+    emptyTitle: "No articles yet",
+    emptyDescription:
+      "The BookEat team is putting together venue collections. They'll show up here.",
+    errorTitle: "Couldn't load articles",
+    errorDescription: "Check your connection and try again",
+    collectionChip: "Collection",
+    notFoundTitle: "Collection not found",
+    notFoundDescription: "It may have been unpublished. Go back to the list and pick another.",
+    card: (title: string, author: string) => `${title}, ${author}`,
+    openVenue: (name: string) => `Open ${name}`,
+  },
   notifications: {
     title: "Notifications",
     filterAll: "All",
