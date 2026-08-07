@@ -2,7 +2,7 @@ import type { AuthUser, ProfileUpdate } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React, { useCallback, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatStoredPhoneForDisplay } from "../../lib/phone";
 import {
   birthDateBounds,
@@ -14,7 +14,7 @@ import {
   type ProfileErrors,
   type ProfileSaveFailure,
 } from "../../lib/profile-edit";
-import { MapPin } from "../icons";
+import { CaretRight, MapPin } from "../icons";
 import { PrimaryButton } from "../PrimaryButton";
 import { SelectRow } from "../SelectRow";
 import { TextField } from "../TextField";
@@ -37,10 +37,13 @@ const copy = t.profile.edit;
  *
  * WHAT IS NOT EDITABLE, AND WHY (all verified against the Go handler and DTO,
  * not assumed):
- *   - phone: `updateMeRequest` has no phone field, and `POST /auth/otp/verify`
- *     finds-or-creates the account BY the number. Shown — under the sign-in
- *     screen's own +7 (XXX) XXX-XX-XX mask, not as raw E.164 — with a line
- *     saying why there is nothing to tap.
+ *   - phone: not a `PATCH /users/me` field (`updateMeRequest` has no phone) —
+ *     `POST /auth/otp/verify` finds-or-creates the account BY the number, so it
+ *     can only change through the dedicated OTP re-verification flow. Shown
+ *     under the sign-in screen's own +7 (XXX) XXX-XX-XX mask (not raw E.164),
+ *     and when the host passes `onEditPhone` the row routes into that flow —
+ *     mirroring /profile/personal-data so the two screens do not contradict
+ *     each other about whether the number can be changed.
  *   - email: same — not in the PATCH body at all.
  *   - avatar_url / preferred_language / country_code / cuisine_category_ids:
  *     accepted by the endpoint, but this app has no honest source for any of
@@ -55,6 +58,7 @@ export function ProfileForm({
   onSessionExpired,
   onSignIn,
   onEditCity,
+  onEditPhone,
 }: {
   user: AuthUser;
   onSave: (patch: ProfileUpdate) => Promise<AuthUser>;
@@ -72,6 +76,14 @@ export function ProfileForm({
    * navigation, not the field, is what needs a router.
    */
   onEditCity?: (currentCity: string, apply: (city: string) => void) => void;
+  /**
+   * Opens the change-phone flow. Given like `onEditCity`, because the navigation
+   * (not the field) is what needs a router — when omitted (tests) the phone stays
+   * a plain, non-interactive read-out. Present in the real screen, where it
+   * routes into /profile/change-phone exactly as /profile/personal-data does, so
+   * the two entry points agree that the number IS changeable.
+   */
+  onEditPhone?: () => void;
 }) {
   // `original` is what the last successful load/save returned; the draft is
   // what the guest typed. They are separate so a failure can leave the draft
@@ -196,23 +208,45 @@ export function ProfileForm({
         error={errors.birthDate ? copy.errors[errors.birthDate] : undefined}
       />
 
-      {/* Shown, never offered for editing — the account is keyed on it. Not a
-          disabled input: a greyed-out field reads as "we could not load this". */}
-      <View style={styles.readOnly}>
-        <Text style={styles.readOnlyLabel}>{t.profile.phoneLabel}</Text>
-        {/* Masked with the SAME formatter the phone FIELD uses, so the number
-            reads back as the guest typed it — "+7 (701) 000-00-00", not the
-            "+77010000000" the API speaks. Since the field gained a country
-            selector this also holds for a foreign account: a US number is
-            shown as "+1 (212) 555-1234", under its own country's format, and
-            never re-attributed to Kazakhstan to make it fit a mask. A country
-            whose format we do not claim to know is still printed exactly as
-            stored (see formatStoredPhoneForDisplay). */}
-        <Text style={styles.readOnlyValue}>
-          {original.phone ? formatStoredPhoneForDisplay(original.phone) : t.profile.phoneEmpty}
-        </Text>
-        <Text style={styles.readOnlyHint}>{copy.phoneNotEditable}</Text>
-      </View>
+      {/* Not a `PATCH /users/me` field — the account is keyed on it, so it moves
+          only through the OTP re-verification flow. Masked with the SAME
+          formatter the phone FIELD uses, so the number reads back as the guest
+          typed it — "+7 (701) 000-00-00", not the "+77010000000" the API speaks.
+          Since the field gained a country selector this also holds for a foreign
+          account: a US number is shown "+1 (212) 555-1234" under its own
+          country's format, never re-attributed to Kazakhstan; a country whose
+          format we do not claim to know is printed exactly as stored (see
+          formatStoredPhoneForDisplay).
+
+          When the host passes `onEditPhone` the row is tappable and routes into
+          /profile/change-phone, mirroring /profile/personal-data. Without it
+          (tests, which mount this form router-free) it stays a non-interactive
+          read-out. Either way the old "номер изменить нельзя" hint is gone —
+          the number IS changeable now, and a screen that still said otherwise
+          would contradict personal-data. */}
+      {onEditPhone ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.profile.personalData.editPhoneA11y}
+          onPress={onEditPhone}
+          style={({ pressed }) => [styles.phoneRow, pressed && styles.phonePressed]}
+        >
+          <View style={[styles.readOnly, styles.phoneText]}>
+            <Text style={styles.readOnlyLabel}>{t.profile.phoneLabel}</Text>
+            <Text style={styles.readOnlyValue}>
+              {original.phone ? formatStoredPhoneForDisplay(original.phone) : t.profile.phoneEmpty}
+            </Text>
+          </View>
+          <CaretRight size={20} color={colors.text.muted} weight="regular" />
+        </Pressable>
+      ) : (
+        <View style={styles.readOnly}>
+          <Text style={styles.readOnlyLabel}>{t.profile.phoneLabel}</Text>
+          <Text style={styles.readOnlyValue}>
+            {original.phone ? formatStoredPhoneForDisplay(original.phone) : t.profile.phoneEmpty}
+          </Text>
+        </View>
+      )}
 
       <PrimaryButton
         label={saving ? copy.saving : copy.save}
@@ -261,6 +295,18 @@ const styles = StyleSheet.create({
   readOnly: {
     gap: spacing.xxs,
   },
+  phoneText: {
+    flex: 1,
+  },
+  phoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    minHeight: 44,
+  },
+  phonePressed: {
+    opacity: 0.7,
+  },
   readOnlyLabel: {
     ...typography.caption,
     color: colors.text.muted,
@@ -268,10 +314,6 @@ const styles = StyleSheet.create({
   readOnlyValue: {
     ...typography.body,
     color: colors.text.primary,
-  },
-  readOnlyHint: {
-    ...typography.caption,
-    color: colors.text.muted,
   },
   saved: {
     ...typography.caption,

@@ -175,6 +175,15 @@ export default function ChangePhoneScreen() {
 
     setSubmitting(true);
     try {
+      // TODO(auth): a WRONG code here returns 401 on an AUTHENTICATED endpoint,
+      // which trips HttpClient's refresh-on-401 interceptor (refreshNow → POST
+      // /auth/refresh, rotating the refresh token) on EVERY wrong-code attempt.
+      // Functionally harmless — the one retry re-sends the same wrong code and
+      // gets the same 401, which surfaces normally — but it is an extra
+      // round-trip and a needless token rotation per typo. Proper fix: a
+      // lighter-weight per-call option (e.g. `skipUnauthorizedRefresh`) that
+      // skips onUnauthorized for a call whose 401 means "bad code", not "dead
+      // session".
       const updated = await repository.confirmPhoneChange({ newPhone: sentToPhone, code: value });
       // The updated account IS the new truth — drop it into the same cache
       // «Персональные данные» reads, then pop back to it showing the new number.
