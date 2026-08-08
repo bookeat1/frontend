@@ -172,6 +172,7 @@ export interface AdminEvent {
   ticketed: boolean;
   ticket_price_minor?: number | null;
   capacity?: number | null;
+  tags?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -189,6 +190,7 @@ export interface EventInput {
   ticketed: boolean;
   ticket_price_minor: number | null;
   capacity: number | null;
+  tags?: string[];
 }
 
 // ---- Promos ----------------------------------------------------------------
@@ -207,6 +209,8 @@ export interface AdminPromo {
   starts_at: string;
   ends_at: string;
   terms?: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
   status: PromoStatus;
   created_at: string;
   updated_at: string;
@@ -219,6 +223,8 @@ export interface PromoInput {
   starts_at: string;
   ends_at: string;
   terms: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
   status: PromoStatus;
 }
 

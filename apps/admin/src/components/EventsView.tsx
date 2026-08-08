@@ -14,6 +14,7 @@ import {
   tengeToMinor,
 } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { formatTags, parseTags } from "@/lib/tags";
 import { Button } from "./ui/Button";
 import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
 import { Modal } from "./ui/Modal";
@@ -34,6 +35,7 @@ function eventToInput(e: AdminEvent, status = e.status): EventInput {
     ticketed: e.ticketed,
     ticket_price_minor: e.ticket_price_minor ?? null,
     capacity: e.capacity ?? null,
+    tags: e.tags ?? [],
   };
 }
 
@@ -225,6 +227,7 @@ function EventFormModal({
     event?.ticket_price_minor != null ? String(Math.round(event.ticket_price_minor / 100)) : "",
   );
   const [capacity, setCapacity] = useState(event?.capacity != null ? String(event.capacity) : "");
+  const [tags, setTags] = useState(formatTags(event?.tags));
   const [publishNow, setPublishNow] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -266,6 +269,7 @@ function EventFormModal({
       ticketed,
       ticket_price_minor: ticketed && price.trim() && !Number.isNaN(priceNum) ? tengeToMinor(priceNum) : null,
       capacity: ticketed && capacity.trim() && !Number.isNaN(capNum) ? Math.round(capNum) : null,
+      tags: parseTags(tags),
     });
   }
 
@@ -296,6 +300,9 @@ function EventFormModal({
         </div>
         <Field label={t.admin.events.fieldVenue} hint={t.admin.events.fieldVenueHint}>
           <TextInput value={venue} onChange={(e) => setVenue(e.target.value)} />
+        </Field>
+        <Field label={t.admin.events.fieldTags} hint={t.admin.events.fieldTagsHint}>
+          <TextInput value={tags} onChange={(e) => setTags(e.target.value)} maxLength={300} />
         </Field>
         <Field label={t.admin.events.fieldCover}>
           <TextInput
