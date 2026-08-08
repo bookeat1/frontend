@@ -21,6 +21,8 @@ function promoToInput(p: AdminPromo, status = p.status): PromoInput {
     starts_at: p.starts_at,
     ends_at: p.ends_at,
     terms: p.terms ?? "",
+    cover_image_url: p.cover_image_url ?? null,
+    discount_percent: p.discount_percent ?? null,
     status,
   };
 }
@@ -202,6 +204,10 @@ function PromoFormModal({
   const [startsAt, setStartsAt] = useState(isoToLocalInput(promo?.starts_at));
   const [endsAt, setEndsAt] = useState(isoToLocalInput(promo?.ends_at));
   const [terms, setTerms] = useState(promo?.terms ?? "");
+  const [coverImageUrl, setCoverImageUrl] = useState(promo?.cover_image_url ?? "");
+  const [discountPercent, setDiscountPercent] = useState(
+    promo?.discount_percent != null ? String(promo.discount_percent) : "",
+  );
   const [publishNow, setPublishNow] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -228,6 +234,18 @@ function PromoFormModal({
       return;
     }
 
+    const discountTrimmed = discountPercent.trim();
+    let discount: number | null = null;
+    if (discountTrimmed) {
+      const parsed = Number(discountTrimmed);
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
+        setFormError(t.admin.promos.discountRange);
+        return;
+      }
+      discount = parsed;
+    }
+
+    const cover = coverImageUrl.trim();
     const status = isEdit ? promo!.status : publishNow ? "published" : "draft";
     mutation.mutate({
       title: title.trim(),
@@ -235,6 +253,8 @@ function PromoFormModal({
       starts_at: startsIso,
       ends_at: endsIso,
       terms: terms.trim(),
+      cover_image_url: cover || null,
+      discount_percent: discount,
       status,
     });
   }
@@ -266,6 +286,27 @@ function PromoFormModal({
         </div>
         <Field label={t.admin.promos.fieldTerms} hint={t.admin.promos.fieldTermsHint}>
           <TextArea value={terms} onChange={(e) => setTerms(e.target.value)} />
+        </Field>
+        <Field label={t.admin.promos.fieldCover} hint={t.admin.promos.fieldCoverHint}>
+          <TextInput
+            type="url"
+            inputMode="url"
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
+            placeholder="https://…"
+            maxLength={2048}
+          />
+        </Field>
+        <Field label={t.admin.promos.fieldDiscount} hint={t.admin.promos.fieldDiscountHint}>
+          <TextInput
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={100}
+            step={1}
+            value={discountPercent}
+            onChange={(e) => setDiscountPercent(e.target.value)}
+          />
         </Field>
 
         {!isEdit ? (
