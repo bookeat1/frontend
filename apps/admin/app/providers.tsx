@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@ta
 import { AdminApiError } from "@bookeat/api/admin";
 
 import { AuthProvider } from "@/lib/auth-context";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { clearSession } from "@/lib/api";
 import { SESSION_EXPIRED_REASON, redirectToLogin } from "@/lib/base-path";
 
@@ -44,7 +45,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <AnalyticsProvider>{children}</AnalyticsProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

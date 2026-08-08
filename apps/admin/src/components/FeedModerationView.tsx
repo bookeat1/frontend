@@ -8,6 +8,7 @@ import {
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { trackEvent } from "@/lib/analytics";
 import { useIsPlatformAdmin } from "@/lib/use-platform-dashboard";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -116,6 +117,7 @@ function QueueItemCard({ item }: { item: FeedItemState }) {
     onSuccess: () => {
       setError(null);
       setNotice(t.admin.feedModeration.approved);
+      trackEvent("feed_review", { decision: "approve", kind: item.kind });
       void invalidate();
     },
     onError: () => setError(t.admin.feedModeration.actionFailed),
@@ -130,6 +132,7 @@ function QueueItemCard({ item }: { item: FeedItemState }) {
     onSuccess: () => {
       setError(null);
       setNotice(t.admin.feedModeration.rejected);
+      trackEvent("feed_review", { decision: "reject", kind: item.kind });
       void invalidate();
     },
     onError: () => setError(t.admin.feedModeration.actionFailed),

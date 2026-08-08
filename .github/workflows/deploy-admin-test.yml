@@ -29,6 +29,9 @@ env:
   # Pinning them here means the artifact is reproducible from the repository
   # alone instead of from whatever the person deploying happened to export.
   NEXT_PUBLIC_API_URL: https://test.backend.book-eat.com/api/v1
+  # Amplitude client-side WRITE key (public by design — lands verbatim in the
+  # bundle, like NEXT_PUBLIC_API_URL; only selects the Amplitude project).
+  NEXT_PUBLIC_AMPLITUDE_API_KEY: ea6dc484a21af0092fc13af158f8c404
   NEXT_PUBLIC_BASE_PATH: /admin-preview
   PUBLIC_URL: https://test.backend.book-eat.com
   PREVIEW_ROOT: /opt/bookeat/preview
