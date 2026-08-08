@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AnalyticsProvider } from "../src/lib/analytics-provider";
 import { AuthProvider } from "../src/lib/auth";
 import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
@@ -57,6 +58,11 @@ export default function RootLayout() {
                 reads, and mounting it here means the whole app (not just the
                 booking flow) can read the session. */}
             <AuthProvider>
+            {/* AnalyticsProvider sits inside AuthProvider so it can read the
+                session: it brings Amplitude up once and keeps the analytics
+                identity in sync (identify on sign-in, reset on sign-out). It
+                renders nothing and no-ops entirely when no key is configured. */}
+            <AnalyticsProvider>
             {/* PushProvider needs BOTH the session (whose account the token is
                 registered against) and the router (a tapped notification opens
                 the booking), so it sits inside AuthProvider and around the
@@ -71,6 +77,7 @@ export default function RootLayout() {
                 }}
               />
             </PushProvider>
+            </AnalyticsProvider>
             </AuthProvider>
           </RepositoryProvider>
         </QueryClientProvider>

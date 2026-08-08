@@ -9,6 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { trackEvent } from "./analytics";
 import { runPushSignOutHook } from "./push-signout";
 import {
   getFreshAccessToken,
@@ -290,6 +291,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithCode = useCallback(
     async (input: { phone: string; code: string }) => {
       await applySession(await repository.verifyOtp(input));
+      // Explicit `login` event on a real OTP verify only. Fired here rather than
+      // from the AnalyticsProvider so a cold-start rehydrate (which also reaches
+      // "signed-in") is never counted as a login. Best-effort and non-throwing.
+      trackEvent("login");
       void loadUser();
     },
     [applySession, loadUser, repository],

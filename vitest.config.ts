@@ -47,6 +47,10 @@ export default defineConfig({
       { find: /^expo-updates$/, replacement: here("./test/stubs/expo-updates.ts") },
       { find: /^expo-image$/, replacement: here("./test/stubs/expo-image.tsx") },
       { find: /^phosphor-react-native$/, replacement: here("./test/stubs/phosphor-react-native.tsx") },
+      // The Amplitude RN SDK's default entry is untranspiled TS that links a
+      // native module — unloadable in jsdom. analytics.ts is a guarded no-op
+      // without a successful init, so a no-op stub matches test behaviour.
+      { find: /^@amplitude\/analytics-react-native$/, replacement: here("./test/stubs/amplitude-analytics-react-native.ts") },
       // Exact match only: `react-native-web`, `react-native-svg` and
       // `react-native-safe-area-context` must NOT be rewritten.
       { find: /^react-native$/, replacement: here("./test/stubs/react-native.ts") },
