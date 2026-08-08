@@ -286,6 +286,34 @@ export interface PromoInput {
   status: PromoStatus;
 }
 
+// ---- Stories (restaurant rail) ---------------------------------------------
+
+/** One story on a restaurant's rail (stories.storyResponse). The list endpoint
+ * returns ALL of them, active and inactive, ordered by `sort_order`. */
+export interface Story {
+  id: string;
+  image_url: string;
+  caption: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+/**
+ * Create/update payload for a story.
+ *
+ * `image_url` is required on create (an http(s) URL); the rest are optional and
+ * the server fills defaults (`sort_order` = end, `is_active` = true). Update
+ * sends a PARTIAL of this shape — only the fields the operator changed — so the
+ * client's updateStory takes `Partial<StoryInput>`.
+ */
+export interface StoryInput {
+  image_url: string;
+  caption?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
 // ---- Home-feed placement (merchandising) -----------------------------------
 
 /** Which entity a feed placement points at (domain.FeedItemKind). The path
