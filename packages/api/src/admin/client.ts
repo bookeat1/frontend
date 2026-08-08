@@ -914,6 +914,126 @@ export class AdminApiClient {
       params: { q: query, per_page: perPage },
     });
   }
+
+  // ---- Media (image upload) ------------------------------------------------
+
+  /**
+   * POST /admin/media/images — upload one image, get its public URL back.
+   *
+   * This is the one write that MUST NOT go through request<T>(): multipart
+   * cannot carry a forced `Content-Type: application/json`. The browser has to
+   * set `multipart/form-data; boundary=…` itself, derived from the FormData
+   * body, so we hand fetch the FormData untouched and set NO Content-Type — a
+   * hardcoded one would ship the wrong boundary and every part would be
+   * rejected. Everything else mirrors request(): a token is fetched up front
+   * (renewed if about to expire) via the same getToken, and the upload is
+   * replayed exactly once if it still comes back 401 via the same
+   * onUnauthorized. A fresh FormData per attempt because a request body can
+   * only be consumed once.
+   *
+   * Non-2xx maps to an AdminApiError carrying the HTTP status and a stable,
+   * i18n-free code (see imageUploadErrorCode) so the panel can show a friendly
+   * message for the cases a user can act on (>8MB, wrong type, not configured).
+   */
+  async uploadImage(file: File | Blob): Promise<string> {
+    const token = (await this.getToken?.()) ?? null;
+
+    const send = (bearer: string | null): Promise<Response> => {
+      const form = new FormData();
+      form.append("file", file, file instanceof File ? file.name : "upload");
+      const headers: Record<string, string> = { Accept: "application/json" };
+      // Deliberately NO Content-Type here — see the method doc.
+      if (bearer) headers.Authorization = `Bearer ${bearer}`;
+      return fetch(`${this.baseUrl}/admin/media/images`, {
+        method: "POST",
+        headers,
+        body: form,
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+    };
+
+    let response: Response;
+    try {
+      response = await send(token);
+      if (response.status === 401 && this.onUnauthorized) {
+        const renewed = await this.onUnauthorized(token);
+        if (renewed) response = await send(renewed);
+      }
+    } catch (cause) {
+      if (cause instanceof Error && cause.name === "TimeoutError") {
+        throw new RepositoryError(`Image upload timed out after ${this.timeoutMs}ms`, cause);
+      }
+      if (cause instanceof RepositoryError) throw cause; // e.g. a failed refresh
+      throw new RepositoryError("Network error uploading image", cause);
+    }
+
+    let body: Envelope<{ url: string }> | undefined;
+    try {
+      body = (await response.json()) as Envelope<{ url: string }>;
+    } catch (cause) {
+      if (!response.ok) {
+        throw new AdminApiError(
+          `Image upload failed with ${response.status}`,
+          response.status,
+          cause,
+          imageUploadErrorCode(response.status),
+        );
+      }
+      throw new RepositoryError("Empty or malformed response uploading image", cause);
+    }
+
+    if (!response.ok) {
+      throw new AdminApiError(
+        body?.error ?? `Image upload failed with ${response.status}`,
+        response.status,
+        undefined,
+        imageUploadErrorCode(response.status, body?.code),
+      );
+    }
+
+    const url = body?.data?.url;
+    if (!url) throw new RepositoryError("Image upload response carried no url");
+    return url;
+  }
+}
+
+/** Stable, i18n-free classification of an image-upload failure, derived from
+ * the HTTP status (a code the server sent wins if it is already one of these).
+ * The panel switches on this to show a friendly RU message for the cases a
+ * user can fix; anything else is a generic "try again". Surfaced on
+ * AdminApiError.code by uploadImage. */
+export type ImageUploadErrorCode =
+  | "image_too_large"
+  | "image_bad_type"
+  | "image_upload_unconfigured"
+  | "unauthorized"
+  | "upload_failed";
+
+const IMAGE_UPLOAD_CODES: readonly ImageUploadErrorCode[] = [
+  "image_too_large",
+  "image_bad_type",
+  "image_upload_unconfigured",
+  "unauthorized",
+  "upload_failed",
+];
+
+export function imageUploadErrorCode(status: number, serverCode?: string): ImageUploadErrorCode {
+  if (serverCode && (IMAGE_UPLOAD_CODES as readonly string[]).includes(serverCode)) {
+    return serverCode as ImageUploadErrorCode;
+  }
+  switch (status) {
+    case 413:
+      return "image_too_large";
+    case 422:
+      return "image_bad_type";
+    case 503:
+      return "image_upload_unconfigured";
+    case 401:
+    case 403:
+      return "unauthorized";
+    default:
+      return "upload_failed";
+  }
 }
 
 /** Thrown on any non-2xx admin response; carries the HTTP status so the UI can
