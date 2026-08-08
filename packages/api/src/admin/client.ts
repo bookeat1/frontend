@@ -58,6 +58,11 @@ interface Envelope<T> {
 
 const DEFAULT_TIMEOUT_MS = 12000;
 
+/** Image uploads carry up to 8MB of body, so the 12s JSON default would abort a
+ * legitimate upload on a slow mobile connection and surface as a spurious
+ * "network error". Give multipart its own, much longer budget. */
+const UPLOAD_TIMEOUT_MS = 60000;
+
 type Params = Record<string, string | number | boolean | undefined>;
 
 export interface AdminApiClientOptions {
@@ -948,7 +953,10 @@ export class AdminApiClient {
         method: "POST",
         headers,
         body: form,
-        signal: AbortSignal.timeout(this.timeoutMs),
+        // An 8MB upload needs a longer budget than the JSON default — see
+        // UPLOAD_TIMEOUT_MS. A fresh signal per attempt so a retry is not born
+        // already aborted.
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       });
     };
 
@@ -961,7 +969,7 @@ export class AdminApiClient {
       }
     } catch (cause) {
       if (cause instanceof Error && cause.name === "TimeoutError") {
-        throw new RepositoryError(`Image upload timed out after ${this.timeoutMs}ms`, cause);
+        throw new RepositoryError(`Image upload timed out after ${UPLOAD_TIMEOUT_MS}ms`, cause);
       }
       if (cause instanceof RepositoryError) throw cause; // e.g. a failed refresh
       throw new RepositoryError("Network error uploading image", cause);

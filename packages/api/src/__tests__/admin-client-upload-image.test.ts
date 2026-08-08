@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AdminApiClient, AdminApiError, imageUploadErrorCode } from "../admin/client";
+import { RepositoryError } from "../repository";
 
 /**
  * uploadImage is the ONE admin write that must send multipart, not JSON. These
@@ -25,7 +26,7 @@ function initOf(call: unknown[]): RequestInit {
 
 describe("uploadImage — multipart, auth, and error mapping", () => {
   it("POSTs FormData under `file` with a bearer token and NO forced JSON content-type", async () => {
-    const fetchMock = vi.fn(async () =>
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) =>
       jsonResponse(200, { data: { url: "https://pub-x.r2.dev/uploads/a.jpg" } }),
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -86,14 +87,16 @@ describe("uploadImage — multipart, auth, and error mapping", () => {
     expect(initOf(fetchMock.mock.calls[1]).body).toBeInstanceOf(FormData);
   });
 
-  it("throws AdminApiError when the response carries no url", async () => {
+  it("throws RepositoryError on a 2xx whose body carries no url", async () => {
+    // A malformed success (200 but no data.url) is a protocol violation, not an
+    // HTTP failure, so it surfaces as a plain RepositoryError, not AdminApiError.
     const fetchMock = vi.fn(async () => jsonResponse(200, { data: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = new AdminApiClient({ baseUrl: BASE, getToken: () => "tok" });
     const file = new File([new Uint8Array([1])], "x.png", { type: "image/png" });
 
-    await expect(client.uploadImage(file)).rejects.toBeInstanceOf(Error);
+    await expect(client.uploadImage(file)).rejects.toBeInstanceOf(RepositoryError);
   });
 });
 
