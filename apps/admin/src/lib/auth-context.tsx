@@ -33,7 +33,10 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login(email: string, password: string): Promise<void>;
+  /** Resolves with the freshly-authenticated user so callers can act on the
+   * identity immediately (e.g. attach it to analytics before the provider's
+   * effect runs on the next render). */
+  login(email: string, password: string): Promise<AuthUser>;
   logout(): Promise<void>;
   selectRestaurant(restaurant: RestaurantContext): void;
   clearRestaurant(): void;
@@ -91,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user = await apiClient.getMe();
     window.localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
     setState((prev) => ({ ...prev, hydrated: true, token: pair.access_token, user }));
+    return user;
   }, [queryClient]);
 
   const logout = useCallback(async () => {

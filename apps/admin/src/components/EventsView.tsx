@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminEvent, EventInput, FeedItemState } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
 import {
   formatDateTime,
@@ -258,7 +259,10 @@ function EventFormModal({
   const mutation = useMutation({
     mutationFn: (input: EventInput) =>
       isEdit ? apiClient.updateEvent(event!.id, input) : apiClient.createEvent(restaurantId, input),
-    onSuccess: onSaved,
+    onSuccess: () => {
+      if (!isEdit) trackEvent("content_created", { type: "event" });
+      onSaved();
+    },
     onError: () => setFormError(t.admin.common.saveFailed),
   });
 

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Story, StoryInput } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 import { moveItem } from "@/lib/reorder";
@@ -244,7 +245,10 @@ function StoryFormModal({
       isEdit
         ? apiClient.updateStory(story!.id, input)
         : apiClient.createStory(restaurantId, input),
-    onSuccess: onSaved,
+    onSuccess: () => {
+      if (!isEdit) trackEvent("content_created", { type: "story" });
+      onSaved();
+    },
     onError: () => setFormError(t.admin.common.saveFailed),
   });
 
