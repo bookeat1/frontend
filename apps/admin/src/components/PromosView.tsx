@@ -11,6 +11,7 @@ import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
 import { FeedControl } from "./ui/FeedControl";
 import { Field, TextArea, TextInput, CheckboxRow } from "./ui/FormControls";
+import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
@@ -310,16 +311,12 @@ function PromoFormModal({
         <Field label={t.admin.promos.fieldTerms} hint={t.admin.promos.fieldTermsHint}>
           <TextArea value={terms} onChange={(e) => setTerms(e.target.value)} />
         </Field>
-        <Field label={t.admin.promos.fieldCover} hint={t.admin.promos.fieldCoverHint}>
-          <TextInput
-            type="url"
-            inputMode="url"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            placeholder="https://…"
-            maxLength={2048}
-          />
-        </Field>
+        <ImageUploadField
+          label={t.admin.promos.fieldCover}
+          hint={t.admin.promos.fieldCoverHint}
+          value={coverImageUrl}
+          onChange={setCoverImageUrl}
+        />
         <Field label={t.admin.promos.fieldDiscount} hint={t.admin.promos.fieldDiscountHint}>
           <TextInput
             type="number"

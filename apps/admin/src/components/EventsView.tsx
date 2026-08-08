@@ -18,6 +18,7 @@ import { formatTags, parseTags } from "@/lib/tags";
 import { Button } from "./ui/Button";
 import { FeedControl } from "./ui/FeedControl";
 import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
+import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
@@ -327,15 +328,11 @@ function EventFormModal({
         <Field label={t.admin.events.fieldTags} hint={t.admin.events.fieldTagsHint}>
           <TextInput value={tags} onChange={(e) => setTags(e.target.value)} maxLength={300} />
         </Field>
-        <Field label={t.admin.events.fieldCover}>
-          <TextInput
-            type="url"
-            inputMode="url"
-            value={cover}
-            onChange={(e) => setCover(e.target.value)}
-            placeholder="https://…"
-          />
-        </Field>
+        <ImageUploadField
+          label={t.admin.events.fieldCover}
+          value={cover}
+          onChange={setCover}
+        />
 
         <CheckboxRow
           label={t.admin.events.fieldTicketed}

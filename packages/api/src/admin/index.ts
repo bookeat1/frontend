@@ -4,7 +4,13 @@
  * web bundle. Consumed by apps/admin.
  */
 export * from "./types";
-export { AdminApiClient, AdminApiError, type AdminApiClientOptions } from "./client";
+export {
+  AdminApiClient,
+  AdminApiError,
+  imageUploadErrorCode,
+  type AdminApiClientOptions,
+  type ImageUploadErrorCode,
+} from "./client";
 export {
   classifyCapacitySwitchFailure,
   type CapacitySwitchFailure,
