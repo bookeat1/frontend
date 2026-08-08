@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { href: "/promos", label: t.admin.nav.promos },
   { href: "/guests", label: t.admin.nav.guests },
   { href: "/gastroguide", label: t.admin.nav.gastroguide, adminOnly: true },
+  { href: "/feed-moderation", label: t.admin.nav.feedModeration, adminOnly: true },
   { href: "/settings", label: t.admin.nav.settings },
   { href: "/platform", label: "Платформа", adminOnly: true },
 ];

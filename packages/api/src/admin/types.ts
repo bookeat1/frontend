@@ -336,6 +336,23 @@ export interface FeedItemState {
   placement_weight: number;
 }
 
+/** Upper bound of the paid-placement lever (domain.MaxFeedPlacementWeight).
+ * The weight is clamped to 0..this both on the client (input) and re-validated
+ * on the server. */
+export const MAX_FEED_PLACEMENT_WEIGHT = 100;
+
+/** The superadmin's moderation decision for one queued item (feed.reviewRequest).
+ * `approve=false` REQUIRES a non-empty `rejection_reason` (the venue must be told
+ * what to fix); the server rejects a reasonless rejection with 422. On approve,
+ * `rejection_reason` is ignored. `placement_weight` is optional and prices the
+ * placement in the same call — omitted leaves the current weight untouched;
+ * present it must be 0..MAX_FEED_PLACEMENT_WEIGHT. */
+export interface FeedReviewInput {
+  approve: boolean;
+  rejection_reason?: string;
+  placement_weight?: number;
+}
+
 // ---- Schedule --------------------------------------------------------------
 
 /** One weekday's working hours (admin.workingHoursResponse). day_of_week is
