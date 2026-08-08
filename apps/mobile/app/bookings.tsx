@@ -2,7 +2,7 @@ import type { Booking, BookingStatus } from "@bookeat/api";
 import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar } from "../src/components/BottomNavBar";
@@ -92,6 +92,20 @@ export default function MyBookingsScreen() {
 
   const visibleBookings = activeTab === TAB_HISTORY ? history : active;
   const isEmpty = visibleBookings.length === 0;
+
+  // Deterministic pagination for the selected tab, independent of the FlatList
+  // firing onEndReached on a short/empty list. When the selected tab's loaded
+  // bucket is empty but the server still has pages (`starts_at DESC` can front-
+  // load the whole first page with the OTHER tab's bookings), keep paging until
+  // this bucket has an item or the pages run out. It cannot loop: `hasNextPage`
+  // goes false once the last page is in, which both drops it from the deps and
+  // fails the guard, so an all-other-tab result stops instead of spinning.
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+  useEffect(() => {
+    if (isEmpty && hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [activeTab, isEmpty, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // The empty state is passed as `ListEmptyComponent`, NOT returned early: the
   // FlatList must always mount so `onEndReached`/`fetchNextPage` stay wired even
