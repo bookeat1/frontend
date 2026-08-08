@@ -29,6 +29,7 @@ const NAV: NavItem[] = [
   { href: "/schedule", label: t.admin.nav.schedule },
   { href: "/events", label: t.admin.nav.events },
   { href: "/promos", label: t.admin.nav.promos },
+  { href: "/stories", label: t.admin.nav.stories },
   { href: "/guests", label: t.admin.nav.guests },
   { href: "/gastroguide", label: t.admin.nav.gastroguide, adminOnly: true },
   { href: "/feed-moderation", label: t.admin.nav.feedModeration, adminOnly: true },

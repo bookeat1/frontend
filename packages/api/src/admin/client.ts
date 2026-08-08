@@ -36,6 +36,8 @@ import type {
   RestaurantPricePatch,
   RestaurantPricing,
   RestaurantProfile,
+  Story,
+  StoryInput,
   TelegramSettings,
   TokenPair,
   TopRestaurant,
@@ -405,6 +407,59 @@ export class AdminApiClient {
 
   async deletePromo(promoId: string): Promise<void> {
     await this.request<unknown>("DELETE", `/admin/promos/${encodeURIComponent(promoId)}`);
+  }
+
+  // ---- Stories (restaurant rail) -------------------------------------------
+  //
+  // Restaurant-scoped CRUD for the story rail on a venue's card (backend PR #71,
+  // PermRestaurantManage). The LIST returns EVERY story, active and inactive,
+  // already ordered by sort_order; the create/patch routes carry the venue id or
+  // the story id as the contract dictates.
+
+  /** GET /admin/restaurants/:id/stories — all stories (incl. inactive), ordered
+   * by sort_order. Returns the raw array (the envelope's data IS the array). */
+  listStories(restaurantId: string): Promise<Story[]> {
+    return this.request<Story[]>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/stories`,
+    ).then((res) => res ?? []);
+  }
+
+  /** POST /admin/restaurants/:id/stories — create one. `image_url` is required;
+   * `sort_order` defaults to the end and `is_active` to true server-side. */
+  createStory(restaurantId: string, input: StoryInput): Promise<Story> {
+    return this.request<Story>(
+      "POST",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/stories`,
+      { body: input },
+    );
+  }
+
+  /** PUT /admin/stories/:storyId — partial update (the story id resolves its
+   * owning restaurant server-side). Send only the changed fields. */
+  updateStory(storyId: string, input: Partial<StoryInput>): Promise<Story> {
+    return this.request<Story>("PUT", `/admin/stories/${encodeURIComponent(storyId)}`, {
+      body: input,
+    });
+  }
+
+  async deleteStory(storyId: string): Promise<void> {
+    await this.request<unknown>("DELETE", `/admin/stories/${encodeURIComponent(storyId)}`);
+  }
+
+  /**
+   * POST /admin/restaurants/:id/stories/reorder — rewrite sort_order to match
+   * the given id order. Foreign ids are ignored server-side, so a payload built
+   * from a slightly stale list is safe (it never touches stories it does not
+   * name). Carries the WHOLE intended order rather than a move, so replaying it
+   * after a lost response is harmless.
+   */
+  async reorderStories(restaurantId: string, orderedIds: string[]): Promise<void> {
+    await this.request<unknown>(
+      "POST",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/stories/reorder`,
+      { body: { ordered_ids: orderedIds } },
+    );
   }
 
   // ---- Home-feed placement (venue submit / withdraw) -----------------------
