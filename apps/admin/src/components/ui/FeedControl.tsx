@@ -8,23 +8,34 @@ import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { Button } from "./Button";
 
-const BADGE_STYLES: Record<FeedStatus, string> = {
-  not_submitted: "bg-chip text-text-muted",
-  pending_review: "bg-amber-100 text-amber-800",
-  approved: "bg-emerald-100 text-emerald-800",
-  rejected: "bg-rose-100 text-rose-700",
-};
-
-function badgeLabel(status: FeedStatus): string {
+/**
+ * Badge label + pill tone for one item. Approved is special: `feed_status`
+ * alone says the superadmin said yes, but the item is only actually ON Home
+ * inside its active window — so we split it on `lifecycle` (live vs scheduled
+ * vs expired) to avoid telling a venue "На главной" for an item that is not
+ * showing yet or has already ended. When lifecycle is missing/unknown we fall
+ * back to the plain approved label. The action button ignores all this and is
+ * decided by feed_status alone (see below).
+ */
+function badge(state: FeedItemState | undefined): { label: string; className: string } {
+  const status: FeedStatus = state?.feed_status ?? "not_submitted";
   switch (status) {
     case "pending_review":
-      return t.admin.feed.badgePending;
+      return { label: t.admin.feed.badgePending, className: "bg-amber-100 text-amber-800" };
     case "approved":
-      return t.admin.feed.badgeApproved;
+      switch (state?.lifecycle) {
+        case "approved":
+          return { label: t.admin.feed.badgeApprovedScheduled, className: "bg-chip text-text" };
+        case "expired":
+          return { label: t.admin.feed.badgeApprovedExpired, className: "bg-chip text-text-muted" };
+        case "live":
+        default:
+          return { label: t.admin.feed.badgeApproved, className: "bg-emerald-100 text-emerald-800" };
+      }
     case "rejected":
-      return t.admin.feed.badgeRejected;
+      return { label: t.admin.feed.badgeRejected, className: "bg-rose-100 text-rose-700" };
     default:
-      return t.admin.feed.badgeNotSubmitted;
+      return { label: t.admin.feed.badgeNotSubmitted, className: "bg-chip text-text-muted" };
   }
 }
 
@@ -63,6 +74,7 @@ export function FeedControl({
   const status: FeedStatus = state?.feed_status ?? "not_submitted";
   const canSubmit = status === "not_submitted" || status === "rejected";
   const hint = kind === "promo" ? t.admin.feed.hintPromo : t.admin.feed.hintEvent;
+  const { label: badgeText, className: badgeClassName } = badge(state);
 
   const refresh = () =>
     Promise.all([
@@ -87,9 +99,9 @@ export function FeedControl({
       <div className="flex min-w-0 flex-col gap-xxs">
         <div className="flex flex-wrap items-center gap-sm">
           <span
-            className={`inline-block whitespace-nowrap rounded-pill px-sm py-xxs text-[11px] font-medium ${BADGE_STYLES[status]}`}
+            className={`inline-block whitespace-nowrap rounded-pill px-sm py-xxs text-[11px] font-medium ${badgeClassName}`}
           >
-            {badgeLabel(status)}
+            {badgeText}
           </span>
           {status === "rejected" && state?.rejection_reason ? (
             <span className="break-words text-[12px] text-rose-700">

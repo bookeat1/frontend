@@ -697,6 +697,8 @@ export const ru = {
       badgeNotSubmitted: "Не на главной",
       badgePending: "На модерации",
       badgeApproved: "На главной",
+      badgeApprovedScheduled: "Одобрено, ждёт даты",
+      badgeApprovedExpired: "Срок вышел",
       badgeRejected: "Отклонено",
       submit: "Отправить на главную",
       withdraw: "Отозвать с главной",
