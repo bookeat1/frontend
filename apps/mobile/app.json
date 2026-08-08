@@ -21,7 +21,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bookeatteam.bookeatapp"
+      "bundleIdentifier": "com.bookeatteam.bookeatapp",
+      "buildNumber": "29"
     },
     "android": {
       "adaptiveIcon": {

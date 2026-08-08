@@ -21,7 +21,8 @@
       "channel": "preview"
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
+      "credentialsSource": "local",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://test.backend.book-eat.com/api/v1",
         "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404"
