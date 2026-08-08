@@ -1,27 +1,53 @@
-import type { Booking } from "@bookeat/api";
+import type { Booking, BookingStatus } from "@bookeat/api";
 import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { BookingListCard } from "../src/components/booking/BookingListCard";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { FlowHeader } from "../src/components/FlowHeader";
-import { CalendarBlank } from "../src/components/icons";
+import { CalendarBlank, Clock } from "../src/components/icons";
+import { SegmentedTabs } from "../src/components/SegmentedTabs";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
 
 const t = getDictionary();
 
+/** Statuses that put a booking in История regardless of its time: the visit is
+ * finished or was called off. Everything else (`pending`/`confirmed`/`waitlist`/
+ * `arrived`) is judged by the clock instead. */
+const TERMINAL_STATUSES: readonly BookingStatus[] = ["completed", "cancelled", "no_show"];
+
+/**
+ * A booking belongs to История when it is in a terminal status OR it has
+ * already ended. `endsAt` (not `startsAt`) is the boundary on purpose: a visit
+ * that started an hour ago but runs until tonight is still «активная», not
+ * history. Everything not past is «Активные».
+ */
+function isPastBooking(booking: Booking, now: number): boolean {
+  if (TERMINAL_STATUSES.includes(booking.status)) return true;
+  return new Date(booking.endsAt).getTime() < now;
+}
+
+const TAB_ACTIVE = 0;
+const TAB_HISTORY = 1;
+
 /**
  * «Бронь» — the guest's own reservations (`GET /bookings`), server order
  * `starts_at DESC`, so the next visit is at the top and the history runs down.
  *
- * Five states, not four: loading / error / empty / list — plus SIGNED OUT,
- * which is neither an error nor an empty list. The endpoint is
+ * Two tabs, split CLIENT-SIDE from the single paginated list (there is no
+ * separate history endpoint): «Активные» = upcoming/ongoing & non-terminal,
+ * «История» = ended or cancelled/completed/no-show. Because the server order is
+ * `starts_at DESC`, the active tail sits on the first pages and history
+ * accumulates as the guest scrolls (`onEndReached` keeps paging the one list).
+ *
+ * Five whole-screen states, not four: loading / error / empty / list — plus
+ * SIGNED OUT, which is neither an error nor an empty list. The endpoint is
  * session-scoped, so an anonymous guest is offered the sign-in screen rather
  * than being told they have no bookings.
  *
@@ -33,6 +59,7 @@ export default function MyBookingsScreen() {
   const router = useRouter();
   const { status } = useAuth();
   const query = useMyBookings();
+  const [activeTab, setActiveTab] = useState<number>(TAB_ACTIVE);
 
   const openBooking = useCallback(
     (bookingId: string) => router.push({ pathname: "/booking/[id]", params: { id: bookingId } }),
@@ -44,10 +71,72 @@ export default function MyBookingsScreen() {
     [query.data],
   );
 
+  const { active, history } = useMemo(() => {
+    const now = Date.now();
+    const activeBucket: Booking[] = [];
+    const historyBucket: Booking[] = [];
+    for (const booking of bookings) {
+      (isPastBooking(booking, now) ? historyBucket : activeBucket).push(booking);
+    }
+    return { active: activeBucket, history: historyBucket };
+  }, [bookings]);
+
   const renderItem = useCallback(
     ({ item }: { item: Booking }) => <BookingListCard booking={item} onPress={openBooking} />,
     [openBooking],
   );
+
+  const visibleBookings = activeTab === TAB_HISTORY ? history : active;
+
+  const renderList = () => {
+    if (visibleBookings.length === 0) {
+      return activeTab === TAB_HISTORY ? (
+        <EmptyState
+          icon={Clock}
+          title={t.myBookings.emptyHistoryTitle}
+          description={t.myBookings.emptyHistoryDescription}
+        />
+      ) : (
+        <EmptyState
+          icon={CalendarBlank}
+          title={t.myBookings.emptyTitle}
+          description={t.myBookings.emptyDescription}
+          action={{
+            label: t.myBookings.emptyAction,
+            onPress: () => router.replace("/search"),
+            variant: "button",
+          }}
+        />
+      );
+    }
+
+    return (
+      <FlatList
+        data={visibleBookings}
+        keyExtractor={(booking) => booking.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshing={query.isRefetching && !query.isFetchingNextPage}
+        onRefresh={() => void query.refetch()}
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (query.hasNextPage && !query.isFetchingNextPage) {
+            void query.fetchNextPage();
+          }
+        }}
+        ListFooterComponent={
+          query.isFetchingNextPage ? (
+            <ActivityIndicator
+              style={styles.footer}
+              color={colors.brand.primary}
+              accessibilityLabel={t.myBookings.loadingMore}
+            />
+          ) : null
+        }
+      />
+    );
+  };
 
   return (
     <View style={styles.root}>
@@ -73,42 +162,17 @@ export default function MyBookingsScreen() {
           <LoadingState title={t.myBookings.loadingTitle} />
         ) : query.isError ? (
           <DataErrorState error={query.error} onRetry={() => void query.refetch()} />
-        ) : bookings.length === 0 ? (
-          <EmptyState
-            icon={CalendarBlank}
-            title={t.myBookings.emptyTitle}
-            description={t.myBookings.emptyDescription}
-            action={{
-              label: t.myBookings.emptyAction,
-              onPress: () => router.replace("/search"),
-              variant: "button",
-            }}
-          />
         ) : (
-          <FlatList
-            data={bookings}
-            keyExtractor={(booking) => booking.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            refreshing={query.isRefetching && !query.isFetchingNextPage}
-            onRefresh={() => void query.refetch()}
-            onEndReachedThreshold={0.5}
-            onEndReached={() => {
-              if (query.hasNextPage && !query.isFetchingNextPage) {
-                void query.fetchNextPage();
-              }
-            }}
-            ListFooterComponent={
-              query.isFetchingNextPage ? (
-                <ActivityIndicator
-                  style={styles.footer}
-                  color={colors.brand.primary}
-                  accessibilityLabel={t.myBookings.loadingMore}
-                />
-              ) : null
-            }
-          />
+          <>
+            <View style={styles.tabs}>
+              <SegmentedTabs
+                labels={[t.myBookings.tabActive, t.myBookings.tabHistory]}
+                activeIndex={activeTab}
+                onChange={setActiveTab}
+              />
+            </View>
+            {renderList()}
+          </>
         )}
       </View>
 
@@ -127,6 +191,12 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  tabs: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background.surface,
   },
   list: {
     padding: spacing.md,
