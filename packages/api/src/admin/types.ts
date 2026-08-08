@@ -286,6 +286,56 @@ export interface PromoInput {
   status: PromoStatus;
 }
 
+// ---- Home-feed placement (merchandising) -----------------------------------
+
+/** Which entity a feed placement points at (domain.FeedItemKind). The path
+ * segment `:kind` in the feed item routes. */
+export type FeedItemKind = "promo" | "event";
+
+/** The platform's moderation decision for one item (domain.FeedStatus). This is
+ * the axis the venue submit/withdraw flow moves along, and what the panel's
+ * badge/button branch on:
+ *   not_submitted → (submit) → pending_review → (superadmin approve) → approved
+ *   pending_review|approved → (withdraw) → not_submitted
+ *   pending_review → (superadmin reject) → rejected → (submit) → pending_review
+ */
+export type FeedStatus = "not_submitted" | "pending_review" | "approved" | "rejected";
+
+/** The richer lifecycle the venue sees (domain.FeedLifecycle): FeedStatus folded
+ * together with the item's active window — `approved` splits into `approved`
+ * (waiting for its start date) vs `live` (on Home right now) vs `expired`.
+ * Carried for completeness; badges/buttons key off `feed_status`. */
+export type FeedLifecycle =
+  | "not_submitted"
+  | "submitted"
+  | "rejected"
+  | "approved"
+  | "live"
+  | "expired";
+
+/** One promo/event's feed & moderation state (feed.stateResponse). Returned by
+ * listVenueFeed / getFeedItem / submitFeedItem / withdrawFeedItem.
+ * `rejection_reason` is present only on a rejection; the `*_at`/`reviewed_by`
+ * fields are omitted until the corresponding step happened. */
+export interface FeedItemState {
+  kind: FeedItemKind;
+  id: string;
+  restaurant_id: string;
+  restaurant_name: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  /** The item's own publication status (promo/event status), not moderation. */
+  item_status: string;
+  feed_status: FeedStatus;
+  lifecycle: FeedLifecycle;
+  submitted_at?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  rejection_reason?: string;
+  placement_weight: number;
+}
+
 // ---- Schedule --------------------------------------------------------------
 
 /** One weekday's working hours (admin.workingHoursResponse). day_of_week is
