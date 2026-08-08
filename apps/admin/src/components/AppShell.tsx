@@ -45,10 +45,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Sidebar (top bar on narrow screens). */}
       <aside className="flex flex-col border-b border-hairline bg-surface md:w-64 md:shrink-0 md:border-b-0 md:border-r">
-        <div className="flex items-center gap-sm px-lg py-lg">
+        {/* The wordmark links to the dashboard (Сводка), like a site logo. */}
+        <Link
+          href="/"
+          aria-label="На главную (Сводка)"
+          className="flex items-center gap-sm px-lg py-lg transition-opacity hover:opacity-80"
+        >
           <span className="inline-block h-6 w-6 rounded-md bg-brand" aria-hidden="true" />
           <span className="text-sm font-bold text-text">BookEat</span>
-        </div>
+        </Link>
 
         <nav aria-label="Основная навигация" className="flex gap-xs overflow-x-auto px-md pb-md md:flex-col md:overflow-visible">
           {NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => {
