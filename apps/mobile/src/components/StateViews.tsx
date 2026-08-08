@@ -1,8 +1,13 @@
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import type { IconProps } from "./icons";
 import { PrimaryButton } from "./PrimaryButton";
+
+/** Diameter of the circular icon container from the Figma «Состояния» template
+ * (node 997:10239). Kept as one constant so the radius stays exactly half of
+ * it — the container must always render as a perfect circle, never a squircle. */
+const ICON_CONTAINER_SIZE = 64;
 
 /**
  * Shared empty / error / loading state views.
@@ -135,9 +140,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.none,
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.avatar,
+    width: ICON_CONTAINER_SIZE,
+    height: ICON_CONTAINER_SIZE,
+    // A perfect circle (Figma «Состояния»: light-grey circle, grey glyph
+    // centred), so the radius is always half the size — not a rounded square.
+    borderRadius: ICON_CONTAINER_SIZE / 2,
     backgroundColor: colors.background.chip,
     alignItems: "center",
     justifyContent: "center",
