@@ -76,8 +76,7 @@ export default function ArticleDetailScreen() {
         <ErrorState
           title={t.articles.errorTitle}
           description={t.articles.errorDescription}
-          retryLabel={t.common.retry}
-          onRetry={() => query.refetch()}
+          action={{ label: t.common.retry, onPress: () => query.refetch(), variant: "button" }}
         />
       </View>
     );

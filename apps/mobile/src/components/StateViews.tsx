@@ -1,25 +1,66 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import type { IconProps } from "./icons";
 import { PrimaryButton } from "./PrimaryButton";
 
+/** Diameter of the circular icon container from the Figma «Состояния» template
+ * (node 997:10239). Kept as one constant so the radius stays exactly half of
+ * it — the container must always render as a perfect circle, never a squircle. */
+const ICON_CONTAINER_SIZE = 64;
+
 /**
- * Shared full-bleed state views used across search / restaurant screens
- * whenever a query is loading, empty, or errored — matches the "Загрузка"
- * screen (Figma node 347:4956). NOTE: the mockup's spinner is a custom
- * red/white conic-gradient ring; React Native's platform ActivityIndicator
- * can't reproduce a conic gradient without an extra drawing library, so this
- * uses the native spinner tinted brand red as the closest faithful
- * approximation — flagged in the delivery report.
+ * Shared empty / error / loading state views.
  *
- * `compact` drops the `flex: 1` so the same three states can be dropped INTO
- * a section of a scrolling screen (the reservation screen's slot list, the
- * pre-order menu) instead of only owning a whole screen. Without it a state
- * view inside a ScrollView collapses to zero height.
+ * The empty and error states are ONE template, taken 1:1 from the Figma
+ * «Состояния» section (file 7rBjjTjp4FbxV9SCJmypWF, node 997:10239): an icon in
+ * a 64×64 rounded square, a title, a description, and an optional action —
+ * either a red text-link or a filled red button — centred in the content area.
+ * `EmptyState` and `ErrorState` are the same markup; they differ only in the
+ * accessibility role (`ErrorState` announces as an alert) so a screen reader
+ * treats a failure differently from an ordinary "nothing here yet".
+ *
+ * NOTE: Figma's exact icon-container fill and icon tint could not be pulled
+ * live (the Figma MCP design-context tool was not reachable from this run), so
+ * the container maps to the existing neutral chip token and the glyph to the
+ * muted-strong text token — the palette the rest of the app's placeholders
+ * already use. Flagged in the delivery report; swap to the design token if the
+ * pulled context says otherwise.
+ *
+ * `compact` drops the `flex: 1` so the same template can be dropped INTO a
+ * section of a scrolling screen (the Home «Афиша»/«Выбрали для вас» rails)
+ * instead of only owning a whole screen. Without it a state view inside a
+ * ScrollView collapses to zero height.
  */
+
+export type StateActionVariant = "link" | "button";
+
+export interface StateAction {
+  label: string;
+  onPress: () => void;
+  /** `button` — a filled red CTA (e.g. «Найти ресторан»); `link` — a red
+   * text-link (e.g. «Написать в поддержку», «Сбросить фильтры»). */
+  variant: StateActionVariant;
+}
 
 interface StateProps {
   compact?: boolean;
+}
+
+interface StateViewProps extends StateProps {
+  /**
+   * The 64×64 glyph. Optional: the states covered by the Figma «Состояния»
+   * section always pass their exact icon, but many older detail/booking/profile
+   * states have no icon in the design yet — those omit it and render just the
+   * title/description/action rather than showing a fabricated glyph. Add the
+   * icon here once the design covers the state.
+   */
+  icon?: React.ComponentType<IconProps>;
+  title: string;
+  description: string;
+  action?: StateAction;
+  /** `alert` for a failure, `none` for an ordinary empty state. */
+  accessibilityRole?: "alert" | "none";
 }
 
 export function LoadingState({ title, compact }: { title: string } & StateProps) {
@@ -30,53 +71,60 @@ export function LoadingState({ title, compact }: { title: string } & StateProps)
       accessibilityLabel={title}
     >
       <ActivityIndicator size="large" color={colors.brand.primary} />
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.loadingTitle}>{title}</Text>
     </View>
   );
 }
 
-export function EmptyState({
+/** The shared empty/error template. Prefer `EmptyState`/`ErrorState`, which
+ * pin the correct accessibility role for you. */
+export function StateView({
+  icon: Icon,
   title,
   description,
-  actionLabel,
-  onAction,
+  action,
   compact,
-}: {
-  title: string;
-  description: string;
-  actionLabel?: string;
-  onAction?: () => void;
-} & StateProps) {
+  accessibilityRole = "none",
+}: StateViewProps) {
   return (
-    <View style={[styles.center, compact && styles.compact]}>
+    <View
+      style={[styles.center, compact && styles.compact]}
+      accessibilityRole={accessibilityRole === "alert" ? "alert" : undefined}
+    >
+      {Icon ? (
+        <View style={styles.iconContainer}>
+          <Icon size={32} color={colors.text.mutedStrong} weight="regular" />
+        </View>
+      ) : null}
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
-      {actionLabel && onAction ? (
-        <PrimaryButton label={actionLabel} onPress={onAction} variant="secondary" />
+      {action ? (
+        action.variant === "button" ? (
+          <View style={styles.action}>
+            <PrimaryButton label={action.label} onPress={action.onPress} />
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            onPress={action.onPress}
+            hitSlop={spacing.sm}
+            style={({ pressed }) => [styles.link, pressed && styles.linkPressed]}
+          >
+            <Text style={styles.linkLabel}>{action.label}</Text>
+          </Pressable>
+        )
       ) : null}
     </View>
   );
 }
 
-export function ErrorState({
-  title,
-  description,
-  retryLabel,
-  onRetry,
-  compact,
-}: {
-  title: string;
-  description: string;
-  retryLabel: string;
-  onRetry: () => void;
-} & StateProps) {
-  return (
-    <View style={[styles.center, compact && styles.compact]} accessibilityRole="alert">
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.description}>{description}</Text>
-      <PrimaryButton label={retryLabel} onPress={onRetry} />
-    </View>
-  );
+export function EmptyState(props: Omit<StateViewProps, "accessibilityRole">) {
+  return <StateView {...props} accessibilityRole="none" />;
+}
+
+export function ErrorState(props: Omit<StateViewProps, "accessibilityRole">) {
+  return <StateView {...props} accessibilityRole="alert" />;
 }
 
 const styles = StyleSheet.create({
@@ -85,12 +133,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xxl,
-    gap: spacing.md,
   },
   compact: {
     flex: 0,
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.none,
+  },
+  iconContainer: {
+    width: ICON_CONTAINER_SIZE,
+    height: ICON_CONTAINER_SIZE,
+    // A perfect circle (Figma «Состояния»: light-grey circle, grey glyph
+    // centred), so the radius is always half the size — not a rounded square.
+    borderRadius: ICON_CONTAINER_SIZE / 2,
+    backgroundColor: colors.background.chip,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xl,
   },
   title: {
     ...typography.titleMd,
@@ -100,6 +158,30 @@ const styles = StyleSheet.create({
   description: {
     ...typography.body,
     color: colors.text.muted,
+    textAlign: "center",
+    marginTop: spacing.sm,
+  },
+  // The loading state keeps the pre-template spacing (spinner over a caption).
+  loadingTitle: {
+    ...typography.titleMd,
+    color: colors.text.primary,
+    textAlign: "center",
+    marginTop: spacing.md,
+  },
+  action: {
+    marginTop: spacing.xl,
+  },
+  link: {
+    marginTop: spacing.xl,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  linkPressed: {
+    opacity: 0.6,
+  },
+  linkLabel: {
+    ...typography.labelSemiBold,
+    color: colors.brand.primary,
     textAlign: "center",
   },
 });

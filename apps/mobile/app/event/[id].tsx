@@ -90,8 +90,7 @@ export default function EventDetailScreen() {
         <ErrorState
           title={t.explore.eventsErrorTitle}
           description={t.explore.eventsErrorDescription}
-          retryLabel={t.common.retry}
-          onRetry={refetch}
+          action={{ label: t.common.retry, onPress: refetch, variant: "button" }}
         />
       </View>
     );
@@ -107,8 +106,11 @@ export default function EventDetailScreen() {
         <EmptyState
           title={t.afisha.notFoundTitle}
           description={t.afisha.notFoundDescription}
-          actionLabel={t.common.retry}
-          onAction={() => void eventsQuery.refetch()}
+          action={{
+            label: t.common.retry,
+            onPress: () => void eventsQuery.refetch(),
+            variant: "button",
+          }}
         />
       </View>
     );

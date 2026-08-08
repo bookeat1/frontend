@@ -44,6 +44,26 @@ export function openWhatsApp(value: string): Promise<boolean> {
   return open(`https://wa.me/${digits}`);
 }
 
+/**
+ * Support contact for the empty/error states' «Написать в поддержку» link.
+ *
+ * The app has NO support channel wired yet — there is no support number, email
+ * or chat URL anywhere in the codebase or the backend contract. Rather than
+ * invent one (a wrong `wa.me` number would dial a real stranger), this is an
+ * explicit `undefined` placeholder and `openSupport` is no-op-safe: the link
+ * renders and is tappable, but does nothing until a real contact is set here.
+ * Flagged in the delivery report — set this to the real `wa.me`/`https`/`mailto`
+ * URL when support gives us one, and every state's link starts working with no
+ * further code change.
+ */
+export const SUPPORT_CONTACT_URL: string | undefined = undefined;
+
+/** Opens the support contact if one is configured; a safe no-op otherwise. */
+export function openSupport(): Promise<boolean> {
+  if (!SUPPORT_CONTACT_URL) return Promise.resolve(false);
+  return open(SUPPORT_CONTACT_URL);
+}
+
 /** Instagram. A bare "@handle" or "handle" becomes a profile URL. */
 export function openInstagram(value: string): Promise<boolean> {
   const raw = value.trim();

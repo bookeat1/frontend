@@ -238,10 +238,29 @@ export class HttpClient {
       });
     } catch (cause) {
       if (cause instanceof Error && cause.name === "TimeoutError") {
-        throw new RepositoryError(`Request to ${path} timed out after ${this.timeoutMs}ms`, cause);
+        // A hung connection that never answered is, from the guest's side, the
+        // same as being offline: nothing to read, retry is the only move. So it
+        // carries the same `networkFailure` flag → the «Нет подключения» state.
+        throw new RepositoryError(
+          `Request to ${path} timed out after ${this.timeoutMs}ms`,
+          cause,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          true,
+        );
       }
       // Covers "no network", DNS failure, connection refused, etc.
-      throw new RepositoryError(`Network error requesting ${path}`, cause);
+      throw new RepositoryError(
+        `Network error requesting ${path}`,
+        cause,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      );
     }
 
     // Whole seconds the server itself asked us to wait. Only the rate-limit

@@ -72,8 +72,11 @@ export default function CitySelectScreen() {
         <ErrorState
           title={t.city.errorTitle}
           description={t.city.errorDescription}
-          retryLabel={t.common.retry}
-          onRetry={() => void citiesQuery.refetch()}
+          action={{
+            label: t.common.retry,
+            onPress: () => void citiesQuery.refetch(),
+            variant: "button",
+          }}
         />
       ) : !hasCities ? (
         // The server returned no cities at all — not a failed search.

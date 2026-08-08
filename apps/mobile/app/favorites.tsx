@@ -6,9 +6,11 @@ import React, { useCallback } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar } from "../src/components/BottomNavBar";
+import { DataErrorState } from "../src/components/DataErrorState";
 import { FlowHeader } from "../src/components/FlowHeader";
+import { Heart } from "../src/components/icons";
 import { RestaurantCard } from "../src/components/RestaurantCard";
-import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
+import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { useFavorites } from "../src/hooks/useFavorites";
 import { useAuth } from "../src/lib/auth";
 
@@ -54,26 +56,26 @@ export default function FavoritesScreen() {
           <LoadingState title={t.favorites.loadingTitle} />
         ) : status === "signed-out" ? (
           <EmptyState
+            icon={Heart}
             title={t.favorites.signedOutTitle}
             description={t.favorites.signedOutDescription}
-            actionLabel={t.favorites.signIn}
-            onAction={() => router.push("/auth/sign-in")}
+            action={{
+              label: t.favorites.signIn,
+              onPress: () => router.push("/auth/sign-in"),
+              variant: "button",
+            }}
           />
         ) : query.isPending ? (
           <LoadingState title={t.favorites.loadingTitle} />
         ) : query.isError ? (
-          <ErrorState
-            title={t.favorites.errorTitle}
-            description={t.favorites.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => void query.refetch()}
-          />
+          <DataErrorState error={query.error} onRetry={() => void query.refetch()} />
         ) : query.data.length === 0 ? (
+          // Figma «Состояния»: пустое избранное без действия — только иконка,
+          // заголовок и описание.
           <EmptyState
+            icon={Heart}
             title={t.favorites.emptyTitle}
             description={t.favorites.emptyDescription}
-            actionLabel={t.favorites.emptyAction}
-            onAction={() => router.replace("/search")}
           />
         ) : (
           <FlatList

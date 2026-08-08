@@ -421,9 +421,39 @@ export class RepositoryError extends Error {
      * invented on the client would be a guess about somebody else's window.
      */
     public readonly retryAfterSeconds?: number,
+    /**
+     * The request never reached (or never got an answer from) the server — no
+     * network, DNS failure, connection refused, or the request timed out. The
+     * transport layer sets this at the two `fetch`-rejection throw sites in
+     * http-client.ts; a server that answered (any HTTP status, or a malformed
+     * body) leaves it `false`. It is the only reliable signal for "offline",
+     * because a transport failure carries no `status` — but so does a malformed
+     * body, which is NOT offline, so a plain `status === undefined` check would
+     * be wrong. Branch on `isOffline`, not on the absence of a status.
+     */
+    public readonly networkFailure: boolean = false,
   ) {
     super(message);
     this.name = "RepositoryError";
+  }
+
+  /**
+   * The device could not reach the server at all (no network / timeout). The
+   * UI shows the «Нет подключения к интернету» state with a retry, NOT a
+   * generic "something went wrong" — the two demand different copy and the
+   * guest can act on the first (turn on Wi-Fi) but not the second.
+   */
+  get isOffline(): boolean {
+    return this.networkFailure;
+  }
+
+  /**
+   * The backend is up but deliberately refusing service — HTTP 503. The UI
+   * shows the «Идут технические работы» maintenance state. Distinct from a
+   * transport failure (which never gets a status) and from a generic 5xx.
+   */
+  get isMaintenance(): boolean {
+    return this.status === 503;
   }
 
   /** The session is missing, expired or rejected — the caller should send the

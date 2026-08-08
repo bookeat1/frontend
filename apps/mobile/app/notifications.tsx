@@ -6,8 +6,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { FilterChip } from "../src/components/FilterChip";
 import { FlowHeader } from "../src/components/FlowHeader";
+import { DataErrorState } from "../src/components/DataErrorState";
+import { Bell, BellSimple, CalendarBlank, SealPercent } from "../src/components/icons";
 import { NotificationRow } from "../src/components/notifications/NotificationRow";
-import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
+import { EmptyState, LoadingState } from "../src/components/StateViews";
 import {
   matchesFilter,
   useMarkAllNotificationsRead,
@@ -36,7 +38,7 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { dictionary: t } = useLocale();
   const { status } = useAuth();
-  const { notifications, unreadCount, isLoading, isError, isRefetching, refetch } =
+  const { notifications, unreadCount, isLoading, isError, error, isRefetching, refetch } =
     useNotifications();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
@@ -54,6 +56,30 @@ export default function NotificationsScreen() {
   ];
 
   const showMarkAll = status === "signed-in" && unreadCount > 0;
+
+  // Empty copy + icon follow the selected chip (Figma «Состояния»): «Все» —
+  // BellSimple, «Брони» — CalendarBlank, «Акции» — SealPercent.
+  const emptyByFilter: Record<
+    NotificationFilter,
+    { icon: typeof BellSimple; title: string; description: string }
+  > = {
+    all: {
+      icon: BellSimple,
+      title: t.notifications.emptyTitle,
+      description: t.notifications.emptyDescription,
+    },
+    bookings: {
+      icon: CalendarBlank,
+      title: t.notifications.emptyBookingsTitle,
+      description: t.notifications.emptyBookingsDescription,
+    },
+    promos: {
+      icon: SealPercent,
+      title: t.notifications.emptyPromosTitle,
+      description: t.notifications.emptyPromosDescription,
+    },
+  };
+  const emptyProps = emptyByFilter[filter];
 
   return (
     <View style={styles.root}>
@@ -79,10 +105,14 @@ export default function NotificationsScreen() {
 
       {status === "signed-out" ? (
         <EmptyState
+          icon={Bell}
           title={t.notifications.signedOutTitle}
           description={t.notifications.signedOutDescription}
-          actionLabel={t.notifications.signIn}
-          onAction={() => router.push("/auth/sign-in")}
+          action={{
+            label: t.notifications.signIn,
+            onPress: () => router.push("/auth/sign-in"),
+            variant: "button",
+          }}
         />
       ) : (
         <>
@@ -101,16 +131,12 @@ export default function NotificationsScreen() {
           {status === "loading" || isLoading ? (
             <LoadingState title={t.common.loading} />
           ) : isError ? (
-            <ErrorState
-              title={t.notifications.errorTitle}
-              description={t.notifications.errorDescription}
-              retryLabel={t.common.retry}
-              onRetry={refetch}
-            />
+            <DataErrorState error={error} onRetry={refetch} />
           ) : visible.length === 0 ? (
             <EmptyState
-              title={t.notifications.emptyTitle}
-              description={t.notifications.emptyDescription}
+              icon={emptyProps.icon}
+              title={emptyProps.title}
+              description={emptyProps.description}
             />
           ) : (
             <ScrollView

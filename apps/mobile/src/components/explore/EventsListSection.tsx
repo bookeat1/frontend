@@ -2,7 +2,9 @@ import { colors, exploreLayout, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { EmptyState, ErrorState } from "../StateViews";
+import { DataErrorState } from "../DataErrorState";
+import { CalendarBlank } from "../icons";
+import { EmptyState } from "../StateViews";
 import { EventRow } from "./EventRow";
 import { SectionCard, SectionHeader } from "./SectionCard";
 import { useExploreEvents } from "./use-explore-data";
@@ -50,13 +52,7 @@ export function EventsListSection({
         <SkeletonList />
       ) : query.isError ? (
         <View style={styles.state}>
-          <ErrorState
-            compact
-            title={t.explore.eventsErrorTitle}
-            description={t.explore.eventsErrorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => query.refetch()}
-          />
+          <DataErrorState compact error={query.error} onRetry={() => void query.refetch()} />
         </View>
       ) : events.length === 0 ? (
         <View style={styles.state}>
@@ -65,6 +61,7 @@ export function EventsListSection({
               list turns a calm state into a dead end. */}
           <EmptyState
             compact
+            icon={CalendarBlank}
             title={t.explore.eventsEmptyTitle}
             description={t.explore.eventsEmptyDescription}
           />
