@@ -17,6 +17,7 @@ import type {
   EventInput,
   FeedItemKind,
   FeedItemState,
+  FeedReviewInput,
   GuideCategory,
   GuideCategoryInput,
   GuideCollection,
@@ -451,6 +452,52 @@ export class AdminApiClient {
     return this.request<FeedItemState>(
       "POST",
       `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}/withdraw`,
+    );
+  }
+
+  // ---- Home-feed placement (platform / superadmin moderation) --------------
+  //
+  // The superadmin side of the merchandising feed: the pending_review queue and
+  // the two decisions taken on it. All three are mounted on the
+  // RequireRole(RoleAdmin) group (GET /admin/feed/queue, .../review,
+  // .../placement-weight) and re-check the superadmin role in the usecase — a
+  // venue manager gets a 403, so the panel hides the screen from them.
+
+  /** GET /admin/feed/queue — the platform-wide moderation queue: every item in
+   * `pending_review`, oldest first, paginated (server per_page max 100). One
+   * page of `FeedItemState`, same shape as the venue side. */
+  listFeedQueue(params: AdminListParams = {}): Promise<ApiPage<FeedItemState>> {
+    return this.request<ApiPage<FeedItemState>>("GET", "/admin/feed/queue", {
+      params: { page: params.page, per_page: params.per_page },
+    });
+  }
+
+  /** POST …/review — approve or reject a pending item, optionally pricing the
+   * placement in the same call. `approve=false` requires a non-empty
+   * `rejection_reason` (enforced again server-side). Answers the new state. */
+  reviewFeedItem(
+    kind: FeedItemKind,
+    itemId: string,
+    input: FeedReviewInput,
+  ): Promise<FeedItemState> {
+    return this.request<FeedItemState>(
+      "POST",
+      `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}/review`,
+      { body: input },
+    );
+  }
+
+  /** PUT …/placement-weight — set the paid-placement lever (0..100) on an
+   * already-moderated item without re-reviewing it. Answers the new state. */
+  setFeedPlacementWeight(
+    kind: FeedItemKind,
+    itemId: string,
+    weight: number,
+  ): Promise<FeedItemState> {
+    return this.request<FeedItemState>(
+      "PUT",
+      `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}/placement-weight`,
+      { body: { placement_weight: weight } },
     );
   }
 
