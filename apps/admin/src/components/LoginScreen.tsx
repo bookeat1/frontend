@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminApiError } from "@bookeat/api/admin";
 
 import { useAuth } from "@/lib/auth-context";
-import { trackEvent } from "@/lib/analytics";
+import { identifyUser, trackEvent } from "@/lib/analytics";
 import { isApiConfigured } from "@/lib/api";
 import { SESSION_EXPIRED_REASON } from "@/lib/base-path";
 import { t } from "@/lib/i18n";
@@ -39,9 +39,13 @@ export function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
-      // Explicit funnel event on top of autocapture. The user identity is
-      // attached by AnalyticsProvider reacting to the auth state change.
+      const user = await login(email, password);
+      // Attach the identity BEFORE the funnel event: amplitude.track stamps the
+      // current user id at call time, and AnalyticsProvider's identify effect
+      // only runs on a later render — without this, staff_login would land under
+      // the previous/anonymous identity. identifyUser is idempotent, so the
+      // provider re-running it a moment later just re-sets the same id/props.
+      identifyUser(user);
       trackEvent("staff_login");
       router.replace("/");
     } catch (err) {
