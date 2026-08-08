@@ -30,7 +30,11 @@ const TERMINAL_STATUSES: readonly BookingStatus[] = ["completed", "cancelled", "
  */
 function isPastBooking(booking: Booking, now: number): boolean {
   if (TERMINAL_STATUSES.includes(booking.status)) return true;
-  return new Date(booking.endsAt).getTime() < now;
+  const endsAt = new Date(booking.endsAt).getTime();
+  // Unparseable timestamp → fold into История, never leave a broken booking
+  // stuck in Активные forever.
+  if (Number.isNaN(endsAt)) return true;
+  return endsAt < now;
 }
 
 const TAB_ACTIVE = 0;
@@ -87,56 +91,64 @@ export default function MyBookingsScreen() {
   );
 
   const visibleBookings = activeTab === TAB_HISTORY ? history : active;
+  const isEmpty = visibleBookings.length === 0;
 
-  const renderList = () => {
-    if (visibleBookings.length === 0) {
-      return activeTab === TAB_HISTORY ? (
-        <EmptyState
-          icon={Clock}
-          title={t.myBookings.emptyHistoryTitle}
-          description={t.myBookings.emptyHistoryDescription}
-        />
-      ) : (
-        <EmptyState
-          icon={CalendarBlank}
-          title={t.myBookings.emptyTitle}
-          description={t.myBookings.emptyDescription}
-          action={{
-            label: t.myBookings.emptyAction,
-            onPress: () => router.replace("/search"),
-            variant: "button",
-          }}
-        />
-      );
-    }
-
-    return (
-      <FlatList
-        data={visibleBookings}
-        keyExtractor={(booking) => booking.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        refreshing={query.isRefetching && !query.isFetchingNextPage}
-        onRefresh={() => void query.refetch()}
-        onEndReachedThreshold={0.5}
-        onEndReached={() => {
-          if (query.hasNextPage && !query.isFetchingNextPage) {
-            void query.fetchNextPage();
-          }
+  // The empty state is passed as `ListEmptyComponent`, NOT returned early: the
+  // FlatList must always mount so `onEndReached`/`fetchNextPage` stay wired even
+  // when the SELECTED tab's currently-loaded bucket is empty. Server order is
+  // `starts_at DESC`, so a guest with 25+ upcoming bookings opens «История» to
+  // an all-Active first page (history bucket [] while hasNextPage is true); the
+  // filling empty component gives a scroll surface so more pages load and
+  // История fills instead of showing "Здесь пока пусто" permanently.
+  const listEmptyComponent =
+    activeTab === TAB_HISTORY ? (
+      <EmptyState
+        icon={Clock}
+        title={t.myBookings.emptyHistoryTitle}
+        description={t.myBookings.emptyHistoryDescription}
+      />
+    ) : (
+      <EmptyState
+        icon={CalendarBlank}
+        title={t.myBookings.emptyTitle}
+        description={t.myBookings.emptyDescription}
+        action={{
+          label: t.myBookings.emptyAction,
+          onPress: () => router.replace("/search"),
+          variant: "button",
         }}
-        ListFooterComponent={
-          query.isFetchingNextPage ? (
-            <ActivityIndicator
-              style={styles.footer}
-              color={colors.brand.primary}
-              accessibilityLabel={t.myBookings.loadingMore}
-            />
-          ) : null
-        }
       />
     );
-  };
+
+  const renderList = () => (
+    <FlatList
+      data={visibleBookings}
+      keyExtractor={(booking) => booking.id}
+      renderItem={renderItem}
+      // flexGrow lets an empty bucket's state fill the viewport, so its content
+      // sits at the scroll end and onEndReached can fire to page in more.
+      contentContainerStyle={[styles.list, isEmpty && styles.listEmpty]}
+      showsVerticalScrollIndicator={false}
+      refreshing={query.isRefetching && !query.isFetchingNextPage}
+      onRefresh={() => void query.refetch()}
+      onEndReachedThreshold={0.5}
+      onEndReached={() => {
+        if (query.hasNextPage && !query.isFetchingNextPage) {
+          void query.fetchNextPage();
+        }
+      }}
+      ListEmptyComponent={listEmptyComponent}
+      ListFooterComponent={
+        query.isFetchingNextPage ? (
+          <ActivityIndicator
+            style={styles.footer}
+            color={colors.brand.primary}
+            accessibilityLabel={t.myBookings.loadingMore}
+          />
+        ) : null
+      }
+    />
+  );
 
   return (
     <View style={styles.root}>
@@ -201,6 +213,9 @@ const styles = StyleSheet.create({
   list: {
     padding: spacing.md,
     gap: spacing.sm,
+  },
+  listEmpty: {
+    flexGrow: 1,
   },
   footer: {
     paddingVertical: spacing.lg,
