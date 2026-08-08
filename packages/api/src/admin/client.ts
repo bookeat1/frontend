@@ -15,6 +15,8 @@ import type {
   BookingListParams,
   BookingReasonInput,
   EventInput,
+  FeedItemKind,
+  FeedItemState,
   GuideCategory,
   GuideCategoryInput,
   GuideCollection,
@@ -397,6 +399,59 @@ export class AdminApiClient {
 
   async deletePromo(promoId: string): Promise<void> {
     await this.request<unknown>("DELETE", `/admin/promos/${encodeURIComponent(promoId)}`);
+  }
+
+  // ---- Home-feed placement (venue submit / withdraw) -----------------------
+  //
+  // The app's Home rail shows a promo/event only after the venue SUBMITS it and
+  // a superadmin APPROVES it. These four are the venue side of that flow; the
+  // superadmin moderation queue is a separate section. Authorization
+  // (PermRestaurantManage at the item's OWN restaurant) is enforced server-side
+  // inside the usecase — the per-item routes carry an item id, not a restaurant
+  // id, so the backend resolves the owning restaurant from the item.
+
+  /** GET /admin/restaurants/:id/feed — every promo AND event of this venue with
+   * its derived feed state, in one page. The panel fetches this once and maps
+   * the result by (kind, id) rather than asking per item. NOTE: promos and
+   * events share this one page, so `per_page` caps the COMBINED count (server
+   * max 100). */
+  listVenueFeed(
+    restaurantId: string,
+    params: AdminListParams = {},
+  ): Promise<ApiPage<FeedItemState>> {
+    return this.request<ApiPage<FeedItemState>>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/feed`,
+      { params: { page: params.page, per_page: params.per_page } },
+    );
+  }
+
+  /** GET /admin/feed/items/:kind/:itemId — one item's current feed state. */
+  getFeedItem(kind: FeedItemKind, itemId: string): Promise<FeedItemState> {
+    return this.request<FeedItemState>(
+      "GET",
+      `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}`,
+    );
+  }
+
+  /** POST …/submit (no body) — sends the item for moderation:
+   * not_submitted|rejected → pending_review. Answers the new state. Replaying a
+   * lost response is harmless (a resubmit of an already-pending item is a no-op
+   * on the server's side of the transition guard). */
+  submitFeedItem(kind: FeedItemKind, itemId: string): Promise<FeedItemState> {
+    return this.request<FeedItemState>(
+      "POST",
+      `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}/submit`,
+    );
+  }
+
+  /** POST …/withdraw (no body) — pulls the item back toward not_submitted from
+   * pending_review or approved. Answers the new state. */
+  withdrawFeedItem(kind: FeedItemKind, itemId: string): Promise<FeedItemState> {
+    return this.request<FeedItemState>(
+      "POST",
+      `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}/withdraw`,
+    );
   }
 
   // ---- Schedule ------------------------------------------------------------

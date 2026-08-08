@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminPromo, PromoInput } from "@bookeat/api/admin";
+import type { AdminPromo, FeedItemState, PromoInput } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { formatDateTime, isoToLocalInput, localInputToIso } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
+import { FeedControl } from "./ui/FeedControl";
 import { Field, TextArea, TextInput, CheckboxRow } from "./ui/FormControls";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
@@ -41,6 +42,21 @@ export function PromosView() {
     queryKey,
     queryFn: () => apiClient.listPromos(restaurantId, { per_page: 100 }),
   });
+
+  // One call for the whole venue's feed state; mapped by (kind, id) below so
+  // each card reads its status without an extra per-item request.
+  const feedQuery = useQuery({
+    queryKey: ["feed", restaurantId] as const,
+    queryFn: () => apiClient.listVenueFeed(restaurantId, { per_page: 100 }),
+  });
+
+  const feedByItemId = useMemo(() => {
+    const map = new Map<string, FeedItemState>();
+    for (const st of feedQuery.data?.items ?? []) {
+      if (st.kind === "promo") map.set(st.id, st);
+    }
+    return map;
+  }, [feedQuery.data]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
@@ -90,10 +106,8 @@ export function PromosView() {
                 (statusMutation.isPending && statusMutation.variables?.promo.id === p.id) ||
                 (deleteMutation.isPending && deleteMutation.variables?.id === p.id);
               return (
-                <li
-                  key={p.id}
-                  className="flex flex-col gap-md rounded-card bg-surface p-lg sm:flex-row sm:items-start sm:justify-between"
-                >
+                <li key={p.id} className="flex flex-col gap-md rounded-card bg-surface p-lg">
+                  <div className="flex flex-col gap-md sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-sm">
                       <span className="break-words text-sm font-semibold text-text">{p.title}</span>
@@ -154,6 +168,15 @@ export function PromosView() {
                       {t.admin.common.delete}
                     </Button>
                   </div>
+                  </div>
+
+                  <FeedControl
+                    restaurantId={restaurantId}
+                    kind="promo"
+                    itemId={p.id}
+                    state={feedByItemId.get(p.id)}
+                    listQueryKey={queryKey}
+                  />
                 </li>
               );
             })}
