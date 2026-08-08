@@ -25,6 +25,7 @@ import { TextField } from "../../../../src/components/TextField";
 import { TimeSlotGrid } from "../../../../src/components/TimeSlotGrid";
 import { useAvailability } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
+import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
@@ -51,6 +52,13 @@ export default function ReservationScreen() {
   const router = useRouter();
   const draft = useBookingDraft();
   const { status: authStatus, user } = useAuth();
+
+  // `booking_start` once the flow opens, keyed on the venue id so a re-render
+  // does not re-count the same attempt. This is the entry screen of the
+  // booking flow (reached from the venue and the event screens).
+  useEffect(() => {
+    if (id) trackEvent("booking_start", { restaurant_id: id });
+  }, [id]);
 
   const { data: restaurant } = useRestaurant(id);
   const availability = useAvailability({

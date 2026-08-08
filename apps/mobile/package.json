@@ -12,6 +12,7 @@
     "export": "expo export"
   },
   "dependencies": {
+    "@amplitude/analytics-react-native": "^1.6.8",
     "@bookeat/api": "workspace:*",
     "@bookeat/design-tokens": "workspace:*",
     "@bookeat/i18n": "workspace:*",

@@ -13,6 +13,7 @@ import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCreateBooking } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
+import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import {
   estimatePreorderTotalMinor,
@@ -163,6 +164,7 @@ export default function ConfirmBookingScreen() {
       },
       {
         onSuccess: ({ booking, preorderFailed }) => {
+          trackEvent("booking_confirm", { restaurant_id: id });
           router.replace({
             pathname: "/booking/[id]",
             params: {

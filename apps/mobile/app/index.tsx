@@ -13,6 +13,7 @@ import { HomeHeader } from "../src/components/explore/HomeHeader";
 import { PromotionsSection } from "../src/components/explore/PromotionsSection";
 import { RecommendedSection } from "../src/components/explore/RecommendedSection";
 import { EXPLORE_DEFAULT_GUESTS } from "../src/components/explore/use-explore-data";
+import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
 import { useLocale } from "../src/lib/locale";
@@ -92,7 +93,13 @@ export default function HomeScreen() {
 
   // Tapping an «Афиша» row opens that event's detail card (same target as the
   // dedicated list), instead of jumping to the host restaurant.
-  const openEvent = useCallback((id: string) => router.push(`/event/${id}`), [router]);
+  const openEvent = useCallback(
+    (id: string) => {
+      trackEvent("event_tap", { id });
+      router.push(`/event/${id}`);
+    },
+    [router],
+  );
 
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),

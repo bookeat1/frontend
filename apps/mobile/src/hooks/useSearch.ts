@@ -2,6 +2,7 @@ import type { SearchFilters, SearchQuery } from "@bookeat/api";
 import { EMPTY_FILTERS } from "@bookeat/api";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { trackEvent } from "../lib/analytics";
 import { useRepository } from "../lib/repository";
 
 const DEBOUNCE_MS = 350;
@@ -71,6 +72,15 @@ export function useSearchScreen(options?: { initialCuisineId?: string }) {
   // возвращает применённые обратно сюда — так выбор переживает закрытие.
   const [uiFacets, setUiFacets] = useState<UiOnlyFacets>(EMPTY_UI_FACETS);
   const debouncedText = useDebouncedValue(text, DEBOUNCE_MS);
+
+  // One `search` event per SETTLED, non-empty query — keyed on the debounced
+  // text so it fires once the guest stops typing, not on every keystroke. An
+  // empty query (the whole-catalog browse) is not a search and is not tracked.
+  useEffect(() => {
+    const q = debouncedText.trim();
+    if (q.length === 0) return;
+    trackEvent("search", { query: q });
+  }, [debouncedText]);
 
   const query: SearchQuery = useMemo(
     () => ({ text: debouncedText, filters }),

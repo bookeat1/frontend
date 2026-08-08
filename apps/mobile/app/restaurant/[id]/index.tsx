@@ -2,7 +2,7 @@ import type { Restaurant } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
@@ -21,6 +21,7 @@ import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { openPhone } from "../../../src/lib/external-links";
 import { formatPriceRange } from "../../../src/lib/format";
 import { openStateLabel } from "../../../src/lib/schedule";
+import { trackEvent } from "../../../src/lib/analytics";
 
 const t = getDictionary();
 
@@ -32,6 +33,13 @@ export default function RestaurantDetailScreen() {
   // на весь экран, гость без сессии уезжает на вход, состояние приходит с
   // сервера. Раньше здесь стоял onPress={() => {}}.
   const favorite = useRestaurantFavorite(id ?? "");
+
+  // `restaurant_open` once per venue id: keyed on the route param, not the
+  // fetched payload, so it fires as soon as the screen has an id (a re-render
+  // from favorite/query state does not re-count the same open).
+  useEffect(() => {
+    if (id) trackEvent("restaurant_open", { restaurant_id: id });
+  }, [id]);
 
   /**
    * «Поделиться» — системный Share. Ссылки на заведение в вебе у продукта нет,

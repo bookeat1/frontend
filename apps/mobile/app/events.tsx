@@ -9,6 +9,7 @@ import { BottomNavBar } from "../src/components/BottomNavBar";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { useExploreEvents } from "../src/components/explore/use-explore-data";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
+import { trackEvent } from "../src/lib/analytics";
 
 const t = getDictionary();
 
@@ -27,7 +28,13 @@ export default function EventsScreen() {
   const query = useExploreEvents();
   const events = query.data?.items ?? [];
 
-  const openEvent = useCallback((id: string) => router.push(`/event/${id}`), [router]);
+  const openEvent = useCallback(
+    (id: string) => {
+      trackEvent("event_tap", { id });
+      router.push(`/event/${id}`);
+    },
+    [router],
+  );
 
   return (
     <View style={styles.root}>
