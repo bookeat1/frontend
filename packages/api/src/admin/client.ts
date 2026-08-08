@@ -30,7 +30,10 @@ import type {
   PlatformPayments,
   PlatformPeriod,
   PushSubscriptionInput,
+  RestaurantPricePatch,
+  RestaurantPricing,
   RestaurantProfile,
+  TelegramSettings,
   TokenPair,
   TopRestaurant,
   VenueDashboardSummary,
@@ -464,6 +467,71 @@ export class AdminApiClient {
       "PATCH",
       `/restaurants/${encodeURIComponent(restaurantId)}/booking-policy`,
       { body: patch },
+    );
+  }
+
+  // ---- Restaurant pricing (average check) ----------------------------------
+  //
+  // NOTE the path: like booking-policy, this is NOT under `/admin`. The write
+  // route `PATCH /restaurants/:id` is mounted on the plain authenticated group
+  // and reachable by the venue's own manager; the backend STRIPS the marketing
+  // flags and `is_active` for non-admin callers, so this UI only ever sends the
+  // pricing fields. `RequireRestaurantManager` enforces membership.
+
+  /**
+   * GET /restaurants/:id (the PUBLIC catalog endpoint, reused here). This is
+   * the only read that carries the numeric `price_range` alongside the
+   * categorical `price_category` — the admin profile endpoint
+   * (`getProfile`) returns the tier alone — so the «Средний чек» card prefills
+   * from here rather than adding a bespoke admin route.
+   */
+  getRestaurantPricing(restaurantId: string): Promise<RestaurantPricing> {
+    return this.request<RestaurantPricing>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}`,
+    );
+  }
+
+  /**
+   * PATCH /restaurants/:id — updates the venue's pricing. `price_min`/
+   * `price_max` are whole tenge and the backend validates the MERGED row
+   * (both-null-or-both-set, 0 <= min <= max), so the caller sends the pair
+   * together or omits both. Answers the full updated restaurant; typed as the
+   * pricing slice the card reads back.
+   */
+  patchRestaurant(restaurantId: string, input: RestaurantPricePatch): Promise<RestaurantPricing> {
+    return this.request<RestaurantPricing>(
+      "PATCH",
+      `/restaurants/${encodeURIComponent(restaurantId)}`,
+      { body: input },
+    );
+  }
+
+  // ---- Telegram notification settings --------------------------------------
+
+  /** GET /admin/restaurants/:id/notification-settings/telegram — where the
+   * venue's booking/cancel alerts are delivered. */
+  getTelegramSettings(restaurantId: string): Promise<TelegramSettings> {
+    return this.request<TelegramSettings>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/telegram`,
+    );
+  }
+
+  /** PUT — connect the alert chat. `chatId` is a numeric id or an @username. */
+  setTelegramChatId(restaurantId: string, chatId: string): Promise<TelegramSettings> {
+    return this.request<TelegramSettings>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/telegram`,
+      { body: { telegram_chat_id: chatId } },
+    );
+  }
+
+  /** DELETE — disconnect the alert chat. Idempotent. */
+  async clearTelegramSettings(restaurantId: string): Promise<void> {
+    await this.request<unknown>(
+      "DELETE",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/telegram`,
     );
   }
 

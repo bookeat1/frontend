@@ -3,11 +3,15 @@
 import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 import { CapacityModeCard } from "./CapacityModeCard";
+import { PricingCard } from "./PricingCard";
+import { TelegramNotificationCard } from "./TelegramNotificationCard";
 
 /**
- * «Настройки» — today exactly one thing: the venue's capacity mode. The rest
- * of the booking policy (buffers, lead time, auto-confirm) is editable through
- * the same PATCH but has no agreed UI yet, so it is not faked here.
+ * «Настройки» — the venue's self-service settings: capacity mode, average
+ * check, and the Telegram chat its booking alerts are delivered to. Each card
+ * owns its own load/save; the rest of the booking policy (buffers, lead time,
+ * auto-confirm) is editable through the same PATCH but has no agreed UI yet, so
+ * it is not faked here.
  */
 export function SettingsView() {
   const { restaurant } = useAuth();
@@ -17,6 +21,8 @@ export function SettingsView() {
     <section className="mx-auto flex max-w-[900px] flex-col gap-xl">
       <h1 className="text-xl font-bold text-text">{t.admin.nav.settings}</h1>
       <CapacityModeCard restaurantId={restaurantId} />
+      <PricingCard restaurantId={restaurantId} />
+      <TelegramNotificationCard restaurantId={restaurantId} />
     </section>
   );
 }
