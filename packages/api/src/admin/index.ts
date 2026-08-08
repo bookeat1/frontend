@@ -20,3 +20,8 @@ export {
   type GuideFailure,
   type GuideFailureKind,
 } from "./guide-failure";
+export {
+  parsePriceRangeInput,
+  type PriceRangeInput,
+  type PriceRangeParseError,
+} from "./price-input";

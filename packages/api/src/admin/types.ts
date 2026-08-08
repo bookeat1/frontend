@@ -93,6 +93,64 @@ export interface AdminMenuCategory {
   display_order: number;
 }
 
+// ---- Restaurant pricing (average check) ------------------------------------
+
+/**
+ * The venue's numeric average-check range, in WHOLE tenge (major units, not
+ * tiyn): `{ min: 4000, max: 9000 }` = «4 000–9 000 ₸». The backend emits it in
+ * `restaurantResponse.price_range` (restaurants/response.go: priceRangeResponse)
+ * and OMITS the key when the venue has no range set, so the field is optional
+ * and `null` and "absent" mean the same thing: no range yet.
+ */
+export interface RestaurantPriceRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * The pricing slice of the public `GET /restaurants/:id` response
+ * (restaurantResponse), the only source that carries BOTH the categorical tier
+ * and the numeric range — the admin profile endpoint returns `price_category`
+ * alone. Used to prefill the «Средний чек» card; the same shape is returned by
+ * `patchRestaurant` (the PATCH answers the full updated restaurant, and this
+ * types only the fields the panel reads back). Other fields of the response are
+ * deliberately not modelled here.
+ */
+export interface RestaurantPricing {
+  price_category: string;
+  price_range?: RestaurantPriceRange | null;
+}
+
+/**
+ * PATCH body for `PATCH /restaurants/:id` (restaurants/request.go:
+ * saveRestaurantRequest), pricing fields only. Every key is an optional Go
+ * pointer: OMIT a key to leave that column alone. `price_min`/`price_max` are
+ * WHOLE tenge and the backend validates the MERGED row (both-null-or-both-set,
+ * 0 <= min <= max), so send them together or not at all. `is_active` and the
+ * marketing flags are intentionally absent: the backend strips them for
+ * non-admin (venue-manager) callers, so this UI never offers them.
+ */
+export interface RestaurantPricePatch {
+  price_category?: string | null;
+  price_min?: number | null;
+  price_max?: number | null;
+}
+
+// ---- Telegram notification settings ----------------------------------------
+
+/**
+ * The venue's Telegram alert configuration
+ * (admin.telegramSettingsResponse, GET/PUT
+ * /admin/restaurants/:id/notification-settings/telegram). This is the chat that
+ * receives the venue's booking/cancel alerts. `connected` is `telegram_chat_id
+ * != ""`; a PUT answers `{connected:true, enabled:true}`, a DELETE clears it.
+ */
+export interface TelegramSettings {
+  connected: boolean;
+  telegram_chat_id: string;
+  enabled: boolean;
+}
+
 /** The venue's own profile (admin.restaurantProfileResponse). Editorial flags
  * (is_active/is_premium) are read-only display fields. */
 export interface RestaurantProfile {
