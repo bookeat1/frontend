@@ -2,7 +2,9 @@ import { colors, exploreLayout, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { EmptyState, ErrorState } from "../StateViews";
+import { DataErrorState } from "../DataErrorState";
+import { ForkKnife } from "../icons";
+import { EmptyState } from "../StateViews";
 import { CardStrip } from "./CardStrip";
 import { RecommendedRestaurantCard } from "./RecommendedRestaurantCard";
 import { SectionCard, SectionHeader } from "./SectionCard";
@@ -34,22 +36,16 @@ export function RecommendedSection({
         <SkeletonStrip />
       ) : query.isError ? (
         <View style={styles.state}>
-          <ErrorState
-            compact
-            title={t.explore.popularErrorTitle}
-            description={t.explore.popularErrorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => query.refetch()}
-          />
+          <DataErrorState compact error={query.error} onRetry={() => void query.refetch()} />
         </View>
       ) : (query.data?.length ?? 0) === 0 ? (
         <View style={styles.state}>
           <EmptyState
             compact
+            icon={ForkKnife}
             title={t.explore.popularEmptyTitle}
             description={t.explore.popularEmptyDescription}
-            actionLabel={t.explore.popularEmptyAction}
-            onAction={onSeeAll}
+            action={{ label: t.explore.popularEmptyAction, onPress: onSeeAll, variant: "link" }}
           />
         </View>
       ) : (

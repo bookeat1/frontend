@@ -7,8 +7,10 @@ import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar } from "../src/components/BottomNavBar";
 import { BookingListCard } from "../src/components/booking/BookingListCard";
+import { DataErrorState } from "../src/components/DataErrorState";
 import { FlowHeader } from "../src/components/FlowHeader";
-import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
+import { CalendarBlank } from "../src/components/icons";
+import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
 
@@ -58,26 +60,29 @@ export default function MyBookingsScreen() {
           <LoadingState title={t.myBookings.loadingTitle} />
         ) : status === "signed-out" ? (
           <EmptyState
+            icon={CalendarBlank}
             title={t.myBookings.signedOutTitle}
             description={t.myBookings.signedOutDescription}
-            actionLabel={t.myBookings.signIn}
-            onAction={() => router.push("/auth/sign-in")}
+            action={{
+              label: t.myBookings.signIn,
+              onPress: () => router.push("/auth/sign-in"),
+              variant: "button",
+            }}
           />
         ) : query.isPending ? (
           <LoadingState title={t.myBookings.loadingTitle} />
         ) : query.isError ? (
-          <ErrorState
-            title={t.myBookings.errorTitle}
-            description={t.myBookings.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => void query.refetch()}
-          />
+          <DataErrorState error={query.error} onRetry={() => void query.refetch()} />
         ) : bookings.length === 0 ? (
           <EmptyState
+            icon={CalendarBlank}
             title={t.myBookings.emptyTitle}
             description={t.myBookings.emptyDescription}
-            actionLabel={t.myBookings.emptyAction}
-            onAction={() => router.replace("/search")}
+            action={{
+              label: t.myBookings.emptyAction,
+              onPress: () => router.replace("/search"),
+              variant: "button",
+            }}
           />
         ) : (
           <FlatList

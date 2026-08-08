@@ -172,9 +172,14 @@ export default function ReservationScreen() {
               ? t.restaurant.bookingUnavailableDescription
               : t.restaurant.bookingUnavailableNoPhone
           }
-          actionLabel={restaurant.phone ? t.restaurant.callToBook : undefined}
-          onAction={
-            restaurant.phone ? () => void openPhone(restaurant.phone ?? "") : undefined
+          action={
+            restaurant.phone
+              ? {
+                  label: t.restaurant.callToBook,
+                  onPress: () => void openPhone(restaurant.phone ?? ""),
+                  variant: "button",
+                }
+              : undefined
           }
         />
       </View>
@@ -393,8 +398,7 @@ function SlotsSection({
       <ErrorState
         title={t.booking.slotsErrorTitle}
         description={t.booking.slotsErrorDescription}
-        retryLabel={t.common.retry}
-        onRetry={() => void query.refetch()}
+        action={{ label: t.common.retry, onPress: () => void query.refetch(), variant: "button" }}
         compact
       />
     );
@@ -410,8 +414,11 @@ function SlotsSection({
             ? `${dayHint}\n${t.booking.slotsClosedDescription}`
             : t.booking.slotsClosedDescription
         }
-        actionLabel={t.booking.pickAnotherDate}
-        onAction={onPickAnotherDate}
+        action={{
+          label: t.booking.pickAnotherDate,
+          onPress: onPickAnotherDate,
+          variant: "button",
+        }}
         compact
       />
     );
@@ -428,16 +435,26 @@ function SlotsSection({
         // дату» здесь нет намеренно: сюда попадает заведение, которое брони
         // принимает, но подходящего столика на эту компанию не нашлось ни в
         // одном слоте дня, — звонок разрулит это быстрее перебора дат.
-        actionLabel={phone ? t.booking.slotsNoTablesCall(phone) : undefined}
-        onAction={phone ? () => void openPhone(phone) : undefined}
+        action={
+          phone
+            ? {
+                label: t.booking.slotsNoTablesCall(phone),
+                onPress: () => void openPhone(phone),
+                variant: "button",
+              }
+            : undefined
+        }
         compact
       />
     ) : (
       <EmptyState
         title={t.booking.slotsAllTakenTitle}
         description={t.booking.slotsAllTakenDescription}
-        actionLabel={t.booking.pickAnotherDate}
-        onAction={onPickAnotherDate}
+        action={{
+          label: t.booking.pickAnotherDate,
+          onPress: onPickAnotherDate,
+          variant: "button",
+        }}
         compact
       />
     );

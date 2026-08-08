@@ -115,10 +115,13 @@ export default function ReservationScreen() {
             <EmptyState
               title={t.booking.bookingSignedOutTitle}
               description={t.booking.bookingSignedOutDescription}
-              actionLabel={t.booking.bookingSignIn}
-              // Comes straight back here after a successful sign-in: this
-              // screen stays on the stack underneath the gate.
-              onAction={() => router.push("/auth/sign-in")}
+              action={{
+                label: t.booking.bookingSignIn,
+                // Comes straight back here after a successful sign-in: this
+                // screen stays on the stack underneath the gate.
+                onPress: () => router.push("/auth/sign-in"),
+                variant: "button",
+              }}
             />
           )}
         </View>
@@ -145,8 +148,11 @@ export default function ReservationScreen() {
           <ErrorState
             title={t.booking.bookingErrorTitle}
             description={t.search.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => void booking.refetch()}
+            action={{
+              label: t.common.retry,
+              onPress: () => void booking.refetch(),
+              variant: "button",
+            }}
           />
         </View>
       </View>

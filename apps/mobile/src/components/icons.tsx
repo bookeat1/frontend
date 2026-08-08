@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Bell,
+  BellSimple,
   BookOpen,
   CalendarBlank,
   CaretDown,
@@ -28,14 +29,18 @@ import {
   Phone,
   Plus,
   Question,
+  SealPercent,
   Shield,
   SignOut,
   ThumbsUp,
   User,
   UserCircle,
   Users,
+  Warning,
   WarningCircle,
   WhatsappLogo,
+  WifiSlash,
+  Wrench,
   X,
   XCircle,
   type IconProps,
@@ -85,11 +90,20 @@ import {
  * 2026-08-06): the tinted leading icon of a promo/discount notification row
  * («−20% на завтраки»). Bell (reminder) and ForkKnife (booking) reuse the
  * existing glyphs. Same Phosphor set as the rest.
+ *
+ * WifiSlash, Warning, Wrench, BellSimple and SealPercent are the empty/error
+ * «Состояния» template icons (Figma file 7rBjjTjp4FbxV9SCJmypWF, section
+ * «Состояния», node 997:10239). Each is the exact Phosphor glyph named in that
+ * section: WifiSlash → «Нет подключения», Warning → «Не удалось загрузить»,
+ * Wrench → «Идут технические работы», BellSimple → notifications «Все» empty,
+ * SealPercent → notifications «Акции» empty. CalendarBlank, Clock, Heart and
+ * MagnifyingGlass (the remaining state icons) already existed. Same set.
  */
 export type { IconProps };
 export {
   ArrowLeft,
   Bell,
+  BellSimple,
   BookOpen,
   CalendarBlank,
   CaretDown,
@@ -117,14 +131,18 @@ export {
   Phone,
   Plus,
   Question,
+  SealPercent,
   Shield,
   SignOut,
   ThumbsUp,
   User,
   UserCircle,
   Users,
+  Warning,
   WarningCircle,
   WhatsappLogo,
+  WifiSlash,
+  Wrench,
   X,
   XCircle,
 };

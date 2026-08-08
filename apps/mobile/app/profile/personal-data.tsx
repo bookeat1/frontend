@@ -122,16 +122,22 @@ export default function PersonalDataScreen() {
           <EmptyState
             title={t.profile.signedOutTitle}
             description={t.profile.signedOutDescription}
-            actionLabel={t.profile.signIn}
-            onAction={() => router.push("/auth/sign-in")}
+            action={{
+              label: t.profile.signIn,
+              onPress: () => router.push("/auth/sign-in"),
+              variant: "button",
+            }}
           />
         ) : !account ? (
           me.isError ? (
             <ErrorState
               title={t.profile.errorTitle}
               description={t.profile.errorDescription}
-              retryLabel={t.common.retry}
-              onRetry={() => void me.refetch()}
+              action={{
+                label: t.common.retry,
+                onPress: () => void me.refetch(),
+                variant: "button",
+              }}
             />
           ) : (
             <LoadingState title={t.profile.loadingTitle} />

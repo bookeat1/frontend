@@ -47,8 +47,7 @@ export default function PhotoViewerScreen() {
           <ErrorState
             title={t.search.errorTitle}
             description={t.search.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => refetch()}
+            action={{ label: t.common.retry, onPress: () => refetch(), variant: "button" }}
           />
         </View>
       ) : (

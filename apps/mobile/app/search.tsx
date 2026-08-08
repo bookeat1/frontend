@@ -5,7 +5,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomNavBar } from "../src/components/BottomNavBar";
-import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
+import { DataErrorState } from "../src/components/DataErrorState";
+import { MagnifyingGlass } from "../src/components/icons";
+import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { FilterChip } from "../src/components/FilterChip";
 import { RestaurantCard } from "../src/components/RestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
@@ -168,24 +170,38 @@ export default function SearchScreen() {
         {isTyping || searchQueryResult.isPending ? (
           <LoadingState title={t.search.loadingTitle} />
         ) : searchQueryResult.isError ? (
-          <ErrorState
-            title={t.search.errorTitle}
-            description={t.search.errorDescription}
-            retryLabel={t.common.retry}
-            onRetry={() => searchQueryResult.refetch()}
+          <DataErrorState
+            error={searchQueryResult.error}
+            onRetry={() => void searchQueryResult.refetch()}
           />
         ) : items.length === 0 ? (
-          // Пустой каталог и «по этому запросу ничего нет» — разные вещи, и
-          // предлагать «сбросить фильтры» там, где фильтров нет, бессмысленно.
-          hasActiveSearch ? (
+          // Три разных пустых состояния (Figma «Состояния»): текстовый ЗАПРОС
+          // без результатов, активный ФИЛЬТР без результатов (со ссылкой
+          // «Сбросить фильтры»), и просто пустой каталог — сбрасывать в нём
+          // нечего. Запрос приоритетнее фильтра: если гость печатал, показываем
+          // «По запросу «…»».
+          text.trim().length > 0 ? (
             <EmptyState
+              icon={MagnifyingGlass}
               title={t.search.emptyTitle}
-              description={t.search.emptyDescription}
-              actionLabel={t.search.emptyResetFilters}
-              onAction={resetFilters}
+              description={t.search.emptyQueryDescription(text.trim())}
+            />
+          ) : hasActiveSearch ? (
+            <EmptyState
+              icon={MagnifyingGlass}
+              title={t.search.emptyTitle}
+              description={t.search.emptyFilterDescription(
+                selectedChips[0]?.label ?? "",
+              )}
+              action={{
+                label: t.search.emptyResetFilters,
+                onPress: resetFilters,
+                variant: "link",
+              }}
             />
           ) : (
             <EmptyState
+              icon={MagnifyingGlass}
               title={t.search.catalogEmptyTitle}
               description={t.search.catalogEmptyDescription}
             />

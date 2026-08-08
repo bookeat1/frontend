@@ -41,8 +41,7 @@ export default function EventsScreen() {
         <ErrorState
           title={t.explore.eventsErrorTitle}
           description={t.explore.eventsErrorDescription}
-          retryLabel={t.common.retry}
-          onRetry={() => query.refetch()}
+          action={{ label: t.common.retry, onPress: () => query.refetch(), variant: "button" }}
         />
       ) : events.length === 0 ? (
         // No action button: there is nowhere to send the guest that would

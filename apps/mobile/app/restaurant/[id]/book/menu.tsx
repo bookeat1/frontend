@@ -106,8 +106,7 @@ export default function PreorderMenuScreen() {
         <ErrorState
           title={t.booking.preorderErrorTitle}
           description={t.search.errorDescription}
-          retryLabel={t.common.retry}
-          onRetry={() => void menu.refetch()}
+          action={{ label: t.common.retry, onPress: () => void menu.refetch(), variant: "button" }}
         />
       ) : sections.length === 0 ? (
         <EmptyState

@@ -51,6 +51,9 @@ export interface UseNotificationsResult {
   unreadCount: number;
   isLoading: boolean;
   isError: boolean;
+  /** The failure itself, so the screen can tell offline / 503 / generic apart
+   * (see `DataErrorState`). `null` until a fetch fails. */
+  error: unknown;
   /** A background re-fetch of an already-loaded list is in flight — drives the
    * pull-to-refresh spinner without flipping the whole screen to `isLoading`. */
   isRefetching: boolean;
@@ -82,6 +85,7 @@ export function useNotifications(): UseNotificationsResult {
     unreadCount: query.data?.unreadCount ?? 0,
     isLoading: query.isLoading,
     isError: query.isError,
+    error: query.error,
     isRefetching: query.isRefetching,
     refetch: () => {
       void query.refetch();
