@@ -6,6 +6,7 @@ import {
   type AuthUser,
   type OtpRequest,
 } from "@bookeat/api";
+import { getCurrentLocale } from "@bookeat/i18n";
 import { useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -147,6 +148,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // No recursion — POST /auth/refresh is not an authenticated call.
         getToken: getFreshAccessToken,
         onUnauthorized: gatewayRefreshAfterUnauthorized,
+        // Same reason as the catalog repository: the backend localizes what it
+        // sends by Accept-Language, and that must follow the app's language.
+        getLanguage: getCurrentLocale,
       }),
     [],
   );

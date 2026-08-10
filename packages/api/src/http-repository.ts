@@ -1,6 +1,7 @@
 import {
   HttpClient,
   type ApiPage,
+  type LanguageProvider,
   type TokenProvider,
   type UnauthorizedHandler,
 } from "./http-client";
@@ -81,6 +82,9 @@ export interface HttpRepositoryOptions {
    * Absent = a 401 is final, which is the right behaviour for anything that
    * has no refresh token to spend (the admin panel, tests). */
   onUnauthorized?: UnauthorizedHandler;
+  /** Interface language sent as `Accept-Language`; this backend translates
+   * content by it. Absent = the runtime's own default header. */
+  getLanguage?: LanguageProvider;
 }
 
 const POPULAR_PAGE_SIZE = 20;
@@ -140,6 +144,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       timeoutMs: options.timeoutMs,
       getToken: options.getToken,
       onUnauthorized: options.onUnauthorized,
+      getLanguage: options.getLanguage,
     });
   }
 
@@ -641,6 +646,7 @@ export class HttpAuthRepository implements AuthRepository {
       timeoutMs: options.timeoutMs,
       getToken: options.getToken,
       onUnauthorized: options.onUnauthorized,
+      getLanguage: options.getLanguage,
     });
   }
 

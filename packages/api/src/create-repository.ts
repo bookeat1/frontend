@@ -1,4 +1,4 @@
-import type { TokenProvider, UnauthorizedHandler } from "./http-client";
+import type { LanguageProvider, TokenProvider, UnauthorizedHandler } from "./http-client";
 import { HttpAuthRepository, HttpRestaurantRepository } from "./http-repository";
 import { MockAuthRepository, MockRestaurantRepository } from "./mock-repository";
 import type { AuthRepository, RestaurantRepository } from "./repository";
@@ -12,6 +12,9 @@ export interface RepositoryFactoryOptions {
    * UnauthorizedHandler — it must be single-flight, the refresh token is
    * single-use. */
   onUnauthorized?: UnauthorizedHandler;
+  /** Interface language for `Accept-Language` — this backend translates
+   * content (cuisine names, category titles) by it. */
+  getLanguage?: LanguageProvider;
 }
 
 /**
@@ -33,6 +36,7 @@ export function createRestaurantRepository(
     baseUrl: trimmed,
     getToken: options.getToken,
     onUnauthorized: options.onUnauthorized,
+    getLanguage: options.getLanguage,
   });
 }
 
@@ -50,5 +54,6 @@ export function createAuthRepository(
     baseUrl: trimmed,
     getToken: options.getToken,
     onUnauthorized: options.onUnauthorized,
+    getLanguage: options.getLanguage,
   });
 }
