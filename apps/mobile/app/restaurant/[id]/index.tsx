@@ -195,7 +195,15 @@ export default function RestaurantDetailScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
-              <ScrollableMenu items={restaurant.menuHighlights} />
+              <ScrollableMenu
+                items={restaurant.menuHighlights}
+                onOpenDish={(dishId) =>
+                  router.push({
+                    pathname: "/restaurant/[id]/menu",
+                    params: { id: restaurant.id, dish: dishId },
+                  })
+                }
+              />
               {/* Кнопка ведёт на отдельный экран меню — только чтение, без
                   корзины. Раньше она была disabled, потому что единственный
                   экран меню жил внутри флоу брони и складывал блюда в его
@@ -276,7 +284,16 @@ export default function RestaurantDetailScreen() {
   );
 }
 
-function ScrollableMenu({ items }: { items: Restaurant["menuHighlights"] }) {
+function ScrollableMenu({
+  items,
+  onOpenDish,
+}: {
+  items: Restaurant["menuHighlights"];
+  /** Тап по блюду открывает экран меню с этим блюдом в шторке деталей —
+   * отдельной шторки на экране заведения нет, а дублировать её здесь значило
+   * бы держать две копии одного экрана. */
+  onOpenDish: (dishId: string) => void;
+}) {
   // Пустая лента = у заведения действительно нет блюд в API (например,
   // «Adept»). Отсутствие фотографий блюдом больше не считается.
   if (items.length === 0) {
@@ -287,7 +304,7 @@ function ScrollableMenu({ items }: { items: Restaurant["menuHighlights"] }) {
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View style={styles.menuRow}>
         {items.map((item) => (
-          <MenuItemCard key={item.id} item={item} />
+          <MenuItemCard key={item.id} item={item} onPress={onOpenDish} />
         ))}
       </View>
     </ScrollView>

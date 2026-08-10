@@ -36,7 +36,9 @@ interface Section {
  * стоит одного запроса, а не двух.
  */
 export default function RestaurantMenuScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `dish` — блюдо, которое надо сразу открыть в шторке: с ним сюда приходят
+  // по тапу в ленте «Из меню» на экране заведения.
+  const { id, dish: dishParam } = useLocalSearchParams<{ id: string; dish?: string }>();
   const router = useRouter();
   const menu = useMenuSections(id);
   const { data: restaurant } = useRestaurant(id);
@@ -59,6 +61,19 @@ export default function RestaurantMenuScreen() {
 
   // Блюдо, открытое в шторке деталей (тап по строке). null — шторка закрыта.
   const [openedDish, setOpenedDish] = useState<MenuDish | null>(null);
+
+  // Пришли с экрана заведения по конкретному блюду — открываем его шторку, как
+  // только меню загрузилось. Один раз: закрыв шторку, гость остаётся в меню, а
+  // не получает её обратно на следующем рендере.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current || !dishParam) return;
+    const dishes = (menu.data ?? []).flatMap((section) => section.dishes);
+    const target = dishes.find((d) => d.id === dishParam);
+    if (!target) return;
+    autoOpenedRef.current = true;
+    setOpenedDish(target);
+  }, [dishParam, menu.data]);
 
   // Заводит флоу брони с блюдом как первой позицией предзаказа. Данные едут
   // параметрами (id/имя/цена/кол-во уже на карточке) — их подхватывает

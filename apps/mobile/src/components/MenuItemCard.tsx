@@ -1,7 +1,7 @@
 import type { MenuHighlight } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { PhotoView } from "./PhotoView";
 
 const ITEM_WIDTH = 180;
@@ -15,10 +15,21 @@ const ITEM_HEIGHT = 120;
  * она читается как «фотографии нет», а не как «картинка не загрузилась», и
  * точно не как сломанная карточка. Название, описание и цена при этом
  * настоящие.
+ *
+ * Карточка кликабельна только там, где тапу есть куда вести (`onPress`): на
+ * экране заведения он открывает блюдо в меню. Внутри флоу брони лента остаётся
+ * витриной — увести оттуда на другой экран значило бы бросить набранный
+ * предзаказ.
  */
-export function MenuItemCard({ item }: { item: MenuHighlight }) {
-  return (
-    <View style={styles.card}>
+export function MenuItemCard({
+  item,
+  onPress,
+}: {
+  item: MenuHighlight;
+  onPress?: (dishId: string) => void;
+}) {
+  const content = (
+    <>
       {/* Плашка «фото нет» больше не живёт здесь: она переехала в PhotoView,
           вместе с тем же случаем для заведений и для фото, которое не
           загрузилось. Вид у неё тот же — ровный фон и приглушённый прибор. */}
@@ -36,7 +47,22 @@ export function MenuItemCard({ item }: { item: MenuHighlight }) {
         ) : null}
         {item.price ? <Text style={styles.price}>{item.price}</Text> : null}
       </View>
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.card}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.name}
+      onPress={() => onPress(item.id)}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -45,6 +71,9 @@ const styles = StyleSheet.create({
     width: ITEM_WIDTH,
     gap: spacing.md,
   },
+  pressed: {
+    opacity: 0.7,
+  },
   image: {
     width: ITEM_WIDTH,
     height: ITEM_HEIGHT,
@@ -52,6 +81,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chip,
   },
   body: {
+    // Карточки в ленте тянутся до высоты самой высокой, а цена прижата к низу
+    // (marginTop: auto) — иначе у блюда без описания ценник висит выше, чем у
+    // соседнего с описанием, и ряд выглядит рваным.
+    flex: 1,
     paddingHorizontal: spacing.sm,
     gap: spacing.xs,
   },
@@ -65,6 +98,7 @@ const styles = StyleSheet.create({
   },
   price: {
     ...typography.itemName,
+    marginTop: "auto",
     color: colors.text.strong,
   },
 });
