@@ -59,6 +59,10 @@ export default function SearchScreen() {
   } = useSearchScreen({ initialCuisineId });
 
   const [sheetVisible, setSheetVisible] = useState(false);
+  // Подсказки «Часто ищут» живут по фокусу поля, а не по пустой строке: гость
+  // видит их в тот момент, когда собирается искать, а не всё время, пока просто
+  // листает каталог.
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
@@ -100,11 +104,16 @@ export default function SearchScreen() {
     [cuisinesQuery.data],
   );
 
-  // Нейтральное состояние «просто листаю каталог»: строка пуста И ни одного
-  // активного фильтра. Как только гость печатает или применяет фильтр — блок
-  // исчезает, чтобы не конкурировать с результатами и рядом выбранных чипов.
+  // Показываем ровно в момент намерения искать: гость тапнул в поле, но ещё
+  // ничего не набрал и не выбрал фильтр. Начал печатать — подсказки уходят,
+  // чтобы не спорить с выдачей; просто листает каталог, не трогая поле, — их
+  // тоже нет (раньше блок висел всё время, пока строка пуста, и занимал три
+  // строки над результатами).
   const showFrequent =
-    text.trim().length === 0 && activeFilterCount === 0 && frequentCuisines.length > 0;
+    searchFocused &&
+    text.trim().length === 0 &&
+    activeFilterCount === 0 &&
+    frequentCuisines.length > 0;
 
   const applyCuisine = useCallback(
     (id: string) =>
@@ -123,7 +132,12 @@ export default function SearchScreen() {
           {/* Без autoFocus: экран теперь открывается со списком заведений, и
               клавиатура, накрывающая половину каталога сразу после «Смотреть
               все», мешает больше, чем помогает. */}
-          <SearchBar value={text} onChangeText={setText} />
+          <SearchBar
+            value={text}
+            onChangeText={setText}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
 
           {/* Кнопка фильтров + ряд выбранных чипов в одну строку. Ряд
               горизонтально прокручивается: на 360px три длинных названия кухонь
