@@ -95,6 +95,9 @@ export function OtpInput({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         caretHidden
+        // The real caret and the selection highlight would draw over the cells,
+        // which paint their own caret — keep both invisible.
+        selectionColor="transparent"
         accessibilityLabel={accessibilityLabel}
       />
     </Pressable>
@@ -138,8 +141,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    // Invisible but still focusable and still receiving the keyboard/autofill.
-    opacity: 0,
+    // Invisible by having nothing to draw — transparent text on a transparent
+    // background — rather than by `opacity: 0`. An input at zero opacity does
+    // not present the system «Вставить» menu on long-press, and the code here
+    // arrives over WhatsApp/Telegram, where iOS SMS autofill never fires, so
+    // pasting is the only way in and it has to work.
+    backgroundColor: "transparent",
     color: "transparent",
   },
 });
