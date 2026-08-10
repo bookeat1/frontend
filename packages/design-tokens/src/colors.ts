@@ -104,6 +104,12 @@ export const colors = {
     /** Backdrop behind a modal confirmation dialog. Darker than `scrim`
      * because it covers a white screen, not a photo. */
     dialogScrim: "rgba(0, 0, 0, 0.45)",
+    /**
+     * Scrim over the home header photo. Heavy enough that the white greeting
+     * and city stay readable over the photo's bright spots, light enough that
+     * the picture still reads as a picture.
+     */
+    headerScrim: "rgba(0, 0, 0, 0.45)",
     /** Page dots over the Explore hero carousel (design-ref/screen-explore.png):
      * the current page is a solid white capsule, the rest are dimmed dots. */
     carouselDot: "rgba(255, 255, 255, 0.55)",
