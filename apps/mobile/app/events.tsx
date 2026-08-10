@@ -5,7 +5,7 @@ import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EventListCard } from "../src/components/afisha/EventListCard";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { useExploreEvents } from "../src/components/explore/use-explore-data";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
@@ -24,6 +24,7 @@ const t = getDictionary();
  * only re-fetch the same empty page.
  */
 export default function EventsScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   const query = useExploreEvents();
   const events = query.data?.items ?? [];
@@ -60,7 +61,7 @@ export default function EventsScreen() {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
           showsVerticalScrollIndicator={false}
         >
           {events.map((event) => (

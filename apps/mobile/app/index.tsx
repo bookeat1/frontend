@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ArticlesSection } from "../src/components/explore/ArticlesSection";
 import { CuisineSection } from "../src/components/explore/CuisineSection";
 import { EventsListSection } from "../src/components/explore/EventsListSection";
@@ -32,6 +32,7 @@ import { useLocale } from "../src/lib/locale";
  * [] — see use-explore-data.ts), so the screen looks finished on real data.
  */
 export default function HomeScreen() {
+  const navPad = useNavBarSpacing();
   // Dictionary through the context so the greeting/city labels re-render in the
   // chosen language the instant it changes (the switch lives in /settings/language).
   const { dictionary: t } = useLocale();
@@ -122,7 +123,7 @@ export default function HomeScreen() {
       <StatusBar style="light" />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: navPad }]}
         showsVerticalScrollIndicator={false}
         // No top safe-area inset here on purpose: the header bleeds under the
         // status bar and applies the inset itself.

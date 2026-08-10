@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { BookingListCard } from "../src/components/booking/BookingListCard";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { FlowHeader } from "../src/components/FlowHeader";
@@ -60,6 +60,7 @@ const TAB_HISTORY = 1;
  * history never downloads all of it.
  */
 export default function MyBookingsScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   const { status } = useAuth();
   const query = useMyBookings();
@@ -141,7 +142,7 @@ export default function MyBookingsScreen() {
       renderItem={renderItem}
       // flexGrow lets an empty bucket's state fill the viewport, so its content
       // sits at the scroll end and onEndReached can fire to page in more.
-      contentContainerStyle={[styles.list, isEmpty && styles.listEmpty]}
+      contentContainerStyle={[styles.list, isEmpty && styles.listEmpty, { paddingBottom: navPad }]}
       showsVerticalScrollIndicator={false}
       refreshing={query.isRefetching && !query.isFetchingNextPage}
       onRefresh={() => void query.refetch()}

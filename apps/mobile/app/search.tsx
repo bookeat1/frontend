@@ -4,7 +4,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { MagnifyingGlass } from "../src/components/icons";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
@@ -37,6 +37,7 @@ const FREQUENT_CUISINE_LIMIT = 8;
  * которых снимается тапом.
  */
 export default function SearchScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   // Optional cuisine seed from the Home «Выберите кухню» chip. `useLocalSearchParams`
   // hands a string (or string[]), so narrow it to a single id.
@@ -214,7 +215,7 @@ export default function SearchScreen() {
               <RestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
             ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             // 24 заведения сегодня и до 100 на страницу — список должен

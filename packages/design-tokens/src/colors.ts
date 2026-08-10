@@ -55,6 +55,13 @@ export const colors = {
     header: "#2A2321",
     /** Full-bleed photo viewer backdrop (Figma node 340:2455). */
     photoViewer: "#000000",
+    /**
+     * Fill behind the floating tab bar where the native liquid-glass effect is
+     * unavailable (iOS below 26, Android). Translucent rather than solid so the
+     * bar still reads as a layer above the content scrolling under it, while
+     * staying opaque enough for the 10pt tab labels.
+     */
+    navBarFallback: "rgba(255, 255, 255, 0.94)",
   },
   /**
    * Booking-status pill (Figma file oPxXynSOY3PYhf3gkVR5Ps, section
