@@ -3,7 +3,7 @@ import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Keyboard, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { MagnifyingGlass } from "../src/components/icons";
@@ -63,6 +63,14 @@ export default function SearchScreen() {
   // видит их в тот момент, когда собирается искать, а не всё время, пока просто
   // листает каталог.
   const [searchFocused, setSearchFocused] = useState(false);
+
+  // Прячет подсказки вместе с клавиатурой. `Keyboard.dismiss` нужен потому,
+  // что onBlur сам по себе не сработает: поле остаётся сфокусированным, пока
+  // клавиатуру не убрали.
+  const dismissSuggestions = useCallback(() => {
+    setSearchFocused(false);
+    Keyboard.dismiss();
+  }, []);
 
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
@@ -232,6 +240,11 @@ export default function SearchScreen() {
             contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            // Гость потянул список — он уже смотрит выдачу, а не собирается
+            // искать: убираем клавиатуру и подсказки, чтобы они не занимали
+            // три строки над результатами, которые он листает.
+            keyboardDismissMode="on-drag"
+            onScrollBeginDrag={dismissSuggestions}
             // 24 заведения сегодня и до 100 на страницу — список должен
             // оставаться оконным, а не монтировать все карточки с фото сразу.
             initialNumToRender={6}

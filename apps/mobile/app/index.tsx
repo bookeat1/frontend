@@ -102,6 +102,17 @@ export default function HomeScreen() {
     [router],
   );
 
+  // «Акции»: the chevron opens the full list, a tile opens that promo's card —
+  // the same pair as «Афиша» above.
+  const openPromotions = useCallback(() => router.push("/promotions"), [router]);
+  const openPromotion = useCallback(
+    (id: string) => {
+      trackEvent("promotion_tap", { id });
+      router.push(`/promotion/${id}`);
+    },
+    [router],
+  );
+
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
     [router],
@@ -141,8 +152,7 @@ export default function HomeScreen() {
         <View style={styles.sheet}>
           <RecommendedSection onSeeAll={openSearch} onOpenRestaurant={openRestaurant} />
           <CuisineSection onPickCuisine={pickCuisine} />
-          {/* Hidden today (no promo endpoint) — renders nothing. */}
-          <PromotionsSection />
+          <PromotionsSection onSeeAll={openPromotions} onOpenPromotion={openPromotion} />
           <EventsListSection onOpenEvent={openEvent} onSeeAll={openEvents} />
           {/* Live GASTROGUIDE collections; hides itself when nothing is published. */}
           <ArticlesSection onSeeAll={openArticles} onOpenArticle={openArticle} />

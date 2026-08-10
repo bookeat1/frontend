@@ -59,11 +59,24 @@ export type TokenProvider = () => string | undefined | Promise<string | undefine
  */
 export type UnauthorizedHandler = (staleToken: string) => Promise<string | undefined>;
 
+/**
+ * The language the guest chose IN THE APP, as a BCP-47 tag for
+ * `Accept-Language`.
+ *
+ * This backend localizes content by that header (verified 2026-08-10: the same
+ * venue answers "Казахская", "Kazakh" or "Қазақ асханасы" for ru / en / kk).
+ * Without it, fetch sends the DEVICE locale, so a phone set to English served
+ * English cuisine names inside a Russian interface. A closure, like getToken,
+ * because the language changes while the app runs.
+ */
+export type LanguageProvider = () => string | undefined;
+
 export interface HttpClientOptions {
   baseUrl: string;
   timeoutMs?: number;
   getToken?: TokenProvider;
   onUnauthorized?: UnauthorizedHandler;
+  getLanguage?: LanguageProvider;
 }
 
 interface RequestOptions {
@@ -94,6 +107,7 @@ export class HttpClient {
   private readonly timeoutMs: number;
   private readonly getToken?: TokenProvider;
   private readonly onUnauthorized?: UnauthorizedHandler;
+  private readonly getLanguage?: LanguageProvider;
 
   constructor(options: HttpClientOptions) {
     // Trim a trailing slash so callers can pass either "https://host" or
@@ -102,6 +116,7 @@ export class HttpClient {
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.getToken = options.getToken;
     this.onUnauthorized = options.onUnauthorized;
+    this.getLanguage = options.getLanguage;
   }
 
   async get<T>(
@@ -218,6 +233,19 @@ export class HttpClient {
       Accept: "application/json",
       ...(options?.headers ?? {}),
     };
+    // Ask for the content in the app's language, not the phone's. Set before
+    // the caller's own headers would be able to conflict with it — no caller
+    // sends Accept-Language today, and if one ever needs to, it should own the
+    // whole decision rather than fight this default.
+    const language = this.getLanguage?.();
+    // Case-insensitive check: header names are case-insensitive in HTTP, and
+    // two spellings of the same header would both be sent.
+    const callerSetLanguage = Object.keys(headers).some(
+      (name) => name.toLowerCase() === "accept-language",
+    );
+    if (language && !callerSetLanguage) {
+      headers["Accept-Language"] = language;
+    }
     if (body !== undefined) {
       headers["Content-Type"] = "application/json";
     }

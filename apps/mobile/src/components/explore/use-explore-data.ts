@@ -169,7 +169,7 @@ function toPromoStripItem(promo: HomePromo): PromoStripItem {
  * and when the feed has no promos for the city — the behaviour PromotionsSection
  * relies on.
  */
-export function useExplorePromotions(): readonly PromoStripItem[] {
+export function useExplorePromotionsQuery(): UseQueryResult<HomePromo[]> {
   const repository = useRepository();
   const { status, repository: authRepository } = useAuth();
   const { dictionary: t } = useLocale();
@@ -184,15 +184,41 @@ export function useExplorePromotions(): readonly PromoStripItem[] {
   });
   const city = me.data?.city?.trim() || t.explore.cityFallback;
 
-  const promotions = useQuery<PromoStripItem[]>({
+  return useQuery<HomePromo[]>({
     queryKey: ["home-feed", "promos", city],
-    queryFn: async () => (await repository.getPromotions(city)).map(toPromoStripItem),
+    queryFn: () => repository.getPromotions(city),
     enabled: city.length > 0,
     // Promos change on an editorial timescale, like the rest of the home feed.
     staleTime: 5 * 60_000,
   });
+}
 
-  return promotions.data ?? PLACEHOLDER_PROMOTIONS;
+/** The Home strip's view of the same query — see useExplorePromotionsQuery. */
+export function useExplorePromotions(): readonly PromoStripItem[] {
+  const query = useExplorePromotionsQuery();
+  return useMemo(
+    () => query.data?.map(toPromoStripItem) ?? PLACEHOLDER_PROMOTIONS,
+    [query.data],
+  );
+}
+
+/**
+ * One promo out of the same cached feed. There is no `GET /promotions/:id` on
+ * this backend — the feed item already carries everything the detail screen
+ * shows — so the screen reads the list it came from instead of refetching, and
+ * a promo that is no longer in the feed simply resolves to undefined (the
+ * screen then shows its "not found" state).
+ */
+export function useExplorePromotion(promoId: string | undefined): {
+  promo: HomePromo | undefined;
+  query: UseQueryResult<HomePromo[]>;
+} {
+  const query = useExplorePromotionsQuery();
+  const promo = useMemo(
+    () => (promoId ? query.data?.find((item) => item.id === promoId) : undefined),
+    [query.data, promoId],
+  );
+  return { promo, query };
 }
 
 /**
