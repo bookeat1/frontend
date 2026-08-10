@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { FilterChip } from "../src/components/FilterChip";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { DataErrorState } from "../src/components/DataErrorState";
@@ -35,6 +35,7 @@ import { useLocale } from "../src/lib/locale";
  * `useLocale().dictionary`, so switching language re-renders live.
  */
 export default function NotificationsScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   const { dictionary: t } = useLocale();
   const { status } = useAuth();
@@ -140,7 +141,7 @@ export default function NotificationsScreen() {
             />
           ) : (
             <ScrollView
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
             >

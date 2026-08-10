@@ -1,4 +1,5 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,10 +17,13 @@ import { Bell, CalendarBlank, CaretDown, MapPin, User } from "../icons";
  * count to show and a fabricated one would lie), a large personalised
  * greeting, and a date/guests selector row.
  *
- * The dark fill (`colors.background.header`) stands in for the design's dark
- * restaurant photo: the backend has no home-header image endpoint, so a flat
- * surface is honest where a fabricated photo would not be. The screen flips the
- * status bar to light content while this is on screen.
+ * The design's dark restaurant photo now ships with the app (assets/
+ * home-header.jpg, supplied 2026-08-10). It is a bundled asset rather than a
+ * remote url because the backend still has no home-header image endpoint; the
+ * dark fill (`colors.background.header`) stays underneath as the colour the
+ * header falls back to while the image decodes. A scrim over the photo keeps
+ * the white greeting, city and bell legible on its lighter areas. The screen
+ * flips the status bar to light content while this is on screen.
  *
  * Both selector pills reuse `PillSelect` (the same control the booking screen
  * uses) and route into `/search` — the home screen keeps no date/guests state
@@ -55,6 +59,24 @@ export function HomeHeader({
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
+      {/* Photo and scrim are decorative layers BEHIND the header's controls —
+          hidden from screen readers individually rather than by wrapping the
+          block, which would take the city picker, the bell and both pills out
+          of the accessibility tree with them. */}
+      <Image
+        source={require("../../../assets/home-header.jpg")}
+        style={styles.photo}
+        contentFit="cover"
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+      <View
+        style={styles.scrim}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
       <View style={styles.topRow}>
         <Pressable
           style={({ pressed }) => [styles.city, pressed && styles.cityPressed]}
@@ -126,6 +148,8 @@ const BADGE_SIZE = 18;
 const styles = StyleSheet.create({
   root: {
     backgroundColor: colors.background.header,
+    // The photo is clipped by the same rounded bottom as the block itself.
+    overflow: "hidden",
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
     // The white sheet below overlaps this block's rounded bottom by the same
@@ -133,6 +157,21 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.card,
     borderBottomRightRadius: radius.card,
     gap: spacing.lg,
+  },
+  photo: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  scrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.overlay.headerScrim,
   },
   topRow: {
     flexDirection: "row",

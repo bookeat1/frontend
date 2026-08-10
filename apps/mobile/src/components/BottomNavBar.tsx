@@ -1,9 +1,10 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
+import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BookOpen, Compass, Heart, MagnifyingGlass, UserCircle } from "./icons";
 
 const t = getDictionary();
@@ -25,6 +26,24 @@ const items: NavItem[] = [
   { key: "favorites", label: t.nav.favorites, icon: Heart, route: "/favorites" },
   { key: "profile", label: t.nav.profile, icon: UserCircle, route: "/profile" },
 ];
+
+/**
+ * Height of the bar itself, without the home-indicator inset.
+ *
+ * 8 padding + 24 glyph + 4 gap + 14 label + 8 padding. Exported because the bar
+ * FLOATS above the content now (see below): every screen that renders it has to
+ * reserve this much room at the end of its scroll, or the last row of content
+ * ends up permanently under the glass.
+ */
+export const NAV_BAR_HEIGHT = 58;
+
+/**
+ * How much bottom padding a scrollable screen needs so its last item clears the
+ * floating bar — the bar plus the home indicator underneath it.
+ */
+export function useNavBarSpacing(): number {
+  return NAV_BAR_HEIGHT + useSafeAreaInsets().bottom;
+}
 
 /**
  * Which tab the CURRENT route belongs to.
@@ -55,49 +74,72 @@ export function activeNavKey(pathname: string): NavKey | null {
  * history of "Обзор → Поиск → Обзор → Поиск" that nobody expects on a phone.
  * Tapping the tab you are already on does nothing, instead of remounting the
  * screen and throwing away its scroll position.
+ *
+ * The bar is a floating layer of frosted glass: it is positioned over the
+ * screen so content scrolls UNDER it, which is the whole point of the effect —
+ * a bar sitting in the layout flow would have nothing behind it to refract.
+ * `GlassView` is the real iOS 26 liquid glass; below that (and on Android) the
+ * component degrades to a plain view, so we paint a translucent fill ourselves
+ * instead of leaving the labels floating over bare content.
  */
 export function BottomNavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const active = activeNavKey(pathname);
+  const insets = useSafeAreaInsets();
+  const glass = isLiquidGlassAvailable();
 
-  return (
-    <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
-      <View style={styles.row}>
-        {items.map(({ key, label, icon: Icon, route }) => {
-          const isActive = key === active;
-          const color = isActive ? colors.brand.primary : colors.text.muted;
-          return (
-            <Pressable
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive }}
-              accessibilityLabel={label}
-              onPress={() => {
-                if (isActive) return;
-                router.replace(route);
-              }}
-              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-            >
-              <Icon size={24} color={color} weight="regular" />
-              {/* Длинные подписи («Избранные») сжимаются в одну строку, а не
-                  выталкивают соседнюю вкладку за край на 360 px. */}
-              <Text style={[styles.label, { color }]} numberOfLines={1}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </SafeAreaView>
+  const tabs = (
+    <View style={[styles.row, { paddingBottom: insets.bottom }]}>
+      {items.map(({ key, label, icon: Icon, route }) => {
+        const isActive = key === active;
+        const color = isActive ? colors.brand.primary : colors.text.muted;
+        return (
+          <Pressable
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={label}
+            onPress={() => {
+              if (isActive) return;
+              router.replace(route);
+            }}
+            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+          >
+            <Icon size={24} color={color} weight="regular" />
+            {/* Длинные подписи («Избранные») сжимаются в одну строку, а не
+                выталкивают соседнюю вкладку за край на 360 px. */}
+            <Text style={[styles.label, { color }]} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
+
+  if (glass) {
+    return (
+      <GlassView style={styles.bar} glassEffectStyle="regular" colorScheme="light">
+        {tabs}
+      </GlassView>
+    );
+  }
+
+  return <View style={[styles.bar, styles.fallback]}>{tabs}</View>;
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: colors.background.surface,
-    borderTopWidth: 1,
+  bar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border.subtle,
+  },
+  fallback: {
+    backgroundColor: colors.background.navBarFallback,
   },
   row: {
     flexDirection: "row",
