@@ -11,9 +11,19 @@ interface SearchBarProps {
   onChangeText: (text: string) => void;
   onSubmit?: () => void;
   autoFocus?: boolean;
+  /** Fires when the field takes focus — the search screen shows its suggestions then. */
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
-export function SearchBar({ value, onChangeText, onSubmit, autoFocus }: SearchBarProps) {
+export function SearchBar({
+  value,
+  onChangeText,
+  onSubmit,
+  autoFocus,
+  onFocus,
+  onBlur,
+}: SearchBarProps) {
   return (
     <View style={styles.container}>
       <MagnifyingGlass size={24} color={colors.text.muted} weight="regular" />
@@ -22,6 +32,8 @@ export function SearchBar({ value, onChangeText, onSubmit, autoFocus }: SearchBa
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
+        onFocus={onFocus}
+        onBlur={onBlur}
         placeholder={t.search.placeholder}
         placeholderTextColor={colors.text.muted}
         autoFocus={autoFocus}

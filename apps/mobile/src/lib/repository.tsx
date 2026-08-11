@@ -1,4 +1,5 @@
 import { createRestaurantRepository, type RestaurantRepository } from "@bookeat/api";
+import { getCurrentLocale } from "@bookeat/i18n";
 import React, { createContext, useContext, useMemo } from "react";
 import { getFreshAccessToken, refreshAfterUnauthorized } from "./token-store";
 
@@ -26,6 +27,9 @@ export function RepositoryProvider({ children }: { children: React.ReactNode }) 
       createRestaurantRepository(process.env.EXPO_PUBLIC_API_URL, {
         getToken: getFreshAccessToken,
         onUnauthorized: refreshAfterUnauthorized,
+        // Read on every request, not captured: the guest can switch the
+        // language at any point and the next request must follow.
+        getLanguage: getCurrentLocale,
       }),
     [],
   );

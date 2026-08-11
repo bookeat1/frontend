@@ -2,6 +2,8 @@ import { RepositoryError } from "../repository";
 import type {
   AdminBooking,
   AdminEvent,
+  CatalogVenue,
+  CatalogVenueInput,
   AdminGuest,
   AdminListParams,
   AdminMenuCategory,
@@ -235,6 +237,54 @@ export class AdminApiClient {
       "/admin/my-restaurants",
     );
     return res?.restaurants ?? [];
+  }
+
+  // ---- Venue catalog (superadmin) -----------------------------------------
+
+  /**
+   * GET /admin/restaurants — the catalog INCLUDING hidden venues.
+   *
+   * The public listing answers only active venues, which would make a venue
+   * disappear from the panel the moment it is hidden — and there would be no
+   * way back. This is the same shape, hidden ones included, so the row can say
+   * so and offer to bring the venue back.
+   */
+  listCatalogVenues(params: {
+    search?: string;
+    city?: string;
+    page?: number;
+    perPage?: number;
+  } = {}): Promise<ApiPage<CatalogVenue>> {
+    return this.request<ApiPage<CatalogVenue>>("GET", "/admin/restaurants", {
+      params: {
+        search: params.search,
+        city: params.city,
+        page: params.page,
+        per_page: params.perPage,
+      },
+    });
+  }
+
+  /** POST /restaurants — create a venue. Superadmin only. */
+  createVenue(input: CatalogVenueInput): Promise<CatalogVenue> {
+    return this.request<CatalogVenue>("POST", "/restaurants", { body: input });
+  }
+
+  /** PATCH /restaurants/:id — partial update. Omitted keys are left alone. */
+  updateVenue(id: string, input: CatalogVenueInput): Promise<CatalogVenue> {
+    return this.request<CatalogVenue>("PATCH", `/restaurants/${encodeURIComponent(id)}`, {
+      body: input,
+    });
+  }
+
+  /**
+   * DELETE /restaurants/:id — deactivates the venue (the backend soft-deletes:
+   * `is_active = false`). Bringing it back is `updateVenue(id, {is_active:
+   * true})`, which is why the panel calls this "скрыть", not "удалить
+   * навсегда".
+   */
+  async deactivateVenue(id: string): Promise<void> {
+    await this.request<unknown>("DELETE", `/restaurants/${encodeURIComponent(id)}`);
   }
 
   // ---- Platform dashboard (superadmin) -------------------------------------

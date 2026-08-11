@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ArticlesSection } from "../src/components/explore/ArticlesSection";
 import { CuisineSection } from "../src/components/explore/CuisineSection";
 import { EventsListSection } from "../src/components/explore/EventsListSection";
@@ -32,6 +32,7 @@ import { useLocale } from "../src/lib/locale";
  * [] — see use-explore-data.ts), so the screen looks finished on real data.
  */
 export default function HomeScreen() {
+  const navPad = useNavBarSpacing();
   // Dictionary through the context so the greeting/city labels re-render in the
   // chosen language the instant it changes (the switch lives in /settings/language).
   const { dictionary: t } = useLocale();
@@ -101,6 +102,17 @@ export default function HomeScreen() {
     [router],
   );
 
+  // «Акции»: the chevron opens the full list, a tile opens that promo's card —
+  // the same pair as «Афиша» above.
+  const openPromotions = useCallback(() => router.push("/promotions"), [router]);
+  const openPromotion = useCallback(
+    (id: string) => {
+      trackEvent("promotion_tap", { id });
+      router.push(`/promotion/${id}`);
+    },
+    [router],
+  );
+
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
     [router],
@@ -122,7 +134,7 @@ export default function HomeScreen() {
       <StatusBar style="light" />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: navPad }]}
         showsVerticalScrollIndicator={false}
         // No top safe-area inset here on purpose: the header bleeds under the
         // status bar and applies the inset itself.
@@ -140,8 +152,7 @@ export default function HomeScreen() {
         <View style={styles.sheet}>
           <RecommendedSection onSeeAll={openSearch} onOpenRestaurant={openRestaurant} />
           <CuisineSection onPickCuisine={pickCuisine} />
-          {/* Hidden today (no promo endpoint) — renders nothing. */}
-          <PromotionsSection />
+          <PromotionsSection onSeeAll={openPromotions} onOpenPromotion={openPromotion} />
           <EventsListSection onOpenEvent={openEvent} onSeeAll={openEvents} />
           {/* Live GASTROGUIDE collections; hides itself when nothing is published. */}
           <ArticlesSection onSeeAll={openArticles} onOpenArticle={openArticle} />

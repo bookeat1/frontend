@@ -64,10 +64,13 @@ describe("mapNotificationFeed", () => {
       body: "Столик на 19:00 подтверждён.",
       createdAt: "2026-08-07T10:00:00Z",
       read: false,
+      bookingId: "b-1",
     });
-    // booking_id / restaurant_id are carried on the wire but deliberately not
-    // modelled — nothing renders them yet.
-    expect(feed.items[0]).not.toHaveProperty("bookingId");
+    // restaurant_id is carried on the wire but still not modelled — no screen
+    // opens a venue from the inbox. booking_id IS modelled: the row opens it.
+    expect(feed.items[0]).not.toHaveProperty("restaurantId");
+    // Уведомление без брони не выдумывает её: bookingId остаётся null.
+    expect(feed.items[1]!.bookingId).toBeNull();
     expect(feed.items[1]!.read).toBe(true);
     expect(feed.items[1]!.type).toBe("promo");
   });

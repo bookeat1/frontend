@@ -5,7 +5,7 @@ import React from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MapPreview } from "../../src/components/booking/MapPreview";
-import { useExploreEvents, useEvent } from "../../src/components/explore/use-explore-data";
+import { useExplorePromotion } from "../../src/components/explore/use-explore-data";
 import {
   ArrowLeft,
   CalendarBlank,
@@ -21,39 +21,35 @@ import { IconButton } from "../../src/components/IconButton";
 import { PhotoView } from "../../src/components/PhotoView";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { TagChips } from "../../src/components/TagChips";
 import { useRestaurantFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
-import { formatDateTime, formatDayMonth, formatTime } from "../../src/lib/format";
+import { formatDayMonth } from "../../src/lib/format";
 
 const t = getDictionary();
 
 /**
- * «Карточка афиши» — one event's detail screen.
+ * «Карточка акции» — one promotion's detail screen, built as the twin of the
+ * event card (app/event/[id].tsx): same header, same cover, same «Контакты»
+ * block and map of the host venue, same bottom CTA into that venue's booking
+ * flow. A guest moving between афиша and акции sees one screen, not two.
  *
- * The event is SELECTED out of the shared `/events` page (there is no
- * single-event endpoint — see `useEvent`), so arriving from the list or Home is
- * a cache hit. The «Контакты» block and the map belong to the event's HOST
- * venue, fetched with `useRestaurant(event.restaurant.id)` and rendered with
- * the very same pieces as the restaurant screen (social icons, contact rows,
- * MapPreview). The bottom CTA routes into the venue's booking flow — the exact
- * nav the restaurant screen uses.
+ * The promo is SELECTED out of the shared city feed — this backend has no
+ * single-promo endpoint — so arriving from the list or from Home is a cache
+ * hit, and a promo that has dropped out of the feed resolves to "not found"
+ * rather than to an error.
  */
-export default function EventDetailScreen() {
+export default function PromotionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { event, isLoading, isError, refetch } = useEvent(id);
-  const eventsQuery = useExploreEvents();
+  const { promo, query } = useExplorePromotion(id);
 
-  // Host venue — for the contacts block and the map. Stays disabled until the
-  // event (and thus its restaurant id) is known.
-  const restaurantId = event?.restaurant.id;
+  // Host venue — for the contacts block and the map. Disabled until the promo
+  // (and thus its restaurant id) is known.
+  const restaurantId = promo?.restaurantId;
   const { data: restaurant } = useRestaurant(restaurantId);
 
-  // Same heart as the restaurant screen: a controlled favorite that writes to
-  // the account (GET/POST /favorites). Events have no favorites of their own,
-  // so "saving" one saves its venue — the only real backend, never a fake
-  // local toggle. A signed-out guest is sent to sign-in by the hook.
+  // Promos have no favourites of their own, so the heart saves the VENUE —
+  // the same controlled favorite the restaurant and event screens use.
   const favorite = useRestaurantFavorite(restaurantId ?? "");
 
   const share = async (title: string, venue: string) => {
@@ -67,48 +63,48 @@ export default function EventDetailScreen() {
   const header = (right?: React.ReactNode) => (
     <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
       <View style={styles.header}>
-        <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={() => router.back()} />
+        <IconButton
+          icon={ArrowLeft}
+          accessibilityLabel={t.a11y.backButton}
+          onPress={() => router.back()}
+        />
         {right}
       </View>
     </SafeAreaView>
   );
 
-  if (isLoading) {
+  if (query.isLoading) {
     return (
       <View style={styles.root}>
         {header()}
-        <LoadingState title={t.common.loading} />
+        <LoadingState title={t.promotions.loading} />
       </View>
     );
   }
 
-  // The /events request itself failed — offer a retry.
-  if (isError) {
+  if (query.isError) {
     return (
       <View style={styles.root}>
         {header()}
         <ErrorState
-          title={t.explore.eventsErrorTitle}
-          description={t.explore.eventsErrorDescription}
-          action={{ label: t.common.retry, onPress: refetch, variant: "button" }}
+          title={t.promotions.errorTitle}
+          description={t.promotions.errorDescription}
+          action={{ label: t.common.retry, onPress: () => void query.refetch(), variant: "button" }}
         />
       </View>
     );
   }
 
-  // Loaded, but this id is not in the page (finished, or a deep link beyond the
-  // fetched window). Honest "not found", not an error — but let the guest pull
-  // a fresh page in case it simply had not loaded.
-  if (!event) {
+  if (!promo) {
     return (
       <View style={styles.root}>
         {header()}
         <EmptyState
-          title={t.afisha.notFoundTitle}
-          description={t.afisha.notFoundDescription}
+          title={t.promotions.notFoundTitle}
+          description={t.promotions.notFoundDescription}
           action={{
             label: t.common.retry,
-            onPress: () => void eventsQuery.refetch(),
+            onPress: () => void query.refetch(),
             variant: "button",
           }}
         />
@@ -116,12 +112,16 @@ export default function EventDetailScreen() {
     );
   }
 
-  const startsAt = new Date(event.startsAt);
-  const dayMonth = Number.isNaN(startsAt.getTime()) ? "" : formatDayMonth(startsAt);
-  const time = formatTime(event.startsAt);
-  const venue = event.restaurant.name || event.venue;
-  const subtitle = t.afisha.subtitle([venue, dayMonth, time]);
-  const calendarLine = formatDateTime(event.startsAt);
+  const venue = promo.restaurantName.trim();
+  const startsAt = new Date(promo.startsAt);
+  const endsAt = new Date(promo.endsAt);
+  const from = Number.isNaN(startsAt.getTime()) ? "" : formatDayMonth(startsAt);
+  const to = Number.isNaN(endsAt.getTime()) ? "" : formatDayMonth(endsAt);
+  const until = to ? t.promotions.until(to) : "";
+  const subtitle = t.promotions.subtitle([venue, until]);
+  // Both ends known — show the window; only the end — the «до …» line already
+  // in the subtitle is enough, so the period row stays out.
+  const period = from && to ? t.promotions.period(from, to) : "";
 
   const hasContacts =
     restaurant &&
@@ -141,8 +141,8 @@ export default function EventDetailScreen() {
             icon={Heart}
             accessibilityLabel={
               favorite.isFavorite
-                ? t.restaurant.favoriteRemove(event.restaurant.name)
-                : t.restaurant.favoriteAdd(event.restaurant.name)
+                ? t.restaurant.favoriteRemove(venue)
+                : t.restaurant.favoriteAdd(venue)
             }
             selected={favorite.isFavorite}
             onPress={favorite.toggle}
@@ -150,7 +150,7 @@ export default function EventDetailScreen() {
           <IconButton
             icon={Export}
             accessibilityLabel={t.a11y.shareButton}
-            onPress={() => void share(event.title, venue)}
+            onPress={() => void share(promo.title, venue)}
           />
         </View>,
       )}
@@ -158,19 +158,25 @@ export default function EventDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.coverContainer}>
           <PhotoView
-            uri={event.coverImageUrl}
+            uri={promo.coverImageUrl ?? undefined}
             style={styles.cover}
             transition={200}
             priority="high"
             placeholderIconSize={40}
             decorative
           />
+          {promo.discountPercent !== null ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {t.explore.promoDiscount(promo.discountPercent)}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.summary}>
-          <Text style={styles.title}>{event.title}</Text>
+          <Text style={styles.title}>{promo.title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          <TagChips tags={event.tags} />
           {favorite.failed ? (
             <Text style={styles.favoriteFailed} accessibilityRole="alert">
               {t.restaurant.favoriteFailed}
@@ -178,34 +184,34 @@ export default function EventDetailScreen() {
           ) : null}
         </View>
 
-        {/* «Об афише» — hidden entirely when the venue wrote no description,
-            rather than showing an empty heading. */}
-        {event.description ? (
+        {/* Hidden entirely when the venue wrote no description, rather than
+            showing an empty heading. */}
+        {promo.description ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.afisha.aboutTitle}</Text>
-            <Text style={styles.body}>{event.description}</Text>
+            <Text style={styles.sectionTitle}>{t.promotions.aboutTitle}</Text>
+            <Text style={styles.body}>{promo.description}</Text>
           </View>
         ) : null}
 
-        {calendarLine ? (
+        {period ? (
           <View style={styles.section}>
             <View style={styles.contactRow}>
               <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
               <View style={styles.contactText}>
-                <Text style={styles.contactPrimary}>{calendarLine}</Text>
+                <Text style={styles.contactPrimary}>{period}</Text>
+                <Text style={styles.contactSecondary}>{t.promotions.periodTitle}</Text>
               </View>
             </View>
           </View>
         ) : null}
 
-        {/* Contacts belong to the host venue. Shown only once its data is in and
-            only for fields that exist — a venue that answered with nothing gets
-            no empty section. */}
         {hasContacts && restaurant ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
 
-            {restaurant.social?.website || restaurant.social?.whatsapp || restaurant.social?.instagram ? (
+            {restaurant.social?.website ||
+            restaurant.social?.whatsapp ||
+            restaurant.social?.instagram ? (
               <View style={styles.socialRow}>
                 {restaurant.social?.website ? (
                   <View style={styles.socialIcon}>
@@ -252,16 +258,19 @@ export default function EventDetailScreen() {
         ) : null}
       </ScrollView>
 
-      <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
-        <View style={styles.footer}>
-          {/* Same booking flow the restaurant screen starts — routed with the
-              event's host venue id. */}
-          <PrimaryButton
-            label={t.afisha.bookAction}
-            onPress={() => router.push(`/restaurant/${event.restaurant.id}/book`)}
-          />
-        </View>
-      </SafeAreaView>
+      {/* No host venue on record (the feed can omit `restaurant_id`) — then
+          there is no booking flow to route into, and a button that navigates
+          to `/restaurant//book` is worse than no button. */}
+      {promo.restaurantId ? (
+        <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
+          <View style={styles.footer}>
+            <PrimaryButton
+              label={t.promotions.bookAction}
+              onPress={() => router.push(`/restaurant/${promo.restaurantId}/book`)}
+            />
+          </View>
+        </SafeAreaView>
+      ) : null}
     </View>
   );
 }
@@ -303,6 +312,19 @@ const styles = StyleSheet.create({
     height: 240,
     borderRadius: radius.photoHero,
     backgroundColor: colors.background.chip,
+  },
+  badge: {
+    position: "absolute",
+    top: spacing.lg,
+    left: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.primary,
+  },
+  badgeText: {
+    ...typography.caption,
+    color: colors.text.onBrand,
   },
   summary: {
     backgroundColor: colors.background.surface,

@@ -499,6 +499,7 @@ function buildMockNotifications(): AppNotification[] {
       body: "Ваш столик в «Del Papa» на сегодня в 19:00 подтверждён.",
       createdAt: minutesAgo(45),
       read: false,
+      bookingId: "mock-booking-1",
     },
     {
       id: "mock-notif-2",
@@ -507,6 +508,7 @@ function buildMockNotifications(): AppNotification[] {
       body: "Завтра в 13:30 вас ждут в «Barashka». До встречи!",
       createdAt: minutesAgo(60 * 22),
       read: true,
+      bookingId: "mock-booking-2",
     },
     {
       id: "mock-notif-3",
@@ -515,6 +517,7 @@ function buildMockNotifications(): AppNotification[] {
       body: "«Nedelka» дарит скидку на всё меню с понедельника по четверг.",
       createdAt: minutesAgo(60 * 30),
       read: true,
+      bookingId: null,
     },
   ];
 }

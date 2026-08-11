@@ -206,6 +206,57 @@ export interface MyRestaurantsResponse {
   restaurants: MyRestaurant[];
 }
 
+// ---- Venue catalog (superadmin) ---------------------------------------------
+
+/** One venue as the catalog endpoints return it (transport restaurantResponse).
+ * Only the fields the panel reads are modelled; the payload carries more. */
+export interface CatalogVenue {
+  id: string;
+  name: string;
+  description: string;
+  cuisine_type: string;
+  address: string;
+  city: string;
+  price_category: string;
+  price_range?: { min: number; max: number } | null;
+  email: string;
+  phone: string;
+  latitude: number | null;
+  longitude: number | null;
+  is_active: boolean;
+  is_new?: boolean | null;
+  is_popular?: boolean | null;
+  is_premium?: boolean | null;
+  display_order?: number | null;
+  primary_image?: string | null;
+  images?: { image_url: string; is_primary: boolean }[];
+}
+
+/** Body of POST /restaurants and PATCH /restaurants/:id. Every field is
+ * optional on the PATCH: an omitted key leaves that column alone (the backend
+ * binds pointers), and `images` omitted PRESERVES the current gallery — sending
+ * `[]` clears it. */
+export interface CatalogVenueInput {
+  name?: string;
+  description?: string;
+  cuisine_type?: string;
+  address?: string;
+  city?: string;
+  price_category?: string;
+  price_min?: number;
+  price_max?: number;
+  email?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+  is_active?: boolean;
+  is_new?: boolean;
+  is_popular?: boolean;
+  is_premium?: boolean;
+  display_order?: number;
+  images?: { image_url: string; is_primary: boolean }[];
+}
+
 // ---- Events ----------------------------------------------------------------
 
 /** Event publication state (domain.EventStatus). draft -> published -> hidden. */

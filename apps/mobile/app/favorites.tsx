@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { Heart } from "../src/components/icons";
@@ -29,6 +29,7 @@ const t = getDictionary();
  * slice that hides rows.
  */
 export default function FavoritesScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   const { status } = useAuth();
   const query = useFavorites();
@@ -85,7 +86,7 @@ export default function FavoritesScreen() {
             // Same gutter and rhythm as the search results — this is the same
             // card in the same kind of list.
             ItemSeparatorComponent={Separator}
-            contentContainerStyle={styles.list}
+            contentContainerStyle={[styles.list, { paddingBottom: navPad }]}
             showsVerticalScrollIndicator={false}
             refreshing={query.isRefetching}
             onRefresh={() => void query.refetch()}

@@ -5,7 +5,7 @@ import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArticleListCard } from "../src/components/articles/ArticleListCard";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { useGuideCollections } from "../src/components/explore/use-explore-data";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
@@ -25,6 +25,7 @@ const t = getDictionary();
  * for `/articles` — `activeNavKey` returns null, which is honest).
  */
 export default function ArticlesScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   const query = useGuideCollections();
   const collections = query.data ?? [];
@@ -48,7 +49,7 @@ export default function ArticlesScreen() {
       ) : collections.length === 0 ? (
         <EmptyState title={t.articles.emptyTitle} description={t.articles.emptyDescription} />
       ) : (
-        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]} showsVerticalScrollIndicator={false}>
           {collections.map((collection) => (
             <ArticleListCard key={collection.slug} collection={collection} onPress={openArticle} />
           ))}

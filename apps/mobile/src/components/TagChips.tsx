@@ -29,17 +29,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xs,
+    gap: spacing.sm,
     marginTop: spacing.xxs,
   },
   chip: {
     backgroundColor: colors.background.chipAlt,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
+    // В макете карточки афиши чип — полноценная метка, а не мелкая подпись:
+    // 12 по горизонтали и 6 по вертикали вместо 8/2.
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
   },
   chipText: {
-    ...typography.captionMedium,
+    ...typography.labelMedium,
     color: colors.text.mutedStrong,
   },
 });

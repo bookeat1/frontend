@@ -1,10 +1,10 @@
 import { EMPTY_FILTERS, type PriceLevel, type SearchFilters } from "@bookeat/api";
-import { colors, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { FlatList, Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { MagnifyingGlass } from "../src/components/icons";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
@@ -37,6 +37,7 @@ const FREQUENT_CUISINE_LIMIT = 8;
  * которых снимается тапом.
  */
 export default function SearchScreen() {
+  const navPad = useNavBarSpacing();
   const router = useRouter();
   // Optional cuisine seed from the Home «Выберите кухню» chip. `useLocalSearchParams`
   // hands a string (or string[]), so narrow it to a single id.
@@ -58,6 +59,18 @@ export default function SearchScreen() {
   } = useSearchScreen({ initialCuisineId });
 
   const [sheetVisible, setSheetVisible] = useState(false);
+  // Подсказки «Часто ищут» живут по фокусу поля, а не по пустой строке: гость
+  // видит их в тот момент, когда собирается искать, а не всё время, пока просто
+  // листает каталог.
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Прячет подсказки вместе с клавиатурой. `Keyboard.dismiss` нужен потому,
+  // что onBlur сам по себе не сработает: поле остаётся сфокусированным, пока
+  // клавиатуру не убрали.
+  const dismissSuggestions = useCallback(() => {
+    setSearchFocused(false);
+    Keyboard.dismiss();
+  }, []);
 
   const openRestaurant = useCallback(
     (id: string) => router.push(`/restaurant/${id}`),
@@ -99,11 +112,16 @@ export default function SearchScreen() {
     [cuisinesQuery.data],
   );
 
-  // Нейтральное состояние «просто листаю каталог»: строка пуста И ни одного
-  // активного фильтра. Как только гость печатает или применяет фильтр — блок
-  // исчезает, чтобы не конкурировать с результатами и рядом выбранных чипов.
+  // Показываем ровно в момент намерения искать: гость тапнул в поле, но ещё
+  // ничего не набрал и не выбрал фильтр. Начал печатать — подсказки уходят,
+  // чтобы не спорить с выдачей; просто листает каталог, не трогая поле, — их
+  // тоже нет (раньше блок висел всё время, пока строка пуста, и занимал три
+  // строки над результатами).
   const showFrequent =
-    text.trim().length === 0 && activeFilterCount === 0 && frequentCuisines.length > 0;
+    searchFocused &&
+    text.trim().length === 0 &&
+    activeFilterCount === 0 &&
+    frequentCuisines.length > 0;
 
   const applyCuisine = useCallback(
     (id: string) =>
@@ -122,7 +140,12 @@ export default function SearchScreen() {
           {/* Без autoFocus: экран теперь открывается со списком заведений, и
               клавиатура, накрывающая половину каталога сразу после «Смотреть
               все», мешает больше, чем помогает. */}
-          <SearchBar value={text} onChangeText={setText} />
+          <SearchBar
+            value={text}
+            onChangeText={setText}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
 
           {/* Кнопка фильтров + ряд выбранных чипов в одну строку. Ряд
               горизонтально прокручивается: на 360px три длинных названия кухонь
@@ -155,15 +178,24 @@ export default function SearchScreen() {
         {showFrequent ? (
           <View style={styles.frequentBlock}>
             <Text style={styles.frequentTitle}>{t.search.frequentTitle}</Text>
-            <View style={styles.frequentChips}>
-              {frequentCuisines.map((cuisine) => (
-                <FilterChip
-                  key={cuisine.id}
-                  label={cuisine.name}
-                  onPress={() => applyCuisine(cuisine.id)}
-                />
-              ))}
-            </View>
+            {/* Список строк с лупой, как в макете (node 347:5561), а не ряд
+                чипов: подсказка читается как «поисковый запрос, который можно
+                повторить», и восемь длинных русских названий кухонь больше не
+                занимают три ряда над выдачей. */}
+            {frequentCuisines.map((cuisine) => (
+              <Pressable
+                key={cuisine.id}
+                accessibilityRole="button"
+                accessibilityLabel={t.explore.cuisineFilter(cuisine.name)}
+                onPress={() => applyCuisine(cuisine.id)}
+                style={({ pressed }) => [styles.frequentRow, pressed && styles.frequentRowPressed]}
+              >
+                <MagnifyingGlass size={20} color={colors.text.mutedStrong} weight="regular" />
+                <Text style={styles.frequentLabel} numberOfLines={1}>
+                  {cuisine.name}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         ) : null}
 
@@ -214,9 +246,14 @@ export default function SearchScreen() {
               <RestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
             ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            // Гость потянул список — он уже смотрит выдачу, а не собирается
+            // искать: убираем клавиатуру и подсказки, чтобы они не занимали
+            // три строки над результатами, которые он листает.
+            keyboardDismissMode="on-drag"
+            onScrollBeginDrag={dismissSuggestions}
             // 24 заведения сегодня и до 100 на страницу — список должен
             // оставаться оконным, а не монтировать все карточки с фото сразу.
             initialNumToRender={6}
@@ -331,17 +368,27 @@ const styles = StyleSheet.create({
   frequentBlock: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   frequentTitle: {
     ...typography.labelMedium,
     color: colors.text.mutedStrong,
+    marginBottom: spacing.xs,
   },
-  // Перенос по строкам, а не горизонтальный скролл: длинные русские названия
-  // кухонь на 360px иначе уезжают за край и половина чипов не видна.
-  frequentChips: {
+  frequentRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
+    alignItems: "center",
+    gap: spacing.md,
+    // 44 — минимальная зона нажатия; строка подсказки должна попадаться пальцем
+    // так же уверенно, как чип до неё.
+    minHeight: hitSlop.minTouchTarget,
+  },
+  frequentRowPressed: {
+    opacity: 0.6,
+  },
+  frequentLabel: {
+    ...typography.body,
+    color: colors.text.primary,
+    flexShrink: 1,
   },
 });

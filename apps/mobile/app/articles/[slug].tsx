@@ -3,11 +3,11 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GuideVenueBlock } from "../../src/components/articles/GuideVenueBlock";
 import { useGuideCollection } from "../../src/components/explore/use-explore-data";
-import { ArrowLeft } from "../../src/components/icons";
+import { ArrowLeft, Export } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
 import { PhotoView } from "../../src/components/PhotoView";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
@@ -21,10 +21,14 @@ const t = getDictionary();
  * ordered venue blocks. Tapping a venue block opens that restaurant
  * (`/restaurant/:restaurantId`) — the same nav the catalog uses.
  *
- * There is no Heart/Share in the header on purpose: there is no
- * favourite-an-article endpoint, and a dead control is worse than none (the
- * task allows omitting them, which is what we do rather than shipping inert
- * icons — see the fake-favorite-heart bug in team-memory).
+ * The header carries «Поделиться» — the design draws a heart beside it, but
+ * there is no favourite-an-article endpoint, and an inert heart is a lie about
+ * what the app remembers (see the fake-favorite-heart bug in team-memory). It
+ * lands the day the backend can store it.
+ *
+ * Order under the cover follows the design (node 1001:11921): title, then the
+ * byline («От BookEat» — a constant, the payload has no author), then the
+ * «Подборка» chip.
  *
  * States: an unknown slug is a 404 → an honest "not found" (no retry, there is
  * nothing to re-fetch that would exist); any other failure → a retryable error.
@@ -43,10 +47,20 @@ export default function ArticleDetailScreen() {
   const notFound =
     query.isError && query.error instanceof RepositoryError && query.error.isNotFound;
 
-  const header = (
+  const share = async (title: string) => {
+    try {
+      await Share.share({ message: `${title} — ${t.explore.articleAuthorDefault}` });
+    } catch {
+      // Гость закрыл шторку или система отказала — не ошибка, о которой стоит
+      // сообщать.
+    }
+  };
+
+  const header = (right?: React.ReactNode) => (
     <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
       <View style={styles.header}>
         <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={() => router.back()} />
+        {right}
       </View>
     </SafeAreaView>
   );
@@ -54,7 +68,7 @@ export default function ArticleDetailScreen() {
   if (query.isLoading) {
     return (
       <View style={styles.root}>
-        {header}
+        {header()}
         <LoadingState title={t.articles.loading} />
       </View>
     );
@@ -63,7 +77,7 @@ export default function ArticleDetailScreen() {
   if (notFound) {
     return (
       <View style={styles.root}>
-        {header}
+        {header()}
         <EmptyState title={t.articles.notFoundTitle} description={t.articles.notFoundDescription} />
       </View>
     );
@@ -72,7 +86,7 @@ export default function ArticleDetailScreen() {
   if (query.isError || !collection) {
     return (
       <View style={styles.root}>
-        {header}
+        {header()}
         <ErrorState
           title={t.articles.errorTitle}
           description={t.articles.errorDescription}
@@ -84,7 +98,13 @@ export default function ArticleDetailScreen() {
 
   return (
     <View style={styles.root}>
-      {header}
+      {header(
+        <IconButton
+          icon={Export}
+          accessibilityLabel={t.a11y.shareButton}
+          onPress={() => void share(collection.title)}
+        />,
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.coverContainer}>
@@ -100,6 +120,7 @@ export default function ArticleDetailScreen() {
 
         <View style={styles.summary}>
           <Text style={styles.title}>{collection.title}</Text>
+          <Text style={styles.author}>{t.explore.articleAuthorDefault}</Text>
           <View style={styles.chip}>
             <Text style={styles.chipLabel}>{t.articles.collectionChip}</Text>
           </View>
@@ -130,6 +151,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     height: 56,
     paddingHorizontal: spacing.sm,
   },
@@ -167,6 +189,10 @@ const styles = StyleSheet.create({
   chipLabel: {
     ...typography.captionMedium,
     color: colors.text.mutedStrong,
+  },
+  author: {
+    ...typography.body,
+    color: colors.text.muted,
   },
   subtitle: {
     ...typography.body,

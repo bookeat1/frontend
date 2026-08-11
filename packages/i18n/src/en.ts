@@ -1074,14 +1074,11 @@ export const en: LocaleOverride<Dictionary> = {
     clearProfile: "Leave city unset",
   },
   deleteAccount: {
-    title: "Delete account",
     heading: "Delete account?",
     explanation:
-      "We'll mark the account as deleted and hide it. Signing in by number will stop working until you restore the account.",
-    restoreNotice:
-      "This is a soft delete: for some time the account can be brought back — just sign in again with your number. The retention period is set by the server; after it, the data is deleted permanently.",
-    confirmCheckbox: "I understand that signing in by number will stop working until restoration",
-    submit: "Delete account",
+      "We'll cancel your reservations and delete your history. Reviews stay with the venues, but without your name.",
+    submit: "Delete",
+    cancel: "Cancel",
     deleting: "Deleting…",
     errorTitle: "Couldn't delete the account",
     errorDescription: "Check your connection and try again",

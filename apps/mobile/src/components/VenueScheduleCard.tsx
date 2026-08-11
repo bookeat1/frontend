@@ -75,10 +75,10 @@ export function VenueScheduleCard({
   if (uniform) {
     return (
       <View style={styles.card}>
-        <Header statusLabel={openUntilTodayLabel(schedule)} />
-        <Text style={styles.summary}>
-          {t.restaurant.schedule.everyDay(uniform.opensAt, uniform.closesAt)}
-        </Text>
+        <Header
+          statusLabel={openUntilTodayLabel(schedule)}
+          hoursLabel={t.restaurant.schedule.everyDay(uniform.opensAt, uniform.closesAt)}
+        />
         {isForeignTimezone(schedule.timezone) ? (
           <Text style={styles.timezoneNote}>
             {t.restaurant.schedule.timezoneNote(schedule.timezone)}
@@ -140,13 +140,21 @@ export function VenueScheduleCard({
   );
 }
 
-function Header({ statusLabel }: { statusLabel: string }) {
+/**
+ * Шапка блока по макету (Figma node 340:2593): часы-иконка, справа две строки —
+ * СТАТУС («Открыто до 23:00») крупнее и тёмным, под ним сводка часов
+ * («Ежедневно с 10:00 до 23:00») мельче и серым.
+ *
+ * Заголовка «Часы работы» в макете нет: статус сам себя объясняет, а лишняя
+ * строка отодвигала главное — до скольких сегодня открыто — на второй план.
+ */
+function Header({ statusLabel, hoursLabel }: { statusLabel: string; hoursLabel?: string }) {
   return (
     <View style={styles.header}>
       <Clock size={24} color={colors.text.primary} weight="regular" />
       <View style={styles.headerText}>
-        <Text style={styles.title}>{t.restaurant.workingHours}</Text>
         <Text style={styles.status}>{statusLabel}</Text>
+        {hoursLabel ? <Text style={styles.hours}>{hoursLabel}</Text> : null}
       </View>
     </View>
   );
@@ -164,17 +172,13 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
-  title: {
+  status: {
     ...typography.labelMedium,
     color: colors.text.primary,
   },
-  status: {
+  hours: {
     ...typography.caption,
     color: colors.text.muted,
-  },
-  summary: {
-    ...typography.body,
-    color: colors.text.primary,
   },
   week: {
     gap: spacing.xs,

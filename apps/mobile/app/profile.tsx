@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BottomNavBar } from "../src/components/BottomNavBar";
+import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ChatCircle, ForkKnife, GearSix, GlobeSimple, MapPin, Question, SignOut, ThumbsUp, User } from "../src/components/icons";
 import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
 import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
@@ -32,6 +32,7 @@ import { useLocale } from "../src/lib/locale";
  * counter, the current city and language — and routes.
  */
 export default function ProfileScreen() {
+  const navPad = useNavBarSpacing();
   // The dictionary comes through the context so this screen re-renders in the
   // chosen language the instant it changes (the switch lives in /settings/language).
   const { dictionary: t, locale } = useLocale();
@@ -123,7 +124,7 @@ export default function ProfileScreen() {
             <LoadingState title={t.profile.loadingTitle} />
           )
         ) : (
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={[styles.content, { paddingBottom: navPad }]} showsVerticalScrollIndicator={false}>
             <ProfileIdentity
               name={account.fullName}
               phone={account.phone}
