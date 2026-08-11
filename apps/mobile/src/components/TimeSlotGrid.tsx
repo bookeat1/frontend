@@ -24,8 +24,10 @@ interface TimeSlotGridProps {
 /**
  * The time grid.
  *
- * An unavailable slot is shown, not hidden, and carries its reason as a
- * caption — the backend returns a reason for exactly this purpose, and a
+ * An unavailable slot is shown, not hidden: the time itself is the answer, and
+ * a gap in the grid would read as "this hour does not exist". The reason lives
+ * in the accessibility label only — printed in every circle it turned the grid
+ * into a wall of repeated text. The backend returns the reason and a
  * grid that silently drops half its times reads as broken data. `freeTables`
  * is deliberately NOT used to decide anything: a venue with no table rows
  * reports 0 for every slot while the table-less booking mode is being built
@@ -64,12 +66,12 @@ export function TimeSlotGrid({ slots, selected, onSelect }: TimeSlotGridProps) {
             >
               {formatTime(slot.startsAt)}
             </Text>
-            {!slot.available ? (
-              <Text style={styles.reason} numberOfLines={3}>
-                {reasonLabel}
-              </Text>
-            ) : slot.freeTables > 0 && slot.freeTables <= 3 ? (
-              <Text style={[styles.reason, active && styles.timeActive]} numberOfLines={1}>
+            {/* Причина отказа больше НЕ пишется в кружке: «Слишком близко ко
+                времени» в каждом из десяти слотов превращало сетку в стену
+                текста. Недоступный слот просто нельзя нажать и он приглушён, а
+                полная причина остаётся у скринридера в accessibilityLabel. */}
+            {slot.available && slot.freeTables > 0 && slot.freeTables <= 3 ? (
+              <Text style={[styles.hint, active && styles.timeActive]} numberOfLines={1}>
                 {t.booking.slotFreeTables(slot.freeTables)}
               </Text>
             ) : null}
@@ -126,7 +128,7 @@ const styles = StyleSheet.create({
   timeActive: {
     color: colors.brand.primary,
   },
-  reason: {
+  hint: {
     ...typography.caption,
     color: colors.text.muted,
     textAlign: "center",

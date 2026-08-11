@@ -266,6 +266,10 @@ export default function EventDetailScreen() {
   );
 }
 
+/** Высота липкого футера с кнопкой (48 кнопка + 12 отступы сверху и снизу)
+ * плюс воздух, чтобы последняя строка не липла к ней вплотную. */
+const FOOTER_CLEARANCE = 48 + spacing.md * 2 + spacing.xxl;
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -285,7 +289,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   scrollContent: {
-    paddingBottom: spacing.xxxl,
+    // Кнопка внизу — липкая и лежит НАД списком: без запаса в её высоту
+    // последний блок (телефон и карта) остаётся под ней и до него не долистать.
+    paddingBottom: FOOTER_CLEARANCE,
     gap: spacing.sm,
   },
   coverContainer: {

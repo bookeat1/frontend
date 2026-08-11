@@ -763,11 +763,13 @@ export type NotificationType = "booking" | "reminder" | "promo";
 
 /**
  * One item of the guest notifications inbox, already mapped off the wire
- * (`created_at` → `createdAt`, `read` passed through). The API item also
- * carries `booking_id` / `restaurant_id`, deliberately NOT modelled here: no
- * screen deep-links from a row yet, and inventing a field nothing renders is
- * exactly the kind of speculative shape this codebase avoids. Add them the day
- * a row needs to open a booking.
+ * (`created_at` → `createdAt`, `read` passed through).
+ *
+ * `bookingId` is the booking the notification is ABOUT, when it is about one:
+ * tapping such a row opens that reservation. Null for anything that has no
+ * booking behind it (a promo, a general reminder) — those rows only mark
+ * themselves read. `restaurant_id` also travels on the wire and is still not
+ * modelled: no screen opens a venue from the inbox yet.
  */
 export interface AppNotification {
   id: string;
@@ -777,6 +779,8 @@ export interface AppNotification {
   /** RFC3339, server time. Rendered via the app's relative-time formatter. */
   createdAt: string;
   read: boolean;
+  /** Booking this row is about, or null when it is about nothing openable. */
+  bookingId: string | null;
 }
 
 /**

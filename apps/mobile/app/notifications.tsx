@@ -145,25 +145,30 @@ export default function NotificationsScreen() {
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
             >
-              {visible.map((item) =>
-                item.read ? (
-                  <NotificationRow key={item.id} notification={item} />
-                ) : (
-                  // Only unread rows are tappable: marking an already-read item
-                  // would be a wasted request. The optimistic update flips the
-                  // row to read, so on the next render it drops back to the
-                  // plain (non-pressable) branch — a rapid double tap is
-                  // harmless server-side anyway.
+              {visible.map((item) => {
+                // Строка ведёт на бронь, если уведомление про неё, и заодно
+                // помечает себя прочитанной. Если брони нет (промо, общее
+                // напоминание) — тап только помечает прочитанным, а уже
+                // прочитанная строка без брони не нажимается вовсе: запрос был
+                // бы холостым.
+                const openable = Boolean(item.bookingId);
+                if (item.read && !openable) {
+                  return <NotificationRow key={item.id} notification={item} />;
+                }
+                return (
                   <Pressable
                     key={item.id}
                     accessibilityRole="button"
-                    onPress={() => markRead.mutate(item.id)}
+                    onPress={() => {
+                      if (!item.read) markRead.mutate(item.id);
+                      if (item.bookingId) router.push(`/booking/${item.bookingId}`);
+                    }}
                     style={({ pressed }) => (pressed ? styles.rowPressed : undefined)}
                   >
                     <NotificationRow notification={item} />
                   </Pressable>
-                ),
-              )}
+                );
+              })}
             </ScrollView>
           )}
         </>

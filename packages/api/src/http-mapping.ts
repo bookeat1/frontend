@@ -667,6 +667,8 @@ export function mapNotification(api: ApiNotification): AppNotification {
     body: text(api.body),
     createdAt: text(api.created_at),
     read: api.read === true,
+    // Пустая строка на проводе — это «брони нет», а не бронь с пустым id.
+    bookingId: text(api.booking_id) || null,
   };
 }
 
