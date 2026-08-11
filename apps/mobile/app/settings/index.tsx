@@ -1,13 +1,15 @@
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ConfirmSheet } from "../../src/components/ConfirmSheet";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { Bell, type IconProps, Info, Shield, WarningCircle } from "../../src/components/icons";
 import { SelectRow } from "../../src/components/SelectRow";
 import { ToggleRow } from "../../src/components/ToggleRow";
+import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
 import { useNotificationsPref } from "../../src/lib/notifications-pref";
 
@@ -21,7 +23,11 @@ import { useNotificationsPref } from "../../src/lib/notifications-pref";
  * Language selection lives on «Профиль», not here — the language row was
  * removed from Settings to match the design.
  *
- * Only the delete row navigates. «Безопасность» has no screen yet (track-C):
+ * Удаление аккаунта — нижняя шторка прямо отсюда (макет 976:6787), а не
+ * отдельный экран: решение принимается там же, где стоит пункт, и «Отмена»
+ * возвращает ровно сюда.
+ *
+ * «Безопасность» has no screen yet (track-C):
  * it is drawn NON-interactive with a muted «Скоро» rather than a chevron that
  * leads nowhere — a dead affordance is the same lie as a fake stat. The
  * version row is pure info. The notifications toggle is a genuinely stored
@@ -33,6 +39,34 @@ import { useNotificationsPref } from "../../src/lib/notifications-pref";
 export default function SettingsScreen() {
   const router = useRouter();
   const { dictionary: t } = useLocale();
+  const { repository, signOut } = useAuth();
+
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [failed, setFailed] = useState(false);
+  // Один запрос за раз: двойной тап по «Удалить» не должен слать второй DELETE.
+  const inFlight = useRef(false);
+
+  const deleteAccount = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setDeleting(true);
+    setFailed(false);
+    try {
+      await repository.deleteAccount();
+      // Аккаунта больше нет: гасим сессию так же, как «Выйти», и уходим на
+      // главную, а не остаёмся на экране, живущем на мёртвом токене.
+      await signOut();
+      setConfirmVisible(false);
+      router.replace("/");
+    } catch {
+      // Шторка остаётся открытой с текстом ошибки — повторить можно тут же.
+      setFailed(true);
+    } finally {
+      inFlight.current = false;
+      setDeleting(false);
+    }
+  };
   const { enabled: notificationsEnabled, setEnabled: setNotificationsEnabled } = useNotificationsPref();
 
   // Build/version read off the compiled app config, not hardcoded, so it stays
@@ -66,9 +100,25 @@ export default function SettingsScreen() {
           label={t.settings.account}
           value={t.settings.deleteAccount}
           caption={t.settings.deleteAccountCaption}
-          onPress={() => router.push("/settings/delete-account")}
+          onPress={() => {
+            setFailed(false);
+            setConfirmVisible(true);
+          }}
         />
       </ScrollView>
+
+      <ConfirmSheet
+        visible={confirmVisible}
+        title={t.deleteAccount.heading}
+        description={t.deleteAccount.explanation}
+        confirmLabel={deleting ? t.deleteAccount.deleting : t.deleteAccount.submit}
+        cancelLabel={t.deleteAccount.cancel}
+        destructive
+        pending={deleting}
+        error={failed ? t.deleteAccount.errorDescription : null}
+        onConfirm={() => void deleteAccount()}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 }
