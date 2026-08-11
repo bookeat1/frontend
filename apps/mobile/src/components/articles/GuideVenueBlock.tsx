@@ -3,7 +3,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { CaretRight, MapPin } from "../icons";
+import { CaretRight } from "../icons";
 import { PhotoView } from "../PhotoView";
 
 const t = getDictionary();
@@ -44,9 +44,11 @@ export function GuideVenueBlock({
 
       {venue.note ? <Text style={styles.note}>{venue.note}</Text> : null}
 
+      {/* Адрес — строкой, без иконки: в макете (node 1001:11921) это подпись
+          «адрес · @инстаграм», а не пункт с пином. Инстаграма в ответе API
+          сегодня нет, поэтому остаётся один адрес. */}
       {venue.address ? (
         <View style={styles.footer}>
-          <MapPin size={20} color={colors.text.muted} weight="regular" />
           <Text style={styles.address} numberOfLines={2} ellipsizeMode="tail">
             {venue.address}
           </Text>
