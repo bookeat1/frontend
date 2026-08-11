@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   title: {
-    ...typography.titleLg,
+    ...typography.titleSection,
     color: colors.text.primary,
     flexShrink: 1,
   },

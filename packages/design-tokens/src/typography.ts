@@ -28,6 +28,15 @@ export const typography = {
     lineHeight: 28,
     letterSpacing: -0.5,
   },
+  /** Заголовок секции на главной («Выбрали для вас», «Выберите кухню»). Мельче
+   * titleLg: на главной таких заголовков пять подряд, и в прежнем кегле они
+   * забирали больше места, чем сами карточки под ними. */
+  titleSection: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 17,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+  },
   /** Card headings on the Reservation detail screen ("What happens next?",
    * "Contacts") — bold 18, one step below the venue name (node 488:9876). */
   titleCard: {

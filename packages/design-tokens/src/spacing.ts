@@ -81,10 +81,12 @@ export const exploreLayout = {
    * the white sheet, which overlaps them with its rounded top corners. */
   heroHeight: 265,
   sheetOverlap: 20,
-  /** Horizontally scrolling card. 256 + 8 gap leaves the next card clearly
-   * peeking on a 375-wide screen (and still peeking at 360). */
-  cardWidth: 256,
-  cardPhotoHeight: 144,
+  /** Horizontally scrolling card. At 256 only one card and a sliver of the
+   * next fitted on a 390-wide phone, and the rail read as a single venue with
+   * something cut off behind it. 200 + 8 gap shows two whole cards and the
+   * third clearly peeking — the point of a rail is that there is more in it. */
+  cardWidth: 200,
+  cardPhotoHeight: 120,
   /** Rebuilt home (Figma home design, 2026-08-06). Circular cuisine avatar in
    * the «Выберите кухню» rail — a 72 diameter circle leaves ~4 chips visible
    * on a 360-wide screen with the next one peeking. */
