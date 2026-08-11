@@ -1,4 +1,4 @@
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,8 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnreadNotificationsCount } from "../../hooks/useNotifications";
 import { useLocale } from "../../lib/locale";
 import { IconButton } from "../IconButton";
-import { PillSelect } from "../PillSelect";
-import { Bell, CalendarBlank, CaretDown, MapPin, User } from "../icons";
+import { Bell, CalendarBlank, MapPin, User } from "../icons";
 
 /**
  * Rebuilt home header (Figma home design, 2026-08-06). Replaces the old promo
@@ -25,9 +24,9 @@ import { Bell, CalendarBlank, CaretDown, MapPin, User } from "../icons";
  * the white greeting, city and bell legible on its lighter areas. The screen
  * flips the status bar to light content while this is on screen.
  *
- * Both selector pills reuse `PillSelect` (the same control the booking screen
- * uses) and route into `/search` — the home screen keeps no date/guests state
- * of its own, so a tap simply opens the catalog where the real picker lives.
+ * Оба селектора — половинки одной капсулы (макет главной), и оба ведут в
+ * `/search`: своего состояния даты и гостей главная не держит, тап просто
+ * открывает каталог, где живёт настоящий выбор.
  *
  * The bell opens the «Уведомления» screen (`/notifications`) and carries an
  * unread badge fed by the real feed's `unread_count` (B5 Part 2), read from the
@@ -58,7 +57,7 @@ export function HomeHeader({
   const unreadCount = useUnreadNotificationsCount();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
+    <View style={[styles.root, { paddingTop: insets.top + spacing.lg }]}>
       {/* Photo and scrim are decorative layers BEHIND the header's controls —
           hidden from screen readers individually rather than by wrapping the
           block, which would take the city picker, the bell and both pills out
@@ -84,11 +83,10 @@ export function HomeHeader({
           accessibilityLabel={t.explore.cityLabel(city)}
           onPress={onOpenCity}
         >
-          <MapPin size={20} color={colors.text.onDark} weight="fill" />
+          <MapPin size={24} color={colors.text.onDark} weight="fill" />
           <Text style={styles.cityLabel} numberOfLines={1}>
             {city}
           </Text>
-          <CaretDown size={14} color={colors.text.onDark} weight="bold" />
         </Pressable>
 
         <View style={styles.bellWrap}>
@@ -107,11 +105,7 @@ export function HomeHeader({
               pointerEvents="none"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-            >
-              <Text style={styles.badgeText} numberOfLines={1}>
-                {unreadCount > 9 ? "9+" : String(unreadCount)}
-              </Text>
-            </View>
+            />
           ) : null}
         </View>
       </View>
@@ -122,19 +116,33 @@ export function HomeHeader({
         {greeting}
       </Text>
 
+      {/* Дата и гости — ОДНА белая капсула, разделённая тонкой линией
+          (node 986:8721), а не два отдельных пилла: так в макете главной.
+          Пилл со стрелкой (PillSelect) остаётся на экране брони, где он и
+          нарисован. */}
       <View style={styles.selectorRow}>
-        <PillSelect
-          icon={CalendarBlank}
-          accessibilityLabel={t.explore.dateSelectorLabel}
-          value={dateValue}
+        <Pressable
+          style={({ pressed }) => [styles.selector, styles.selectorLeft, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.explore.dateSelectorLabel}: ${dateValue}`}
           onPress={onOpenSearch}
-        />
-        <PillSelect
-          icon={User}
-          accessibilityLabel={t.explore.guestsSelectorLabel}
-          value={guestsValue}
+        >
+          <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
+          <Text style={styles.selectorValue} numberOfLines={1}>
+            {dateValue}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.selector, styles.selectorRight, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.explore.guestsSelectorLabel}: ${guestsValue}`}
           onPress={onOpenSearch}
-        />
+        >
+          <User size={24} color={colors.text.primary} weight="regular" />
+          <Text style={styles.selectorValue} numberOfLines={1}>
+            {guestsValue}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -143,7 +151,7 @@ export function HomeHeader({
 /** Diameter of the unread badge on the bell. A local layout constant like
  * NotificationRow's ICON_CIRCLE — not a design token, since it exists only
  * here. */
-const BADGE_SIZE = 18;
+const BADGE_SIZE = 8;
 
 const styles = StyleSheet.create({
   root: {
@@ -181,33 +189,26 @@ const styles = StyleSheet.create({
   },
   bellWrap: {
     position: "relative",
+    // Кнопка 44pt шире своего значка 24pt, и значок из-за этого отходил от
+    // поля страницы на 10pt внутрь, хотя в макете он стоит вплотную. Сдвигаем
+    // саму кнопку, тач-таргет при этом остаётся прежним.
+    marginRight: -10,
   },
   badge: {
     position: "absolute",
-    // Sits over the bell's top-right without pushing the 44pt touch target.
-    top: 4,
-    right: 2,
-    minWidth: BADGE_SIZE,
+    // Точка непрочитанных, как в макете (node 986:8718): 8pt без числа.
+    // Сидит над правым верхом колокольчика и не растягивает тач-таргет 44pt.
+    top: 8,
+    right: 6,
+    width: BADGE_SIZE,
     height: BADGE_SIZE,
     borderRadius: BADGE_SIZE / 2,
-    paddingHorizontal: 4,
     backgroundColor: colors.brand.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    // A ring in the header fill separates the badge from the white glyph.
-    borderWidth: 2,
-    borderColor: colors.background.header,
-  },
-  badgeText: {
-    ...typography.captionMedium,
-    fontSize: 10,
-    lineHeight: 14,
-    color: colors.text.onDark,
   },
   city: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
+    gap: spacing.xs + 2,
     flexShrink: 1,
     // A comfortable tap target for the city picker without shifting the layout.
     minHeight: 44,
@@ -216,17 +217,44 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   cityLabel: {
-    ...typography.labelSemiBold,
+    ...typography.body,
     color: colors.text.onDark,
     flexShrink: 1,
   },
   greeting: {
-    ...typography.titleXl,
+    ...typography.titleXxl,
     color: colors.text.onDark,
   },
   selectorRow: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  selector: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
+    height: controlHeight.pill,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.background.surface,
+  },
+  selectorLeft: {
+    borderTopLeftRadius: radius.pill,
+    borderBottomLeftRadius: radius.pill,
+    // Волосяная линия между половинками — в макете это граница, а не зазор.
+    borderRightWidth: 1,
+    borderRightColor: colors.background.screen,
+  },
+  selectorRight: {
+    borderTopRightRadius: radius.pill,
+    borderBottomRightRadius: radius.pill,
+  },
+  selectorValue: {
+    ...typography.labelMedium,
+    color: colors.text.primary,
+    flexShrink: 1,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

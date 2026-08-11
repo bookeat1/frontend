@@ -6,6 +6,13 @@ import { fontFamilies } from "./fonts";
  * do not add sizes that aren't backed by a real node.
  */
 export const typography = {
+  /** Home greeting «Куда сегодня, Камила?» (node 986:8720) — the largest type
+   * in the app, and the only place that uses it. */
+  titleXxl: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 24,
+    lineHeight: 32,
+  },
   /** Venue name on the Reservation detail screen (node 488:9876) — the one
    * place the design goes above 20pt. */
   titleXl: {
