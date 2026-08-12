@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 import { roleLabel, useMyRestaurants } from "@/lib/use-my-restaurants";
+import { filterVenues } from "@/lib/venue-picking";
 import { ErrorState, LoadingState } from "./StateViews";
 import { Button } from "./ui/Button";
 
@@ -12,14 +13,21 @@ import { Button } from "./ui/Button";
  * Post-login venue selection, driven entirely by GET /admin/my-restaurants —
  * no restaurant UUID is ever typed or hardcoded:
  *  - exactly one venue -> auto-selected, the picker never appears;
- *  - several           -> a keyboard-reachable list of buttons;
+ *  - several           -> a keyboard-reachable list of buttons, with a search
+ *                         box once the list is long enough to scroll (a
+ *                         superadmin is staff at every venue on the platform);
  *  - none              -> an honest "you are not staff anywhere yet" screen;
  *  - request failed    -> an error screen with a retry.
  */
-export function RestaurantPicker() {
+export function RestaurantPicker({ title, subtitle }: { title?: string; subtitle?: string } = {}) {
   const { user, logout, selectRestaurant } = useAuth();
   const query = useMyRestaurants();
   const list = query.data;
+  const [search, setSearch] = useState("");
+  // Below this the list fits on screen and a search box is one more control to
+  // read past; above it, scrolling is the only way to find anything.
+  const SEARCHABLE_FROM = 8;
+  const shown = useMemo(() => filterVenues(list ?? [], search), [list, search]);
 
   // Auto-select when the caller manages exactly one venue: a dialog with a
   // single option is a click that teaches nothing.
@@ -86,11 +94,28 @@ export function RestaurantPicker() {
   return (
     <Screen>
       <Card>
-        <h1 className="text-xl font-bold text-text">{t.admin.restaurant.pickTitle}</h1>
-        <p className="mt-sm text-sm text-text-muted">{t.admin.restaurant.pickSubtitle}</p>
+        <h1 className="text-xl font-bold text-text">{title ?? t.admin.restaurant.pickTitle}</h1>
+        <p className="mt-sm text-sm text-text-muted">{subtitle ?? t.admin.restaurant.pickSubtitle}</p>
 
-        <ul className="mt-xl flex flex-col gap-sm">
-          {list.map((r) => (
+        {list.length >= SEARCHABLE_FROM ? (
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t.admin.restaurant.searchPlaceholder}
+            aria-label={t.admin.restaurant.searchPlaceholder}
+            className="mt-lg w-full rounded-card bg-chip px-lg py-md text-sm text-text placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          />
+        ) : null}
+
+        {shown.length === 0 ? (
+          <p className="mt-xl text-center text-sm text-text-muted">
+            {t.admin.restaurant.searchEmpty}
+          </p>
+        ) : null}
+
+        <ul className="mt-lg flex max-h-[52vh] flex-col gap-sm overflow-y-auto">
+          {shown.map((r) => (
             <li key={r.id}>
               <button
                 type="button"
