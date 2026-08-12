@@ -14,6 +14,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { AuthUser } from "@bookeat/api/admin";
 
 import { apiClient, clearSession, session, STORAGE_KEYS } from "./api";
+import { browserStorage } from "./token-store";
+import { clearRecentVenues, rememberVenue } from "./venue-picking";
 
 /** The restaurant the panel is currently operating on. Picked from
  * GET /admin/my-restaurants (see RestaurantPicker) and kept in localStorage so
@@ -108,6 +110,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     clearSession();
+    // The venue history is part of the session: the next person on a shared
+    // machine must not inherit someone else's shortcuts.
+    clearRecentVenues(browserStorage());
     selectedIdRef.current = null;
     queryClient.clear();
     setState({ hydrated: true, token: null, user: null, restaurant: null });
@@ -129,6 +134,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       selectedIdRef.current = ctx.id;
       window.localStorage.setItem(STORAGE_KEYS.restaurant, JSON.stringify(ctx));
+      // Feeds the switcher's «Недавние» block: what a person came back to is a
+      // better shortcut than alphabetical order over a hundred venues.
+      rememberVenue(browserStorage(), ctx.id);
       setState((prev) =>
         prev.restaurant?.id === ctx.id && prev.restaurant.name === ctx.name
           ? prev // no-op: don't re-render (and don't re-trigger the reconcile effect)

@@ -5,42 +5,18 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/lib/auth-context";
+import { NAV } from "@/lib/nav";
 import { t } from "@/lib/i18n";
 
 import { PushToggle } from "./PushToggle";
 import { RestaurantSwitcher } from "./RestaurantSwitcher";
 
-interface NavItem {
-  href: string;
-  label: string;
-  /** Deferred screens are shown but disabled (backend not ready). */
-  soon?: boolean;
-  /** Platform-wide screens: hidden from venue staff, who would only get a 403
-   * behind them. The backend gates them regardless — this is about not showing
-   * a door that is not theirs. The gastroguide is one of these: it is platform
-   * editorial content, not a venue's own screen. */
-  adminOnly?: boolean;
-}
-
-const NAV: NavItem[] = [
-  { href: "/", label: "Сводка" },
-  { href: "/bookings", label: t.admin.nav.bookings },
-  { href: "/menu", label: t.admin.nav.menu },
-  { href: "/schedule", label: t.admin.nav.schedule },
-  { href: "/events", label: t.admin.nav.events },
-  { href: "/promos", label: t.admin.nav.promos },
-  { href: "/stories", label: t.admin.nav.stories },
-  { href: "/guests", label: t.admin.nav.guests },
-  { href: "/venues", label: "Заведения", adminOnly: true },
-  { href: "/gastroguide", label: t.admin.nav.gastroguide, adminOnly: true },
-  { href: "/feed-moderation", label: t.admin.nav.feedModeration, adminOnly: true },
-  { href: "/settings", label: t.admin.nav.settings },
-  { href: "/platform", label: "Платформа", adminOnly: true },
-];
-
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  // Only a superadmin sees both levels; for venue staff there is nothing to
+  // separate, so the headings stay off.
+  const showGroupTitles = user?.role === "admin";
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
@@ -56,41 +32,59 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="text-sm font-bold text-text">BookEat</span>
         </Link>
 
-        <nav aria-label="Основная навигация" className="flex gap-xs overflow-x-auto px-md pb-md md:flex-col md:overflow-visible">
-          {NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => {
-            // "/" is the dashboard, not a prefix of everything: without the
-            // exact check every screen would light up the first nav item.
-            const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            if (item.soon) {
-              return (
-                <span
-                  key={item.href}
-                  aria-disabled="true"
-                  className="flex shrink-0 items-center justify-between gap-sm rounded-card px-md py-sm text-sm text-text-muted opacity-60 md:shrink"
-                >
-                  {item.label}
-                  <span className="rounded-pill bg-chip px-sm py-xxs text-[10px] uppercase tracking-wide">
-                    {t.admin.nav.soon}
-                  </span>
+        <nav
+          aria-label="Основная навигация"
+          className="flex gap-md overflow-x-auto px-md pb-md md:flex-col md:gap-lg md:overflow-visible"
+        >
+          {NAV.filter((group) => !group.adminOnly || user?.role === "admin").map((group) => (
+            <div key={group.title} className="flex shrink-0 flex-col gap-xs md:shrink">
+              {/* The label is what separates the two levels. Venue staff see a
+                  single group, so its heading would be noise — it is drawn only
+                  when there is something to tell apart. */}
+              {showGroupTitles ? (
+                <span className="px-md pt-xs text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  {group.title}
                 </span>
-              );
-            }
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`shrink-0 rounded-card px-md py-sm text-sm font-medium transition-colors md:shrink ${
-                  active ? "bg-chip-active text-white" : "text-text hover:bg-chip"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+              ) : null}
+
+              <div className="flex gap-xs md:flex-col">
+                {group.items.map((item) => {
+                  // "/" is the dashboard, not a prefix of everything: without the
+                  // exact check every screen would light up the first nav item.
+                  const active =
+                    item.href === "/"
+                      ? pathname === "/"
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  if (item.soon) {
+                    return (
+                      <span
+                        key={item.href}
+                        aria-disabled="true"
+                        className="flex shrink-0 items-center justify-between gap-sm rounded-card px-md py-sm text-sm text-text-muted opacity-60 md:shrink"
+                      >
+                        {item.label}
+                        <span className="rounded-pill bg-chip px-sm py-xxs text-[10px] uppercase tracking-wide">
+                          {t.admin.nav.soon}
+                        </span>
+                      </span>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`shrink-0 rounded-card px-md py-sm text-sm font-medium transition-colors md:shrink ${
+                        active ? "bg-chip-active text-white" : "text-text hover:bg-chip"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 
