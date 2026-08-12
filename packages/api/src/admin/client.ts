@@ -33,6 +33,8 @@ import type {
   PlatformBookings,
   PlatformOverview,
   PlatformPayments,
+  PlatformGuest,
+  PlatformGuestQuery,
   PlatformPeriod,
   PushSubscriptionInput,
   RestaurantPricePatch,
@@ -748,6 +750,18 @@ export class AdminApiClient {
   }
 
   // ---- Guests --------------------------------------------------------------
+
+  /** GET /admin/dashboard/guests — платформенный список гостей (суперадмин).
+   * Пустые фильтры выбрасываются: сервер отличает «параметра нет» от «параметр
+   * пустой», и пустая строка города означала бы «город равен пустому». */
+  listPlatformGuests(query: PlatformGuestQuery = {}): Promise<ApiPage<PlatformGuest>> {
+    const params: Record<string, string | number | undefined> = {};
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null || value === "") continue;
+      params[key] = value as string | number;
+    }
+    return this.request<ApiPage<PlatformGuest>>("GET", "/admin/dashboard/guests", { params });
+  }
 
   listGuests(restaurantId: string): Promise<AdminGuest[]> {
     return this.request<AdminGuest[]>(
