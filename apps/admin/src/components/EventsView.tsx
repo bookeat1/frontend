@@ -19,6 +19,7 @@ import { formatTags, parseTags } from "@/lib/tags";
 import { Button } from "./ui/Button";
 import { FeedControl } from "./ui/FeedControl";
 import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
+import { ImageGalleryField } from "./ui/ImageGalleryField";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
@@ -247,6 +248,7 @@ function EventFormModal({
   const [endsAt, setEndsAt] = useState(isoToLocalInput(event?.ends_at));
   const [venue, setVenue] = useState(event?.venue ?? "");
   const [cover, setCover] = useState(event?.cover_image_url ?? "");
+  const [gallery, setGallery] = useState<string[]>(event?.images ?? []);
   const [ticketed, setTicketed] = useState(event?.ticketed ?? false);
   const [price, setPrice] = useState(
     event?.ticket_price_minor != null ? String(Math.round(event.ticket_price_minor / 100)) : "",
@@ -293,6 +295,7 @@ function EventFormModal({
       ends_at: endsIso,
       venue: venue.trim(),
       cover_image_url: cover.trim() || null,
+      images: gallery,
       status,
       ticketed,
       ticket_price_minor: ticketed && price.trim() && !Number.isNaN(priceNum) ? tengeToMinor(priceNum) : null,
@@ -336,6 +339,12 @@ function EventFormModal({
           label={t.admin.events.fieldCover}
           value={cover}
           onChange={setCover}
+        />
+        <ImageGalleryField
+          label={t.admin.gallery.label}
+          hint={t.admin.gallery.hint}
+          value={gallery}
+          onChange={setGallery}
         />
 
         <CheckboxRow

@@ -12,6 +12,7 @@ import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
 import { FeedControl } from "./ui/FeedControl";
 import { Field, TextArea, TextInput, CheckboxRow } from "./ui/FormControls";
+import { ImageGalleryField } from "./ui/ImageGalleryField";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
@@ -230,6 +231,7 @@ function PromoFormModal({
   const [endsAt, setEndsAt] = useState(isoToLocalInput(promo?.ends_at));
   const [terms, setTerms] = useState(promo?.terms ?? "");
   const [coverImageUrl, setCoverImageUrl] = useState(promo?.cover_image_url ?? "");
+  const [gallery, setGallery] = useState<string[]>(promo?.images ?? []);
   const [discountPercent, setDiscountPercent] = useState(
     promo?.discount_percent != null ? String(promo.discount_percent) : "",
   );
@@ -282,6 +284,7 @@ function PromoFormModal({
       ends_at: endsIso,
       terms: terms.trim(),
       cover_image_url: cover || null,
+      images: gallery,
       discount_percent: discount,
       status,
     });
@@ -320,6 +323,12 @@ function PromoFormModal({
           hint={t.admin.promos.fieldCoverHint}
           value={coverImageUrl}
           onChange={setCoverImageUrl}
+        />
+        <ImageGalleryField
+          label={t.admin.gallery.label}
+          hint={t.admin.gallery.hint}
+          value={gallery}
+          onChange={setGallery}
         />
         <Field label={t.admin.promos.fieldDiscount} hint={t.admin.promos.fieldDiscountHint}>
           <TextInput

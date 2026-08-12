@@ -282,6 +282,9 @@ export interface AdminEvent {
   ticket_price_minor?: number | null;
   capacity?: number | null;
   tags?: string[];
+  /** Галерея БЕЗ обложки, в порядке редактора (migration 0070). Контракт всегда
+   * присылает массив; поле опционально здесь на случай старой сборки сервера. */
+  images?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -300,6 +303,9 @@ export interface EventInput {
   ticket_price_minor: number | null;
   capacity: number | null;
   tags?: string[];
+  /** Полная замена галереи: пустой список её очищает, как и всё остальное в
+   * этой структуре. */
+  images?: string[];
 }
 
 // ---- Promos ----------------------------------------------------------------
@@ -321,6 +327,8 @@ export interface AdminPromo {
   cover_image_url?: string | null;
   discount_percent?: number | null;
   status: PromoStatus;
+  /** Галерея БЕЗ обложки, в порядке редактора (migration 0070). */
+  images?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -335,6 +343,8 @@ export interface PromoInput {
   cover_image_url?: string | null;
   discount_percent?: number | null;
   status: PromoStatus;
+  /** Полная замена галереи: пустой список её очищает. */
+  images?: string[];
 }
 
 // ---- Stories (restaurant rail) ---------------------------------------------
