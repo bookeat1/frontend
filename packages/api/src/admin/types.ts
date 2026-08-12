@@ -642,6 +642,65 @@ export interface TopRestaurant {
   gmv_minor: number;
 }
 
+/** ---- Платформенный список гостей -------------------------------------
+ *
+ * Гость здесь — ЧЕЛОВЕК, а не аккаунт: половина броней сделана без
+ * регистрации, и такой человек всё равно гость. Отсюда две особенности строки:
+ * `user_id` может быть null (бронировал без аккаунта), а счётчики броней могут
+ * быть нулями (зарегистрировался и не дошёл) — и это факт, а не «нет данных».
+ */
+export interface PlatformGuest {
+  /** Нормализованный номер, он же идентичность строки. */
+  phone: string;
+  name: string;
+  email?: string;
+  city?: string;
+  language?: string;
+  /** null у гостя без регистрации. */
+  user_id: string | null;
+  /** null у гостя без регистрации. */
+  registered_at: string | null;
+
+  bookings_count: number;
+  visits_count: number;
+  cancelled_count: number;
+  no_show_count: number;
+  /** В скольких РАЗНЫХ заведениях бронировал. */
+  venues_count: number;
+
+  first_booking_at: string | null;
+  last_booking_at: string | null;
+}
+
+/** Готовые срезы списка. Названы по вопросу, на который отвечают. */
+export type PlatformGuestSegment =
+  | "all"
+  | "registered"
+  | "booked"
+  | "visited"
+  | "never_visited"
+  | "no_bookings"
+  | "cancelled";
+
+export type PlatformGuestSort = "last_booking" | "bookings" | "registered";
+
+/** Фильтры списка. Пустые поля не отправляются — сервер поймёт это как
+ * «фильтра нет»; отправленное пустое значение он бы принял за фильтр. */
+export interface PlatformGuestQuery {
+  search?: string;
+  segment?: PlatformGuestSegment;
+  city?: string;
+  language?: string;
+  registered_from?: string;
+  registered_to?: string;
+  booked_from?: string;
+  booked_to?: string;
+  min_bookings?: number;
+  sort?: PlatformGuestSort;
+  page?: number;
+  per_page?: number;
+}
+
 /** Period filter shared by the three period-scoped dashboard calls. Omitted
  * values let the backend apply its own defaults (a look-back window ending
  * now) — the client does not invent dates. */

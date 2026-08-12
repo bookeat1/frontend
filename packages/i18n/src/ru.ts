@@ -568,6 +568,7 @@ export const ru = {
       groupPlatform: "Платформа",
       summary: "Сводка",
       venues: "Заведения",
+      platformGuests: "Гости",
       platform: "Платформа",
       bookings: "Брони",
       menu: "Меню",
