@@ -27,6 +27,7 @@ import type {
   GuideCollection,
   GuideCollectionDetail,
   GuideCollectionVenue,
+  GuideHighlight,
   MenuHighlight,
   MenuSection,
   AppNotification,
@@ -155,6 +156,18 @@ export const MENU_HIGHLIGHT_LIMIT = 8;
  */
 function text(value: string | null | undefined): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * A gallery field (`images`) as the UI wants it: a list of non-empty URLs in
+ * the order the editor set. The contract always sends an array, but an old
+ * build sends nothing and a bad row can carry a blank string — both must fold
+ * to "no gallery" (the screen then shows the cover alone), never to a rail with
+ * an empty frame in it.
+ */
+function imageList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((url) => text(typeof url === "string" ? url : "")).filter((url) => url !== "");
 }
 
 /**
@@ -921,6 +934,10 @@ export interface ApiEvent {
    * none, never null); typed optional here purely to stay defensive against an
    * old build that predates the field. */
   tags?: string[] | null;
+  /** Gallery WITHOUT the cover, in the editor's order. Contract: always an
+   * array; optional here for the same reason `tags` is — a server that
+   * predates the field must degrade to "no gallery", not to a crash. */
+  images?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -951,6 +968,7 @@ export function mapEventSummary(api: ApiEventListItem): EventSummary {
     endsAt: text(api.ends_at),
     venue: text(api.venue).trim(),
     coverImageUrl: text(api.cover_image_url).trim() || null,
+    images: imageList(api.images),
     ticketed: api.ticketed === true,
     ticketPriceMinor: typeof api.ticket_price_minor === "number" ? api.ticket_price_minor : null,
     capacity: typeof api.capacity === "number" ? api.capacity : null,
@@ -995,6 +1013,9 @@ export interface ApiFeedItem {
   starts_at?: string;
   ends_at?: string;
   cover_image_url?: string | null;
+  /** Gallery WITHOUT the cover. Always an array in the contract; optional here
+   * so a server that predates the field degrades to "no gallery". */
+  images?: string[] | null;
   discount_percent?: number | null;
 }
 
@@ -1015,6 +1036,7 @@ export function mapHomePromos(items: ApiFeedItem[] | null | undefined): HomeProm
       startsAt: text(item.starts_at),
       endsAt: text(item.ends_at),
       coverImageUrl: text(item.cover_image_url).trim() || null,
+      images: imageList(item.images),
       discountPercent: typeof item.discount_percent === "number" ? item.discount_percent : null,
     }))
     .filter((promo) => promo.id !== "");
@@ -1050,6 +1072,19 @@ export interface ApiGuideVenue {
   city?: string | null;
   price_category?: string | null;
   primary_image_url?: string | null;
+  instagram?: string | null;
+  highlight?: ApiGuideHighlight | null;
+}
+
+/** The event/promo a collection block is illustrated with. */
+export interface ApiGuideHighlight {
+  kind?: string;
+  id?: string;
+  title?: string;
+  description?: string | null;
+  starts_at?: string | null;
+  cover_image_url?: string | null;
+  images?: string[] | null;
 }
 
 export interface ApiGuideCollectionDetail extends ApiGuideCollection {
@@ -1099,6 +1134,31 @@ function mapGuideVenue(api: ApiGuideVenue): GuideCollectionVenue {
     city: text(api.city),
     priceCategory: text(api.price_category),
     imageUrl: text(api.primary_image_url) || null,
+    instagram: text(api.instagram),
+    highlight: mapGuideHighlight(api.highlight),
+  };
+}
+
+/**
+ * The block's event/promo, or `null` when the block is a plain venue card.
+ * An UNKNOWN kind is dropped rather than rendered: `kind` is what the tap
+ * routes on, and a card that opens the wrong screen is worse than a card that
+ * stays a venue block. A highlight without an id is dropped for the same
+ * reason — there would be nothing to open.
+ */
+function mapGuideHighlight(api: ApiGuideHighlight | null | undefined): GuideHighlight | null {
+  if (!api) return null;
+  const kind = text(api.kind);
+  const id = text(api.id);
+  if ((kind !== "event" && kind !== "promo") || id === "") return null;
+  return {
+    kind,
+    id,
+    title: text(api.title),
+    description: plainText(api.description),
+    startsAt: text(api.starts_at),
+    coverImageUrl: text(api.cover_image_url) || null,
+    images: imageList(api.images),
   };
 }
 

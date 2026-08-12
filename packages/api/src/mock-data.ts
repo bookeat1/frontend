@@ -205,6 +205,11 @@ export function homePromotions(city?: string, now: Date = new Date()): HomePromo
       startsAt: at(0),
       endsAt: at(14),
       coverImageUrl: photo("foodDessertBerry", "promo-1-cover", "Завтраки").uri,
+      // Галерея БЕЗ обложки — карточка рисует ленту «обложка + эти».
+      images: [
+        photo("interiorOpenKitchen", "promo-1-g1", "Завтраки").uri,
+        photo("foodGrillSkewers", "promo-1-g2", "Завтраки").uri,
+      ],
       discountPercent: 30,
       city: restaurants[0].city,
     },
@@ -218,6 +223,8 @@ export function homePromotions(city?: string, now: Date = new Date()): HomePromo
       startsAt: at(0),
       endsAt: at(7),
       coverImageUrl: photo("interiorWineTable", "promo-2-cover", "Дегустация").uri,
+      // Акция без галереи — экран показывает одну обложку, без точек.
+      images: [],
       discountPercent: null,
       city: restaurants[1].city,
     },
@@ -255,6 +262,21 @@ function guideCollectionsData(): GuideCollectionDetail[] {
         city: restaurants[3].city,
         priceCategory: restaurants[3].priceLevel,
         imageUrl: restaurants[3].coverPhoto?.uri ?? null,
+        instagram: restaurants[3].social?.instagram ?? "",
+        // Блок с событием — та самая форма из макета: заголовок, описание и
+        // лента фотографий над адресом заведения.
+        highlight: {
+          kind: "event",
+          id: "e1",
+          title: "Ужин с шефом: сезонное меню",
+          description: "Сет из шести подач, шеф выходит к каждому столу.",
+          startsAt: "",
+          coverImageUrl: photo("foodPlateTasting", "guide-h1-cover", "Ужин с шефом").uri,
+          images: [
+            photo("interiorOpenKitchen", "guide-h1-g1", "Ужин с шефом").uri,
+            photo("interiorChandelier", "guide-h1-g2", "Ужин с шефом").uri,
+          ],
+        },
       },
       {
         restaurantId: restaurants[0].id,
@@ -266,6 +288,10 @@ function guideCollectionsData(): GuideCollectionDetail[] {
         city: restaurants[0].city,
         priceCategory: restaurants[0].priceLevel,
         imageUrl: restaurants[0].coverPhoto?.uri ?? null,
+        // Без инстаграма и без события — блок остаётся простой карточкой
+        // заведения, и строка внизу показывает один адрес.
+        instagram: "",
+        highlight: null,
       },
     ],
   },
@@ -289,6 +315,16 @@ function guideCollectionsData(): GuideCollectionDetail[] {
         city: restaurants[1].city,
         priceCategory: restaurants[1].priceLevel,
         imageUrl: restaurants[1].coverPhoto?.uri ?? null,
+        instagram: restaurants[1].social?.instagram ?? "",
+        highlight: {
+          kind: "promo",
+          id: "promo-1",
+          title: "−30% на завтраки",
+          description: "Скидка на всё меню завтраков до полудня.",
+          startsAt: "",
+          coverImageUrl: photo("foodDessertBerry", "guide-h2-cover", "Завтраки").uri,
+          images: [photo("foodGrillSkewers", "guide-h2-g1", "Завтраки").uri],
+        },
       },
     ],
   },
@@ -509,6 +545,11 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       endsAt: at(2, 22),
       venue: "Основной зал",
       coverImageUrl: photo("foodPlateTasting", "e1-cover", "Ужин с шефом").uri,
+      // Галерея БЕЗ обложки, в порядке редактора.
+      images: [
+        photo("interiorOpenKitchen", "e1-g1", "Ужин с шефом").uri,
+        photo("interiorChandelier", "e1-g2", "Ужин с шефом").uri,
+      ],
       ticketed: true,
       ticketPriceMinor: 1_800_000,
       capacity: 24,
@@ -526,6 +567,7 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       endsAt: at(5, 23),
       venue: "",
       coverImageUrl: photo("interiorWineTable", "e2-cover", "Винный вечер").uri,
+      images: [photo("interiorCheers", "e2-g1", "Винный вечер").uri],
       ticketed: true,
       ticketPriceMinor: 950_000,
       capacity: null,
@@ -546,6 +588,8 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       // `cover_image_url` for venues that uploaded none, and the card has to
       // survive that.
       coverImageUrl: null,
+      // Ни обложки, ни галереи — экран показывает плейсхолдер.
+      images: [],
       ticketed: false,
       ticketPriceMinor: null,
       capacity: null,

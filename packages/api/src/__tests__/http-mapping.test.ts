@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MENU_HIGHLIGHT_LIMIT,
   mapEventSummary,
+  mapGuideCollectionDetail,
   mapHomePromos,
   mapMenuHighlights,
   mapRestaurantDetail,
@@ -11,6 +12,7 @@ import {
   priceLevelToPriceCategory,
   type ApiEventListItem,
   type ApiFeedItem,
+  type ApiGuideCollectionDetail,
   type ApiMenuItem,
   type ApiRestaurant,
 } from "../http-mapping";
@@ -386,5 +388,93 @@ describe("mapEventSummary — event tags for the «Афиша» chips", () => {
 
   it("drops blank and non-string entries so no empty grey pill renders", () => {
     expect(mapEventSummary(apiEvent({ tags: ["Ужин", "   ", ""] })).tags).toEqual(["Ужин"]);
+  });
+});
+
+describe("галереи афиш и акций (миграция 0070)", () => {
+  const apiEvent = (overrides: Partial<ApiEventListItem> = {}): ApiEventListItem => ({
+    id: "e-1",
+    restaurant_id: "r-1",
+    title: "Ужин с шефом",
+    description: "",
+    starts_at: "2026-08-10T09:00:00Z",
+    ends_at: "2026-08-10T13:00:00Z",
+    status: "published",
+    ticketed: false,
+    tickets_refundable: false,
+    ticket_refund_cutoff_minutes: 0,
+    created_at: "2026-08-01T00:00:00Z",
+    updated_at: "2026-08-01T00:00:00Z",
+    ...overrides,
+  });
+
+  it("держит порядок фотографий — его задаёт редактор, а не загрузка", () => {
+    expect(mapEventSummary(apiEvent({ images: ["a.jpg", "b.jpg", "c.jpg"] })).images).toEqual([
+      "a.jpg",
+      "b.jpg",
+      "c.jpg",
+    ]);
+  });
+
+  it("старый сервер без поля images — это «нет галереи», а не падение", () => {
+    expect(mapEventSummary(apiEvent({ images: undefined })).images).toEqual([]);
+    expect(mapEventSummary(apiEvent({ images: null })).images).toEqual([]);
+  });
+
+  it("выкидывает пустые ссылки, чтобы в ленте не было пустого кадра", () => {
+    expect(mapEventSummary(apiEvent({ images: ["a.jpg", "   ", ""] })).images).toEqual(["a.jpg"]);
+  });
+
+  it("акция из общей ленты тоже несёт галерею", () => {
+    const promos = mapHomePromos([
+      { kind: "promo", id: "p-1", images: ["a.jpg", "b.jpg"] },
+      { kind: "promo", id: "p-2" },
+    ]);
+    expect(promos[0].images).toEqual(["a.jpg", "b.jpg"]);
+    expect(promos[1].images).toEqual([]);
+  });
+});
+
+describe("блок подборки: событие/акция внутри «Статьи»", () => {
+  const detail = (venue: Record<string, unknown>): ApiGuideCollectionDetail => ({
+    slug: "romantic-dinners",
+    title: "Романтический ужин",
+    venues: [{ restaurant_id: "r-1", name: "Mongol", ...venue }],
+  });
+
+  it("читает событие блока с его лентой фотографий и инстаграм заведения", () => {
+    const [block] = mapGuideCollectionDetail(
+      detail({
+        instagram: "https://instagram.com/mongol.almaty",
+        highlight: {
+          kind: "event",
+          id: "e-1",
+          title: "Коктейльная среда",
+          description: "Еженедельное событие",
+          images: ["a.jpg", "b.jpg"],
+          cover_image_url: "c.jpg",
+        },
+      }),
+    ).venues;
+    expect(block.instagram).toBe("https://instagram.com/mongol.almaty");
+    expect(block.highlight).toMatchObject({
+      kind: "event",
+      id: "e-1",
+      title: "Коктейльная среда",
+      coverImageUrl: "c.jpg",
+      images: ["a.jpg", "b.jpg"],
+    });
+  });
+
+  it("блок без события остаётся простой карточкой заведения", () => {
+    expect(mapGuideCollectionDetail(detail({})).venues[0].highlight).toBeNull();
+    expect(mapGuideCollectionDetail(detail({ highlight: null })).venues[0].highlight).toBeNull();
+  });
+
+  it("незнакомый вид и запись без id отбрасываются — тапу некуда вести", () => {
+    const unknown = detail({ highlight: { kind: "story", id: "s-1", title: "X" } });
+    expect(mapGuideCollectionDetail(unknown).venues[0].highlight).toBeNull();
+    const noID = detail({ highlight: { kind: "event", title: "X" } });
+    expect(mapGuideCollectionDetail(noID).venues[0].highlight).toBeNull();
   });
 });

@@ -18,7 +18,7 @@ import {
   WhatsappLogo,
 } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
-import { PhotoView } from "../../src/components/PhotoView";
+import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { useRestaurantFavorite } from "../../src/hooks/useFavorites";
@@ -156,15 +156,11 @@ export default function PromotionDetailScreen() {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Cover first, then the gallery. The «−N%» badge stays pinned to the
+            block rather than to a frame: it labels the PROMO, not one of its
+            photos, so it must not swipe away with the first one. */}
         <View style={styles.coverContainer}>
-          <PhotoView
-            uri={promo.coverImageUrl ?? undefined}
-            style={styles.cover}
-            transition={200}
-            priority="high"
-            placeholderIconSize={40}
-            decorative
-          />
+          <PhotoRail uris={[promo.coverImageUrl, ...promo.images]} />
           {promo.discountPercent !== null ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
@@ -304,14 +300,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverContainer: {
-    padding: spacing.sm,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.background.surface,
-  },
-  cover: {
-    width: "100%",
-    height: 240,
-    borderRadius: radius.photoHero,
-    backgroundColor: colors.background.chip,
   },
   badge: {
     position: "absolute",

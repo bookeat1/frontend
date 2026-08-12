@@ -585,6 +585,11 @@ export interface EventSummary {
   /** Null when the venue uploaded no cover — the card must handle it, the
    * backend does not substitute anything. */
   coverImageUrl: string | null;
+  /** Extra photos in the editor's order, WITHOUT the cover (the backend keeps
+   * the cover in its own column and returns the gallery beside it). Always an
+   * array — `[]` on an event with no gallery, and on a server that predates
+   * the feature, so the detail screen just shows the cover alone. */
+  images: string[];
   ticketed: boolean;
   /** Integer MINOR units (tiyin). Null when the event sells no tickets or the
    * price is not set. */
@@ -657,6 +662,9 @@ export interface HomePromo {
   endsAt: string;
   /** Null when the promo carries no cover — the card shows its photo placeholder. */
   coverImageUrl: string | null;
+  /** Extra photos in the editor's order, WITHOUT the cover. Always an array —
+   * `[]` for a promo with no gallery and on a server that predates the field. */
+  images: string[];
   /** Percentage for the «−N%» badge, or `null` when the feed omits it (no badge). */
   discountPercent: number | null;
 }
@@ -693,10 +701,11 @@ export interface GuideCollection {
  * One venue inside a collection's detail read. Carries just enough to render a
  * venue block and open the restaurant screen (`/restaurant/:restaurantId`).
  *
- * There is deliberately NO `instagram` (or any social link) here: the payload
- * carries only the postal `address`, so the block shows the address and nothing
- * social is invented. `note` is the collection's editorial line about this
- * venue (why it made the list); empty when the editor left it blank.
+ * The payload now carries the venue's own `instagram` (and only that social
+ * link) because the design's last line reads «адрес · @инстаграм» — it is the
+ * VENUE's handle, never an invented one, and empty when the venue has none.
+ * `note` is the collection's editorial line about this venue (why it made the
+ * list); empty when the editor left it blank.
  */
 export interface GuideCollectionVenue {
   restaurantId: string;
@@ -712,6 +721,36 @@ export interface GuideCollectionVenue {
   priceCategory: string;
   /** `primary_image_url` of the venue, or `null` when it has no photo. */
   imageUrl: string | null;
+  /** The VENUE's own instagram handle/URL, empty when it has none. The design
+   * writes the block's last line as «адрес · @инстаграм»; the handle belongs
+   * to the venue, so nothing is invented when the field is empty. */
+  instagram: string;
+  /** The event or promo this block is illustrated with, or `null` when the
+   * block stays a plain venue card. */
+  highlight: GuideHighlight | null;
+}
+
+/**
+ * The event/promo shown INSIDE a collection block — the shape the «Статья»
+ * design draws above the venue's address: a title, an editorial line and a rail
+ * of photos.
+ *
+ * `kind` is what the tap routes on ("event" → the event card, "promo" → the
+ * promo card); an unknown kind is dropped by the mapper rather than routed
+ * somewhere wrong.
+ */
+export interface GuideHighlight {
+  kind: "event" | "promo";
+  id: string;
+  title: string;
+  /** Empty when the editor left the item without a description. */
+  description: string;
+  /** RFC3339 start of an event, empty for a promo or when absent. */
+  startsAt: string;
+  /** Null when the item has no cover. */
+  coverImageUrl: string | null;
+  /** Gallery WITHOUT the cover, in the editor's order. Always an array. */
+  images: string[];
 }
 
 /**
