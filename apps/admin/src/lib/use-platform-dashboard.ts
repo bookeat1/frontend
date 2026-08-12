@@ -79,4 +79,25 @@ export function usePlatformTopRestaurants(
   });
 }
 
+/**
+ * How many items are waiting for a moderation decision — the one number on the
+ * dashboard that is a TASK rather than a statistic.
+ *
+ * Asks for a single row and reads `total` off the page envelope: the count is
+ * what the card shows, and pulling a hundred queue items to call `.length` on
+ * them would be a page of JSON for one integer. Refetched on window focus
+ * because it is the number most likely to have changed while the tab sat open.
+ */
+export function useFeedQueueCount(): UseQueryResult<number> {
+  const { user } = useAuth();
+  const enabled = useIsPlatformAdmin();
+  return useQuery({
+    queryKey: ["platform-queue-count", user?.id ?? null],
+    queryFn: async () => (await apiClient.listFeedQueue({ per_page: 1 })).total,
+    enabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
 export { useIsPlatformAdmin };
