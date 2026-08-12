@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "811053965921",
+    "project_id": "book-eat-app-22b5b",
+    "storage_bucket": "book-eat-app-22b5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:811053965921:android:0e77c1cb255b1a12ee0020",
+        "android_client_info": {
+          "package_name": "com.bookeatteam.bookeatapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAj2h9zgyar7yC8DqnvB2PeTxFwyVjv3hA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
