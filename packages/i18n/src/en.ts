@@ -45,7 +45,6 @@ export const en: LocaleOverride<Dictionary> = {
     popularErrorDescription: "Check your connection and try again",
 
     chefsPicksTitle: "Chef's picks",
-    gastroguideTitle: "Gastroguide",
     eventsTitle: "Events",
     eventsLoading: "Loading events…",
     eventsEmptyTitle: "No upcoming events",
@@ -283,7 +282,7 @@ export const en: LocaleOverride<Dictionary> = {
       promos: "Deals",
       guests: "Guests",
       settings: "Settings",
-      gastroguide: "Gastroguide",
+      gastroguide: "Articles",
       soon: "Soon",
     },
     common: {
@@ -568,7 +567,7 @@ export const en: LocaleOverride<Dictionary> = {
       widget: "Widget",
     },
     gastroguide: {
-      title: "Gastroguide",
+      title: "Articles",
       subtitle: "Editorial restaurant collections on the app's home screen",
       loadingTitle: "Loading collections…",
       emptyTitle: "No collections yet",

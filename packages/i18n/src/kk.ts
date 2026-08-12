@@ -49,7 +49,6 @@ export const kk: LocaleOverride<Dictionary> = {
     popularErrorDescription: "Байланысты тексеріп, қайталап көріңіз",
 
     chefsPicksTitle: "Аспаз таңдауы",
-    gastroguideTitle: "Гастрогид",
     eventsTitle: "Іс-шаралар",
     eventsLoading: "Іс-шараларды жүктеп жатырмыз…",
     eventsEmptyTitle: "Жақын арада іс-шара жоқ",
@@ -291,7 +290,7 @@ export const kk: LocaleOverride<Dictionary> = {
       promos: "Акциялар",
       guests: "Қонақтар",
       settings: "Баптаулар",
-      gastroguide: "Гастрогид",
+      gastroguide: "Мақалалар",
       soon: "Жақында",
     },
     common: {
@@ -576,7 +575,7 @@ export const kk: LocaleOverride<Dictionary> = {
       widget: "Виджет",
     },
     gastroguide: {
-      title: "Гастрогид",
+      title: "Мақалалар",
       subtitle: "Қосымшаның басты экранындағы редакциялық орындар топтамалары",
       loadingTitle: "Топтамаларды жүктеп жатырмыз…",
       emptyTitle: "Әзірге топтама жоқ",
@@ -664,7 +663,7 @@ export const kk: LocaleOverride<Dictionary> = {
       errorOrderMismatch:
         "Сіз өңдеп жатқанда топтама құрамы өзгерді. Реттілік сақталмады — бетті жаңартып, қайта орналастырыңыз",
       errorVenueAttached: "Бұл орын топтамада бар",
-      errorForbidden: "Гастрогид тек супер әкімшіге қолжетімді",
+      errorForbidden: "Мақалалар тек супер әкімшіге қолжетімді",
       errorNotFound: "Топтама табылмады — мүмкін, ол жойылған",
       errorUnknown: "Сақтау мүмкін болмады. Қайталап көріңіз",
       refresh: "Бетті жаңарту",

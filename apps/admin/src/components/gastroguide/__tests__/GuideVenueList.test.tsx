@@ -62,7 +62,7 @@ function renderList(overrides: Partial<React.ComponentProps<typeof GuideVenueLis
   return { onReorder };
 }
 
-describe("порядок заведений в подборке", () => {
+describe("порядок заведений в статье", () => {
   it("а кнопка «Ниже» отправляет ВЕСЬ итоговый порядок одним запросом", () => {
     const { onReorder } = renderList();
 
@@ -134,7 +134,7 @@ describe("порядок заведений в подборке", () => {
     expect(screen.getByText("Отключено — гость его не увидит")).toBeTruthy();
   });
 
-  it("а пустая подборка объясняет, что публиковать её нельзя", () => {
+  it("а пустая статья объясняет, что публиковать её нельзя", () => {
     render(
       <GuideVenueList
         venues={[]}
@@ -144,9 +144,9 @@ describe("порядок заведений в подборке", () => {
         reordering={false}
       />,
     );
-    expect(screen.getByText("В подборке пока нет заведений")).toBeTruthy();
+    expect(screen.getByText("В статье пока нет заведений")).toBeTruthy();
     expect(
-      screen.getByText("Добавьте хотя бы одно — без этого подборку нельзя опубликовать"),
+      screen.getByText("Добавьте хотя бы одно — без этого статью нельзя опубликовать"),
     ).toBeTruthy();
   });
 });
