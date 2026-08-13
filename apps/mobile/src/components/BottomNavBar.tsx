@@ -1,6 +1,5 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -75,19 +74,17 @@ export function activeNavKey(pathname: string): NavKey | null {
  * Tapping the tab you are already on does nothing, instead of remounting the
  * screen and throwing away its scroll position.
  *
- * The bar is a floating layer of frosted glass: it is positioned over the
- * screen so content scrolls UNDER it, which is the whole point of the effect —
- * a bar sitting in the layout flow would have nothing behind it to refract.
- * `GlassView` is the real iOS 26 liquid glass; below that (and on Android) the
- * component degrades to a plain view, so we paint a translucent fill ourselves
- * instead of leaving the labels floating over bare content.
+ * The bar is SOLID, not frosted. The liquid-glass version looked right in the
+ * simulator and dirty on a real phone: over a photo it smeared into blotches
+ * and the labels lost contrast, which is worse than no effect at all. A real
+ * blur (the Telegram look) needs a native module and therefore a new build —
+ * it ships with the next one; until then the honest answer is an opaque bar.
  */
 export function BottomNavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const active = activeNavKey(pathname);
   const insets = useSafeAreaInsets();
-  const glass = isLiquidGlassAvailable();
 
   const tabs = (
     <View style={[styles.row, { paddingBottom: insets.bottom }]}>
@@ -118,14 +115,6 @@ export function BottomNavBar() {
     </View>
   );
 
-  if (glass) {
-    return (
-      <GlassView style={styles.bar} glassEffectStyle="regular" colorScheme="light">
-        {tabs}
-      </GlassView>
-    );
-  }
-
   return <View style={[styles.bar, styles.fallback]}>{tabs}</View>;
 }
 
@@ -139,7 +128,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border.subtle,
   },
   fallback: {
-    backgroundColor: colors.background.navBarFallback,
+    // Непрозрачный белый: полупрозрачная заливка на светлом контенте читалась
+    // как грязь, а на фотографии — как дефект.
+    backgroundColor: colors.background.surface,
   },
   row: {
     flexDirection: "row",
