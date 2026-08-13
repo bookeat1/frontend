@@ -437,9 +437,7 @@ export default function SignInScreen() {
               <Text style={styles.heading} accessibilityRole="header">
                 {t.auth.codeTitle}
               </Text>
-              <Text style={styles.subtitle}>
-                {t.auth.codeSentTo(formatStoredPhoneForDisplay(sentToPhone))}
-              </Text>
+              <CodeSentTo phone={formatStoredPhoneForDisplay(sentToPhone)} />
 
               {/* The honest note for an environment that accepts the request
                   and delivers nothing. Off by default; see
@@ -529,6 +527,28 @@ export default function SignInScreen() {
   );
 }
 
+/**
+ * «На номер +7 … был отправлен код подтверждения», где НОМЕР выделен жирным.
+ *
+ * Строка режется по самому номеру, а не собирается из кусков в словаре: так
+ * перевод остаётся одной цельной фразой (её можно переставить как угодно в
+ * казахском или английском), а выделение всё равно попадает на номер. Если
+ * номер в строке почему-то не найден, показываем её целиком — подпись без
+ * жирного лучше, чем пустое место.
+ */
+function CodeSentTo({ phone }: { phone: string }) {
+  const full = t.auth.codeSentTo(phone);
+  const at = phone ? full.indexOf(phone) : -1;
+  if (at < 0) return <Text style={styles.subtitle}>{full}</Text>;
+  return (
+    <Text style={styles.subtitle}>
+      {full.slice(0, at)}
+      <Text style={styles.subtitlePhone}>{phone}</Text>
+      {full.slice(at + phone.length)}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -551,9 +571,16 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
-    color: colors.text.muted,
+    color: colors.text.subtitle,
     // Pull up under the heading: the section gap is meant for block spacing.
     marginTop: -spacing.sm,
+  },
+  subtitlePhone: {
+    ...typography.labelSemiBold,
+    // Кегль наследуется от подписи: жирным выделяется номер, а не размер.
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
+    color: colors.text.subtitle,
   },
   consent: {
     ...typography.caption,
