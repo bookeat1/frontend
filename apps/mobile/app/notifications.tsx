@@ -182,7 +182,10 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    // Белый лист (макет 1033:14374). Серый фон здесь читался как «что-то не
+    // загрузилось» — особенно на состояниях «нет подключения» и «пусто», где
+    // кроме фона на экране почти ничего нет.
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
