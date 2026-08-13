@@ -5,6 +5,7 @@ import { t } from "@/lib/i18n";
 import { CapacityModeCard } from "./CapacityModeCard";
 import { PricingCard } from "./PricingCard";
 import { TelegramNotificationCard } from "./TelegramNotificationCard";
+import { WhatsAppNotificationCard } from "./WhatsAppNotificationCard";
 
 /**
  * «Настройки» — the venue's self-service settings: capacity mode, average
@@ -23,6 +24,7 @@ export function SettingsView() {
       <CapacityModeCard restaurantId={restaurantId} />
       <PricingCard restaurantId={restaurantId} />
       <TelegramNotificationCard restaurantId={restaurantId} />
+      <WhatsAppNotificationCard restaurantId={restaurantId} />
     </section>
   );
 }

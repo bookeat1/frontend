@@ -43,6 +43,7 @@ import type {
   Story,
   StoryInput,
   TelegramSettings,
+  WhatsAppSettings,
   TokenPair,
   TopRestaurant,
   VenueDashboardSummary,
@@ -746,6 +747,32 @@ export class AdminApiClient {
     await this.request<unknown>(
       "DELETE",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/telegram`,
+    );
+  }
+
+  /** GET — the venue's WhatsApp alert number. */
+  getWhatsAppSettings(restaurantId: string): Promise<WhatsAppSettings> {
+    return this.request<WhatsAppSettings>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/whatsapp`,
+    );
+  }
+
+  /** PUT — connect the alert number. The server normalizes it and answers with
+   * what it stored, so the caller should render the RESPONSE, not the input. */
+  setWhatsAppPhone(restaurantId: string, phone: string): Promise<WhatsAppSettings> {
+    return this.request<WhatsAppSettings>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/whatsapp`,
+      { body: { whatsapp_phone: phone } },
+    );
+  }
+
+  /** DELETE — disconnect the alert number. Idempotent. */
+  async clearWhatsAppSettings(restaurantId: string): Promise<void> {
+    await this.request<unknown>(
+      "DELETE",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/whatsapp`,
     );
   }
 
