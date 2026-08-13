@@ -30,17 +30,25 @@ export function ArticlesSection({
     return null;
   }
 
+  // Первая статья — крупной карточкой во всю ширину, остальные лентой под ней
+  // (макет 986:8697). Свежая подборка так читается как редакционный материал,
+  // а не как ещё одна плитка в общем ряду.
+  const [featured, ...rest] = articles;
+
   return (
     <SectionCard>
       <SectionHeader title={t.explore.articlesTitle} onSeeAll={onSeeAll} />
-      <CardStrip
-        data={articles}
-        keyExtractor={(article) => article.id}
-        accessibilityLabel={t.explore.articlesTitle}
-        renderItem={({ item }) => (
-          <ArticleCard article={item} onPress={() => onOpenArticle(item.id)} />
-        )}
-      />
+      <ArticleCard article={featured} onPress={() => onOpenArticle(featured.id)} featured />
+      {rest.length > 0 ? (
+        <CardStrip
+          data={rest}
+          keyExtractor={(article) => article.id}
+          accessibilityLabel={t.explore.articlesTitle}
+          renderItem={({ item }) => (
+            <ArticleCard article={item} onPress={() => onOpenArticle(item.id)} />
+          )}
+        />
+      ) : null}
     </SectionCard>
   );
 }

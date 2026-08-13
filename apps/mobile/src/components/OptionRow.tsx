@@ -21,13 +21,15 @@ interface OptionRowProps {
   /**
    * Оформление строки:
    *   "card"  — серая плашка (город, подтверждение удаления) — как было;
-   *   "plain" — строка на белом с радио-кнопкой справа и красным названием
-   *             выбранного, как в макете экрана языка.
+   *   "plain" — строка на белом, выбранное отмечено ТОЛЬКО цветом (макет
+   *             экрана языка);
+   *   "radio" — то же, но с радио-кнопкой справа (макет экрана города — там
+   *             дизайнер её нарисовал, в отличие от языка).
    * Новый вариант введён отдельным значением, а не заменой: этой строкой
    * пользуются три экрана, и менять вид всем ради одного — это чинить один
    * экран и ломать два.
    */
-  variant?: "card" | "plain";
+  variant?: "card" | "plain" | "radio";
 }
 
 /**
@@ -49,7 +51,8 @@ export function OptionRow({
   role = "radio",
   variant = "card",
 }: OptionRowProps) {
-  const plain = variant === "plain";
+  const radio = variant === "radio";
+  const plain = variant === "plain" || radio;
   return (
     <Pressable
       accessibilityRole={role}
@@ -65,10 +68,14 @@ export function OptionRow({
         <Text style={[styles.label, plain && selected && styles.labelSelected]}>{label}</Text>
         {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
-      {plain ? (
-        // По макету выбранное отмечено ТОЛЬКО цветом названия, без значка
-        // справа (решение владельца). Для скрин-ридера состояние всё равно
-        // объявлено через accessibilityState выше — оно не зависит от цвета.
+      {radio ? (
+        <View style={[styles.radio, selected && styles.radioSelected]}>
+          {selected ? <View style={styles.radioDot} /> : null}
+        </View>
+      ) : plain ? (
+        // На экране языка выбранное отмечено ТОЛЬКО цветом названия, без
+        // значка справа — так в макете. Для скрин-ридера состояние всё равно
+        // объявлено через accessibilityState выше, оно не зависит от цвета.
         null
       ) : selected ? (
         <CheckCircle size={24} color={colors.brand.primary} weight="fill" />
@@ -114,6 +121,24 @@ const styles = StyleSheet.create({
   },
   labelSelected: {
     color: colors.brand.primary,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.border.control,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioSelected: {
+    borderColor: colors.brand.primary,
+  },
+  radioDot: {
+    width: 12,
+    height: 12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.primary,
   },
   checkSlot: {
     width: 24,

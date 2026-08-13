@@ -478,10 +478,6 @@ export default function SignInScreen() {
                 </Text>
               ) : null}
 
-              {codeProbablyExpired ? (
-                <Text style={styles.hint}>{t.auth.codeProbablyExpired}</Text>
-              ) : null}
-
               <View style={styles.codeActions}>
                 {resendSecondsLeft > 0 ? (
                   <Text style={styles.countdown}>{t.auth.resendCountdown(resendSecondsLeft)}</Text>
