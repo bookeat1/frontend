@@ -12,13 +12,38 @@ import { FilterChip } from "../src/components/FilterChip";
 import { RestaurantCard } from "../src/components/RestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
+import { AvailabilityBar } from "../src/components/search/AvailabilityBar";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
+import { MAX_GUESTS } from "../src/lib/availability-options";
+import { toDateKey } from "../src/lib/format";
 
 const t = getDictionary();
 
 /** Сколько чипов «Часто ищут» показываем максимум. */
+/**
+ * Разбирает выбор, пришедший с главной. Дата и гости применяются ТОЛЬКО парой
+ * (сервер игнорирует одно без другого), поэтому недостающая половина берёт
+ * значение по умолчанию, а не оставляет фильтр наполовину собранным.
+ *
+ * Мусор в параметрах — не повод падать: приходит он из ссылки, а не из нашего
+ * кода, и «непонятный параметр» должен означать «фильтра нет», а не пустой
+ * экран.
+ */
+function availabilityFromParams(
+  guests: string | string[] | undefined,
+  date: string | string[] | undefined,
+): SearchFilters["availability"] {
+  const rawGuests = Array.isArray(guests) ? guests[0] : guests;
+  const rawDate = Array.isArray(date) ? date[0] : date;
+  if (!rawGuests && !rawDate) return undefined;
+  const n = Number(rawGuests);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_GUESTS) return undefined;
+  const day = rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : toDateKey(new Date());
+  return { date: day, guests: n };
+}
+
 const FREQUENT_CUISINE_LIMIT = 8;
 
 /**
@@ -41,8 +66,18 @@ export default function SearchScreen() {
   const router = useRouter();
   // Optional cuisine seed from the Home «Выберите кухню» chip. `useLocalSearchParams`
   // hands a string (or string[]), so narrow it to a single id.
-  const { cuisine } = useLocalSearchParams<{ cuisine?: string }>();
+  // Капсула на главной ведёт сюда и приносит свой выбор: /search?guests=2.
+  // Дата необязательна — с главной приходит «сегодня», если её не выбирали.
+  const { cuisine, guests, date } = useLocalSearchParams<{
+    cuisine?: string;
+    guests?: string;
+    date?: string;
+  }>();
   const initialCuisineId = Array.isArray(cuisine) ? cuisine[0] : cuisine;
+  const initialAvailability = useMemo(
+    () => availabilityFromParams(guests, date),
+    [guests, date],
+  );
   const {
     text,
     setText,
@@ -56,7 +91,7 @@ export default function SearchScreen() {
     searchQueryResult,
     cuisinesQuery,
     citiesQuery,
-  } = useSearchScreen({ initialCuisineId });
+  } = useSearchScreen({ initialCuisineId, initialAvailability });
 
   const [sheetVisible, setSheetVisible] = useState(false);
   // Подсказки «Часто ищут» живут по фокусу поля, а не по пустой строке: гость
@@ -150,6 +185,11 @@ export default function SearchScreen() {
           {/* Кнопка фильтров + ряд выбранных чипов в одну строку. Ряд
               горизонтально прокручивается: на 360px три длинных названия кухонь
               иначе перенеслись бы на пол-экрана до результатов. */}
+          <AvailabilityBar
+            value={filters.availability}
+            onChange={(availability) => setFilters((prev) => ({ ...prev, availability }))}
+          />
+
           <View style={styles.filterRow}>
             <FilterButton count={activeFilterCount} onPress={() => setSheetVisible(true)} />
             {selectedChips.length > 0 ? (

@@ -242,6 +242,14 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       price: query.filters.priceLevel
         ? priceLevelToPriceCategory(query.filters.priceLevel)
         : undefined,
+      // Доступность считает только сервер — см. SearchFilters.availability.
+      // Дата и гости уходят ТОЛЬКО парой: сервер игнорирует одно без другого,
+      // и отправить половину значило бы показать «фильтр применён», когда он
+      // не применён.
+      date: query.filters.availability?.date,
+      guests: query.filters.availability?.guests,
+      time_from: query.filters.availability?.timeFrom,
+      time_to: query.filters.availability?.timeTo,
       page: 1,
       per_page: SEARCH_PAGE_SIZE,
     });

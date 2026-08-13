@@ -133,6 +133,13 @@ export const en: LocaleOverride<Dictionary> = {
   },
   search: {
     placeholder: "Restaurant, cuisine, or dish",
+    availabilityAny: "Any day",
+    availabilityDone: "Done",
+    availabilityClose: "Close",
+    availabilityReset: "Clear date and guests",
+    availabilityUnavailable: "Could not check free tables. Please try again.",
+    availabilityEmpty: (guests: number, date: string) =>
+      `No free tables for ${guests} on ${date}`,
     resultsCount: (count: number) => `${count} ${count === 1 ? "restaurant" : "restaurants"}`,
     filterOpenNow: "Open now",
     filterOnlineBookable: "Book online",

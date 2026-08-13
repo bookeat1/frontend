@@ -13,6 +13,7 @@ import { HomeHeader } from "../src/components/explore/HomeHeader";
 import { PromotionsSection } from "../src/components/explore/PromotionsSection";
 import { RecommendedSection } from "../src/components/explore/RecommendedSection";
 import { EXPLORE_DEFAULT_GUESTS } from "../src/components/explore/use-explore-data";
+import { toDateKey } from "../src/lib/format";
 import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
@@ -63,6 +64,18 @@ export default function HomeScreen() {
   const city = account?.city?.trim() || t.explore.cityFallback;
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
+  // Тап по капсуле «сегодня · 2 гостя» ведёт в поиск С ЭТИМ ЖЕ выбором, а не
+  // просто в каталог: человек уже назвал день и компанию, и заставлять его
+  // повторить это на следующем экране — терять то, что он только что сказал.
+  // Дальше выбор становится настоящим фильтром по свободным столам.
+  const openSearchWithParty = useCallback(
+    () =>
+      router.push({
+        pathname: "/search",
+        params: { guests: String(EXPLORE_DEFAULT_GUESTS), date: toDateKey(new Date()) },
+      }),
+    [router],
+  );
   const openNotifications = useCallback(() => router.push("/notifications"), [router]);
 
   // Tapping the city in the header opens the same picker the profile uses and
@@ -144,7 +157,7 @@ export default function HomeScreen() {
           city={city}
           dateValue={t.booking.today}
           guestsValue={t.booking.guestsCount(EXPLORE_DEFAULT_GUESTS)}
-          onOpenSearch={openSearch}
+          onOpenSearch={openSearchWithParty}
           onOpenNotifications={openNotifications}
           onOpenCity={openCity}
         />

@@ -235,6 +235,26 @@ export interface SearchFilters {
   city?: string;
   /** Single price tier, pushed server-side. Undefined = every tier. */
   priceLevel?: PriceLevel;
+  /**
+   * «Есть стол на N гостей в этот день» — считается СЕРВЕРОМ тем же движком,
+   * что рисует сетку времени на экране брони (backend
+   * usecase/bookings.AvailabilitySearch).
+   *
+   * Клиент этот фильтр повторить не может и не должен: у него нет ни столов,
+   * ни чужих броней. Поэтому, в отличие от openNowOnly, здесь нет запасного
+   * варианта «отфильтруем на месте» — если сервер не ответил, поиск честно
+   * падает с ошибкой, а не показывает неотфильтрованный список.
+   */
+  availability?: AvailabilityFilter;
+}
+
+export interface AvailabilityFilter {
+  /** Календарная дата YYYY-MM-DD в часовом поясе заведения. */
+  date: string;
+  guests: number;
+  /** Окно времени "HH:MM". Оба поля необязательны: без них — весь день. */
+  timeFrom?: string;
+  timeTo?: string;
 }
 
 export interface SearchQuery {

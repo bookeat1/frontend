@@ -311,6 +311,16 @@ export const ru = {
    */
   search: {
     placeholder: "Ресторан, кухня или блюдо",
+    /** Капсула «дата · гости» над выдачей. Считает СЕРВЕР — свободных столов
+     * телефон не знает, — поэтому строки говорят про наличие мест, а не про
+     * «показать похожие». */
+    availabilityAny: "Любой день",
+    availabilityDone: "Готово",
+    availabilityClose: "Закрыть",
+    availabilityReset: "Сбросить дату и гостей",
+    availabilityUnavailable: "Не удалось проверить свободные столы. Попробуйте ещё раз.",
+    availabilityEmpty: (guests: number, date: string) =>
+      `На ${date} свободных столов на ${guests} не нашлось`,
     resultsCount: (count: number) => {
       const mod10 = count % 10;
       const mod100 = count % 100;
