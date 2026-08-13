@@ -444,7 +444,7 @@ function PreorderRow({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     color: colors.brand.primary,
   },
   notesBox: {
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
     borderRadius: radius.card,
     padding: spacing.md,
   },

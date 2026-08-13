@@ -46,6 +46,11 @@ export function BookingCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.background.surface,
+    // Раньше карточки разделял серый фон экрана. Фон стал белым, и без
+    // тонкой рамки две брони подряд читались бы как одна длинная запись —
+    // граница здесь несёт тот же смысл, что раньше нёс просвет.
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.control,
     padding: spacing.lg,
     gap: spacing.md,
   },
