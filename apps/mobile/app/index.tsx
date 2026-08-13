@@ -159,6 +159,11 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
+      {/* Белая подложка под последним блоком: без неё оттягивание ленты вниз
+          обнажает серый фон экрана, и белая лента визуально «рвётся» перед
+          панелью вкладок. Слой лежит ПОД скроллом и ничего не перехватывает. */}
+      <View style={[styles.floor, { height: navPad + spacing.huge }]} pointerEvents="none" />
+
       {/* The bar reads the active tab off the current route itself. */}
       <BottomNavBar />
     </View>
@@ -172,6 +177,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: spacing.xxl,
+  },
+  floor: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background.surface,
+    zIndex: -1,
   },
   sheet: {
     // 8 of grey between the header and the white blocks, and between blocks.

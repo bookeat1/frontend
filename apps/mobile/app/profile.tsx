@@ -1,5 +1,5 @@
 import type { AuthUser } from "@bookeat/api";
-import { colors, radius, spacing } from "@bookeat/design-tokens";
+import { colors, spacing } from "@bookeat/design-tokens";
 import { LOCALES } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -151,7 +151,6 @@ export default function ProfileScreen() {
                 label={t.profile.menu.foodProfile}
                 comingSoonLabel={t.profile.comingSoon}
               />
-              <Divider />
               <ProfileMenuRow
                 icon={ChatCircle}
                 label={t.profile.menu.myReviews}
@@ -166,7 +165,6 @@ export default function ProfileScreen() {
                 onPress={() => router.push("/profile/personal-data")}
                 comingSoonLabel={t.profile.comingSoon}
               />
-              <Divider />
               <ProfileMenuRow
                 icon={MapPin}
                 label={t.profile.menu.city}
@@ -174,7 +172,6 @@ export default function ProfileScreen() {
                 onPress={editCity}
                 comingSoonLabel={t.profile.comingSoon}
               />
-              <Divider />
               <ProfileMenuRow
                 icon={GlobeSimple}
                 label={t.profile.menu.language}
@@ -192,13 +189,11 @@ export default function ProfileScreen() {
                 label={t.profile.menu.helpCenter}
                 comingSoonLabel={t.profile.comingSoon}
               />
-              <Divider />
               <ProfileMenuRow
                 icon={ThumbsUp}
                 label={t.profile.menu.rateApp}
                 comingSoonLabel={t.profile.comingSoon}
               />
-              <Divider />
               <ProfileMenuRow
                 icon={GearSix}
                 label={t.profile.settings}
@@ -235,35 +230,24 @@ export default function ProfileScreen() {
   );
 }
 
-/** Hairline between rows of one menu group, inset past the leading icon so it
- * reads as "same group" rather than a full-bleed cut. */
-function Divider() {
-  return <View style={styles.divider} />;
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   topSafeArea: {
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   body: {
     flex: 1,
   },
   content: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    // Воздух между группами вместо плашек и линеек: по макету профиль — один
+    // белый лист, а группы отделяются расстоянием.
+    gap: spacing.xl,
   },
   group: {
     backgroundColor: colors.background.surface,
-    borderRadius: radius.card,
-    overflow: "hidden",
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: spacing.lg + 24 + spacing.md,
-    backgroundColor: colors.border.control,
   },
 });

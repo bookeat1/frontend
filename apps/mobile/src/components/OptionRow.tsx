@@ -18,6 +18,16 @@ interface OptionRowProps {
    * Defaults to `radio` — the list case this row exists for.
    */
   role?: "radio" | "checkbox";
+  /**
+   * Оформление строки:
+   *   "card"  — серая плашка (город, подтверждение удаления) — как было;
+   *   "plain" — строка на белом с радио-кнопкой справа и красным названием
+   *             выбранного, как в макете экрана языка.
+   * Новый вариант введён отдельным значением, а не заменой: этой строкой
+   * пользуются три экрана, и менять вид всем ради одного — это чинить один
+   * экран и ломать два.
+   */
+  variant?: "card" | "plain";
 }
 
 /**
@@ -30,23 +40,37 @@ interface OptionRowProps {
  * confirmation, so there is exactly one selectable-row primitive rather than
  * three bespoke Pressables.
  */
-export function OptionRow({ label, selected, onPress, caption, icon: Icon, role = "radio" }: OptionRowProps) {
+export function OptionRow({
+  label,
+  selected,
+  onPress,
+  caption,
+  icon: Icon,
+  role = "radio",
+  variant = "card",
+}: OptionRowProps) {
+  const plain = variant === "plain";
   return (
     <Pressable
       accessibilityRole={role}
       accessibilityState={{ selected, checked: selected }}
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.root, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.root, plain && styles.rootPlain, pressed && styles.pressed]}
     >
       {Icon ? <Icon size={24} color={colors.text.primary} weight="regular" /> : null}
       <View style={styles.text}>
         {/* Long Russian / non-Latin names wrap rather than clip; the check
             stays pinned to the right and the row grows. */}
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, plain && selected && styles.labelSelected]}>{label}</Text>
         {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
-      {selected ? (
+      {plain ? (
+        // По макету выбранное отмечено ТОЛЬКО цветом названия, без значка
+        // справа (решение владельца). Для скрин-ридера состояние всё равно
+        // объявлено через accessibilityState выше — оно не зависит от цвета.
+        null
+      ) : selected ? (
         <CheckCircle size={24} color={colors.brand.primary} weight="fill" />
       ) : (
         // Reserve the space so labels line up whether or not a row is checked.
@@ -67,6 +91,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
   },
+  rootPlain: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
   pressed: {
     opacity: 0.7,
   },
@@ -81,6 +111,9 @@ const styles = StyleSheet.create({
   caption: {
     ...typography.caption,
     color: colors.text.muted,
+  },
+  labelSelected: {
+    color: colors.brand.primary,
   },
   checkSlot: {
     width: 24,

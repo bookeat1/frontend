@@ -1,7 +1,8 @@
 import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSheetAnimation } from "../lib/sheet-animation";
 
 /**
  * Нижняя шторка подтверждения (макет профиля, nodes 976:6787 и 985:8120):
@@ -14,6 +15,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
  * Опасное действие (`destructive`) красит кнопку в фирменный красный. Пока
  * запрос в полёте, обе кнопки заблокированы: закрыть шторку на середине
  * удаления — верный способ не узнать, чем оно кончилось.
+ *
+ * Появление анимируется вручную, а не системным `animationType="slide"`:
+ * системная анимация выезжает рывком и не гасит фон, из-за чего шторка
+ * читалась как подмена экрана, а не как слой поверх него. Здесь панель
+ * выезжает с торможением, а затемнение набирается одновременно с ней.
+ *
+ * Нижний отступ считается по безопасной зоне: без него кнопка «отмена»
+ * упиралась в системную полосу и на части телефонов оказывалась наполовину за
+ * краем — то есть человек видел действие, но не мог до него дотянуться.
  */
 export function ConfirmSheet({
   visible,
@@ -40,23 +50,37 @@ export function ConfirmSheet({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+  const { mounted, progress, translateY } = useSheetAnimation(visible);
+
+  if (!mounted) return null;
+
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={pending ? () => {} : onCancel}
     >
       <View style={styles.root}>
-        <Pressable
-          style={[StyleSheet.absoluteFill, styles.backdrop]}
-          onPress={pending ? undefined : onCancel}
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-        />
+        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: progress }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={pending ? undefined : onCancel}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+          />
+        </Animated.View>
 
-        <SafeAreaView edges={["bottom"]} style={styles.sheet} accessibilityViewIsModal>
+        <Animated.View
+          style={[
+            styles.sheet,
+            // Кнопки не должны прятаться под системной полосой снизу.
+            { paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY }] },
+          ]}
+          accessibilityViewIsModal
+        >
           <View style={styles.text}>
             <Text style={styles.title}>{title}</Text>
             {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -99,7 +123,7 @@ export function ConfirmSheet({
               {error}
             </Text>
           ) : null}
-        </SafeAreaView>
+        </Animated.View>
       </View>
     </Modal>
   );

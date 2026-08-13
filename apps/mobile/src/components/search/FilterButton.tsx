@@ -41,7 +41,9 @@ const styles = StyleSheet.create({
   button: {
     width: hitSlop.minTouchTarget,
     height: hitSlop.minTouchTarget,
-    borderRadius: radius.media,
+    // Полное скругление: в макете это круг, а не квадрат со скруглёнными
+    // углами — рядом с чипом-пилюлей квадрат читался как другой элемент.
+    borderRadius: radius.pill,
     backgroundColor: colors.background.chipAlt,
     alignItems: "center",
     justifyContent: "center",

@@ -3,8 +3,9 @@ import { EMPTY_FILTERS } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSheetAnimation } from "../../lib/sheet-animation";
 import { EMPTY_UI_FACETS, type UiOnlyFacets } from "../../hooks/useSearch";
 import { FilterChip } from "../FilterChip";
 import { IconButton } from "../IconButton";
@@ -87,6 +88,7 @@ export function FilterSheet({
   onClose,
 }: FilterSheetProps) {
   const insets = useSafeAreaInsets();
+  const { mounted, progress, translateY } = useSheetAnimation(visible);
   const [draft, setDraft] = useState<SearchFilters>(initialFilters);
   const [facets, setFacets] = useState<UiOnlyFacets>(initialUiFacets);
   const [cuisineOpen, setCuisineOpen] = useState(false);
@@ -131,18 +133,28 @@ export function FilterSheet({
   const summary = (count: number) =>
     count === 0 ? t.search.filters.summaryNone : t.search.filters.summaryCount(count);
 
+  if (!mounted) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={mounted} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.root}>
         {/* Затемнённый фон — только тап-цель, скрыт от скринридера, чтобы
             фокус попадал на шторку, а не на безымянную кнопку во весь экран. */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          importantForAccessibility="no"
-          accessibilityElementsHidden
-        />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]} accessibilityViewIsModal>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            styles.sheet,
+            { paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY }] },
+          ]}
+          accessibilityViewIsModal
+        >
           <View style={styles.header}>
             <Text style={styles.title} accessibilityRole="header">
               {t.search.filters.title}
@@ -295,7 +307,7 @@ export function FilterSheet({
               onPress={reset}
             />
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

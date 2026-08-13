@@ -1,7 +1,8 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSheetAnimation } from "../../lib/sheet-animation";
 import { PrimaryButton } from "../PrimaryButton";
 
 /**
@@ -35,20 +36,28 @@ export function ProfileLogoutSheet({
   onCancel: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { mounted, progress, translateY } = useSheetAnimation(visible);
+
+  if (!mounted) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onCancel}>
+    <Modal visible={mounted} transparent animationType="none" statusBarTranslucent onRequestClose={onCancel}>
       <View style={styles.root}>
         {/* Tap-to-dismiss backdrop — hidden from the screen reader so focus
             lands on the sheet, not an unnamed full-screen button. */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onCancel}
-          importantForAccessibility="no"
-          accessibilityElementsHidden
-        />
-        <View
-          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onCancel}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+          />
+        </Animated.View>
+        <Animated.View
+          style={[
+            styles.sheet,
+            { paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY }] },
+          ]}
           accessibilityViewIsModal
         >
           <Text style={styles.title} accessibilityRole="header">
@@ -67,7 +76,7 @@ export function ProfileLogoutSheet({
             onPress={onCancel}
             disabled={signingOut}
           />
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

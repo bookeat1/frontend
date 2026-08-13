@@ -21,6 +21,10 @@ export const colors = {
     muted: "#A5A5A5",
     /** Slightly darker muted tone used for chip labels in search results. */
     mutedStrong: "#7D7D7D",
+    /** Подпись под заголовком экрана — тёмная, не приглушённая. Отдельный
+     * токен, потому что в макете это #171717, а не общий text.primary
+     * (#1B1B1B): оттенки соседние, но макет называет именно этот. */
+    subtitle: "#171717",
     /** Pure black used specifically for menu item name/price in the design. */
     strong: "#000000",
     /** Text placed directly over photos/scrim. */
