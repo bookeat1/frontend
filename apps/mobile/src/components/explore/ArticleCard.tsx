@@ -18,20 +18,24 @@ const t = getDictionary();
 export function ArticleCard({
   article,
   onPress,
+  /** Крупная карточка во всю ширину — первая статья на главной (макет
+   * 986:8697). Остальные идут лентой в обычном размере. */
+  featured = false,
 }: {
   article: ArticleCardData;
   onPress: () => void;
+  featured?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t.articles.card(article.title, article.author)}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, featured && styles.cardFeatured, pressed && styles.pressed]}
     >
       <PhotoView
         uri={article.coverImageUrl ?? undefined}
-        style={styles.photo}
+        style={[styles.photo, featured && styles.photoFeatured]}
         decorative
         placeholderIconSize={32}
       />
@@ -53,6 +57,9 @@ const styles = StyleSheet.create({
     width: exploreLayout.cardWidth,
     gap: spacing.sm,
   },
+  cardFeatured: {
+    width: "100%",
+  },
   pressed: {
     opacity: 0.7,
   },
@@ -61,6 +68,10 @@ const styles = StyleSheet.create({
     height: exploreLayout.cardPhotoHeight,
     borderRadius: radius.media,
     backgroundColor: colors.background.bannerPlaceholder,
+  },
+  photoFeatured: {
+    width: "100%",
+    height: 180,
   },
   text: {
     gap: spacing.xxs,
