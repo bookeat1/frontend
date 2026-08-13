@@ -186,7 +186,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   scrollContent: {
     paddingBottom: spacing.xxl,
@@ -200,8 +200,10 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   sheet: {
-    // 8 of grey between the header and the white blocks, and between blocks.
+    // Фон стал белым, и восьмипиксельный просвет между блоками перестал их
+    // разделять: серая полоса была границей, белая — нет. Разделяет теперь
+    // воздух, как в профиле, где по той же причине убраны подложки.
     marginTop: spacing.sm,
-    gap: spacing.sm,
+    gap: spacing.xxl,
   },
 });

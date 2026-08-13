@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   stepperCard: {
     padding: spacing.lg,
     borderRadius: radius.card,
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   chips: {
     flexDirection: "row",

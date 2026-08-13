@@ -75,7 +75,7 @@ export default function PromotionsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,

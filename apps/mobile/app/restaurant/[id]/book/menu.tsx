@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     // Grey behind the per-category white cards.
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,

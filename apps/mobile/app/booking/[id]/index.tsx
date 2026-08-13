@@ -286,7 +286,7 @@ function cancelErrorMessage(error: unknown): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.surface,
   },
   /** Fills the space under the header so a state view centres in what is left
    * of the screen instead of collapsing under it. */
