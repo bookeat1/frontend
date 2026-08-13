@@ -2,12 +2,11 @@ import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmSheet } from "../../src/components/ConfirmSheet";
 import { FlowHeader } from "../../src/components/FlowHeader";
-import { Bell, type IconProps, Info, Shield, WarningCircle } from "../../src/components/icons";
-import { SelectRow } from "../../src/components/SelectRow";
+import { Bell, type IconProps, Info, Shield, Trash } from "../../src/components/icons";
 import { ToggleRow } from "../../src/components/ToggleRow";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
@@ -95,16 +94,18 @@ export default function SettingsScreen() {
 
         <InfoRow icon={Info} label={t.settings.appName} hint={versionLabel} />
 
-        <SelectRow
-          icon={WarningCircle}
-          label={t.settings.account}
-          value={t.settings.deleteAccount}
-          caption={t.settings.deleteAccountCaption}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.settings.deleteAccount}
           onPress={() => {
             setFailed(false);
             setConfirmVisible(true);
           }}
-        />
+          style={({ pressed }) => [styles.dangerRow, pressed && styles.dangerRowPressed]}
+        >
+          <Trash size={24} color={colors.brand.primary} weight="regular" />
+          <Text style={styles.dangerLabel}>{t.settings.deleteAccount}</Text>
+        </Pressable>
       </ScrollView>
 
       <ConfirmSheet
@@ -155,6 +156,26 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingVertical: spacing.sm,
+  },
+  // Удаление стоит отдельно от остальных строк (макет 976:6726): без значения
+  // справа и без шеврона, красным. Красный здесь — не украшение, а единственное
+  // визуальное отличие необратимого действия от обычной настройки.
+  dangerRow: {
+    minHeight: hitSlop.minTouchTarget + spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+    backgroundColor: colors.background.surface,
+  },
+  dangerRowPressed: {
+    opacity: 0.6,
+  },
+  dangerLabel: {
+    ...typography.labelMedium,
+    color: colors.brand.primary,
   },
   infoRow: {
     minHeight: hitSlop.minTouchTarget + spacing.lg,
