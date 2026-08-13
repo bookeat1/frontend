@@ -151,6 +151,20 @@ export interface TelegramSettings {
   enabled: boolean;
 }
 
+/**
+ * WhatsApp-адрес тех же уведомлений. Форма повторяет TelegramSettings, потому
+ * что это один и тот же канал доставки с другим транспортом.
+ *
+ * `whatsapp_phone` возвращается СЕРВЕРНЫЙ, приведённый к международному виду:
+ * этим же номером опознаётся входящее нажатие кнопки, и панель обязана
+ * показывать ровно то, что записано, а не то, что набрали.
+ */
+export interface WhatsAppSettings {
+  connected: boolean;
+  whatsapp_phone: string;
+  enabled: boolean;
+}
+
 /** The venue's own profile (admin.restaurantProfileResponse). Editorial flags
  * (is_active/is_premium) are read-only display fields. */
 export interface RestaurantProfile {
