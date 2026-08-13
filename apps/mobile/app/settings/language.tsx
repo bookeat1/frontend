@@ -36,6 +36,7 @@ export default function LanguageScreen() {
             label={option.nativeName}
             caption={option.englishName}
             selected={option.code === locale}
+            variant="plain"
             onPress={() => {
               setLocale(option.code);
               router.back();
@@ -50,13 +51,14 @@ export default function LanguageScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    // Белый лист, как в макете: серых плашек у языков нет, строки разделяет
+    // только воздух.
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
   },
   content: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
 });
