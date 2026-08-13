@@ -44,12 +44,14 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
           accessibilityLabel самой карточки выше. Заведения без фото и
           заведения с отвалившимся фото выглядят одинаково — нейтральная
           плашка, а не дыра в списке. */}
-      <PhotoView
-        uri={restaurant.coverPhoto?.uri}
-        style={styles.image}
-        decorative
-        placeholderIconSize={32}
-      />
+      <View style={styles.imageWrap}>
+        <PhotoView
+          uri={restaurant.coverPhoto?.uri}
+          style={styles.image}
+          decorative
+          placeholderIconSize={32}
+        />
+      </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
           {restaurant.name}
@@ -90,6 +92,12 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
 const styles = StyleSheet.create({
   card: {
     gap: spacing.lg,
+  },
+  imageWrap: {
+    // Фотография отступает от краёв на 8, подпись под ней — на 16 (макет
+    // экрана поиска). Отступ живёт на обёртке, а не на самой карточке: иначе
+    // он сложился бы с внутренними 16 у текста и получилось бы 24.
+    paddingHorizontal: spacing.sm,
   },
   pressed: {
     opacity: 0.9,
