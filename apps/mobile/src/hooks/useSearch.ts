@@ -55,18 +55,27 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   return debounced;
 }
 
-export function useSearchScreen(options?: { initialCuisineId?: string }) {
+export function useSearchScreen(options?: {
+  initialCuisineId?: string;
+  /** Дата и гости, пришедшие с главной (капсула над лентой). */
+  initialAvailability?: SearchFilters["availability"];
+}) {
   const repository = useRepository();
   const [text, setText] = useState("");
   // A `cuisine` seed from the Home «Выберите кухню» chip pre-selects that
   // filter. Read once (useState initializer): the guest is free to clear it,
   // and re-reading the param would fight that. The id is casefold(cuisine_type)
   // — the exact value the backend's cuisine filter matches on.
-  const [filters, setFilters] = useState<SearchFilters>(() =>
-    options?.initialCuisineId
-      ? { ...EMPTY_FILTERS, cuisineIds: [options.initialCuisineId] }
-      : EMPTY_FILTERS,
-  );
+  const [filters, setFilters] = useState<SearchFilters>(() => {
+    let initial = EMPTY_FILTERS;
+    if (options?.initialCuisineId) {
+      initial = { ...initial, cuisineIds: [options.initialCuisineId] };
+    }
+    if (options?.initialAvailability) {
+      initial = { ...initial, availability: options.initialAvailability };
+    }
+    return initial;
+  });
   // Повод/удобства/гости: живут рядом с фильтрами, но отдельным состоянием,
   // потому что в поиск не уходят (track-C). Шторка читает их как черновик и
   // возвращает применённые обратно сюда — так выбор переживает закрытие.
@@ -103,7 +112,8 @@ export function useSearchScreen(options?: { initialCuisineId?: string }) {
     filters.openNowOnly ||
     filters.onlineBookableOnly ||
     filters.city !== undefined ||
-    filters.priceLevel !== undefined;
+    filters.priceLevel !== undefined ||
+    filters.availability !== undefined;
 
   const searchQueryResult = useQuery({
     queryKey: ["search", query],

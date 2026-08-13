@@ -138,6 +138,13 @@ export const kk: LocaleOverride<Dictionary> = {
   },
   search: {
     placeholder: "Мейрамхана, асхана немесе тағам",
+    availabilityAny: "Кез келген күн",
+    availabilityDone: "Дайын",
+    availabilityClose: "Жабу",
+    availabilityReset: "Күн мен қонақтарды тазалау",
+    availabilityUnavailable: "Бос үстелдерді тексеру мүмкін болмады. Қайталап көріңіз.",
+    availabilityEmpty: (guests: number, date: string) =>
+      `${date} күні ${guests} қонаққа бос үстел табылмады`,
     resultsCount: (count: number) => `${count} мейрамхана`,
     filterOpenNow: "Қазір ашық",
     filterOnlineBookable: "Онлайн бронь",
