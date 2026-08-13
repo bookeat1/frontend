@@ -66,13 +66,10 @@ export function OptionRow({
         {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
       {plain ? (
-        // Радио-кнопка: пустой кружок, у выбранного — с точкой. Рисуется
-        // вьюшками, а не иконкой, чтобы состояние «выбрано» читалось формой, а
-        // не только цветом — иначе для человека, не различающего красный, все
-        // строки выглядят одинаково.
-        <View style={[styles.radio, selected && styles.radioSelected]}>
-          {selected ? <View style={styles.radioDot} /> : null}
-        </View>
+        // По макету выбранное отмечено ТОЛЬКО цветом названия, без значка
+        // справа (решение владельца). Для скрин-ридера состояние всё равно
+        // объявлено через accessibilityState выше — оно не зависит от цвета.
+        null
       ) : selected ? (
         <CheckCircle size={24} color={colors.brand.primary} weight="fill" />
       ) : (
@@ -117,24 +114,6 @@ const styles = StyleSheet.create({
   },
   labelSelected: {
     color: colors.brand.primary,
-  },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.text.muted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioSelected: {
-    borderColor: colors.brand.primary,
-  },
-  radioDot: {
-    width: 12,
-    height: 12,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand.primary,
   },
   checkSlot: {
     width: 24,

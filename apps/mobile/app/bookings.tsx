@@ -211,7 +211,9 @@ export default function MyBookingsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    // Белый лист: пустое состояние на сером выглядело как ошибка загрузки,
+    // хотя «броней ещё нет» — это нормальное начало пути, а не сбой.
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,

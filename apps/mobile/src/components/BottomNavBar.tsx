@@ -103,7 +103,9 @@ export function BottomNavBar() {
             }}
             style={({ pressed }) => [styles.item, pressed && styles.pressed]}
           >
-            <Icon size={24} color={color} weight="regular" />
+            {/* Толщина линии 2 в сетке 24 — по макету. У Phosphor это «bold»:
+                regular рисует 1.5 и рядом с текстом выглядит бледнее подписи. */}
+            <Icon size={24} color={color} weight="bold" />
             {/* Длинные подписи («Избранные») сжимаются в одну строку, а не
                 выталкивают соседнюю вкладку за край на 360 px. */}
             <Text style={[styles.label, { color }]} numberOfLines={1}>
