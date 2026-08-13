@@ -88,12 +88,12 @@ export default function CitySelectScreen() {
           data={filtered}
           keyExtractor={(city) => city}
           renderItem={({ item }) => (
-            <OptionRow label={item} selected={item === selected} onPress={() => pick(item)} />
+            <OptionRow label={item} selected={item === selected} onPress={() => pick(item)} variant="radio" />
           )}
           // The clear row hides while searching, where it would just be noise.
           ListHeaderComponent={
             query === "" ? (
-              <OptionRow label={clearLabel} selected={!hasSelection} onPress={() => pick(null)} />
+              <OptionRow label={clearLabel} selected={!hasSelection} onPress={() => pick(null)} variant="radio" />
             ) : null
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -111,7 +111,9 @@ export default function CitySelectScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    // Белый лист, как в макете (node 903:9001): городов всего два, серые
+    // плашки вокруг них выглядели тяжелее самого выбора.
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
@@ -122,10 +124,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
   },
   listContent: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   separator: {
-    height: spacing.sm,
+    height: 0,
   },
 });

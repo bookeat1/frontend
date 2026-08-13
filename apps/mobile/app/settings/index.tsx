@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -146,14 +146,15 @@ function InfoRow({ icon: Icon, label, hint }: { icon: React.ComponentType<IconPr
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    // Белый лист (макет 976:6726): строки настроек идут по белому, без серых
+    // подложек — как в профиле и в выборе города.
+    backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
   },
   content: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   infoRow: {
     minHeight: hitSlop.minTouchTarget + spacing.lg,
@@ -162,8 +163,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
+    backgroundColor: colors.background.surface,
   },
   infoLabel: {
     ...typography.labelMedium,
