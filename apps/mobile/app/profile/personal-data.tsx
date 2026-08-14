@@ -152,7 +152,6 @@ export default function PersonalDataScreen() {
                 onPress={openNameEditor}
                 editA11y={t.profile.personalData.editNameA11y}
               />
-              <Divider />
               <PersonalDataRow
                 label={t.profile.personalData.phoneRow}
                 value={account.phone ? formatStoredPhoneForDisplay(account.phone) : ""}
@@ -186,11 +185,6 @@ export default function PersonalDataScreen() {
   );
 }
 
-/** Hairline between the two rows, inset so it reads as "same group". */
-function Divider() {
-  return <View style={styles.divider} />;
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -210,10 +204,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     borderRadius: radius.card,
     overflow: "hidden",
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: spacing.lg,
-    backgroundColor: colors.border.control,
   },
 });
