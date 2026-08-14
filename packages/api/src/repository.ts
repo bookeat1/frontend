@@ -329,6 +329,14 @@ export interface AuthRepository {
    * truth (the server may normalize).
    */
   updateMe(input: ProfileUpdate): Promise<AuthUser>;
+  /**
+   * `POST /users/me/avatar` — загрузить фотографию профиля.
+   *
+   * Возвращает ссылку, которую сервер уже сохранил в профиль: привязка идёт
+   * там же, где хранение, поэтому отдельного «сохранить» здесь нет и состояние
+   * «загрузилось, но не применилось» не существует.
+   */
+  uploadAvatar(file: { uri: string; name?: string; type?: string }): Promise<string>;
 
   /**
    * `POST /users/me/phone/otp/request` — asks the backend to send a one-time

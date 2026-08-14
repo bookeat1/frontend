@@ -32,6 +32,7 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
     fullName: "Дамир",
     phone: "+77010000000",
     city: null,
+    avatarUrl: null,
     birthDate: null,
     ...overrides,
   };

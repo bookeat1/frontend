@@ -629,6 +629,7 @@ export class MockAuthRepository implements AuthRepository {
       // profile edits.
       phone: this.user?.phone ?? null,
       city: this.user?.city ?? null,
+      avatarUrl: null,
       birthDate: this.user?.birthDate ?? null,
     };
     return {
@@ -686,6 +687,7 @@ export class MockAuthRepository implements AuthRepository {
       fullName: "",
       phone: input.phone,
       city: null,
+      avatarUrl: null,
       birthDate: null,
     };
     return session;
@@ -739,9 +741,24 @@ export class MockAuthRepository implements AuthRepository {
       ...this.user,
       fullName: input.fullName ?? this.user.fullName,
       city: input.city === undefined ? this.user.city : input.city || null,
+      avatarUrl: null,
       birthDate: input.birthDate ?? this.user.birthDate,
     };
     return this.user;
+  }
+
+  /**
+   * Mock of `POST /users/me/avatar`. Возвращает сам локальный uri: в моке нет
+   * хранилища, а показать выбранное фото экран всё равно должен, иначе на
+   * фиктивных данных нельзя проверить путь «выбрал → увидел».
+   */
+  async uploadAvatar(file: { uri: string }): Promise<string> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    this.user = { ...this.user, avatarUrl: file.uri };
+    return file.uri;
   }
 
   /**

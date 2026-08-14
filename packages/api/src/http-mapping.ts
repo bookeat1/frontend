@@ -533,6 +533,8 @@ export interface ApiUser {
   city?: string | null;
   /** "YYYY-MM-DD" — a date, formatted server-side with dateOnlyLayout. */
   birth_date?: string | null;
+  /** Ссылка на фотографию профиля; отсутствует у аккаунтов без аватара. */
+  avatar_url?: string | null;
 }
 
 const SLOT_REASONS: SlotUnavailableReason[] = [
@@ -633,6 +635,7 @@ export function mapUser(api: ApiUser): AuthUser {
     fullName: text(api.full_name),
     phone: text(api.phone) || null,
     city: text(api.city) || null,
+    avatarUrl: text(api.avatar_url) || null,
     birthDate: text(api.birth_date) || null,
   };
 }

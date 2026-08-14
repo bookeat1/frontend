@@ -1,10 +1,10 @@
 import type { AuthUser } from "@bookeat/api";
-import { colors, spacing } from "@bookeat/design-tokens";
+import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { LOCALES } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ChatCircle, ForkKnife, GearSix, GlobeSimple, MapPin, Question, SignOut, ThumbsUp, User } from "../src/components/icons";
@@ -15,6 +15,7 @@ import { ProfileStats } from "../src/components/profile/ProfileStats";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
+import { pickAndUploadAvatar } from "../src/lib/avatar-upload";
 import { requestCitySelection } from "../src/lib/city-select";
 import { useLocale } from "../src/lib/locale";
 
@@ -41,6 +42,8 @@ export default function ProfileScreen() {
   const { status, repository, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const me = useQuery<AuthUser>({
     queryKey: ["me"],
@@ -55,6 +58,31 @@ export default function ProfileScreen() {
   // Session-gated inside the hook, so a signed-out guest never fires it.
   // «Отзывов» and «Друзья» have no endpoint yet — shown as a real 0 below, not
   // a plausible-looking number. TODO(track-C backend): wire when they exist.
+  /**
+   * Смена фотографии профиля. Отказ в доступе к галерее и сбой отправки — это
+   * РАЗНЫЕ сообщения: первое чинится только в настройках телефона, и «попробуйте
+   * ещё раз» там было бы издевательством. Закрытая без выбора галерея молчит —
+   * человек передумал, ему нечего сообщать.
+   */
+  const changeAvatar = useCallback(async () => {
+    setAvatarError(null);
+    setAvatarUploading(true);
+    try {
+      const outcome = await pickAndUploadAvatar(repository);
+      if (outcome.kind === "uploaded") {
+        // Сервер уже сохранил ссылку в профиль — перечитываем его, чтобы экран
+        // показывал то, что лежит на сервере, а не то, что мы предположили.
+        await queryClient.invalidateQueries({ queryKey: ["me"] });
+      } else if (outcome.kind === "denied") {
+        setAvatarError(t.profile.avatarPermissionDenied);
+      } else if (outcome.kind === "failed") {
+        setAvatarError(t.profile.avatarUploadFailed);
+      }
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [queryClient, repository, t]);
+
   const bookings = useMyBookings();
   const bookingsCount = bookings.data?.pages[0]?.total ?? 0;
 
@@ -128,10 +156,18 @@ export default function ProfileScreen() {
             <ProfileIdentity
               name={account.fullName}
               phone={account.phone}
-              editLabel={t.profile.editIdentityA11y}
+              avatarUrl={account.avatarUrl}
+              editLabel={t.profile.changeAvatarA11y}
               namePlaceholder={t.profile.nameEmpty}
-              onPress={() => router.push("/profile/edit")}
+              uploading={avatarUploading}
+              onPress={() => void changeAvatar()}
             />
+
+            {avatarError ? (
+              <Text style={styles.avatarError} accessibilityRole="alert">
+                {avatarError}
+              </Text>
+            ) : null}
 
             <ProfileStats
               bookings={bookingsCount}
@@ -231,6 +267,12 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  avatarError: {
+    ...typography.body,
+    color: colors.brand.primary,
+    textAlign: "center",
+    paddingHorizontal: spacing.lg,
+  },
   root: {
     flex: 1,
     backgroundColor: colors.background.surface,

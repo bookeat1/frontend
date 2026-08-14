@@ -549,6 +549,15 @@ export interface AuthUser {
   /** Free-form city string on the account. `null` when never filled in — the
    * backend has no city dictionary behind this column. */
   city: string | null;
+  /**
+   * Публичная ссылка на фотографию профиля, или null, если её не ставили.
+   *
+   * Ставится ТОЛЬКО через `uploadAvatar`: сервер сам кладёт файл в хранилище и
+   * привязывает ссылку к владельцу токена. Поля `avatarUrl` в `ProfileUpdate`
+   * нет намеренно — иначе клиент мог бы записать в профиль любой адрес, в том
+   * числе чужой или вообще не картинку.
+   */
+  avatarUrl: string | null;
   /** Plain calendar date, "YYYY-MM-DD", or null. Never a timestamp. */
   birthDate: string | null;
 }
