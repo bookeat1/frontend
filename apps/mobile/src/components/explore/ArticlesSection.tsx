@@ -63,5 +63,9 @@ export function ArticlesSection({
 const styles = StyleSheet.create({
   column: {
     gap: spacing.xxl,
+    // Секция сама горизонтальных отступов не задаёт (их ставила лента), а
+    // фотография во всю ширину экрана упиралась в края — на экране «Статьи»
+    // она стоит с отступом.
+    paddingHorizontal: spacing.lg,
   },
 });
