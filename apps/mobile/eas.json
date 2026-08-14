@@ -29,5 +29,15 @@
       },
       "channel": "production"
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "/home/tai/.bookeat/ios/AuthKey_AXCB3363NM.p8",
+        "ascApiKeyId": "AXCB3363NM",
+        "ascApiKeyIssuerId": "eeb61671-98db-4a37-8af1-1f8ef7bb96f9",
+        "ascAppId": "6798299606"
+      }
+    }
   }
 }
