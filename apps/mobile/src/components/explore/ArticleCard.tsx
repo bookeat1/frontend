@@ -69,9 +69,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.media,
     backgroundColor: colors.background.bannerPlaceholder,
   },
+  // Те же размеры, что у карточки на экране «Статьи» (ArticleListCard): один и
+  // тот же материал не должен выглядеть по-разному на двух экранах — человек
+  // видит их подряд, переходя по «Смотреть все».
   photoFeatured: {
     width: "100%",
-    height: 180,
+    height: 148,
+    borderRadius: radius.photoHero,
   },
   text: {
     gap: spacing.xxs,
