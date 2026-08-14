@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import type { IconProps } from "./icons";
@@ -46,8 +46,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
+    // Без подложки: единственная серая плашка на белом листе настроек читалась
+    // как выделенная строка, хотя выделять её нечем — она такая же, как
+    // соседние (макет 906:10384).
+    backgroundColor: colors.background.surface,
   },
   label: {
     ...typography.labelMedium,

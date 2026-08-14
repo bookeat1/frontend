@@ -1,11 +1,16 @@
+import { spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
+import { StyleSheet, View } from "react-native";
 import { ArticleCard } from "./ArticleCard";
-import { CardStrip } from "./CardStrip";
 import { SectionCard, SectionHeader } from "./SectionCard";
 import { useExploreArticles } from "./use-explore-data";
 
 const t = getDictionary();
+
+/** Сколько статей помещается на главной. Больше — это уже список, для него
+ * есть отдельный экран за «Смотреть все». */
+const ARTICLES_ON_HOME = 6;
 
 /**
  * «Статьи» — editorial collections (GASTROGUIDE), wired to the live
@@ -30,25 +35,33 @@ export function ArticlesSection({
     return null;
   }
 
-  // Первая статья — крупной карточкой во всю ширину, остальные лентой под ней
-  // (макет 986:8697). Свежая подборка так читается как редакционный материал,
-  // а не как ещё одна плитка в общем ряду.
-  const [featured, ...rest] = articles;
+  // Столбиком, по решению владельца (14.08.2026): лента вбок прятала статьи за
+  // краем экрана, а крупная первая карточка съедала весь блок. Теперь все
+  // карточки одного размера и видны сразу.
+  //
+  // Не больше ARTICLES_ON_HOME: главная — витрина, а не архив. Остальное
+  // открывается по «Смотреть все», и именно поэтому заголовок ведёт туда.
+  const shown = articles.slice(0, ARTICLES_ON_HOME);
 
   return (
     <SectionCard>
       <SectionHeader title={t.explore.articlesTitle} onSeeAll={onSeeAll} />
-      <ArticleCard article={featured} onPress={() => onOpenArticle(featured.id)} featured />
-      {rest.length > 0 ? (
-        <CardStrip
-          data={rest}
-          keyExtractor={(article) => article.id}
-          accessibilityLabel={t.explore.articlesTitle}
-          renderItem={({ item }) => (
-            <ArticleCard article={item} onPress={() => onOpenArticle(item.id)} />
-          )}
-        />
-      ) : null}
+      <View style={styles.column}>
+        {shown.map((article) => (
+          <ArticleCard
+            key={article.id}
+            article={article}
+            onPress={() => onOpenArticle(article.id)}
+            featured
+          />
+        ))}
+      </View>
     </SectionCard>
   );
 }
+
+const styles = StyleSheet.create({
+  column: {
+    gap: spacing.xxl,
+  },
+});

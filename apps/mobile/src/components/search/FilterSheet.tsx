@@ -10,7 +10,7 @@ import { EMPTY_UI_FACETS, type UiOnlyFacets } from "../../hooks/useSearch";
 import { FilterChip } from "../FilterChip";
 import { IconButton } from "../IconButton";
 import { PrimaryButton } from "../PrimaryButton";
-import { CalendarBlank, User, X, type IconProps } from "../icons";
+import { X } from "../icons";
 import { CheckboxRow } from "./CheckboxRow";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { SegmentedControl } from "./SegmentedControl";
@@ -167,13 +167,12 @@ export function FilterSheet({
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Дата и гости. TODO(track-C backend): дата/гости в поисковом
-                запросе пока не существуют — это статичные плашки-намерения, а
-                не рабочий пикер; ставить сюда фейковый выбор нельзя. */}
-            <View style={styles.pillRow}>
-              <FacetPill icon={CalendarBlank} label={t.search.filters.datePillToday} />
-              <FacetPill icon={User} label={t.search.filters.guestsPill(facets.guests)} />
-            </View>
+            {/* Дата и гости ЖИВУТ В КАПСУЛЕ над выдачей, а не здесь.
+                Раньше тут стояли такие же плашки — статичные «Сегодня» и «2
+                гостя», — и когда выбор стал настоящим, человек видел в капсуле
+                «Завтра, 1 гость», открывал фильтры и читал «Сегодня, 2 гостя».
+                Два места для одного выбора всегда кончаются так; осталось
+                одно, и оно на экране постоянно, прямо над этой кнопкой. */}
 
             {/* Повод — мультивыбор, красная заливка выбранного.
                 TODO(track-C backend): повод в поиск не уходит, только UI. */}
@@ -316,16 +315,6 @@ export function FilterSheet({
 /** Плоская статичная пилюля «иконка + текст» для даты и гостей. Не Pressable
  * намеренно: пикера за ней пока нет (track-C), а кнопка, которая ничего не
  * делает, — тот же обман, что и фейковый фильтр. */
-function FacetPill({ icon: Icon, label }: { icon: React.ComponentType<IconProps>; label: string }) {
-  return (
-    <View style={styles.facetPill}>
-      <Icon size={20} color={colors.text.primary} weight="regular" />
-      <Text style={styles.facetPillLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
 
 /** Добавить/убрать id из массива выбранных — общий тумблер для всех
  * мультивыборов шторки. */
@@ -363,25 +352,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     paddingBottom: spacing.lg,
     gap: spacing.xl,
-  },
-  pillRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  facetPill: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    backgroundColor: colors.background.chip,
-  },
-  facetPillLabel: {
-    ...typography.labelMedium,
-    color: colors.text.primary,
-    flexShrink: 1,
   },
   section: {
     gap: spacing.md,
