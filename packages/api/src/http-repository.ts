@@ -647,8 +647,16 @@ function mapOtpRequested(api: ApiOtpRequested): OtpRequest {
 
 export class HttpAuthRepository implements AuthRepository {
   private readonly client: HttpClient;
+  /** Аватар — единственная загрузка файла в приложении, и она не может идти
+   * через HttpClient: тот всегда ставит `Content-Type: application/json`, а
+   * multipart требует, чтобы заголовок с границей выставил сам fetch. Поэтому
+   * здесь хранятся адрес и токен — см. uploadAvatar. */
+  private readonly baseUrl: string;
+  private readonly getToken?: HttpRepositoryOptions["getToken"];
 
   constructor(options: HttpRepositoryOptions) {
+    this.baseUrl = options.baseUrl.replace(/\/+$/, "");
+    this.getToken = options.getToken;
     this.client = new HttpClient({
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
@@ -656,6 +664,67 @@ export class HttpAuthRepository implements AuthRepository {
       onUnauthorized: options.onUnauthorized,
       getLanguage: options.getLanguage,
     });
+  }
+
+  /**
+   * `POST /users/me/avatar` — кладёт фотографию и возвращает ссылку, которую
+   * сервер УЖЕ записал в профиль. Второго запроса на сохранение нет намеренно:
+   * привязка происходит на сервере в той же транзакции, поэтому «фото
+   * загрузилось, но не сохранилось» здесь невозможно.
+   *
+   * `file` — то, что отдаёт системный выбор фото: локальный uri вида
+   * `file:///…`. React Native принимает такой объект в FormData и читает файл
+   * сам; читать его в память здесь не нужно и вредно (это лишние мегабайты в
+   * куче телефона).
+   *
+   * Content-Type НЕ ставим — его вычислит fetch вместе с границей multipart.
+   * Прописать его руками значит отправить чужую границу и получить отказ на
+   * каждой части.
+   */
+  async uploadAvatar(file: { uri: string; name?: string; type?: string }): Promise<string> {
+    const token = (await this.getToken?.()) ?? null;
+    const form = new FormData();
+    form.append("file", {
+      uri: file.uri,
+      name: file.name ?? "avatar.jpg",
+      type: file.type ?? "image/jpeg",
+    } as unknown as Blob);
+
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/users/me/avatar`, {
+        method: "POST",
+        headers,
+        body: form,
+      });
+    } catch (cause) {
+      throw new RepositoryError("Network error uploading avatar", cause);
+    }
+
+    let body: { data?: { url?: string }; error?: string } | undefined;
+    try {
+      body = (await response.json()) as { data?: { url?: string }; error?: string };
+    } catch {
+      body = undefined;
+    }
+    if (!response.ok) {
+      throw new RepositoryError(
+        `Avatar upload failed with ${response.status}`,
+        undefined,
+        response.status,
+        body?.error,
+      );
+    }
+    const url = body?.data?.url;
+    if (!url) {
+      // 200 без ссылки — ответ, которому нельзя верить: показать «готово» и не
+      // иметь что показать хуже, чем честная ошибка.
+      throw new RepositoryError("Avatar upload returned no url");
+    }
+    return url;
   }
 
   async signUp(input: { email: string; password: string; fullName: string }): Promise<AuthSession> {

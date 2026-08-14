@@ -17,6 +17,13 @@
           "color": "#B33036",
           "defaultChannel": "bookings"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BookEat покажет вашу галерею, чтобы вы выбрали фотографию профиля.",
+          "cameraPermission": "BookEat откроет камеру, чтобы вы сняли фотографию профиля."
+        }
       ]
     ],
     "ios": {

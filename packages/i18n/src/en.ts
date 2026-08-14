@@ -905,6 +905,9 @@ export const en: LocaleOverride<Dictionary> = {
     errorTitle: "Couldn't load profile",
     errorDescription: "Check your connection and try again",
     editIdentityA11y: "Edit profile",
+    changeAvatarA11y: "Change profile photo",
+    avatarPermissionDenied: "Allow photo access in your phone settings to set a picture",
+    avatarUploadFailed: "Could not upload the photo. Please try again",
     editTitle: "Edit profile",
     comingSoon: "Soon",
     stats: {

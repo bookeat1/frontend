@@ -912,6 +912,9 @@ export const kk: LocaleOverride<Dictionary> = {
     errorTitle: "Профиль жүктелмеді",
     errorDescription: "Байланысты тексеріп, қайталап көріңіз",
     editIdentityA11y: "Профильді өңдеу",
+    changeAvatarA11y: "Профиль фотосын ауыстыру",
+    avatarPermissionDenied: "Фото қою үшін телефон параметрлерінде галереяға рұқсат беріңіз",
+    avatarUploadFailed: "Фотосуретті жүктеу мүмкін болмады. Қайталап көріңіз",
     editTitle: "Профильді өңдеу",
     comingSoon: "Жақында",
     stats: {
