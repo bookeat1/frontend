@@ -76,7 +76,13 @@ export default function ProfileScreen() {
       } else if (outcome.kind === "denied") {
         setAvatarError(t.profile.avatarPermissionDenied);
       } else if (outcome.kind === "failed") {
-        setAvatarError(t.profile.avatarUploadFailed);
+        setAvatarError(
+          outcome.reason === "too_large"
+            ? t.profile.avatarTooLarge
+            : outcome.reason === "bad_format"
+              ? t.profile.avatarBadFormat
+              : t.profile.avatarUploadFailed,
+        );
       }
     } finally {
       setAvatarUploading(false);
