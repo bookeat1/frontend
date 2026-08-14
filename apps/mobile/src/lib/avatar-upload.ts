@@ -20,7 +20,13 @@ export type AvatarPickOutcome =
   | { kind: "uploaded"; url: string }
   | { kind: "cancelled" }
   | { kind: "denied" }
-  | { kind: "failed"; error: unknown };
+  /** reason различает то, с чем человек МОЖЕТ что-то сделать: слишком большой
+   * файл и неподходящий формат чинятся выбором другого фото, всё остальное —
+   * только повтором. Один текст на все случаи отправлял бы человека жать
+   * «ещё раз» там, где повтор бесполезен. */
+  | { kind: "failed"; reason: AvatarFailure; error: unknown };
+
+export type AvatarFailure = "too_large" | "bad_format" | "other";
 
 /** Слой доступа, который умеет отправить аватар. Узкий тип — чтобы функцию
  * можно было проверить на подделке без сети. */
@@ -57,6 +63,16 @@ export async function pickAndUploadAvatar(uploader: AvatarUploader): Promise<Ava
     });
     return { kind: "uploaded", url };
   } catch (error) {
-    return { kind: "failed", error };
+    return { kind: "failed", reason: failureReason(error), error };
   }
+}
+
+/** Раскладывает отказ сервера по тому, что человек может сделать. Статусы —
+ * ровно те, что отдаёт загрузка аватара (media/avatar.go): 413 больше 5 МБ,
+ * 422 не картинка или неподдерживаемый тип. */
+function failureReason(error: unknown): AvatarFailure {
+  const status = (error as { status?: number } | null)?.status;
+  if (status === 413) return "too_large";
+  if (status === 422) return "bad_format";
+  return "other";
 }

@@ -83,7 +83,34 @@ describe("pickAndUploadAvatar", () => {
       throw boom;
     });
 
-    expect(await pickAndUploadAvatar(up)).toEqual({ kind: "failed", error: boom });
+    expect(await pickAndUploadAvatar(up)).toEqual({ kind: "failed", reason: "other", error: boom });
+  });
+
+  it("отличает «слишком большая» и «не тот формат» от прочих сбоев", async () => {
+    // Эти два случая человек чинит выбором другого фото; всё остальное — только
+    // повтором. Сложить их в одно сообщение значит отправить его жать «ещё раз»
+    // на файле, который не пройдёт никогда.
+    requestPermission.mockResolvedValue({ granted: true });
+    launchLibrary.mockResolvedValue({ canceled: false, assets: [{ uri: "file:///tmp/pic.jpg" }] });
+
+    const tooLarge = Object.assign(new Error("413"), { status: 413 });
+    const badFormat = Object.assign(new Error("422"), { status: 422 });
+
+    expect(
+      await pickAndUploadAvatar(
+        uploader(async () => {
+          throw tooLarge;
+        }),
+      ),
+    ).toMatchObject({ kind: "failed", reason: "too_large" });
+
+    expect(
+      await pickAndUploadAvatar(
+        uploader(async () => {
+          throw badFormat;
+        }),
+      ),
+    ).toMatchObject({ kind: "failed", reason: "bad_format" });
   });
 
   it("режет квадрат и сжимает — аватар показывается кружком, а не отправляется оригиналом", async () => {

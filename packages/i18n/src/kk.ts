@@ -915,6 +915,8 @@ export const kk: LocaleOverride<Dictionary> = {
     changeAvatarA11y: "Профиль фотосын ауыстыру",
     avatarPermissionDenied: "Фото қою үшін телефон параметрлерінде галереяға рұқсат беріңіз",
     avatarUploadFailed: "Фотосуретті жүктеу мүмкін болмады. Қайталап көріңіз",
+    avatarTooLarge: "Фотосурет тым үлкен — 5 МБ дейінгі файлды таңдаңыз",
+    avatarBadFormat: "Бұл формат келмейді. JPEG, PNG немесе WebP жарайды",
     editTitle: "Профильді өңдеу",
     comingSoon: "Жақында",
     stats: {

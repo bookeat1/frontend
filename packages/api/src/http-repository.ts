@@ -690,42 +690,57 @@ export class HttpAuthRepository implements AuthRepository {
       type: file.type ?? "image/jpeg",
     } as unknown as Blob);
 
-    const headers: Record<string, string> = { Accept: "application/json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    // XMLHttpRequest, А НЕ fetch. Оба есть в React Native, но multipart с
+    // локальным файлом надёжно отправляет только XHR: файл читает нативная
+    // часть по uri. fetch в новых версиях Expo пытается сделать это в JS и
+    // падает ещё до сети — «не удалось загрузить», при том что сервер не
+    // получал ни одного запроса (ровно это и случилось 14.08.2026).
+    //
+    // Ошибки здесь РАЗЛИЧАЮТСЯ: обрыв связи, отказ сервера и пустой ответ —
+    // три разные причины, и человеку с «попробуйте ещё раз» на каждую из них
+    // делать нечего, если на самом деле упёрлись в лимит размера.
+    return await new Promise<string>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `${this.baseUrl}/users/me/avatar`);
+      request.setRequestHeader("Accept", "application/json");
+      // Content-Type НЕ ставим: его вместе с границей multipart подставит сам
+      // XHR. Прописанный руками заголовок отправит чужую границу, и сервер
+      // отвергнет каждую часть.
+      if (token) request.setRequestHeader("Authorization", `Bearer ${token}`);
 
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl}/users/me/avatar`, {
-        method: "POST",
-        headers,
-        body: form,
-      });
-    } catch (cause) {
-      throw new RepositoryError("Network error uploading avatar", cause);
-    }
-
-    let body: { data?: { url?: string }; error?: string } | undefined;
-    try {
-      body = (await response.json()) as { data?: { url?: string }; error?: string };
-    } catch {
-      body = undefined;
-    }
-    if (!response.ok) {
-      throw new RepositoryError(
-        `Avatar upload failed with ${response.status}`,
-        undefined,
-        response.status,
-        body?.error,
-      );
-    }
-    const url = body?.data?.url;
-    if (!url) {
-      // 200 без ссылки — ответ, которому нельзя верить: показать «готово» и не
-      // иметь что показать хуже, чем честная ошибка.
-      throw new RepositoryError("Avatar upload returned no url");
-    }
-    return url;
+      request.onload = () => {
+        let body: { data?: { url?: string }; error?: string } | undefined;
+        try {
+          body = JSON.parse(request.responseText) as { data?: { url?: string }; error?: string };
+        } catch {
+          body = undefined;
+        }
+        if (request.status < 200 || request.status >= 300) {
+          reject(
+            new RepositoryError(
+              `Avatar upload failed with ${request.status}`,
+              undefined,
+              request.status,
+              body?.error,
+            ),
+          );
+          return;
+        }
+        const url = body?.data?.url;
+        if (!url) {
+          // 200 без ссылки — ответ, которому нельзя верить: показать «готово»
+          // и не иметь что показать хуже, чем честная ошибка.
+          reject(new RepositoryError("Avatar upload returned no url"));
+          return;
+        }
+        resolve(url);
+      };
+      request.onerror = () => reject(new RepositoryError("Network error uploading avatar"));
+      request.ontimeout = () => reject(new RepositoryError("Avatar upload timed out"));
+      request.send(form);
+    });
   }
+
 
   async signUp(input: { email: string; password: string; fullName: string }): Promise<AuthSession> {
     const api = await this.client.post<ApiTokenPair>("/auth/signup", {

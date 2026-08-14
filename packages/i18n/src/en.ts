@@ -908,6 +908,8 @@ export const en: LocaleOverride<Dictionary> = {
     changeAvatarA11y: "Change profile photo",
     avatarPermissionDenied: "Allow photo access in your phone settings to set a picture",
     avatarUploadFailed: "Could not upload the photo. Please try again",
+    avatarTooLarge: "The photo is too large — pick a file under 5 MB",
+    avatarBadFormat: "That format will not do. JPEG, PNG or WebP work",
     editTitle: "Edit profile",
     comingSoon: "Soon",
     stats: {
