@@ -18,24 +18,40 @@ const t = getDictionary();
 export function ArticleCard({
   article,
   onPress,
-  /** Крупная карточка во всю ширину — первая статья на главной (макет
-   * 986:8697). Остальные идут лентой в обычном размере. */
-  featured = false,
+  /**
+   * Как карточка занимает место (макет 986:8697):
+   *   full — первая статья, во всю ширину блока;
+   *   half — следующие, по две в ряд;
+   *   strip — фиксированная ширина для горизонтальной ленты.
+   *
+   * Размер здесь не украшение, а порядок чтения: первая статья крупнее,
+   * потому что она свежая, а не потому что «так красивее».
+   */
+  variant = "strip",
 }: {
   article: ArticleCardData;
   onPress: () => void;
-  featured?: boolean;
+  variant?: "full" | "half" | "strip";
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t.articles.card(article.title, article.author)}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, featured && styles.cardFeatured, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        variant === "full" && styles.cardFull,
+        variant === "half" && styles.cardHalf,
+        pressed && styles.pressed,
+      ]}
     >
       <PhotoView
         uri={article.coverImageUrl ?? undefined}
-        style={[styles.photo, featured && styles.photoFeatured]}
+        style={[
+          styles.photo,
+          variant === "full" && styles.photoFull,
+          variant === "half" && styles.photoHalf,
+        ]}
         decorative
         placeholderIconSize={32}
       />
@@ -57,8 +73,14 @@ const styles = StyleSheet.create({
     width: exploreLayout.cardWidth,
     gap: spacing.sm,
   },
-  cardFeatured: {
+  cardFull: {
     width: "100%",
+  },
+  // Половина ряда: ширину задаёт flex, а не проценты, — иначе промежуток между
+  // карточками пришлось бы вычитать из процентов вручную и он бы «плыл» на
+  // экранах разной ширины.
+  cardHalf: {
+    flex: 1,
   },
   pressed: {
     opacity: 0.7,
@@ -72,9 +94,16 @@ const styles = StyleSheet.create({
   // Те же размеры, что у карточки на экране «Статьи» (ArticleListCard): один и
   // тот же материал не должен выглядеть по-разному на двух экранах — человек
   // видит их подряд, переходя по «Смотреть все».
-  photoFeatured: {
+  photoFull: {
     width: "100%",
     height: 148,
+    borderRadius: radius.photoHero,
+  },
+  // Ниже ростом, чем первая: в половину ширины кадр той же высоты выглядел бы
+  // непропорционально вытянутым.
+  photoHalf: {
+    width: "100%",
+    height: 104,
     borderRadius: radius.photoHero,
   },
   text: {
