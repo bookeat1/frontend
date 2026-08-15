@@ -4,6 +4,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { ArticleCard } from "./ArticleCard";
 import { SectionCard, SectionHeader } from "./SectionCard";
+import { type ArticleCardData } from "./placeholder";
 import { useExploreArticles } from "./use-explore-data";
 
 const t = getDictionary();
@@ -35,25 +36,40 @@ export function ArticlesSection({
     return null;
   }
 
-  // Столбиком, по решению владельца (14.08.2026): лента вбок прятала статьи за
-  // краем экрана, а крупная первая карточка съедала весь блок. Теперь все
-  // карточки одного размера и видны сразу.
+  // Раскладка из макета 986:8697: первая статья во всю ширину, остальные —
+  // парами под ней. Так свежая подборка читается первой, а не теряется среди
+  // одинаковых плиток.
   //
   // Не больше ARTICLES_ON_HOME: главная — витрина, а не архив. Остальное
   // открывается по «Смотреть все», и именно поэтому заголовок ведёт туда.
   const shown = articles.slice(0, ARTICLES_ON_HOME);
+  const [lead, ...rest] = shown;
+  const rows: ArticleCardData[][] = [];
+  for (let i = 0; i < rest.length; i += 2) {
+    rows.push(rest.slice(i, i + 2));
+  }
 
   return (
     <SectionCard>
       <SectionHeader title={t.explore.articlesTitle} onSeeAll={onSeeAll} />
       <View style={styles.column}>
-        {shown.map((article) => (
-          <ArticleCard
-            key={article.id}
-            article={article}
-            onPress={() => onOpenArticle(article.id)}
-            featured
-          />
+        <ArticleCard article={lead} onPress={() => onOpenArticle(lead.id)} variant="full" />
+
+        {rows.map((row) => (
+          <View key={row[0].id} style={styles.row}>
+            {row.map((article) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                onPress={() => onOpenArticle(article.id)}
+                variant="half"
+              />
+            ))}
+            {/* Нечётная последняя карточка остаётся в своей половине, а не
+                растягивается на весь ряд: иначе она выглядела бы как ещё одна
+                «главная» статья. */}
+            {row.length === 1 ? <View style={styles.rowFiller} /> : null}
+          </View>
         ))}
       </View>
     </SectionCard>
@@ -61,6 +77,13 @@ export function ArticlesSection({
 }
 
 const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  rowFiller: {
+    flex: 1,
+  },
   column: {
     gap: spacing.xxl,
     // Секция сама горизонтальных отступов не задаёт (их ставила лента), а
