@@ -493,7 +493,10 @@ function SlotsSection({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    // Серый фон — разделитель между карточками шага брони (макет 918:11747).
+    // Пока он был белым, скруглённые блоки сливались в одно полотно и
+    // скругления не читались вовсе.
+    backgroundColor: colors.background.screen,
   },
   flex: {
     flex: 1,
