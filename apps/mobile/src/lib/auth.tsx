@@ -7,7 +7,7 @@ import {
   type OtpRequest,
 } from "@bookeat/api";
 import { getCurrentLocale } from "@bookeat/i18n";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { trackEvent } from "./analytics";
@@ -156,7 +156,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const [status, setStatus] = useState<AuthStatus>("loading");
-  const [user, setUser] = useState<AuthUser | null>(null);
+  // Профиль читается из кеша запроса ["me"], а не хранится рядом с ним: см.
+  // loadUser. Запрос здесь не запускается — его владельцы это экраны, которым
+  // профиль нужен; провайдер лишь подписан на значение.
+  // initialData здесь НЕ ставится намеренно: она материализует ключ ["me"] в
+  // кеше, и после выхода из аккаунта он воскресал со значением null — а проверка
+  // «на телефоне не осталось следов предыдущего человека» держится на том, что
+  // ключа нет вовсе (auth-signout.test).
+  const { data } = useQuery<AuthUser | null>({
+    queryKey: ["me"],
+    queryFn: () => repository.getMe(),
+    enabled: false,
+    staleTime: Infinity,
+  });
+  const user = data ?? null;
   // The session is mirrored into a ref because ensureFreshToken must read the
   // current value from inside an async callback that closed over an older
   // render, and because the refresh token rotates — reading a stale one would
@@ -170,7 +183,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(session?.accessToken);
       setStatus(session ? "signed-in" : "signed-out");
       if (!session) {
-        setUser(null);
+        // Именно removeQueries, а не запись null: ключ должен ИСЧЕЗНУТЬ.
+        // Оставленный ключ с null — это всё ещё запись о предыдущем человеке в
+        // кеше, и защита от «следующий на этом же телефоне видит чужое»
+        // держится на её отсутствии (см. auth-signout.test).
         for (const key of PRIVATE_QUERY_KEYS) {
           queryClient.removeQueries({ queryKey: key });
         }
@@ -180,14 +196,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [queryClient],
   );
 
+  /**
+   * Перечитывает профиль и кладёт его в кеш ["me"] — ТУДА ЖЕ, куда пишут экраны,
+   * которые профиль меняют (онбординг, персональные данные, аватар).
+   *
+   * Раньше здесь было своё состояние, и профиль жил в двух местах сразу. Гость
+   * вводил имя на онбординге, оно уходило на сервер и в кеш — а этот провайдер
+   * продолжал держать пустое, и экран подтверждения брони писал «имя не указано
+   * в профиле», не давая её подтвердить. Имя при этом было и на сервере, и в
+   * кеше. Одно хранилище — и такой рассинхрон невозможен.
+   */
   const loadUser = useCallback(async () => {
     try {
-      setUser(await repository.getMe());
+      queryClient.setQueryData(["me"], await repository.getMe());
     } catch {
       // Prefill only. A failed /users/me must not knock the guest out of a
       // session that is otherwise fine.
     }
-  }, [repository]);
+  }, [queryClient, repository]);
 
   // Hydrate once. A stored session whose access token has already expired is
   // refreshed here rather than shown as signed-out — otherwise every cold
