@@ -267,7 +267,9 @@ const FOOTER_CLEARANCE = 48 + spacing.md * 2 + spacing.xxl;
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    // Серый фон — разделитель между блоками (макет 986:8940): фотография с
+    // описанием, «об афише» и контакты лежат отдельными белыми полосами.
+    backgroundColor: colors.background.screen,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
@@ -292,10 +294,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     backgroundColor: colors.background.surface,
   },
+  // Фотография, название, подпись и чипы — ОДИН блок: это ответ на вопрос
+  // «что за событие», и просвет посреди него делил бы ответ надвое.
   summary: {
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+    marginBottom: spacing.sm,
     gap: spacing.xs,
   },
   title: {
@@ -312,6 +317,7 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: colors.background.surface,
+    marginBottom: spacing.sm,
     padding: spacing.lg,
     gap: spacing.lg,
   },
