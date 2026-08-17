@@ -31,6 +31,7 @@
     },
     "production-apk": {
       "extends": "production",
+      "credentialsSource": "remote",
       "android": {
         "buildType": "apk"
       },
