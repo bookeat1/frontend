@@ -190,6 +190,26 @@ export default function ReservationScreen() {
         {/* «Детали» с возможностью перенести бронь (макет 918:12814).
             Кнопки «Изменить» показываются по тому же признаку, что и отмена:
             это ровно те статусы, в которых сервер разрешает менять бронь. */}
+        {/* Отмена стоит СРАЗУ под статусом (макет 918:12746), а не липкой
+            кнопкой внизу: это действие над этой бронью, и его место рядом с
+            ней, а не поверх всего экрана. Кнопка есть только у брони, которую
+            сервер разрешает отменить. */}
+        {canCancel ? (
+          <View style={styles.cancelRow}>
+            <PrimaryButton
+              label={t.booking.cancelBooking}
+              variant="secondary"
+              size="lg"
+              icon={XCircle}
+              disabled={!cancelReady || cancel.isPending}
+              onPress={() => {
+                setCancelError(null);
+                setDialogOpen(true);
+              }}
+            />
+          </View>
+        ) : null}
+
         <BookingDetailsCard
           booking={data}
           dateTimeLabel={`${formatRelativeDay(data.startsAt)}, ${formatTime(data.startsAt)}`}
@@ -254,28 +274,6 @@ export default function ReservationScreen() {
         ) : null}
       </ScrollView>
 
-      {/* The bar exists only while the booking can actually be cancelled — per
-          the backend's own transition table (pending / waitlist / confirmed /
-          arrived), not a guess. A cancelled or completed booking gets no footer
-          at all rather than a permanently disabled button. */}
-      {canCancel ? (
-        <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
-          <View style={styles.footer}>
-            <PrimaryButton
-              label={t.booking.cancelBooking}
-              variant="secondary"
-              size="lg"
-              icon={XCircle}
-              disabled={!cancelReady || cancel.isPending}
-              onPress={() => {
-                setCancelError(null);
-                setDialogOpen(true);
-              }}
-            />
-          </View>
-        </SafeAreaView>
-      ) : null}
-
       <CancelBookingDialog
         visible={dialogOpen}
         consequence={consequence}
@@ -309,7 +307,13 @@ function cancelErrorMessage(error: unknown): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    // Серый лист, белые карточки — как на главной и карточке заведения.
+    backgroundColor: colors.background.screen,
+  },
+  cancelRow: {
     backgroundColor: colors.background.surface,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   /** Fills the space under the header so a state view centres in what is left
    * of the screen instead of collapsing under it. */
@@ -356,19 +360,5 @@ const styles = StyleSheet.create({
   preorderTotalValue: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
-  },
-  footerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
-  footer: {
-    padding: spacing.lg,
-    backgroundColor: colors.background.surface,
-    borderTopLeftRadius: radius.card,
-    borderTopRightRadius: radius.card,
-    shadowColor: colors.overlay.footerShadow,
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 8,
   },
 });
