@@ -193,8 +193,6 @@ export default function RestaurantDetailScreen() {
               />
             </View>
 
-            <View style={styles.sectionDivider} />
-
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
               <ScrollableMenu
@@ -217,8 +215,6 @@ export default function RestaurantDetailScreen() {
                 onPress={() => router.push(`/restaurant/${restaurant.id}/menu`)}
               />
             </View>
-
-            <View style={styles.sectionDivider} />
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
@@ -318,7 +314,7 @@ function ScrollableMenu({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.screen,
   },
   loadingSafeArea: {
     flex: 1,
@@ -384,19 +380,15 @@ const styles = StyleSheet.create({
     ...typography.labelMedium,
     color: colors.text.primary,
   },
+  // Блок карточки заведения — белая плашка на сером фоне экрана (макет
+  // 340:2535). Разделяет блоки просвет между плашками, а не линия.
   section: {
     backgroundColor: colors.background.surface,
+    borderRadius: radius.card,
+    marginHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
     padding: spacing.lg,
     gap: spacing.xxl,
-  },
-  // Серая черта между блоками (макет 340:2535). Раньше блоки разделял серый
-  // фон экрана; фон стал белым, и разделять стало нечем — а на длинной
-  // карточке заведения «где кончилось описание и началось меню» видно как раз
-  // по этой линии.
-  sectionDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border.control,
-    marginHorizontal: spacing.lg,
   },
   textBlock: {
     gap: spacing.lg,

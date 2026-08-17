@@ -164,13 +164,9 @@ export default function HomeScreen() {
 
         <View style={styles.sheet}>
           <RecommendedSection onSeeAll={openSearch} onOpenRestaurant={openRestaurant} />
-          <SectionDivider />
           <CuisineSection onPickCuisine={pickCuisine} />
-          <SectionDivider />
           <PromotionsSection onSeeAll={openPromotions} onOpenPromotion={openPromotion} />
-          <SectionDivider />
           <EventsListSection onOpenEvent={openEvent} onSeeAll={openEvents} />
-          <SectionDivider />
           {/* Live GASTROGUIDE collections; hides itself when nothing is published. */}
           <ArticlesSection onSeeAll={openArticles} onOpenArticle={openArticle} />
         </View>
@@ -187,21 +183,15 @@ export default function HomeScreen() {
   );
 }
 
-/**
- * Серая черта между блоками главной (макет 986:8697).
- *
- * Раньше блоки разделял серый фон экрана. Фон стал белым — и лента, кухни,
- * акции, афиша и статьи слились в одно полотно: где кончается одно и
- * начинается другое, стало видно только по заголовкам.
- */
-function SectionDivider() {
-  return <View style={styles.sectionDivider} />;
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    // Серый фон — это НЕ фон ради фона, а разделитель: в макете 986:8697 блоки
+    // лежат белыми карточками на сером, и просвет между ними и показывает, где
+    // кончается одна секция и начинается другая. Правка «везде белый» от
+    // 13.08 была про пустые экраны, где серый читался как ошибка загрузки;
+    // здесь он несёт смысл.
+    backgroundColor: colors.background.screen,
   },
   scrollContent: {
     paddingBottom: spacing.xxl,
@@ -211,19 +201,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.background.screen,
     zIndex: -1,
   },
-  sectionDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border.control,
-    marginHorizontal: spacing.lg,
-  },
   sheet: {
-    // Фон стал белым, и восьмипиксельный просвет между блоками перестал их
-    // разделять: серая полоса была границей, белая — нет. Разделяет теперь
-    // воздух, как в профиле, где по той же причине убраны подложки.
+    // 8 серого между шапкой и первым блоком и между блоками — ровно то, что
+    // рисует макет.
     marginTop: spacing.sm,
-    gap: spacing.xxl,
+    gap: spacing.sm,
   },
 });
