@@ -178,21 +178,22 @@ export default function EventDetailScreen() {
 
         {/* «Об афише» — hidden entirely when the venue wrote no description,
             rather than showing an empty heading. */}
-        {event.description ? (
+        {/* Описание и дата — ОДИН блок «Об афише» (макет 986:8940): дата это
+            часть рассказа о событии, а не отдельная запись. Блок появляется,
+            если есть хотя бы одно из двух, и внутри каждая строка рисуется
+            только когда она есть. */}
+        {event.description || calendarLine ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t.afisha.aboutTitle}</Text>
-            <Text style={styles.body}>{event.description}</Text>
-          </View>
-        ) : null}
-
-        {calendarLine ? (
-          <View style={styles.section}>
-            <View style={styles.contactRow}>
-              <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
-              <View style={styles.contactText}>
-                <Text style={styles.contactPrimary}>{calendarLine}</Text>
+            {event.description ? <Text style={styles.body}>{event.description}</Text> : null}
+            {calendarLine ? (
+              <View style={styles.contactRow}>
+                <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
+                <View style={styles.contactText}>
+                  <Text style={styles.contactPrimary}>{calendarLine}</Text>
+                </View>
               </View>
-            </View>
+            ) : null}
           </View>
         ) : null}
 
