@@ -19,7 +19,7 @@ import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { openPhone } from "../../../src/lib/external-links";
 import { formatPriceRange } from "../../../src/lib/format";
-import { openStateLabel } from "../../../src/lib/schedule";
+import { openUntilTodayLabel } from "../../../src/lib/schedule";
 import { trackEvent } from "../../../src/lib/analytics";
 
 const t = getDictionary();
@@ -136,7 +136,11 @@ export default function RestaurantDetailScreen() {
                     «Часы работы не указаны». Раньше здесь было «Открыто до
                     24:00», собранное из свободного текста и часов телефона. */}
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{openStateLabel(restaurant.schedule)}</Text>
+                  {/* «Открыто до 23:00», как в макете 340:2535. Время берётся
+                      из сегодняшней строки графика, а сама открытость — из
+                      серверного open_now; если чего-то из этого нет, чип
+                      честно скажет просто «Открыто». */}
+                  <Text style={styles.chipText}>{openUntilTodayLabel(restaurant.schedule)}</Text>
                 </View>
                 <View style={styles.chip}>
                   {/* Числовой диапазон среднего чека, если бэкенд его прислал;
