@@ -298,7 +298,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
   },
   coverContainer: {
-    paddingTop: spacing.sm,
+    // Те же 12 по краям, что и на карточке заведения: гость ходит между этими
+    // экранами, и фотография не должна стоять на них по-разному.
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
     backgroundColor: colors.background.surface,
   },

@@ -346,7 +346,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverContainer: {
-    padding: spacing.sm,
+    // 12 по краям — как в макете 340:2535: фотография не липнет к краю
+    // экрана, но и не тонет в поле.
+    padding: spacing.md,
     backgroundColor: colors.background.surface,
   },
   cover: {
