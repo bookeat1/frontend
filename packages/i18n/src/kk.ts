@@ -269,6 +269,9 @@ export const kk: LocaleOverride<Dictionary> = {
       address ? `${name} — ${address}` : name,
     favoriteAdd: (name: string) => `«${name}» таңдаулыға қосу`,
     favoriteRemove: (name: string) => `«${name}» таңдаулыдан алып тастау`,
+    socialWebsite: "Мекеме сайты",
+    socialWhatsapp: "WhatsApp-та жазу",
+    socialInstagram: "Instagram ашу",
     favoriteFailed: "Сақтау мүмкін болмады — қайталап көріңіз",
   },
   nav: {
