@@ -444,7 +444,9 @@ function PreorderRow({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.surface,
+    // Тот же серый фон, что и на первом шаге брони: экраны идут подряд, и
+    // менять под ними фон на середине пути незачем.
+    backgroundColor: colors.background.screen,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
