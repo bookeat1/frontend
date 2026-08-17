@@ -66,6 +66,10 @@ export function HomeHeader({
         source={require("../../../assets/home-header.jpg")}
         style={styles.photo}
         contentFit="cover"
+        // Выравнивание по ВЕРХУ, а не по центру: композиция кадра — бокал в
+        // верхней трети, и при обрезке от центра он уезжал под вырез экрана.
+        // Теперь он начинается сразу под чёлкой, как в макете 986:8697.
+        contentPosition="top"
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"

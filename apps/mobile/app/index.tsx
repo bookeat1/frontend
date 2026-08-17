@@ -164,9 +164,13 @@ export default function HomeScreen() {
 
         <View style={styles.sheet}>
           <RecommendedSection onSeeAll={openSearch} onOpenRestaurant={openRestaurant} />
+          <SectionDivider />
           <CuisineSection onPickCuisine={pickCuisine} />
+          <SectionDivider />
           <PromotionsSection onSeeAll={openPromotions} onOpenPromotion={openPromotion} />
+          <SectionDivider />
           <EventsListSection onOpenEvent={openEvent} onSeeAll={openEvents} />
+          <SectionDivider />
           {/* Live GASTROGUIDE collections; hides itself when nothing is published. */}
           <ArticlesSection onSeeAll={openArticles} onOpenArticle={openArticle} />
         </View>
@@ -181,6 +185,17 @@ export default function HomeScreen() {
       <BottomNavBar />
     </View>
   );
+}
+
+/**
+ * Серая черта между блоками главной (макет 986:8697).
+ *
+ * Раньше блоки разделял серый фон экрана. Фон стал белым — и лента, кухни,
+ * акции, афиша и статьи слились в одно полотно: где кончается одно и
+ * начинается другое, стало видно только по заголовкам.
+ */
+function SectionDivider() {
+  return <View style={styles.sectionDivider} />;
 }
 
 const styles = StyleSheet.create({
@@ -198,6 +213,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.background.surface,
     zIndex: -1,
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border.control,
+    marginHorizontal: spacing.lg,
   },
   sheet: {
     // Фон стал белым, и восьмипиксельный просвет между блоками перестал их
