@@ -12,7 +12,6 @@ import { MapPreview } from "../../../src/components/booking/MapPreview";
 import { MenuItemCard } from "../../../src/components/MenuItemCard";
 import { PhotoView } from "../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
-import { PromoBannerStrip } from "../../../src/components/PromoBannerStrip";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
 import { StoriesRail } from "../../../src/components/restaurant/StoriesRail";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
@@ -173,10 +172,10 @@ export default function RestaurantDetailScreen() {
                 }}
               />
 
-              <PromoBannerStrip banners={restaurant.promoBanners} />
-
-              {/* Лента промо-историй: сама себя прячет, когда историй нет или
-                  запрос упал — как и любая необязательная лента экрана. */}
+              {/* Только истории. Лента акций отсюда убрана по решению
+                  владельца (17.08.2026): две ленты подряд читались как одна
+                  разъехавшаяся, а акции заведения гость и так видит на главной.
+                  Лента сама себя прячет, когда историй нет или запрос упал. */}
               <StoriesRail restaurantId={restaurant.id} />
 
               <View style={styles.textBlock}>
@@ -347,10 +346,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.photoHero,
     backgroundColor: colors.background.chip,
   },
+  // Фотография, название, адрес и чипы — ОДИН блок (макет 340:2535): это
+  // ответ на вопрос «что это за место», и разрывать его серым просветом
+  // означало бы поделить один ответ надвое.
   summary: {
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+    marginBottom: spacing.sm,
     gap: spacing.lg,
   },
   name: {
@@ -380,12 +383,11 @@ const styles = StyleSheet.create({
     ...typography.labelMedium,
     color: colors.text.primary,
   },
-  // Блок карточки заведения — белая плашка на сером фоне экрана (макет
-  // 340:2535). Разделяет блоки просвет между плашками, а не линия.
+  // Блок карточки заведения — белая полоса ВО ВСЮ ШИРИНУ, без скругления
+  // (макет 340:2535). Разделяет блоки серый просвет между ними, а не линия и
+  // не рамка.
   section: {
     backgroundColor: colors.background.surface,
-    borderRadius: radius.card,
-    marginHorizontal: spacing.sm,
     marginBottom: spacing.sm,
     padding: spacing.lg,
     gap: spacing.xxl,
