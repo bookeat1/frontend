@@ -395,7 +395,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
-    gap: spacing.lg,
+    // Название и адрес — одна подпись к фотографии, поэтому между ними 4, а не
+    // 16 (макет 340:2535). Отступ до чипов задаётся отдельно: они уже другая
+    // строка смысла.
+    gap: spacing.xs,
   },
   name: {
     ...typography.titleLg,
@@ -411,6 +414,7 @@ const styles = StyleSheet.create({
     color: colors.brand.primary,
   },
   chipsRow: {
+    marginTop: spacing.md,
     flexDirection: "row",
     gap: spacing.xs,
   },
