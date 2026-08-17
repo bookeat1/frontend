@@ -193,6 +193,8 @@ export default function RestaurantDetailScreen() {
               />
             </View>
 
+            <View style={styles.sectionDivider} />
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
               <ScrollableMenu
@@ -215,6 +217,8 @@ export default function RestaurantDetailScreen() {
                 onPress={() => router.push(`/restaurant/${restaurant.id}/menu`)}
               />
             </View>
+
+            <View style={styles.sectionDivider} />
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
@@ -384,6 +388,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     padding: spacing.lg,
     gap: spacing.xxl,
+  },
+  // Серая черта между блоками (макет 340:2535). Раньше блоки разделял серый
+  // фон экрана; фон стал белым, и разделять стало нечем — а на длинной
+  // карточке заведения «где кончилось описание и началось меню» видно как раз
+  // по этой линии.
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border.control,
+    marginHorizontal: spacing.lg,
   },
   textBlock: {
     gap: spacing.lg,
