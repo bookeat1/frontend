@@ -21,6 +21,7 @@ import type {
   PreorderLineInput,
   ProfileUpdate,
   RegisterPushTokenInput,
+  RescheduleBookingInput,
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
@@ -210,6 +211,13 @@ export interface RestaurantRepository {
    * value they already had rather than overwriting it with null.
    */
   cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking>;
+  /**
+   * Перенос брони — другое время и/или число гостей (`PATCH /bookings/:id`).
+   *
+   * Отдельный метод, а не «отменить и создать заново»: у брони есть история,
+   * подтверждение заведения и уведомления, и пересоздание всё это обнуляет.
+   */
+  rescheduleBooking(bookingId: string, input: RescheduleBookingInput): Promise<Booking>;
 
   /**
    * The booking's live payment, or `null` when there is none (the endpoint

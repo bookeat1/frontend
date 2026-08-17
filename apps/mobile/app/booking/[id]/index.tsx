@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BookingCard } from "../../../src/components/booking/BookingCard";
 import { CancelBookingDialog } from "../../../src/components/booking/CancelBookingDialog";
 import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
+import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
@@ -24,7 +25,7 @@ import {
 } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { useAuth } from "../../../src/lib/auth";
-import { formatMoneyMinor } from "../../../src/lib/format";
+import { formatMoneyMinor, formatRelativeDay, formatTime } from "../../../src/lib/format";
 
 const t = getDictionary();
 
@@ -185,6 +186,28 @@ export default function ReservationScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ReservationHeaderCard booking={data} restaurant={restaurant.data} />
+
+        {/* «Детали» с возможностью перенести бронь (макет 918:12814).
+            Кнопки «Изменить» показываются по тому же признаку, что и отмена:
+            это ровно те статусы, в которых сервер разрешает менять бронь. */}
+        <BookingDetailsCard
+          booking={data}
+          dateTimeLabel={`${formatRelativeDay(data.startsAt)}, ${formatTime(data.startsAt)}`}
+          guestsLabel={t.booking.guestsCount(data.guests)}
+          editable={canCancel}
+          onEditDateTime={() =>
+            router.push({
+              pathname: "/booking/[id]/reschedule",
+              params: { id: data.id, focus: "date" },
+            })
+          }
+          onEditGuests={() =>
+            router.push({
+              pathname: "/booking/[id]/reschedule",
+              params: { id: data.id, focus: "guests" },
+            })
+          }
+        />
 
         <WhatHappensNextCard status={data.status} />
 

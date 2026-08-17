@@ -64,6 +64,7 @@ import type {
   PreorderLineInput,
   ProfileUpdate,
   RegisterPushTokenInput,
+  RescheduleBookingInput,
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
@@ -536,6 +537,26 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       {
         reason_code: input?.reasonCode?.trim() ? input.reasonCode.trim() : undefined,
         reason: input?.reason?.trim() ? input.reason.trim() : undefined,
+      },
+      { auth: true },
+    );
+    return mapBooking(api);
+  }
+
+  /**
+   * `PATCH /bookings/:id` — перенос брони: другое время, другое число гостей.
+   *
+   * Отправляются ТОЛЬКО изменённые поля. Сервер пересобирает посадку заново и
+   * может отказать: столик на новое время уже заняли (409). Этот отказ обязан
+   * дойти до экрана как отказ, а не как «сохранено» — иначе гость уйдёт с
+   * мыслью, что перенёс бронь, а заведение будет ждать его в старое время.
+   */
+  async rescheduleBooking(bookingId: string, input: RescheduleBookingInput): Promise<Booking> {
+    const api = await this.client.patch<ApiBooking>(
+      `/bookings/${encodeURIComponent(bookingId)}`,
+      {
+        starts_at: input.startsAt,
+        guests: input.guests,
       },
       { auth: true },
     );

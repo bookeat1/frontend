@@ -1209,6 +1209,14 @@ export const ru = {
   booking: {
     title: "Бронирование",
     // --- шаг «когда» ---
+    detailsTitle: "Детали",
+    detailErrorTitle: "Бронь не загрузилась",
+    detailErrorDescription: "Проверьте связь и попробуйте ещё раз",
+    rescheduleSubmit: "Сохранить",
+    editDateTimeA11y: "Изменить дату и время брони",
+    editGuestsA11y: "Изменить число гостей",
+    rescheduleTaken: "Это время уже заняли — выберите другое",
+    rescheduleFailed: "Не удалось перенести бронь. Попробуйте ещё раз",
     dateSectionTitle: "Дата",
     changeDate: "Другая дата",
     pickDateTitle: "Выберите дату",
