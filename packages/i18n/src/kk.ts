@@ -69,8 +69,8 @@ export const kk: LocaleOverride<Dictionary> = {
     heroBanner: (index: number, total: number) => `${total} баннердің ${index}-і`,
     sectionSeeAll: (section: string) => `${section}: барлығын көру`,
 
-    greeting: (name: string) => `Бүгін қайда барамыз, ${name}?`,
-    greetingNoName: "Бүгін қайда барамыз?",
+    greeting: (name: string) => `Сәлем, ${name}`,
+    greetingNoName: "Сәлем",
     cityFallback: "Алматы",
     cityLabel: (city: string) => `Қала: ${city}`,
     notifications: "Хабарламалар",

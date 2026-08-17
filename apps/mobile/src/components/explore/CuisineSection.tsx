@@ -5,6 +5,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { CardStrip } from "./CardStrip";
 import { CuisineChip } from "./CuisineChip";
+import { cuisinePhoto } from "./cuisine-photos";
 import { SectionCard, SectionHeader } from "./SectionCard";
 import { useExploreCuisines } from "./use-explore-data";
 
@@ -33,7 +34,11 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
     );
   }
 
-  const cuisines = query.data ?? [];
+  // Показываем только кухни, для которых есть фотография: круг-заглушка в
+  // ряду картинок читается как «не загрузилось», а не как «такая кухня есть».
+  // Решение владельца от 17.08.2026 — до тех пор, пока фотографии не появятся
+  // у всех (см. cuisine-photos.ts, картинки лежат в самом приложении).
+  const cuisines = (query.data ?? []).filter((cuisine) => cuisinePhoto(cuisine.id) !== undefined);
   // Hide the whole section on empty OR error — a cuisine shortcut the guest
   // never sees is better than a dead or broken block on the first screen.
   if (query.isError || cuisines.length === 0) {

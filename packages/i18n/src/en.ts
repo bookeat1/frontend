@@ -65,8 +65,8 @@ export const en: LocaleOverride<Dictionary> = {
     heroBanner: (index: number, total: number) => `Banner ${index} of ${total}`,
     sectionSeeAll: (section: string) => `${section}: see all`,
 
-    greeting: (name: string) => `Where to today, ${name}?`,
-    greetingNoName: "Where to today?",
+    greeting: (name: string) => `Hi, ${name}`,
+    greetingNoName: "Hi",
     cityFallback: "Almaty",
     cityLabel: (city: string) => `City: ${city}`,
     notifications: "Notifications",
