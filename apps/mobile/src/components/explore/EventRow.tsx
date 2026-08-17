@@ -92,20 +92,32 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   dateBlock: {
-    width: 40,
+    width: 44,
     alignItems: "center",
   },
+  // Число даты — самый крупный элемент строки (макет 986:8697). Оно и есть
+  // ответ на вопрос «когда», ради которого человек смотрит на афишу, поэтому
+  // общий заголовочный кегль здесь мал: в ряду из трёх событий взгляд должен
+  // цепляться за числа, а не за названия.
   dateDay: {
     ...typography.titleLg,
+    fontSize: 24,
+    lineHeight: 28,
     color: colors.text.primary,
   },
   dateMonth: {
     ...typography.caption,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
     color: colors.text.muted,
   },
   text: {
     flex: 1,
     gap: spacing.xxs,
+    // Воздух до фотографии: в макете текст не подходит к ней вплотную.
+    paddingRight: spacing.sm,
   },
   title: {
     ...typography.titleSm,

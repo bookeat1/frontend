@@ -16,3 +16,7 @@ android/
 
 # iOS signing material — never commit (local paths / secrets)
 apps/mobile/credentials.json
+# Ключи подписи и пароль сертификата — их место рядом с самими ключами в
+# ~/.bookeat/ios, а не в репозитории. Файлы на каждое из двух приложений
+# (бета и основное) попадают сюда по той же причине.
+apps/mobile/credentials.*.json

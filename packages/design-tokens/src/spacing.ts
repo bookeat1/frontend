@@ -92,7 +92,9 @@ export const exploreLayout = {
    * on a 360-wide screen with the next one peeking. */
   cuisineChip: 72,
   /** Square thumbnail on the right of a vertical «Афиша» event row. */
-  eventThumb: 72,
+  // Фотография события в «Афише». 96, как в макете 986:8697: при 72 картинка
+  // читалась как иконка рядом с текстом, а не как фотография места.
+  eventThumb: 96,
 } as const;
 
 /** Stroke widths from the design. */
