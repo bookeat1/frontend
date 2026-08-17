@@ -261,6 +261,9 @@ export const en: LocaleOverride<Dictionary> = {
       address ? `${name} — ${address}` : name,
     favoriteAdd: (name: string) => `Add "${name}" to favorites`,
     favoriteRemove: (name: string) => `Remove "${name}" from favorites`,
+    socialWebsite: "Venue website",
+    socialWhatsapp: "Message on WhatsApp",
+    socialInstagram: "Open Instagram",
     favoriteFailed: "Couldn't save — please try again",
   },
   nav: {

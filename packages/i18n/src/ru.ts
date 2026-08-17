@@ -550,6 +550,9 @@ export const ru = {
      * должна и звучать одинаково — это буквально одно и то же избранное. */
     favoriteAdd: (name: string) => `Добавить «${name}» в избранное`,
     favoriteRemove: (name: string) => `Убрать «${name}» из избранного`,
+    socialWebsite: "Сайт заведения",
+    socialWhatsapp: "Написать в WhatsApp",
+    socialInstagram: "Открыть Instagram",
     favoriteFailed: "Не получилось сохранить — попробуйте ещё раз",
   },
   nav: {

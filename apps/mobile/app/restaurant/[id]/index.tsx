@@ -3,7 +3,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Export, GlobeSimple, Heart, InstagramLogo, MapPin, Phone, WhatsappLogo, ArrowLeft } from "../../../src/components/icons";
 import { IconButton } from "../../../src/components/IconButton";
@@ -17,7 +17,7 @@ import { StoriesRail } from "../../../src/components/restaurant/StoriesRail";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
-import { openPhone } from "../../../src/lib/external-links";
+import { openInstagram, openPhone, openWebsite, openWhatsApp } from "../../../src/lib/external-links";
 import { formatPriceRange } from "../../../src/lib/format";
 import { openUntilTodayLabel } from "../../../src/lib/schedule";
 import { trackEvent } from "../../../src/lib/analytics";
@@ -53,6 +53,34 @@ export default function RestaurantDetailScreen() {
       // о которой ему нужно рассказывать.
     }
   };
+
+  // Соцсети заведения: только те, что реально пришли с сервера.
+  const socialLinks = [
+    restaurant?.social?.website
+      ? {
+          key: "website",
+          icon: GlobeSimple,
+          label: t.restaurant.socialWebsite,
+          open: () => openWebsite(restaurant.social!.website!),
+        }
+      : null,
+    restaurant?.social?.whatsapp
+      ? {
+          key: "whatsapp",
+          icon: WhatsappLogo,
+          label: t.restaurant.socialWhatsapp,
+          open: () => openWhatsApp(restaurant.social!.whatsapp!),
+        }
+      : null,
+    restaurant?.social?.instagram
+      ? {
+          key: "instagram",
+          icon: InstagramLogo,
+          label: t.restaurant.socialInstagram,
+          open: () => openInstagram(restaurant.social!.instagram!),
+        }
+      : null,
+  ].filter((link): link is NonNullable<typeof link> => link !== null);
 
   return (
     <View style={styles.root}>
@@ -226,23 +254,25 @@ export default function RestaurantDetailScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
-              <View style={styles.socialRow}>
-                {restaurant.social?.website ? (
-                  <View style={styles.socialIcon}>
-                    <GlobeSimple size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-                {restaurant.social?.whatsapp ? (
-                  <View style={styles.socialIcon}>
-                    <WhatsappLogo size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-                {restaurant.social?.instagram ? (
-                  <View style={styles.socialIcon}>
-                    <InstagramLogo size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-              </View>
+              {/* Ряд соцсетей рисуется, ТОЛЬКО когда есть хоть одна ссылка:
+                  пустой ряд оставлял на экране отступ без содержимого.
+                  Иконки нажимаются — иконка, которая никуда не ведёт, обещает
+                  переход и не выполняет обещание. */}
+              {socialLinks.length > 0 ? (
+                <View style={styles.socialRow}>
+                  {socialLinks.map(({ key, icon: Icon, open, label }) => (
+                    <Pressable
+                      key={key}
+                      accessibilityRole="link"
+                      accessibilityLabel={label}
+                      onPress={() => void open()}
+                      style={({ pressed }) => [styles.socialIcon, pressed && styles.socialIconPressed]}
+                    >
+                      <Icon size={24} color={colors.text.primary} weight="regular" />
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
 
               {restaurant.address ? (
                 <View style={styles.contactRow}>
@@ -424,6 +454,9 @@ const styles = StyleSheet.create({
   socialRow: {
     flexDirection: "row",
     gap: spacing.sm,
+  },
+  socialIconPressed: {
+    opacity: 0.6,
   },
   socialIcon: {
     width: 48,
