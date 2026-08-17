@@ -159,9 +159,12 @@ export default function EventDetailScreen() {
         {/* Cover first, then the gallery the venue uploaded beside it. With
             nothing but a cover the rail draws exactly the single photo this
             screen showed before. */}
-        <PhotoRail uris={[event.coverImageUrl, ...event.images]} style={styles.coverContainer} />
-
-        <View style={styles.summary}>
+        {/* Фотография и подпись под ней — ОДИН блок (макет 986:8940): это
+            ответ на вопрос «что за событие», и серый просвет посреди него
+            делил бы ответ надвое. */}
+        <View style={styles.summaryBlock}>
+          <PhotoRail uris={[event.coverImageUrl, ...event.images]} style={styles.coverContainer} />
+          <View style={styles.summary}>
           <Text style={styles.title}>{event.title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           <TagChips tags={event.tags} />
@@ -169,7 +172,8 @@ export default function EventDetailScreen() {
             <Text style={styles.favoriteFailed} accessibilityRole="alert">
               {t.restaurant.favoriteFailed}
             </Text>
-          ) : null}
+            ) : null}
+          </View>
         </View>
 
         {/* «Об афише» — hidden entirely when the venue wrote no description,
@@ -290,8 +294,12 @@ const styles = StyleSheet.create({
     paddingBottom: FOOTER_CLEARANCE,
     gap: spacing.sm,
   },
+  summaryBlock: {
+    backgroundColor: colors.background.surface,
+  },
   coverContainer: {
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
     backgroundColor: colors.background.surface,
   },
   // Фотография, название, подпись и чипы — ОДИН блок: это ответ на вопрос
@@ -300,7 +308,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
-    marginBottom: spacing.sm,
     gap: spacing.xs,
   },
   title: {
@@ -317,7 +324,6 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: colors.background.surface,
-    marginBottom: spacing.sm,
     padding: spacing.lg,
     gap: spacing.lg,
   },

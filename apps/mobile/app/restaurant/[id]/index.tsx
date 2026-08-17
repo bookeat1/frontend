@@ -103,7 +103,11 @@ export default function RestaurantDetailScreen() {
           </SafeAreaView>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            <View style={styles.coverContainer}>
+            {/* Фотография, название, адрес и чипы — ОДИН блок (макет
+                340:2535). Раньше фото было отдельным элементом списка, и
+                просвет между блоками разрезал этот ответ надвое. */}
+            <View style={styles.summaryBlock}>
+              <View style={styles.coverContainer}>
               {/* Обложка — самое тяжёлое фото экрана и первое, что видит
                   гость: грузим её с высоким приоритетом, а пока она едет,
                   стоит нейтральная плашка нужного размера, поэтому ничего
@@ -115,10 +119,10 @@ export default function RestaurantDetailScreen() {
                 transition={200}
                 priority="high"
                 placeholderIconSize={40}
-              />
-            </View>
+                />
+              </View>
 
-            <View style={styles.summary}>
+              <View style={styles.summary}>
               <Text style={styles.name}>{restaurant.name}</Text>
               {/* Адрес в каталоге бывает пустым — тогда строки просто нет.
                   Расстояния здесь больше нет вообще: раньше рядом с адресом
@@ -160,6 +164,7 @@ export default function RestaurantDetailScreen() {
                     </Text>
                   </View>
                 ) : null}
+                </View>
               </View>
             </View>
 
@@ -353,11 +358,13 @@ const styles = StyleSheet.create({
   // Фотография, название, адрес и чипы — ОДИН блок (макет 340:2535): это
   // ответ на вопрос «что это за место», и разрывать его серым просветом
   // означало бы поделить один ответ надвое.
+  summaryBlock: {
+    backgroundColor: colors.background.surface,
+  },
   summary: {
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
-    marginBottom: spacing.sm,
     gap: spacing.lg,
   },
   name: {
@@ -392,7 +399,6 @@ const styles = StyleSheet.create({
   // не рамка.
   section: {
     backgroundColor: colors.background.surface,
-    marginBottom: spacing.sm,
     padding: spacing.lg,
     gap: spacing.xxl,
   },
