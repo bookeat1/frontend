@@ -257,6 +257,14 @@ export interface AvailabilityFilter {
   timeTo?: string;
 }
 
+/** Что можно поменять в существующей брони (`PATCH /bookings/:id`). Оба поля
+ * необязательны, но пустой запрос бессмысленен — экран не даёт его отправить. */
+export interface RescheduleBookingInput {
+  /** RFC3339, начало визита. */
+  startsAt?: string;
+  guests?: number;
+}
+
 export interface SearchQuery {
   text: string;
   filters: SearchFilters;

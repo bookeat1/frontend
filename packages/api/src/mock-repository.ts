@@ -11,6 +11,7 @@ import {
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { isCancellableBookingStatus } from "./types";
 import type {
+  AppNotification,
   AuthSession,
   AuthUser,
   AvailabilitySlot,
@@ -28,13 +29,13 @@ import type {
   GuideCollectionDetail,
   HomePromo,
   MenuSection,
-  AppNotification,
   NotificationFeed,
   OtpRequest,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
   RegisterPushTokenInput,
+  RescheduleBookingInput,
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
@@ -404,6 +405,29 @@ export class MockRestaurantRepository implements RestaurantRepository {
    * "invalid status transition" the real API answers, so the screen's
    * already-cancelled branch can be exercised with no backend at all.
    */
+  /**
+   * Мок переноса брони. Отдельно воспроизведён отказ «время уже заняли» (409):
+   * это самая частая причина, по которой перенос не проходит, и экран обязан
+   * уметь её показать — на моке иначе этот путь не проверить.
+   */
+  async rescheduleBooking(bookingId: string, input: RescheduleBookingInput): Promise<Booking> {
+    await this.simulateNetwork();
+    const booking = this.bookings.get(bookingId);
+    if (!booking) {
+      throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
+    }
+    if (input.guests !== undefined && input.guests > 12) {
+      throw new RepositoryError("no table for that party", undefined, 409, "no_table_available");
+    }
+    const next: Booking = {
+      ...booking,
+      startsAt: input.startsAt ?? booking.startsAt,
+      guests: input.guests ?? booking.guests,
+    };
+    this.bookings.set(bookingId, next);
+    return next;
+  }
+
   async cancelBooking(bookingId: string, input?: CancelBookingInput): Promise<Booking> {
     await this.simulateNetwork();
     const booking = this.bookings.get(bookingId);
