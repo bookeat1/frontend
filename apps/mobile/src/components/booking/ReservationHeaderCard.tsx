@@ -52,7 +52,9 @@ export function ReservationHeaderCard({
           · 14:00», и только потом название заведения. Человек открывает эту
           карточку, чтобы узнать, что с бронью, а не куда он идёт — заведение он
           и так помнит. */}
-      <BookingStatusPill status={booking.status} />
+      <View style={styles.statusSlot}>
+        <BookingStatusPill status={booking.status} />
+      </View>
 
       <Text style={styles.summary}>{summary}</Text>
 
@@ -73,25 +75,28 @@ export function ReservationHeaderCard({
 }
 
 const styles = StyleSheet.create({
-  // 32 от названия заведения до кнопок и 16 до следующего блока — замеры
-  // владельца по макету 918:12746.
+  // Отступы внутри карточки — замеры владельца по макету 918:12746:
+  // 16 от шапки до аватара, 24 от аватара до статуса, 16 от статуса до строки
+  // визита, 32 от названия до кнопок, 16 от кнопок до края блока.
   actionsSlot: {
-    // 32 от названия заведения до кнопок и 16 от кнопок до низа блока —
-    // замеры владельца по макету 918:12746.
-    marginTop: spacing.xxl,
-    marginBottom: spacing.sm,
+    marginTop: spacing.xxxl,
+    marginBottom: spacing.lg,
     alignSelf: "stretch",
   },
   card: {
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
+    gap: 0,
+    paddingTop: spacing.lg,
+    paddingBottom: 0,
   },
   avatar: {
     width: controlHeight.venueAvatar,
     height: controlHeight.venueAvatar,
     borderRadius: radius.avatar,
     backgroundColor: colors.background.bannerPlaceholder,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xxl,
+  },
+  statusSlot: {
+    marginBottom: spacing.lg,
   },
   name: {
     ...typography.body,
