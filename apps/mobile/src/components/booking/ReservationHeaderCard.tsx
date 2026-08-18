@@ -80,7 +80,9 @@ const styles = StyleSheet.create({
   // визита, 32 от названия до кнопок, 16 от кнопок до края блока.
   actionsSlot: {
     marginTop: spacing.xxxl,
-    marginBottom: spacing.lg,
+    // 8 до края карточки плюс 8 просвета между блоками — те самые 16 от кнопок
+    // до следующего блока (замер владельца по макету 918:12777).
+    marginBottom: spacing.sm,
     alignSelf: "stretch",
   },
   card: {
