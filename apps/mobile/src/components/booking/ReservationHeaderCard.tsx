@@ -76,12 +76,15 @@ const styles = StyleSheet.create({
   // 32 от названия заведения до кнопок и 16 до следующего блока — замеры
   // владельца по макету 918:12746.
   actionsSlot: {
-    marginTop: spacing.md,
+    // 32 от названия заведения до кнопок и 16 от кнопок до низа блока —
+    // замеры владельца по макету 918:12746.
+    marginTop: spacing.xxl,
+    marginBottom: spacing.sm,
     alignSelf: "stretch",
   },
   card: {
     gap: spacing.sm,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.sm,
   },
   avatar: {
     width: controlHeight.venueAvatar,
@@ -91,13 +94,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   name: {
-    ...typography.titleXl,
-    color: colors.text.primary,
+    ...typography.body,
+    color: colors.text.mutedStrong,
     textAlign: "center",
   },
   summary: {
-    ...typography.body,
-    color: colors.text.mutedStrong,
+    ...typography.titleXl,
+    color: colors.text.primary,
     textAlign: "center",
   },
 });
