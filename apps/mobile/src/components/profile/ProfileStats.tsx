@@ -76,12 +76,16 @@ const styles = StyleSheet.create({
   root: {
     flexDirection: "row",
     alignItems: "center",
+    // 76 высотой при числе 28 и подписи 20 → по 12 сверху и снизу (макет
+    // 882:5567).
     paddingVertical: spacing.md,
   },
   cell: {
     flex: 1,
     alignItems: "center",
-    gap: spacing.xxs,
+    // Между числом и подписью 4: в макете подпись начинается на 44 при числе,
+    // которое кончается на 40.
+    gap: spacing.xs,
   },
   cellPressed: {
     opacity: 0.6,
@@ -97,7 +101,9 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   label: {
-    ...typography.caption,
+    ...typography.body,
+    // Подпись в макете 20 высотой — это body, а не caption: в caption она
+    // была мельче и читалась как сноска, а не как название колонки.
     color: colors.text.muted,
   },
 });
