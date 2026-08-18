@@ -566,6 +566,10 @@ export interface AuthUser {
    * числе чужой или вообще не картинку.
    */
   avatarUrl: string | null;
+  /** RFC3339, когда аккаунт создан. Профиль показывает из него, сколько
+   * человек с нами: это ЕГО срок, а не выдуманный «стаж». null у аккаунтов,
+   * созданных до того, как сервер начал отдавать это поле. */
+  createdAt: string | null;
   /** Plain calendar date, "YYYY-MM-DD", or null. Never a timestamp. */
   birthDate: string | null;
 }

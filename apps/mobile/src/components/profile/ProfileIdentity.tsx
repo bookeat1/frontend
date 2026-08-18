@@ -28,6 +28,7 @@ import { Camera, UserCircle } from "../icons";
 export function ProfileIdentity({
   name,
   phone,
+  membership,
   avatarUrl,
   editLabel,
   namePlaceholder,
@@ -36,6 +37,9 @@ export function ProfileIdentity({
 }: {
   name: string;
   phone: string | null;
+  /** «2 недели в BookEat». null — аккаунт без даты создания: строки просто нет,
+   * выдумывать срок нельзя. */
+  membership?: string | null;
   /** Фотография профиля; null — рисуем инициалы. */
   avatarUrl?: string | null;
   /** Accessibility label for the tap target (it changes the photo). */
@@ -89,6 +93,7 @@ export function ProfileIdentity({
           {formatStoredPhoneForDisplay(phone)}
         </Text>
       ) : null}
+      {membership ? <Text style={styles.membership}>{membership}</Text> : null}
     </View>
   );
 }
@@ -169,6 +174,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   phone: {
+    ...typography.body,
+    color: colors.text.muted,
+    textAlign: "center",
+  },
+  membership: {
     ...typography.body,
     color: colors.text.muted,
     textAlign: "center",

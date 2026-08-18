@@ -654,6 +654,7 @@ export class MockAuthRepository implements AuthRepository {
       phone: this.user?.phone ?? null,
       city: this.user?.city ?? null,
       avatarUrl: null,
+    createdAt: null,
       birthDate: this.user?.birthDate ?? null,
     };
     return {
@@ -712,6 +713,7 @@ export class MockAuthRepository implements AuthRepository {
       phone: input.phone,
       city: null,
       avatarUrl: null,
+    createdAt: null,
       birthDate: null,
     };
     return session;
@@ -766,6 +768,7 @@ export class MockAuthRepository implements AuthRepository {
       fullName: input.fullName ?? this.user.fullName,
       city: input.city === undefined ? this.user.city : input.city || null,
       avatarUrl: null,
+    createdAt: null,
       birthDate: input.birthDate ?? this.user.birthDate,
     };
     return this.user;

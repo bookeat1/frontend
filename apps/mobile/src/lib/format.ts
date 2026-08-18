@@ -231,3 +231,33 @@ export function formatPriceRange(range: { min: number; max: number }): string {
   if (low === high) return `${groupTenge(low)}${NBSP}₸`;
   return `${groupTenge(low)}–${groupTenge(high)}${NBSP}₸`;
 }
+
+/**
+ * «2 недели в BookEat» — сколько человек пользуется приложением (макет
+ * 882:5541).
+ *
+ * Считается от даты создания аккаунта, которую отдаёт сервер. Ничего не
+ * придумывает: у аккаунта без этой даты строки просто не будет, а первые сутки
+ * называются днями, а не «0 недель».
+ */
+export function membershipDuration(
+  createdAt: string | null,
+  labels: {
+    days: (n: number) => string;
+    weeks: (n: number) => string;
+    months: (n: number) => string;
+    years: (n: number) => string;
+  },
+  now: Date = new Date(),
+): string | null {
+  if (!createdAt) return null;
+  const started = Date.parse(createdAt);
+  if (Number.isNaN(started)) return null;
+
+  const days = Math.floor((now.getTime() - started) / 86_400_000);
+  if (days < 0) return null; // часы телефона отстают — молчим, а не врём
+  if (days < 7) return labels.days(Math.max(days, 1));
+  if (days < 60) return labels.weeks(Math.floor(days / 7));
+  if (days < 365) return labels.months(Math.floor(days / 30));
+  return labels.years(Math.floor(days / 365));
+}

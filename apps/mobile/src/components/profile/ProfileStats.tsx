@@ -1,4 +1,4 @@
-import { colors, spacing, typography } from "@bookeat/design-tokens";
+import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -32,9 +32,7 @@ export function ProfileStats({
   return (
     <View style={styles.root} accessibilityRole="summary">
       <StatCell value={bookings} label={labels.bookings} onPress={onPressBookings} />
-      <View style={styles.divider} />
       <StatCell value={reviews} label={labels.reviews} />
-      <View style={styles.divider} />
       <StatCell value={friends} label={labels.friends} />
     </View>
   );
@@ -76,25 +74,25 @@ const styles = StyleSheet.create({
   root: {
     flexDirection: "row",
     alignItems: "center",
-    // 76 высотой при числе 28 и подписи 20 → по 12 сверху и снизу (макет
-    // 882:5567).
-    paddingVertical: spacing.md,
+    // Три плашки по 109 с зазором 8 (макет 882:5567).
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   cell: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    // Серая плашка, а не колонка с линейкой: в макете у каждой цифры своя
+    // подложка. Линейки между ними там нет вовсе.
+    minHeight: 76,
+    borderRadius: radius.card,
+    backgroundColor: colors.background.chip,
     // Между числом и подписью 4: в макете подпись начинается на 44 при числе,
     // которое кончается на 40.
     gap: spacing.xs,
   },
   cellPressed: {
     opacity: 0.6,
-  },
-  divider: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: "stretch",
-    marginVertical: spacing.xs,
-    backgroundColor: colors.border.control,
   },
   value: {
     ...typography.titleLg,
