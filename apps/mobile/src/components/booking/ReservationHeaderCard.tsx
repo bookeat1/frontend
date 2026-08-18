@@ -13,7 +13,7 @@ const t = getDictionary();
 /**
  * Top card of the Reservation detail screen (Figma node 488:9876): the venue
  * photo as a 72x72 rounded square, the venue name, the one-line summary
- * ("Сегодня · 14:00 · 2 гостя") and the status pill — all centred, all flush
+ * ("2 гостя · Сегодня · 14:00") and the status pill — all centred, all flush
  * with the top bar (only the bottom corners are rounded).
  *
  * `restaurant` is optional: the booking loads from its own endpoint and the
@@ -35,9 +35,9 @@ export function ReservationHeaderCard({
 }) {
   const photoUri = restaurant?.coverPhoto?.uri;
   const summary = t.booking.reservationSummary(
+    t.booking.guestsCount(booking.guests),
     formatRelativeDay(booking.startsAt),
     formatTime(booking.startsAt),
-    t.booking.guestsCount(booking.guests),
   );
 
   return (

@@ -820,8 +820,8 @@ export const en: LocaleOverride<Dictionary> = {
     bookingSignedOutDescription: "Sign in to the account the booking is on — then we'll show it",
     bookingSignIn: "Sign in",
 
-    reservationSummary: (when: string, time: string, guests: string) =>
-      `${when} · ${time} · ${guests}`,
+    reservationSummary: (guests: string, when: string, time: string) =>
+      `${guests} · ${when} · ${time}`,
     whatHappensNextTitle: "What happens next?",
     whatHappensNext: {
       pending:

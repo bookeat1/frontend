@@ -14,7 +14,7 @@ import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
 import { FlowHeader } from "../../../src/components/FlowHeader";
-import { ChatCircle, XCircle } from "../../../src/components/icons";
+import { XCircle } from "../../../src/components/icons";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import {
@@ -190,34 +190,21 @@ export default function ReservationScreen() {
           booking={data}
           restaurant={restaurant.data}
           actions={
-            <View style={styles.cancelRow}>
-              <View style={styles.cancelButton}>
-                <PrimaryButton
-                  label={t.booking.cancelBooking}
-                  variant="secondary"
-                  size="lg"
-                  icon={XCircle}
-                  disabled={!canCancel || !cancelReady || cancel.isPending}
-                  onPress={() => {
-                    setCancelError(null);
-                    setDialogOpen(true);
-                  }}
-                />
-              </View>
-              {/* Чат с заведением ещё не построен — ни в приложении, ни на
-                  сервере. Кнопка стоит на своём месте по макету и НЕ нажимается:
-                  так видно, что он будет, и при этом ничего не обещано зря. */}
-              <View style={styles.cancelButton}>
-                <PrimaryButton
-                  label={t.booking.chat}
-                  variant="secondary"
-                  size="lg"
-                  icon={ChatCircle}
-                  disabled
-                  onPress={() => {}}
-                />
-              </View>
-            </View>
+            // Одна кнопка на всю ширину (макет 918:12960). Чат из этого ряда
+            // убран: экрана чата нет ни в приложении, ни на сервере, а
+            // неактивная кнопка рядом с рабочей читается как поломка. Вернём
+            // её сюда, когда чат появится.
+            <PrimaryButton
+              label={t.booking.cancelBooking}
+              variant="secondary"
+              size="lg"
+              icon={XCircle}
+              disabled={!canCancel || !cancelReady || cancel.isPending}
+              onPress={() => {
+                setCancelError(null);
+                setDialogOpen(true);
+              }}
+            />
           }
         />
 
@@ -324,16 +311,6 @@ const styles = StyleSheet.create({
     flex: 1,
     // Серый лист, белые карточки — как на главной и карточке заведения.
     backgroundColor: colors.background.screen,
-  },
-  cancelRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    backgroundColor: colors.background.surface,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  cancelButton: {
-    flex: 1,
   },
   /** Fills the space under the header so a state view centres in what is left
    * of the screen instead of collapsing under it. */
