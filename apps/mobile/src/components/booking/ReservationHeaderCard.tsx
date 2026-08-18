@@ -2,7 +2,7 @@ import type { Booking, Restaurant } from "@bookeat/api";
 import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { formatRelativeDay, formatTime } from "../../lib/format";
 import { PhotoView } from "../PhotoView";
 import { BookingCard } from "./BookingCard";
@@ -48,6 +48,14 @@ export function ReservationHeaderCard({
           прямо под ним. */}
       <PhotoView uri={photoUri} style={styles.avatar} size="tile" decorative placeholderIcon={false} />
 
+      {/* Порядок из макета 918:12769: сначала статус, потом «2 гостя · сегодня
+          · 14:00», и только потом название заведения. Человек открывает эту
+          карточку, чтобы узнать, что с бронью, а не куда он идёт — заведение он
+          и так помнит. */}
+      <BookingStatusPill status={booking.status} />
+
+      <Text style={styles.summary}>{summary}</Text>
+
       {restaurant?.name ? (
         // Long RU venue names are real ("Fusion Rooftop на очень-очень длинной
         // улице"); two lines then ellipsis keeps the pill on screen.
@@ -56,19 +64,21 @@ export function ReservationHeaderCard({
         </Text>
       ) : null}
 
-      <Text style={styles.summary}>{summary}</Text>
-
-      <BookingStatusPill status={booking.status} />
-
       {/* Действия над бронью стоят ЗДЕСЬ, внутри той же карточки под статусом
           (макет 918:12776), а не отдельным блоком: это действия над этой
           бронью, и просвет между статусом и ними разрывал бы одну мысль. */}
-      {actions}
+      <View style={styles.actionsSlot}>{actions}</View>
     </BookingCard>
   );
 }
 
 const styles = StyleSheet.create({
+  // 32 от названия заведения до кнопок и 16 до следующего блока — замеры
+  // владельца по макету 918:12746.
+  actionsSlot: {
+    marginTop: spacing.md,
+    alignSelf: "stretch",
+  },
   card: {
     gap: spacing.sm,
     paddingBottom: spacing.xl,

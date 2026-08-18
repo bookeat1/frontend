@@ -1,4 +1,4 @@
-import { isCancellableBookingStatus, RepositoryError } from "@bookeat/api";
+import { canGuestCancel, RepositoryError } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -65,7 +65,7 @@ export default function ReservationScreen() {
   const restaurant = useRestaurant(booking.data?.restaurantId);
   const preorder = usePreorder(id);
 
-  const canCancel = booking.data ? isCancellableBookingStatus(booking.data.status) : false;
+  const canCancel = booking.data ? canGuestCancel(booking.data) : false;
   const payment = useBookingPayment(id, canCancel);
   const cancel = useCancelBooking();
 
@@ -184,7 +184,8 @@ export default function ReservationScreen() {
     <View style={styles.root}>
       {header}
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollFloor}
+            contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ReservationHeaderCard
           booking={data}
           restaurant={restaurant.data}
@@ -341,6 +342,9 @@ const styles = StyleSheet.create({
   },
   // Full-bleed cards separated by 8 of screen background — the stacking rule
   // the rest of the booking flow already follows.
+  scrollFloor: {
+    backgroundColor: colors.background.surface,
+  },
   content: {
     paddingBottom: spacing.xxl,
     gap: spacing.sm,
