@@ -12,7 +12,6 @@ import { FilterChip } from "../src/components/FilterChip";
 import { RestaurantCard } from "../src/components/RestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
-import { AvailabilityBar } from "../src/components/search/AvailabilityBar";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
@@ -185,11 +184,6 @@ export default function SearchScreen() {
           {/* Кнопка фильтров + ряд выбранных чипов в одну строку. Ряд
               горизонтально прокручивается: на 360px три длинных названия кухонь
               иначе перенеслись бы на пол-экрана до результатов. */}
-          <AvailabilityBar
-            value={filters.availability}
-            onChange={(availability) => setFilters((prev) => ({ ...prev, availability }))}
-          />
-
           <View style={styles.filterRow}>
             <FilterButton count={activeFilterCount} onPress={() => setSheetVisible(true)} />
             {selectedChips.length > 0 ? (

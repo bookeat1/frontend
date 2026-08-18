@@ -11,6 +11,7 @@ import { FilterChip } from "../FilterChip";
 import { IconButton } from "../IconButton";
 import { PrimaryButton } from "../PrimaryButton";
 import { X } from "../icons";
+import { AvailabilityBar } from "./AvailabilityBar";
 import { CheckboxRow } from "./CheckboxRow";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { SegmentedControl } from "./SegmentedControl";
@@ -167,12 +168,20 @@ export function FilterSheet({
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Дата и гости ЖИВУТ В КАПСУЛЕ над выдачей, а не здесь.
+            {/* Дата и гости — часть подбора, поэтому живут здесь, вместе с
+                остальными условиями (решение владельца 18.08.2026). Раньше
+                капсула стояла над выдачей отдельно от фильтров.
+
+                СТАРЫЙ КОММЕНТАРИЙ, важный для будущего:
                 Раньше тут стояли такие же плашки — статичные «Сегодня» и «2
                 гостя», — и когда выбор стал настоящим, человек видел в капсуле
                 «Завтра, 1 гость», открывал фильтры и читал «Сегодня, 2 гостя».
-                Два места для одного выбора всегда кончаются так; осталось
-                одно, и оно на экране постоянно, прямо над этой кнопкой. */}
+                Два места для одного выбора всегда кончаются так — поэтому и
+                сейчас место остаётся ровно одно, просто другое. */}
+            <AvailabilityBar
+              value={draft.availability}
+              onChange={(availability) => setDraft((prev) => ({ ...prev, availability }))}
+            />
 
             {/* Повод — мультивыбор, красная заливка выбранного.
                 TODO(track-C backend): повод в поиск не уходит, только UI. */}
