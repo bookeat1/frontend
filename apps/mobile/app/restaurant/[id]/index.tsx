@@ -377,7 +377,10 @@ const styles = StyleSheet.create({
   },
   coverContainer: {
     // 8 по краям — замер по макету 340:2535: обложка 359 при ширине экрана 375.
-    padding: spacing.sm,
+    // Снизу 16: столько между фотографией и названием (правка владельца).
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     backgroundColor: colors.background.surface,
   },
   cover: {
