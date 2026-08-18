@@ -25,7 +25,10 @@ module.exports = () => {
     ios: {
       ...config.ios,
       bundleIdentifier: "com.bookeat.app",
-      buildNumber: "1",
+      // Второй заход на ту же версию 1.5: первая сборка ушла в TestFlight без
+      // логотипа (её собрали за несколько часов до того, как значок лёг в код),
+      // а Apple не принимает второй бинарник с тем же номером.
+      buildNumber: "2",
     },
     android: {
       ...config.android,
