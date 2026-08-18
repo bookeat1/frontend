@@ -10,6 +10,7 @@ import { useGuideCollection } from "../../src/components/explore/use-explore-dat
 import { ArrowLeft, Export } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
 import { PhotoView } from "../../src/components/PhotoView";
+import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 
 const t = getDictionary();
@@ -134,7 +135,19 @@ export default function ArticleDetailScreen() {
               <GuideVenueBlock key={venue.restaurantId} venue={venue} onPress={openRestaurant} />
             ))}
           </View>
-        ) : null}
+        ) : (
+          // Статья про места вне каталога заканчивается текстом, и без этой
+          // кнопки — в никуда. Подставлять сюда «похожие заведения» я не стал:
+          // связь была бы выдуманной, а человек такое чувствует.
+          <View style={styles.browse}>
+            <PrimaryButton
+              label={t.articles.browseVenues}
+              variant="secondary"
+              size="lg"
+              onPress={() => router.push("/search")}
+            />
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -144,6 +157,10 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background.surface,
+  },
+  browse: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
