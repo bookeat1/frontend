@@ -243,13 +243,13 @@ export default function ReservationScreen() {
           </View>
 
           <View style={[styles.section, styles.sectionRounded]}>
+            {/* Подписи «столик держим N минут» здесь нет по решению владельца
+                (18.08.2026): в макете её нет, а гостю на этом шаге нужно выбрать
+                время, а не читать про длительность визита. Правило никуда не
+                делось — оно живёт на стороне заведения и в напоминании о
+                опоздании. */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.timeSectionTitle}</Text>
-              {availability.data ? (
-                <Text style={styles.sectionCaption}>
-                  {t.booking.slotDuration(availability.data.durationMinutes)}
-                </Text>
-              ) : null}
             </View>
             <View style={styles.sectionBody}>
               {/* The time the guest tapped on Explore is gone. Say so, right
