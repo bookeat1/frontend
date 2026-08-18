@@ -26,9 +26,12 @@ const t = getDictionary();
 export function ReservationHeaderCard({
   booking,
   restaurant,
+  actions,
 }: {
   booking: Booking;
   restaurant?: Restaurant;
+  /** Ряд кнопок под статусом. Их рисует экран: он знает, можно ли отменить. */
+  actions?: React.ReactNode;
 }) {
   const photoUri = restaurant?.coverPhoto?.uri;
   const summary = t.booking.reservationSummary(
@@ -56,6 +59,11 @@ export function ReservationHeaderCard({
       <Text style={styles.summary}>{summary}</Text>
 
       <BookingStatusPill status={booking.status} />
+
+      {/* Действия над бронью стоят ЗДЕСЬ, внутри той же карточки под статусом
+          (макет 918:12776), а не отдельным блоком: это действия над этой
+          бронью, и просвет между статусом и ними разрывал бы одну мысль. */}
+      {actions}
     </BookingCard>
   );
 }

@@ -854,6 +854,7 @@ export const kk: LocaleOverride<Dictionary> = {
     mapPlaceholderDescription: "Мекенжайды карта қосымшасында ашу үшін басыңыз",
     mapNoCoordinates: "Орында координаттар көрсетілмеген",
 
+    chat: "Чат",
     cancelBooking: "Бронды бас тарту",
     cancelDialogTitle: "Бронды бас тарту керек пе?",
     cancelFreeNoMoney: "Сіз ештеңе төлемедіңіз, сондықтан бас тарту тегін.",
