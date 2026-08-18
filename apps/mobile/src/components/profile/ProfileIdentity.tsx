@@ -114,7 +114,10 @@ const styles = StyleSheet.create({
   root: {
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: spacing.md,
+    // Снизу отступа нет намеренно: расстояние до плашек со статистикой задаёт
+    // блок-обёртка на экране профиля (24 по макету 979:7752). Будь он и здесь,
+    // и там, замер из макета никогда бы не сошёлся.
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.md,
   },
   pressed: {

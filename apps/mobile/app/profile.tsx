@@ -160,36 +160,41 @@ export default function ProfileScreen() {
           )
         ) : (
           <ScrollView contentContainerStyle={[styles.content, { paddingBottom: navPad }]} showsVerticalScrollIndicator={false}>
-            <ProfileIdentity
-              name={account.fullName}
-              phone={account.phone}
-              membership={membershipDuration(account.createdAt, {
-                days: t.profile.membershipDays,
-                weeks: t.profile.membershipWeeks,
-                months: t.profile.membershipMonths,
-                years: t.profile.membershipYears,
-              })}
-              avatarUrl={account.avatarUrl}
-              editLabel={t.profile.changeAvatarA11y}
-              namePlaceholder={t.profile.nameEmpty}
-              uploading={avatarUploading}
-              onPress={() => void changeAvatar()}
-            />
+            {/* Имя со сроком в BookEat и плашки статистики — одна группа:
+                между ними 24 (макет 979:7752), а не общие 32, которыми
+                разделены группы меню ниже. */}
+            <View style={styles.identityGroup}>
+              <ProfileIdentity
+                name={account.fullName}
+                phone={account.phone}
+                membership={membershipDuration(account.createdAt, {
+                  days: t.profile.membershipDays,
+                  weeks: t.profile.membershipWeeks,
+                  months: t.profile.membershipMonths,
+                  years: t.profile.membershipYears,
+                })}
+                avatarUrl={account.avatarUrl}
+                editLabel={t.profile.changeAvatarA11y}
+                namePlaceholder={t.profile.nameEmpty}
+                uploading={avatarUploading}
+                onPress={() => void changeAvatar()}
+              />
 
-            {avatarError ? (
-              <Text style={styles.avatarError} accessibilityRole="alert">
-                {avatarError}
-              </Text>
-            ) : null}
+              {avatarError ? (
+                <Text style={styles.avatarError} accessibilityRole="alert">
+                  {avatarError}
+                </Text>
+              ) : null}
 
-            <ProfileStats
-              bookings={bookingsCount}
-              reviews={0}
-              friends={0}
-              labels={t.profile.stats}
-              // Same destination as the «Мои брони» tab — the count is a shortcut.
-              onPressBookings={() => router.push("/bookings")}
-            />
+              <ProfileStats
+                bookings={bookingsCount}
+                reviews={0}
+                friends={0}
+                labels={t.profile.stats}
+                // Same destination as the «Мои брони» tab — the count is a shortcut.
+                onPressBookings={() => router.push("/bookings")}
+              />
+            </View>
 
             {/* Фуди-профиль / Мои отзывы — track-C: no screen yet, so both rows
                 are non-interactive «Скоро» rather than dead chevrons.
@@ -302,6 +307,9 @@ const styles = StyleSheet.create({
     // белый лист, а группы отделяются расстоянием. 32 — замер из макета
     // 882:5541 (следующая группа начинается на 96 при высоте предыдущей 64).
     gap: spacing.xxxl,
+  },
+  identityGroup: {
+    gap: spacing.xxl,
   },
   group: {
     backgroundColor: colors.background.surface,
