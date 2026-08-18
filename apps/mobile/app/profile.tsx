@@ -292,8 +292,9 @@ const styles = StyleSheet.create({
   content: {
     paddingVertical: spacing.sm,
     // Воздух между группами вместо плашек и линеек: по макету профиль — один
-    // белый лист, а группы отделяются расстоянием.
-    gap: spacing.xl,
+    // белый лист, а группы отделяются расстоянием. 32 — замер из макета
+    // 882:5541 (следующая группа начинается на 96 при высоте предыдущей 64).
+    gap: spacing.xxxl,
   },
   group: {
     backgroundColor: colors.background.surface,

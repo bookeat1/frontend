@@ -77,9 +77,11 @@ const styles = StyleSheet.create({
     minHeight: hitSlop.minTouchTarget,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    // Замеры из макета 882:5541: иконка 24, подпись начинается на 40 → зазор
+    // 16; строка 24 высотой, между строками 16 → по 8 сверху и снизу.
+    gap: spacing.lg,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   pressed: {
     opacity: 0.7,
