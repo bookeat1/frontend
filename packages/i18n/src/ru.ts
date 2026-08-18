@@ -1407,9 +1407,9 @@ export const ru = {
     bookingSignIn: "Войти",
 
     // --- экран брони (Reservation, node 488:9876) ---
-    /** Подпись под названием заведения: «Сегодня · 14:00 · 2 гостя». */
-    reservationSummary: (when: string, time: string, guests: string) =>
-      `${when} · ${time} · ${guests}`,
+    /** Подпись под статусом: «2 гостя · Сегодня · 14:00». */
+    reservationSummary: (guests: string, when: string, time: string) =>
+      `${guests} · ${when} · ${time}`,
     /** Заголовок карточки-объяснялки. В макете он один на все статусы,
      * но текст под ним свой у каждого — см. whatHappensNext. */
     whatHappensNextTitle: "Что происходит дальше?",

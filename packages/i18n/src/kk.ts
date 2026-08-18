@@ -827,8 +827,8 @@ export const kk: LocaleOverride<Dictionary> = {
     bookingSignedOutDescription: "Бронь рәсімделген аккаунтқа кіріңіз — сонда оны көрсетеміз",
     bookingSignIn: "Кіру",
 
-    reservationSummary: (when: string, time: string, guests: string) =>
-      `${when} · ${time} · ${guests}`,
+    reservationSummary: (guests: string, when: string, time: string) =>
+      `${guests} · ${when} · ${time}`,
     whatHappensNextTitle: "Әрі қарай не болады?",
     whatHappensNext: {
       pending:
