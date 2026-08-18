@@ -109,6 +109,7 @@ export const en: LocaleOverride<Dictionary> = {
     errorTitle: "Couldn't load articles",
     errorDescription: "Check your connection and try again",
     collectionChip: "Collection",
+    browseVenues: "Browse venues",
     notFoundTitle: "Collection not found",
     notFoundDescription: "It may have been unpublished. Go back to the list and pick another.",
     card: (title: string, author: string) => `${title}, ${author}`,

@@ -113,6 +113,7 @@ export const kk: LocaleOverride<Dictionary> = {
     errorTitle: "Мақалалар жүктелмеді",
     errorDescription: "Байланысты тексеріп, қайталап көріңіз",
     collectionChip: "Топтама",
+    browseVenues: "Мекемелерді қарау",
     notFoundTitle: "Топтама табылмады",
     notFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Тізімге оралып, басқасын таңдаңыз.",
