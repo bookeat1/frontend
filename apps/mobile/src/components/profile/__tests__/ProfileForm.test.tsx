@@ -33,6 +33,7 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
     phone: "+77010000000",
     city: null,
     avatarUrl: null,
+    createdAt: null,
     birthDate: null,
     ...overrides,
   };

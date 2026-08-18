@@ -25,6 +25,7 @@ const PROFILE = {
   phone: "+77078692233",
   city: null,
   avatarUrl: null,
+    createdAt: null,
   birthDate: null,
 };
 

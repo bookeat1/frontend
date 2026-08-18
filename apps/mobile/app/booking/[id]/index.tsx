@@ -196,17 +196,25 @@ export default function ReservationScreen() {
             сервер разрешает отменить. */}
         {canCancel ? (
           <View style={styles.cancelRow}>
-            <PrimaryButton
-              label={t.booking.cancelBooking}
-              variant="secondary"
-              size="lg"
-              icon={XCircle}
-              disabled={!cancelReady || cancel.isPending}
-              onPress={() => {
-                setCancelError(null);
-                setDialogOpen(true);
-              }}
-            />
+            {/* Половина ряда, как в макете 918:12776: две кнопки по 168 с
+                зазором 8. Вторая половина — место под чат с заведением, он
+                отложен, поэтому пока пусто, а не растянутая на весь ряд
+                кнопка: растянутая перестанет совпадать с макетом в тот день,
+                когда чат появится. */}
+            <View style={styles.cancelButton}>
+              <PrimaryButton
+                label={t.booking.cancelBooking}
+                variant="secondary"
+                size="lg"
+                icon={XCircle}
+                disabled={!cancelReady || cancel.isPending}
+                onPress={() => {
+                  setCancelError(null);
+                  setDialogOpen(true);
+                }}
+              />
+            </View>
+            <View style={styles.cancelButton} />
           </View>
         ) : null}
 
@@ -311,9 +319,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.screen,
   },
   cancelRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
     backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
+  },
+  cancelButton: {
+    flex: 1,
   },
   /** Fills the space under the header so a state view centres in what is left
    * of the screen instead of collapsing under it. */

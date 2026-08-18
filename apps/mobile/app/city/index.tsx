@@ -1,12 +1,11 @@
 import { colors, spacing } from "@bookeat/design-tokens";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { OptionRow } from "../../src/components/OptionRow";
-import { SearchBar } from "../../src/components/SearchBar";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { resolveCitySelection } from "../../src/lib/city-select";
 import { useLocale } from "../../src/lib/locale";
@@ -31,8 +30,7 @@ export default function CitySelectScreen() {
   const router = useRouter();
   const repository = useRepository();
   const { dictionary: t } = useLocale();
-  const { selected, purpose } = useLocalSearchParams<{ selected?: string; purpose?: string }>();
-  const [text, setText] = useState("");
+  const { selected } = useLocalSearchParams<{ selected?: string }>();
 
   // Same cache key as the search screen's city filter — opening the picker
   // right after using the filter costs no extra request.
@@ -46,25 +44,16 @@ export default function CitySelectScreen() {
     router.back();
   };
 
-  const query = text.trim().toLowerCase();
-  const filtered = useMemo(() => {
-    const all = citiesQuery.data ?? [];
-    return query ? all.filter((city) => city.toLowerCase().includes(query)) : all;
-  }, [citiesQuery.data, query]);
-  const hasCities = (citiesQuery.data ?? []).length > 0;
-
-  const clearLabel = purpose === "profile" ? t.city.clearProfile : t.city.clearFilter;
-  const hasSelection = typeof selected === "string" && selected.length > 0;
+  // Поиска здесь нет по решению владельца (18.08.2026): городов в каталоге
+  // единицы, и строка поиска над списком из двух пунктов — лишний шаг.
+  const cities = citiesQuery.data ?? [];
+  const hasCities = cities.length > 0;
 
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <FlowHeader title={t.city.title} onBack={() => router.back()} />
       </SafeAreaView>
-
-      <View style={styles.searchRow}>
-        <SearchBar value={text} onChangeText={setText} />
-      </View>
 
       {citiesQuery.isPending ? (
         <LoadingState title={t.city.loadingTitle} />
@@ -81,21 +70,13 @@ export default function CitySelectScreen() {
       ) : !hasCities ? (
         // The server returned no cities at all — not a failed search.
         <EmptyState title={t.city.catalogEmptyTitle} description={t.city.catalogEmptyDescription} />
-      ) : filtered.length === 0 ? (
-        <EmptyState title={t.city.emptyTitle} description={t.city.emptyDescription} />
       ) : (
         <FlatList
-          data={filtered}
+          data={cities}
           keyExtractor={(city) => city}
           renderItem={({ item }) => (
             <OptionRow label={item} selected={item === selected} onPress={() => pick(item)} variant="radio" />
           )}
-          // The clear row hides while searching, where it would just be noise.
-          ListHeaderComponent={
-            query === "" ? (
-              <OptionRow label={clearLabel} selected={!hasSelection} onPress={() => pick(null)} variant="radio" />
-            ) : null
-          }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -116,11 +97,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
   },
   headerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
-  searchRow: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
     backgroundColor: colors.background.surface,
   },
   listContent: {

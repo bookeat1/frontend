@@ -16,6 +16,7 @@ import { EmptyState, ErrorState, LoadingState } from "../src/components/StateVie
 import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
 import { pickAndUploadAvatar } from "../src/lib/avatar-upload";
+import { membershipDuration } from "../src/lib/format";
 import { requestCitySelection } from "../src/lib/city-select";
 import { useLocale } from "../src/lib/locale";
 
@@ -162,6 +163,12 @@ export default function ProfileScreen() {
             <ProfileIdentity
               name={account.fullName}
               phone={account.phone}
+              membership={membershipDuration(account.createdAt, {
+                days: t.profile.membershipDays,
+                weeks: t.profile.membershipWeeks,
+                months: t.profile.membershipMonths,
+                years: t.profile.membershipYears,
+              })}
               avatarUrl={account.avatarUrl}
               editLabel={t.profile.changeAvatarA11y}
               namePlaceholder={t.profile.nameEmpty}
@@ -297,6 +304,11 @@ const styles = StyleSheet.create({
     gap: spacing.xxxl,
   },
   group: {
+    backgroundColor: colors.background.surface,
+  },
+  // «Выйти из аккаунта» — такая же строка, как остальные, и стоит на том же
+  // расстоянии (макет 974:6524: 368 при конце предыдущей группы 336).
+  logoutGroup: {
     backgroundColor: colors.background.surface,
   },
 });

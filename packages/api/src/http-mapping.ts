@@ -535,6 +535,8 @@ export interface ApiUser {
   birth_date?: string | null;
   /** Ссылка на фотографию профиля; отсутствует у аккаунтов без аватара. */
   avatar_url?: string | null;
+  /** RFC3339, когда аккаунт создан. Из него считается «N недель в BookEat». */
+  created_at?: string | null;
 }
 
 const SLOT_REASONS: SlotUnavailableReason[] = [
@@ -636,6 +638,7 @@ export function mapUser(api: ApiUser): AuthUser {
     phone: text(api.phone) || null,
     city: text(api.city) || null,
     avatarUrl: text(api.avatar_url) || null,
+    createdAt: text(api.created_at) || null,
     birthDate: text(api.birth_date) || null,
   };
 }
