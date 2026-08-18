@@ -155,7 +155,8 @@ export default function EventDetailScreen() {
         </View>,
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scrollFloor}
+            showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Cover first, then the gallery the venue uploaded beside it. With
             nothing but a cover the rail draws exactly the single photo this
             screen showed before. */}
@@ -288,6 +289,11 @@ const styles = StyleSheet.create({
   },
   headerRightGroup: {
     flexDirection: "row",
+  },
+  // Белый «пол» под последним блоком: серый фон — разделитель между блоками, а
+  // не хвост экрана, и при оттягивании снизу серая полоса читалась как пустота.
+  scrollFloor: {
+    backgroundColor: colors.background.surface,
   },
   scrollContent: {
     // Кнопка внизу — липкая и лежит НАД списком: без запаса в её высоту

@@ -403,6 +403,27 @@ export function isCancellableBookingStatus(status: BookingStatus): boolean {
   return (CANCELLABLE_BOOKING_STATUSES as readonly BookingStatus[]).includes(status);
 }
 
+/** За сколько до начала визита гость ещё может отменить бронь сам. */
+export const CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Можно ли гостю отменить ЭТУ бронь прямо сейчас.
+ *
+ * Кроме статуса смотрит на время: за два часа до визита заведение уже держит
+ * стол и готовится, поэтому поздняя отмена — разговор с рестораном, а не кнопка
+ * в приложении (решение владельца 18.08.2026).
+ *
+ * Сервер остаётся последней инстанцией: он может отказать и раньше этого срока.
+ * Здесь решается только то, показывать ли кнопку — чтобы она не обещала того,
+ * чего не сделает.
+ */
+export function canGuestCancel(booking: Booking, now: Date = new Date()): boolean {
+  if (!isCancellableBookingStatus(booking.status)) return false;
+  const startsAt = Date.parse(booking.startsAt);
+  if (Number.isNaN(startsAt)) return true; // время не разобрали — решает сервер
+  return startsAt - now.getTime() > CANCEL_WINDOW_MS;
+}
+
 export interface Booking {
   id: string;
   restaurantId: string;

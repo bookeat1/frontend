@@ -848,7 +848,7 @@ export const en: LocaleOverride<Dictionary> = {
     mapNoCoordinates: "The restaurant hasn't listed coordinates",
 
     chat: "Chat",
-    cancelBooking: "Cancel booking",
+    cancelBooking: "Cancel",
     cancelDialogTitle: "Cancel booking?",
     cancelFreeNoMoney: "You didn't pay anything, so cancelling is free.",
     cancelDepositLost: (amount: string) =>

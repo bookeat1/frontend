@@ -130,7 +130,8 @@ export default function RestaurantDetailScreen() {
             </View>
           </SafeAreaView>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <ScrollView style={styles.scrollFloor}
+            showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Фотография, название, адрес и чипы — ОДИН блок (макет
                 340:2535). Раньше фото было отдельным элементом списка, и
                 просвет между блоками разрезал этот ответ надвое. */}
@@ -370,6 +371,11 @@ const styles = StyleSheet.create({
   },
   headerRightGroup: {
     flexDirection: "row",
+  },
+  // Белый «пол» под последним блоком: серый фон — разделитель между блоками, а
+  // не хвост экрана, и при оттягивании снизу серая полоса читалась как пустота.
+  scrollFloor: {
+    backgroundColor: colors.background.surface,
   },
   scrollContent: {
     paddingBottom: spacing.xxxl,
