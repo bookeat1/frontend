@@ -847,6 +847,7 @@ export const en: LocaleOverride<Dictionary> = {
     mapPlaceholderDescription: "Tap to open the address in a maps app",
     mapNoCoordinates: "The restaurant hasn't listed coordinates",
 
+    chat: "Chat",
     cancelBooking: "Cancel booking",
     cancelDialogTitle: "Cancel booking?",
     cancelFreeNoMoney: "You didn't pay anything, so cancelling is free.",

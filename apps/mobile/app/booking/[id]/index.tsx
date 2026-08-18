@@ -14,7 +14,7 @@ import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
 import { FlowHeader } from "../../../src/components/FlowHeader";
-import { XCircle } from "../../../src/components/icons";
+import { ChatCircle, XCircle } from "../../../src/components/icons";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import {
@@ -185,38 +185,40 @@ export default function ReservationScreen() {
       {header}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ReservationHeaderCard booking={data} restaurant={restaurant.data} />
-
-        {/* «Детали» с возможностью перенести бронь (макет 918:12814).
-            Кнопки «Изменить» показываются по тому же признаку, что и отмена:
-            это ровно те статусы, в которых сервер разрешает менять бронь. */}
-        {/* Отмена стоит СРАЗУ под статусом (макет 918:12746), а не липкой
-            кнопкой внизу: это действие над этой бронью, и его место рядом с
-            ней, а не поверх всего экрана. Кнопка есть только у брони, которую
-            сервер разрешает отменить. */}
-        {canCancel ? (
-          <View style={styles.cancelRow}>
-            {/* Половина ряда, как в макете 918:12776: две кнопки по 168 с
-                зазором 8. Вторая половина — место под чат с заведением, он
-                отложен, поэтому пока пусто, а не растянутая на весь ряд
-                кнопка: растянутая перестанет совпадать с макетом в тот день,
-                когда чат появится. */}
-            <View style={styles.cancelButton}>
-              <PrimaryButton
-                label={t.booking.cancelBooking}
-                variant="secondary"
-                size="lg"
-                icon={XCircle}
-                disabled={!cancelReady || cancel.isPending}
-                onPress={() => {
-                  setCancelError(null);
-                  setDialogOpen(true);
-                }}
-              />
+        <ReservationHeaderCard
+          booking={data}
+          restaurant={restaurant.data}
+          actions={
+            <View style={styles.cancelRow}>
+              <View style={styles.cancelButton}>
+                <PrimaryButton
+                  label={t.booking.cancelBooking}
+                  variant="secondary"
+                  size="lg"
+                  icon={XCircle}
+                  disabled={!canCancel || !cancelReady || cancel.isPending}
+                  onPress={() => {
+                    setCancelError(null);
+                    setDialogOpen(true);
+                  }}
+                />
+              </View>
+              {/* Чат с заведением ещё не построен — ни в приложении, ни на
+                  сервере. Кнопка стоит на своём месте по макету и НЕ нажимается:
+                  так видно, что он будет, и при этом ничего не обещано зря. */}
+              <View style={styles.cancelButton}>
+                <PrimaryButton
+                  label={t.booking.chat}
+                  variant="secondary"
+                  size="lg"
+                  icon={ChatCircle}
+                  disabled
+                  onPress={() => {}}
+                />
+              </View>
             </View>
-            <View style={styles.cancelButton} />
-          </View>
-        ) : null}
+          }
+        />
 
         <BookingDetailsCard
           booking={data}
