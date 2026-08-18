@@ -25,7 +25,7 @@
       "credentialsSource": "local",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "e3ffddeda67d102fc0d53686d9f1ddf0"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
       },
       "channel": "production"
     },
