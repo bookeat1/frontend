@@ -121,8 +121,6 @@ export function FilterSheet({
   // в draft, а не в UiOnlyFacets. Город — одиночный выбор: повторный тап снимает.
   const toggleOpenNow = () =>
     setDraft((prev) => ({ ...prev, openNowOnly: !prev.openNowOnly }));
-  const toggleOnline = () =>
-    setDraft((prev) => ({ ...prev, onlineBookableOnly: !prev.onlineBookableOnly }));
   const toggleCity = (city: string) =>
     setDraft((prev) => ({ ...prev, city: prev.city === city ? undefined : city }));
 
@@ -278,12 +276,12 @@ export function FilterSheet({
                     selectedTone="brand"
                     onPress={toggleOpenNow}
                   />
-                  <FilterChip
-                    label={t.search.filterOnlineBookable}
-                    selected={draft.onlineBookableOnly}
-                    selectedTone="brand"
-                    onPress={toggleOnline}
-                  />
+                  {/* Фильтра «бронь онлайн» здесь нет: заведение подключают к
+                      BookEat именно ради онлайн-брони, поэтому предлагать её как
+                      условие подбора — предлагать выключить то, ради чего человек
+                      и пришёл. Само поле в фильтрах осталось: им пользуется
+                      каталог, а у заведения без залов бронь по-прежнему честно
+                      недоступна на его карточке. */}
                 </View>
                 {cities.length > 0 ? (
                   <View style={styles.wrap}>

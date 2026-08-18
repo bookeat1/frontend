@@ -50,10 +50,14 @@ export function AvailabilityBar({
   );
   const guests = useMemo(() => guestOptions((n) => t.booking.guestsCount(n)), []);
 
+  // Пока дату не выбрали, показываем «Сегодня», а не «Любой день» (решение
+  // владельца 18.08.2026): человек чаще всего ищет на сегодня, и подпись
+  // называет то, что он получит, нажав «Найти», а не абстрактное состояние
+  // фильтра.
   const dateLabel = value
     ? (dates.find((d) => d.value === value.date)?.label ??
       fromDateKey(value.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }))
-    : t.search.availabilityAny;
+    : t.booking.today;
   const guestsLabel = t.booking.guestsCount(value?.guests ?? DEFAULT_GUESTS);
 
   return (
