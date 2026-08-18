@@ -3,7 +3,8 @@ import type { AuthUser, Cuisine } from "@bookeat/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ArticlesSection } from "../src/components/explore/ArticlesSection";
@@ -32,8 +33,16 @@ import { useLocale } from "../src/lib/locale";
  * «Статьи» have no endpoint yet and hide themselves cleanly (their hooks return
  * [] — see use-explore-data.ts), so the screen looks finished on real data.
  */
+/** Высота тёмной шапки главной без учёта полосы статуса. Значение приблизительное
+ * и служит одной цели — вовремя перекрасить часы; ошибка в пару пикселей здесь
+ * ничего не ломает. */
+const HEADER_HEIGHT = 220;
+
 export default function HomeScreen() {
   const navPad = useNavBarSpacing();
+  const insets = useSafeAreaInsets();
+  // true, пока тёмная шапка стоит под статус-баром.
+  const [headerBehindStatusBar, setHeaderBehindStatusBar] = useState(true);
   // Dictionary through the context so the greeting/city labels re-render in the
   // chosen language the instant it changes (the switch lives in /settings/language).
   const { dictionary: t } = useLocale();
@@ -142,13 +151,22 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.root}>
-      {/* The header is a dark block behind the status bar — dark glyphs would
-          disappear into it. Reverts to the app-wide dark bar on unmount. */}
-      <StatusBar style="light" />
+      {/* Часы и заряд рисует система, а не мы — но их ЦВЕТ задаём мы. Пока под
+          статус-баром тёмное фото шапки, они белые; стоит шапке уехать вверх,
+          под ними оказывается белый лист, и белые часы на нём исчезают. Поэтому
+          цвет переключается по прокрутке, а не выставляется один раз. */}
+      <StatusBar style={headerBehindStatusBar ? "light" : "dark"} />
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: navPad }]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          // Порог — высота шапки за вычетом самой полосы статуса: ровно тот
+          // момент, когда её нижний край проходит под часами.
+          const passed = event.nativeEvent.contentOffset.y > HEADER_HEIGHT - insets.top;
+          if (passed === headerBehindStatusBar) setHeaderBehindStatusBar(!passed);
+        }}
         // No top safe-area inset here on purpose: the header bleeds under the
         // status bar and applies the inset itself.
       >
