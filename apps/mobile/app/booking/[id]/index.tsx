@@ -283,6 +283,10 @@ export default function ReservationScreen() {
         {restaurant.data && hasAnyContact(restaurant.data) ? (
           <ContactsCard restaurant={restaurant.data} />
         ) : null}
+        {/* Белый хвост под последним блоком. Это отдельный элемент, а не
+            нижний отступ контейнера: отступ красился бы серым фоном списка,
+            и под последней карточкой снова тянулась бы серая полоса. */}
+        <View style={styles.bottomFloor} />
       </ScrollView>
 
       <CancelBookingDialog
@@ -340,13 +344,18 @@ const styles = StyleSheet.create({
   headerSafeArea: {
     backgroundColor: colors.background.surface,
   },
-  // Full-bleed cards separated by 8 of screen background — the stacking rule
-  // the rest of the booking flow already follows.
+  // Белый «пол» ПОД содержимым: он виден только там, где содержимое кончилось —
+  // при оттягивании снизу. Сам список блоков красит contentContainer, иначе
+  // белое залило бы и просветы между блоками, и разделители исчезли бы.
+  bottomFloor: {
+    height: spacing.xxl,
+    backgroundColor: colors.background.surface,
+  },
   scrollFloor: {
     backgroundColor: colors.background.surface,
   },
   content: {
-    paddingBottom: spacing.xxl,
+    backgroundColor: colors.background.screen,
     gap: spacing.sm,
   },
   notice: {

@@ -250,6 +250,10 @@ export default function EventDetailScreen() {
             <MapPreview restaurant={restaurant} />
           </View>
         ) : null}
+        {/* Белый хвост под последним блоком. Это отдельный элемент, а не
+            нижний отступ контейнера: отступ красился бы серым фоном списка,
+            и под последней карточкой снова тянулась бы серая полоса. */}
+        <View style={styles.bottomFloor} />
       </ScrollView>
 
       <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
@@ -290,15 +294,18 @@ const styles = StyleSheet.create({
   headerRightGroup: {
     flexDirection: "row",
   },
-  // Белый «пол» под последним блоком: серый фон — разделитель между блоками, а
-  // не хвост экрана, и при оттягивании снизу серая полоса читалась как пустота.
+  // Белый «пол» ПОД содержимым: он виден только там, где содержимое кончилось —
+  // при оттягивании снизу. Сам список блоков красит contentContainer, иначе
+  // белое залило бы и просветы между блоками, и разделители исчезли бы.
+  bottomFloor: {
+    height: FOOTER_CLEARANCE,
+    backgroundColor: colors.background.surface,
+  },
   scrollFloor: {
     backgroundColor: colors.background.surface,
   },
   scrollContent: {
-    // Кнопка внизу — липкая и лежит НАД списком: без запаса в её высоту
-    // последний блок (телефон и карта) остаётся под ней и до него не долистать.
-    paddingBottom: FOOTER_CLEARANCE,
+    backgroundColor: colors.background.screen,
     gap: spacing.sm,
   },
   summaryBlock: {
