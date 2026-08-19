@@ -4,19 +4,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MapPreview } from "../../src/components/booking/MapPreview";
+import { DetailInfoRow, detailStyles as styles } from "../../src/components/detail/DetailBlocks";
+import { VenueContactsSection } from "../../src/components/detail/VenueContactsSection";
 import { useExplorePromotion } from "../../src/components/explore/use-explore-data";
-import {
-  ArrowLeft,
-  CalendarBlank,
-  Export,
-  GlobeSimple,
-  Heart,
-  InstagramLogo,
-  MapPin,
-  Phone,
-  WhatsappLogo,
-} from "../../src/components/icons";
+import { ArrowLeft, CalendarBlank, Export, Heart } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
 import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
@@ -29,9 +20,14 @@ const t = getDictionary();
 
 /**
  * «Карточка акции» — one promotion's detail screen, built as the twin of the
- * event card (app/event/[id].tsx): same header, same cover, same «Контакты»
- * block and map of the host venue, same bottom CTA into that venue's booking
- * flow. A guest moving between афиша and акции sees one screen, not two.
+ * event card (app/event/[id].tsx): the SAME blocks, from the same code —
+ * `detailStyles` for the layout and `VenueContactsSection` for the contacts —
+ * so a guest moving between афиша and акции sees one screen, not two.
+ *
+ * Раскладка макета 986:8940: серый фон экрана разделяет белые блоки —
+ * «фото + название + подпись», «Об акции» со сроком действия и «Контакты»
+ * заведения-хозяина. Под последним блоком белый «пол», чтобы оттягивание вниз
+ * не показывало серое.
  *
  * The promo is SELECTED out of the shared city feed — this backend has no
  * single-promo endpoint — so arriving from the list or from Home is a cache
@@ -44,7 +40,8 @@ export default function PromotionDetailScreen() {
   const { promo, query } = useExplorePromotion(id);
 
   // Host venue — for the contacts block and the map. Disabled until the promo
-  // (and thus its restaurant id) is known.
+  // (and thus its restaurant id) is known. Same fetch the event card does: the
+  // feed item carries only `restaurantId`/`restaurantName`, no contacts.
   const restaurantId = promo?.restaurantId;
   const { data: restaurant } = useRestaurant(restaurantId);
 
@@ -124,16 +121,6 @@ export default function PromotionDetailScreen() {
   // in the subtitle is enough, so the period row stays out.
   const period = from && to ? t.promotions.period(from, to) : "";
 
-  const hasContacts =
-    restaurant &&
-    Boolean(
-      restaurant.social?.website ||
-        restaurant.social?.whatsapp ||
-        restaurant.social?.instagram ||
-        restaurant.address ||
-        restaurant.phone,
-    );
-
   return (
     <View style={styles.root}>
       {header(
@@ -156,103 +143,71 @@ export default function PromotionDetailScreen() {
         </View>,
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Cover first, then the gallery. The «−N%» badge stays pinned to the
+      <ScrollView
+        style={styles.scrollFloor}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Фотография, название и подпись «Заведение · до 30 сентября» — ОДИН
+            блок, как на карточке афиши: это ответ на вопрос «что за акция», и
+            серый просвет посреди него делил бы ответ надвое.
+            Cover first, then the gallery. The «−N%» badge stays pinned to the
             block rather than to a frame: it labels the PROMO, not one of its
             photos, so it must not swipe away with the first one. */}
-        <View style={styles.coverContainer}>
-          <PhotoRail uris={[promo.coverImageUrl, ...promo.images]} />
-          {promo.discountPercent !== null ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {t.explore.promoDiscount(promo.discountPercent)}
+        <View style={styles.summaryBlock}>
+          <View style={styles.coverContainer}>
+            <PhotoRail uris={[promo.coverImageUrl, ...promo.images]} />
+            {promo.discountPercent !== null ? (
+              <View style={promoStyles.badge}>
+                <Text style={promoStyles.badgeText}>
+                  {t.explore.promoDiscount(promo.discountPercent)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.summary}>
+            <Text style={styles.title}>{promo.title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            {favorite.failed ? (
+              <Text style={styles.favoriteFailed} accessibilityRole="alert">
+                {t.restaurant.favoriteFailed}
               </Text>
-            </View>
-          ) : null}
+            ) : null}
+          </View>
         </View>
 
-        <View style={styles.summary}>
-          <Text style={styles.title}>{promo.title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          {favorite.failed ? (
-            <Text style={styles.favoriteFailed} accessibilityRole="alert">
-              {t.restaurant.favoriteFailed}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Hidden entirely when the venue wrote no description, rather than
-            showing an empty heading. */}
-        {promo.description ? (
+        {/* «Об акции» и срок действия — ОДИН блок, ровно как «Об афише» с датой
+            на карточке афиши: срок это часть рассказа об акции, а не отдельная
+            запись. Заголовок появляется только при описании (без текста ему
+            нечего озаглавливать), сам блок — если есть хотя бы одно из двух. */}
+        {promo.description || period ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.promotions.aboutTitle}</Text>
-            <Text style={styles.body}>{promo.description}</Text>
+            {promo.description ? (
+              <>
+                <Text style={styles.sectionTitle}>{t.promotions.aboutTitle}</Text>
+                <Text style={styles.body}>{promo.description}</Text>
+              </>
+            ) : null}
+            {period ? (
+              <DetailInfoRow
+                icon={CalendarBlank}
+                primary={period}
+                secondary={t.promotions.periodTitle}
+              />
+            ) : null}
           </View>
         ) : null}
 
-        {period ? (
-          <View style={styles.section}>
-            <View style={styles.contactRow}>
-              <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
-              <View style={styles.contactText}>
-                <Text style={styles.contactPrimary}>{period}</Text>
-                <Text style={styles.contactSecondary}>{t.promotions.periodTitle}</Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
+        {/* Контакты — заведения-хозяина. Тот же компонент, что и на карточке
+            афиши: он сам прячется, пока заведение не пришло или пока у него
+            нет ни адреса, ни телефона, ни соцсетей. */}
+        <VenueContactsSection restaurant={restaurant} />
 
-        {hasContacts && restaurant ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
-
-            {restaurant.social?.website ||
-            restaurant.social?.whatsapp ||
-            restaurant.social?.instagram ? (
-              <View style={styles.socialRow}>
-                {restaurant.social?.website ? (
-                  <View style={styles.socialIcon}>
-                    <GlobeSimple size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-                {restaurant.social?.whatsapp ? (
-                  <View style={styles.socialIcon}>
-                    <WhatsappLogo size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-                {restaurant.social?.instagram ? (
-                  <View style={styles.socialIcon}>
-                    <InstagramLogo size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {restaurant.address ? (
-              <View style={styles.contactRow}>
-                <MapPin size={24} color={colors.text.primary} weight="regular" />
-                <View style={styles.contactText}>
-                  <Text style={styles.contactPrimary}>{restaurant.address}</Text>
-                  {restaurant.addressNote ? (
-                    <Text style={styles.contactSecondary}>{restaurant.addressNote}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ) : null}
-
-            {restaurant.phone ? (
-              <View style={styles.contactRow}>
-                <Phone size={24} color={colors.text.primary} weight="regular" />
-                <View style={styles.contactText}>
-                  <Text style={styles.contactPrimary}>{restaurant.phone}</Text>
-                  <Text style={styles.contactSecondary}>{t.restaurant.phoneLabel}</Text>
-                </View>
-              </View>
-            ) : null}
-
-            <MapPreview restaurant={restaurant} />
-          </View>
-        ) : null}
+        {/* Белый хвост под последним блоком. Это отдельный элемент, а не
+            нижний отступ контейнера: отступ красился бы серым фоном списка,
+            и под последней карточкой снова тянулась бы серая полоса. */}
+        <View style={styles.bottomFloor} />
       </ScrollView>
 
       {/* No host venue on record (the feed can omit `restaurant_id`) — then
@@ -272,42 +227,16 @@ export default function PromotionDetailScreen() {
   );
 }
 
-/** Высота липкого футера с кнопкой (48 кнопка + 12 отступы сверху и снизу)
- * плюс воздух, чтобы последняя строка не липла к ней вплотную. */
-const FOOTER_CLEARANCE = 48 + spacing.md * 2 + spacing.xxl;
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background.surface,
-  },
-  headerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    height: 56,
-    paddingHorizontal: spacing.sm,
-  },
-  headerRightGroup: {
-    flexDirection: "row",
-  },
-  scrollContent: {
-    // Кнопка внизу — липкая и лежит НАД списком: без запаса в её высоту
-    // последний блок (телефон и карта) остаётся под ней и до него не долистать.
-    paddingBottom: FOOTER_CLEARANCE,
-    gap: spacing.sm,
-  },
-  coverContainer: {
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.background.surface,
-  },
+/** Единственное, что есть у акции и нет у афиши, — бейдж скидки. Остальная
+ * раскладка живёт в `detailStyles`, общем с карточкой афиши. */
+const promoStyles = StyleSheet.create({
   badge: {
+    // Отступы считаются от края ФОТОГРАФИИ, а не блока: фото начинается на
+    // 12 (поля блока) + 8 (внутренний отступ ленты), и бейдж отстоит от него
+    // на те же 12, что и на карточке акции в списке.
     position: "absolute",
-    top: spacing.lg,
-    left: spacing.lg,
+    top: spacing.md + spacing.md,
+    left: spacing.md + spacing.sm + spacing.md,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xxs,
     borderRadius: radius.pill,
@@ -316,75 +245,5 @@ const styles = StyleSheet.create({
   badgeText: {
     ...typography.caption,
     color: colors.text.onBrand,
-  },
-  summary: {
-    backgroundColor: colors.background.surface,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.text.muted,
-  },
-  favoriteFailed: {
-    ...typography.caption,
-    color: colors.brand.primary,
-  },
-  section: {
-    backgroundColor: colors.background.surface,
-    padding: spacing.lg,
-    gap: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  body: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  socialRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  socialIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.background.socialIcon,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  contactRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  contactText: {
-    flex: 1,
-  },
-  contactPrimary: {
-    ...typography.labelMedium,
-    color: colors.text.primary,
-  },
-  contactSecondary: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  footerSafeArea: {
-    backgroundColor: colors.background.surface,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: -8 },
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  footer: {
-    padding: spacing.md,
   },
 });

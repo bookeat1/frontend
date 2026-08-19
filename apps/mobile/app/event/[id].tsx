@@ -1,22 +1,12 @@
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MapPreview } from "../../src/components/booking/MapPreview";
+import { DetailInfoRow, detailStyles as styles } from "../../src/components/detail/DetailBlocks";
+import { VenueContactsSection } from "../../src/components/detail/VenueContactsSection";
 import { useExploreEvents, useEvent } from "../../src/components/explore/use-explore-data";
-import {
-  ArrowLeft,
-  CalendarBlank,
-  Export,
-  GlobeSimple,
-  Heart,
-  InstagramLogo,
-  MapPin,
-  Phone,
-  WhatsappLogo,
-} from "../../src/components/icons";
+import { ArrowLeft, CalendarBlank, Export, Heart } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
 import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
@@ -128,16 +118,6 @@ export default function EventDetailScreen() {
   const subtitle = t.afisha.subtitle([venue, dayMonth, time]);
   const calendarLine = formatDateTime(event.startsAt);
 
-  const hasContacts =
-    restaurant &&
-    Boolean(
-      restaurant.social?.website ||
-        restaurant.social?.whatsapp ||
-        restaurant.social?.instagram ||
-        restaurant.address ||
-        restaurant.phone,
-    );
-
   return (
     <View style={styles.root}>
       {header(
@@ -192,69 +172,14 @@ export default function EventDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t.afisha.aboutTitle}</Text>
             {event.description ? <Text style={styles.body}>{event.description}</Text> : null}
-            {calendarLine ? (
-              <View style={styles.contactRow}>
-                <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
-                <View style={styles.contactText}>
-                  <Text style={styles.contactPrimary}>{calendarLine}</Text>
-                </View>
-              </View>
-            ) : null}
+            {calendarLine ? <DetailInfoRow icon={CalendarBlank} primary={calendarLine} /> : null}
           </View>
         ) : null}
 
-        {/* Contacts belong to the host venue. Shown only once its data is in and
-            only for fields that exist — a venue that answered with nothing gets
-            no empty section. */}
-        {hasContacts && restaurant ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
+        {/* Контакты — заведения-хозяина. Общий с карточкой акции блок: он сам
+            прячется, пока заведение не пришло или пока у него нет контактов. */}
+        <VenueContactsSection restaurant={restaurant} />
 
-            {restaurant.social?.website || restaurant.social?.whatsapp || restaurant.social?.instagram ? (
-              <View style={styles.socialRow}>
-                {restaurant.social?.website ? (
-                  <View style={styles.socialIcon}>
-                    <GlobeSimple size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-                {restaurant.social?.whatsapp ? (
-                  <View style={styles.socialIcon}>
-                    <WhatsappLogo size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-                {restaurant.social?.instagram ? (
-                  <View style={styles.socialIcon}>
-                    <InstagramLogo size={24} color={colors.text.primary} weight="regular" />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {restaurant.address ? (
-              <View style={styles.contactRow}>
-                <MapPin size={24} color={colors.text.primary} weight="regular" />
-                <View style={styles.contactText}>
-                  <Text style={styles.contactPrimary}>{restaurant.address}</Text>
-                  {restaurant.addressNote ? (
-                    <Text style={styles.contactSecondary}>{restaurant.addressNote}</Text>
-                  ) : null}
-                </View>
-              </View>
-            ) : null}
-
-            {restaurant.phone ? (
-              <View style={styles.contactRow}>
-                <Phone size={24} color={colors.text.primary} weight="regular" />
-                <View style={styles.contactText}>
-                  <Text style={styles.contactPrimary}>{restaurant.phone}</Text>
-                  <Text style={styles.contactSecondary}>{t.restaurant.phoneLabel}</Text>
-                </View>
-              </View>
-            ) : null}
-
-            <MapPreview restaurant={restaurant} />
-          </View>
-        ) : null}
         {/* Белый хвост под последним блоком. Это отдельный элемент, а не
             нижний отступ контейнера: отступ красился бы серым фоном списка,
             и под последней карточкой снова тянулась бы серая полоса. */}
@@ -274,126 +199,3 @@ export default function EventDetailScreen() {
     </View>
   );
 }
-
-/** Высота липкого футера с кнопкой (48 кнопка + 12 отступы сверху и снизу)
- * плюс воздух, чтобы последняя строка не липла к ней вплотную. */
-const FOOTER_CLEARANCE = 48 + spacing.md * 2 + spacing.xxl;
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    // Серый фон — разделитель между блоками (макет 986:8940): фотография с
-    // описанием, «об афише» и контакты лежат отдельными белыми полосами.
-    backgroundColor: colors.background.screen,
-  },
-  headerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    height: 56,
-    paddingHorizontal: spacing.sm,
-  },
-  headerRightGroup: {
-    flexDirection: "row",
-  },
-  // Белый «пол» ПОД содержимым: он виден только там, где содержимое кончилось —
-  // при оттягивании снизу. Сам список блоков красит contentContainer, иначе
-  // белое залило бы и просветы между блоками, и разделители исчезли бы.
-  bottomFloor: {
-    height: FOOTER_CLEARANCE,
-    backgroundColor: colors.background.surface,
-  },
-  scrollFloor: {
-    backgroundColor: colors.background.surface,
-  },
-  scrollContent: {
-    backgroundColor: colors.background.screen,
-    gap: spacing.sm,
-  },
-  summaryBlock: {
-    backgroundColor: colors.background.surface,
-  },
-  coverContainer: {
-    // Те же 12 по краям, что и на карточке заведения: гость ходит между этими
-    // экранами, и фотография не должна стоять на них по-разному.
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.background.surface,
-  },
-  // Фотография, название, подпись и чипы — ОДИН блок: это ответ на вопрос
-  // «что за событие», и просвет посреди него делил бы ответ надвое.
-  summary: {
-    backgroundColor: colors.background.surface,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.text.muted,
-  },
-  favoriteFailed: {
-    ...typography.caption,
-    color: colors.brand.primary,
-  },
-  section: {
-    backgroundColor: colors.background.surface,
-    padding: spacing.lg,
-    gap: spacing.lg,
-  },
-  sectionTitle: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  body: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  socialRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  socialIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.background.socialIcon,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  contactRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  contactText: {
-    flex: 1,
-  },
-  contactPrimary: {
-    ...typography.labelMedium,
-    color: colors.text.primary,
-  },
-  contactSecondary: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  footerSafeArea: {
-    backgroundColor: colors.background.surface,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: -8 },
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  footer: {
-    padding: spacing.md,
-  },
-});
