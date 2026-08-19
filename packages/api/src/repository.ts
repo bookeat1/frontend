@@ -11,6 +11,8 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  FavoriteItems,
+  FavoriteKind,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -180,6 +182,39 @@ export interface RestaurantRepository {
 
   /** Removes a venue (`DELETE /favorites/:restaurantId`). Also idempotent. */
   removeFavorite(restaurantId: string): Promise<void>;
+
+  /**
+   * Everything the caller saved — venues, events and promos in one list
+   * (`GET /favorites/items`). Requires a session.
+   *
+   * `type` narrows `items` only; `counts` always covers all three kinds, so
+   * one response is enough to render the tab row AND its counters. The app
+   * therefore asks WITHOUT a type and filters client-side — switching a tab
+   * costs no request.
+   *
+   * Absent items are a real answer: an unpublished or expired event/promo
+   * simply drops out of the list.
+   */
+  getFavoriteItems(type?: FavoriteKind): Promise<FavoriteItems>;
+
+  /**
+   * Saves an event (`PUT /events/:eventId/favorite`). Idempotent, 200 both
+   * ways.
+   *
+   * A RECURRING event is saved as the whole series: passing the id of one
+   * occurrence saves every date of it, and the list then returns the nearest
+   * upcoming occurrence — whose id may differ from the one sent here.
+   */
+  addEventFavorite(eventId: string): Promise<void>;
+
+  /** Removes an event (`DELETE /events/:eventId/favorite`). Idempotent. */
+  removeEventFavorite(eventId: string): Promise<void>;
+
+  /** Saves a promo (`PUT /promos/:promoId/favorite`). Idempotent. */
+  addPromoFavorite(promoId: string): Promise<void>;
+
+  /** Removes a promo (`DELETE /promos/:promoId/favorite`). Idempotent. */
+  removePromoFavorite(promoId: string): Promise<void>;
 
   /**
    * Replaces the booking's pre-order with exactly these lines (PUT semantics —

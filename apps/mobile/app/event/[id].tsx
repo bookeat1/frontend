@@ -22,7 +22,7 @@ import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { TagChips } from "../../src/components/TagChips";
-import { useRestaurantFavorite } from "../../src/hooks/useFavorites";
+import { useEventFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
 import { formatDateTime, formatDayMonth, formatTime } from "../../src/lib/format";
 
@@ -50,11 +50,16 @@ export default function EventDetailScreen() {
   const restaurantId = event?.restaurant.id;
   const { data: restaurant } = useRestaurant(restaurantId);
 
-  // Same heart as the restaurant screen: a controlled favorite that writes to
-  // the account (GET/POST /favorites). Events have no favorites of their own,
-  // so "saving" one saves its venue — the only real backend, never a fake
-  // local toggle. A signed-out guest is sent to sign-in by the hook.
-  const favorite = useRestaurantFavorite(restaurantId ?? "");
+  // Сердечко сохраняет САМО СОБЫТИЕ (`PUT|DELETE /events/:id/favorite`).
+  // Раньше на его месте стояло избранное заведения-хозяина — «сохранить
+  // событие» тихо сохраняло ресторан; у бэкенда своих избранных событий тогда
+  // не было, теперь есть.
+  //
+  // Повторяющееся событие сохраняется целиком, СЕРИЕЙ: сервер сам превращает
+  // id открытой даты в серию, а сравнение «сохранено ли» идёт по
+  // recurrence_id — иначе сердечко было бы пустым на дате, отличной от той,
+  // которую вернуло избранное.
+  const favorite = useEventFavorite(event);
 
   const share = async (title: string, venue: string) => {
     try {
@@ -141,8 +146,8 @@ export default function EventDetailScreen() {
             icon={Heart}
             accessibilityLabel={
               favorite.isFavorite
-                ? t.restaurant.favoriteRemove(event.restaurant.name)
-                : t.restaurant.favoriteAdd(event.restaurant.name)
+                ? t.restaurant.favoriteRemove(event.title)
+                : t.restaurant.favoriteAdd(event.title)
             }
             selected={favorite.isFavorite}
             onPress={favorite.toggle}

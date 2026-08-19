@@ -9,7 +9,7 @@ import {
   upcomingEvents,
 } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
-import { isCancellableBookingStatus } from "./types";
+import { favoriteEventKey, isCancellableBookingStatus } from "./types";
 import type {
   AppNotification,
   AuthSession,
@@ -25,6 +25,9 @@ import type {
   DevicePlatform,
   EventPage,
   EventQuery,
+  FavoriteItem,
+  FavoriteItems,
+  FavoriteKind,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -352,11 +355,133 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async addFavorite(restaurantId: string): Promise<void> {
     await this.simulateNetwork();
     this.favorites.add(restaurantId);
+    this.rememberFavoritedAt(restaurantId);
   }
 
   async removeFavorite(restaurantId: string): Promise<void> {
     await this.simulateNetwork();
     this.favorites.delete(restaurantId);
+  }
+
+  /** Saved events/promos the mock holds for this process only. Events are keyed
+   * the way the server treats them — by SERIES when the event recurs. */
+  private readonly favoriteEventKeys = new Set<string>();
+  private readonly favoritePromoIds = new Set<string>();
+
+  /**
+   * The mock's `GET /favorites/items`: one list of the three kinds, newest
+   * first, plus counters for ALL kinds even when `type` narrows the items —
+   * exactly the server behaviour the tab row depends on.
+   */
+  async getFavoriteItems(type?: FavoriteKind): Promise<FavoriteItems> {
+    await this.simulateNetwork();
+
+    const restaurantItems: FavoriteItem[] = restaurants
+      .filter((r) => this.favorites.has(r.id))
+      .map((r) => ({
+        kind: "restaurant" as const,
+        favoritedAt: this.favoritedAt(r.id),
+        restaurant: toSummary(r),
+      }));
+
+    const eventItems: FavoriteItem[] = upcomingEvents()
+      .filter((e) => this.favoriteEventKeys.has(favoriteEventKey(e)))
+      .map((e) => ({
+        kind: "event" as const,
+        favoritedAt: this.favoritedAt(e.id),
+        event: {
+          id: e.id,
+          restaurantId: e.restaurantId,
+          restaurantName: e.restaurant.name,
+          city: e.restaurant.city,
+          title: e.title,
+          description: e.description,
+          startsAt: e.startsAt,
+          endsAt: e.endsAt,
+          venue: e.venue,
+          coverImageUrl: e.coverImageUrl,
+          tags: e.tags,
+          ticketed: e.ticketed,
+          ticketPriceMinor: e.ticketPriceMinor,
+          isRecurring: e.recurrenceId !== null,
+          recurrenceId: e.recurrenceId,
+        },
+      }));
+
+    const promoItems: FavoriteItem[] = homePromotions()
+      .filter((p) => this.favoritePromoIds.has(p.id))
+      .map((p) => ({
+        kind: "promo" as const,
+        favoritedAt: this.favoritedAt(p.id),
+        promo: {
+          id: p.id,
+          restaurantId: p.restaurantId,
+          restaurantName: p.restaurantName,
+          city: "",
+          title: p.title,
+          description: p.description,
+          terms: "",
+          startsAt: p.startsAt,
+          endsAt: p.endsAt,
+          coverImageUrl: p.coverImageUrl,
+          discountPercent: p.discountPercent,
+        },
+      }));
+
+    const all = [...restaurantItems, ...eventItems, ...promoItems].sort((a, b) =>
+      b.favoritedAt.localeCompare(a.favoritedAt),
+    );
+
+    return {
+      items: type ? all.filter((item) => item.kind === type) : all,
+      counts: {
+        all: all.length,
+        restaurants: restaurantItems.length,
+        events: eventItems.length,
+        promos: promoItems.length,
+      },
+    };
+  }
+
+  async addEventFavorite(eventId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favoriteEventKeys.add(this.eventKeyOf(eventId));
+    this.rememberFavoritedAt(eventId);
+  }
+
+  async removeEventFavorite(eventId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favoriteEventKeys.delete(this.eventKeyOf(eventId));
+  }
+
+  async addPromoFavorite(promoId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favoritePromoIds.add(promoId);
+    this.rememberFavoritedAt(promoId);
+  }
+
+  async removePromoFavorite(promoId: string): Promise<void> {
+    await this.simulateNetwork();
+    this.favoritePromoIds.delete(promoId);
+  }
+
+  /** Сохранение повторяющегося события — это сохранение СЕРИИ: мок держит тот
+   * же ключ, что и сервер, иначе офлайн сердечко вело бы себя не как живое. */
+  private eventKeyOf(eventId: string): string {
+    const event = upcomingEvents().find((e) => e.id === eventId);
+    return event ? favoriteEventKey(event) : eventId;
+  }
+
+  /** When each entity was saved, so the mock's list has the same newest-first
+   * order the server's does. */
+  private readonly favoritedAtById = new Map<string, string>();
+
+  private rememberFavoritedAt(id: string): void {
+    this.favoritedAtById.set(id, new Date().toISOString());
+  }
+
+  private favoritedAt(id: string): string {
+    return this.favoritedAtById.get(id) ?? new Date(0).toISOString();
   }
 
   async setPreorder(bookingId: string, lines: PreorderLineInput[]): Promise<Preorder> {

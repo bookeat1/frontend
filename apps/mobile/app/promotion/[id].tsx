@@ -21,7 +21,7 @@ import { IconButton } from "../../src/components/IconButton";
 import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { useRestaurantFavorite } from "../../src/hooks/useFavorites";
+import { usePromoFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
 import { formatDayMonth } from "../../src/lib/format";
 
@@ -48,9 +48,10 @@ export default function PromotionDetailScreen() {
   const restaurantId = promo?.restaurantId;
   const { data: restaurant } = useRestaurant(restaurantId);
 
-  // Promos have no favourites of their own, so the heart saves the VENUE —
-  // the same controlled favorite the restaurant and event screens use.
-  const favorite = useRestaurantFavorite(restaurantId ?? "");
+  // Сердечко сохраняет САМУ АКЦИЮ (`PUT|DELETE /promos/:id/favorite`).
+  // Раньше вместо неё сохранялось заведение-хозяин: у акций своих избранных
+  // не было, теперь есть.
+  const favorite = usePromoFavorite(promo?.id);
 
   const share = async (title: string, venue: string) => {
     try {
@@ -141,8 +142,8 @@ export default function PromotionDetailScreen() {
             icon={Heart}
             accessibilityLabel={
               favorite.isFavorite
-                ? t.restaurant.favoriteRemove(venue)
-                : t.restaurant.favoriteAdd(venue)
+                ? t.restaurant.favoriteRemove(promo.title)
+                : t.restaurant.favoriteAdd(promo.title)
             }
             selected={favorite.isFavorite}
             onPress={favorite.toggle}

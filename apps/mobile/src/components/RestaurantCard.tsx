@@ -9,6 +9,15 @@ import { PhotoView } from "./PhotoView";
 interface RestaurantCardProps {
   restaurant: RestaurantSummary;
   onPress: (id: string) => void;
+  /**
+   * Абсолютно позиционированный элемент ПОВЕРХ фотографии — сегодня это
+   * сердечко на экране «Избранные» (макет 602:3630).
+   *
+   * Слот, а не встроенное сердечко: в каталоге и поиске сердечка на карточке
+   * нет, и включать его флагом означало бы тянуть запрос избранного на экраны,
+   * которым он не нужен. Вторая карточка заведения ради одной иконки — дефект.
+   */
+  photoOverlay?: React.ReactNode;
 }
 
 const IMAGE_HEIGHT = 148;
@@ -19,7 +28,7 @@ const IMAGE_HEIGHT = 148;
  * plain text line under the name, and cuisine + price render as chips below
  * the description.
  */
-export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
+export function RestaurantCard({ restaurant, onPress, photoOverlay }: RestaurantCardProps) {
   const cuisineLabel = restaurant.cuisines.map((c) => c.name).join(", ");
   // Раньше рядом со статусом стояло расстояние («Открыто · 3.4 км»),
   // посчитанное из хеша id заведения. Ни геопозиции гостя, ни расстояния в API
@@ -51,6 +60,14 @@ export function RestaurantCard({ restaurant, onPress }: RestaurantCardProps) {
           decorative
           placeholderIconSize={32}
         />
+        {/* Слой ровно по границам ФОТОГРАФИИ (обёртка шире неё на 8 с каждой
+            стороны): сердечко внутри позиционируется 12/12 от угла снимка,
+            как в макете, а не 12 от края обёртки. */}
+        {photoOverlay ? (
+          <View style={styles.photoOverlayLayer} pointerEvents="box-none">
+            {photoOverlay}
+          </View>
+        ) : null}
       </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
@@ -98,6 +115,13 @@ const styles = StyleSheet.create({
     // экрана поиска). Отступ живёт на обёртке, а не на самой карточке: иначе
     // он сложился бы с внутренними 16 у текста и получилось бы 24.
     paddingHorizontal: spacing.sm,
+  },
+  photoOverlayLayer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: spacing.sm,
+    right: spacing.sm,
   },
   pressed: {
     opacity: 0.9,

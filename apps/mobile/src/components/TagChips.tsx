@@ -11,14 +11,27 @@ import { StyleSheet, Text, View } from "react-native";
  * catalog card uses (background.chipAlt + text.mutedStrong), kept here so the
  * three event surfaces stay identical.
  */
-export function TagChips({ tags }: { tags: string[] }) {
+export function TagChips({
+  tags,
+  size = "default",
+}: {
+  tags: string[];
+  /**
+   * `compact` — 24 в высоту с зазором 6 между чипами (карточка события на
+   * экране «Избранные», макет 602:3630). Это ОДИН размер того же чипа, а не
+   * второй компонент: у карточки списка избранного меньше места, чем у карточки
+   * афиши, и чип там ровно такой же, как кухня/чек у карточки заведения.
+   */
+  size?: "default" | "compact";
+}) {
   if (tags.length === 0) return null;
 
+  const compact = size === "compact";
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, compact && styles.rowCompact]}>
       {tags.map((tag, index) => (
-        <View key={`${tag}-${index}`} style={styles.chip}>
-          <Text style={styles.chipText}>{tag}</Text>
+        <View key={`${tag}-${index}`} style={[styles.chip, compact && styles.chipCompact]}>
+          <Text style={[styles.chipText, compact && styles.chipTextCompact]}>{tag}</Text>
         </View>
       ))}
     </View>
@@ -40,8 +53,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs + 2,
   },
+  // Зазор 6 — из макета; в шкале spacing такого шага нет (4 и 8), поэтому он
+  // собран из существующего токена, а не написан числом.
+  rowCompact: {
+    gap: spacing.xs + 2,
+  },
+  chipCompact: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
   chipText: {
     ...typography.labelMedium,
     color: colors.text.mutedStrong,
+  },
+  // 16 строка + 4 сверху и снизу = 24 в высоту, как в макете.
+  chipTextCompact: {
+    ...typography.captionMedium,
   },
 });

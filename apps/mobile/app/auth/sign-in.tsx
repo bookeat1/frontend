@@ -9,7 +9,7 @@ import { AuthPhoneField } from "../../src/components/auth/AuthPhoneField";
 import { OtpInput } from "../../src/components/auth/OtpInput";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
-import { useToggleFavorite } from "../../src/hooks/useFavorites";
+import { useToggleEntityFavorite, useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
 import { DEFAULT_COUNTRY, nationalLength } from "../../src/lib/countries";
 import { formatStoredPhoneForDisplay, phoneFromE164 } from "../../src/lib/phone";
@@ -94,10 +94,23 @@ function subtitleFor(reason: SignInReason | undefined): string {
 export default function SignInScreen() {
   const router = useRouter();
   const { requestCode, signInWithCode, repository } = useAuth();
-  const params = useLocalSearchParams<{ reason?: string; restaurantId?: string }>();
+  const params = useLocalSearchParams<{
+    reason?: string;
+    restaurantId?: string;
+    /** «Досохранить» после входа умеет не только заведение: сердечко события и
+     * акции присылает сюда свой вид и id. */
+    favoriteKind?: string;
+    favoriteId?: string;
+  }>();
   const reason = parseReason(params.reason);
   const restaurantId = params.restaurantId;
+  const favoriteKind = params.favoriteKind === "event" || params.favoriteKind === "promo"
+    ? params.favoriteKind
+    : undefined;
+  const favoriteId = params.favoriteId;
   const toggleFavorite = useToggleFavorite();
+  const toggleEventFavorite = useToggleEntityFavorite("event");
+  const togglePromoFavorite = useToggleEntityFavorite("promo");
 
   const [step, setStep] = useState<Step>("phone");
   /** E.164 as the field reports it ("" until there is a number), plus the
@@ -164,8 +177,16 @@ export default function SignInScreen() {
    * something to fire behind their back on a screen they can't see.
    */
   const completeIntent = async (): Promise<void> => {
-    if (reason !== "favorite" || !restaurantId) return;
+    if (reason !== "favorite") return;
     try {
+      if (favoriteKind && favoriteId) {
+        // Ключ для оптимистичной правки списка здесь не нужен: это «добавить»,
+        // а добавление список не правит — он перечитывается с сервера.
+        const toggle = favoriteKind === "event" ? toggleEventFavorite : togglePromoFavorite;
+        await toggle.mutateAsync({ id: favoriteId, key: favoriteId, favorite: true });
+        return;
+      }
+      if (!restaurantId) return;
       await toggleFavorite.mutateAsync({ restaurantId, favorite: true });
     } catch {
       // Deliberately swallowed: see above.
