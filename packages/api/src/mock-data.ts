@@ -557,6 +557,8 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       ticketRefundCutoffMinutes: 1440,
       restaurant: host(0),
       tags: ["Сет-меню", "Ужин"],
+      // Разовое событие: серии нет, ключ сердечка — собственный id.
+      recurrenceId: null,
     },
     {
       id: "e2",
@@ -575,6 +577,7 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       ticketRefundCutoffMinutes: 0,
       restaurant: host(1),
       tags: ["Дегустация", "Вино"],
+      recurrenceId: null,
     },
     {
       id: "e3",
@@ -598,6 +601,9 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       restaurant: host(2),
       // Left empty on purpose — exercises the hidden-when-empty chip row.
       tags: [],
+      // Повторяющийся бранч: специально с серией — сердечко на такой карточке
+      // сравнивается по recurrenceId, и офлайн-мок это упражняет.
+      recurrenceId: "rec-brunch",
     },
   ];
 }

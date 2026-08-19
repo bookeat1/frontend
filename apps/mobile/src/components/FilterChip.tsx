@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
@@ -14,6 +14,16 @@ interface FilterChipProps {
    * component, one number — not a second chip.
    */
   selectedTone?: "dark" | "brand";
+  /**
+   * `roomy` — 16 отступа по бокам вместо 12 (чипы «Все / Рестораны / События /
+   * Акции» на экране «Избранные», макет 602:3630). Одно число, как и
+   * `selectedTone`, — не второй компонент-чип.
+   *
+   * Высота при этом остаётся 44, хотя в макете чип 40: минимальная цель
+   * касания в этом репозитории — жёсткое правило доступности, и это уже
+   * ловилось на ревью (чипы были 36).
+   */
+  size?: "default" | "roomy";
 }
 
 /**
@@ -27,6 +37,7 @@ export function FilterChip({
   selected = false,
   onPress,
   selectedTone = "dark",
+  size = "default",
 }: FilterChipProps) {
   return (
     <Pressable
@@ -36,6 +47,7 @@ export function FilterChip({
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
+        size === "roomy" && styles.chipRoomy,
         selected && (selectedTone === "brand" ? styles.chipSelectedBrand : styles.chipSelected),
         pressed && styles.pressed,
       ]}
@@ -53,6 +65,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chipAlt,
     alignItems: "center",
     justifyContent: "center",
+  },
+  chipRoomy: {
+    paddingHorizontal: spacing.lg,
   },
   chipSelected: {
     backgroundColor: colors.background.chipActive,

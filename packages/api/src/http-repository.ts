@@ -10,6 +10,7 @@ import {
   mapAvailability,
   mapBooking,
   mapEventSummary,
+  mapFavoriteItems,
   mapGuideCollections,
   mapGuideCollectionDetail,
   mapHomePromos,
@@ -26,6 +27,7 @@ import {
   type ApiAvailability,
   type ApiBooking,
   type ApiEventListItem,
+  type ApiFavoriteItems,
   type ApiFeedItem,
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
@@ -54,6 +56,8 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  FavoriteItems,
+  FavoriteKind,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -492,6 +496,56 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   /** DELETE /favorites/:restaurantId. Idempotent server-side. */
   async removeFavorite(restaurantId: string): Promise<void> {
     await this.client.delete<unknown>(`/favorites/${encodeURIComponent(restaurantId)}`, {
+      auth: true,
+    });
+  }
+
+  /**
+   * GET /favorites/items — venues, events and promos in ONE list, plus the
+   * counters for all three kinds.
+   *
+   * Called WITHOUT `type` by the app: `counts` is whole-set regardless, so a
+   * single response feeds both the tab row and every tab's contents, and
+   * switching a tab is a filter, not a request.
+   */
+  async getFavoriteItems(type?: FavoriteKind): Promise<FavoriteItems> {
+    const payload = await this.client.get<ApiFavoriteItems>(
+      "/favorites/items",
+      type ? { type } : undefined,
+      { auth: true },
+    );
+    return mapFavoriteItems(payload);
+  }
+
+  /** PUT /events/:eventId/favorite. Idempotent; saves the whole SERIES when the
+   * event recurs. */
+  async addEventFavorite(eventId: string): Promise<void> {
+    await this.client.put<unknown>(
+      `/events/${encodeURIComponent(eventId)}/favorite`,
+      undefined,
+      { auth: true },
+    );
+  }
+
+  /** DELETE /events/:eventId/favorite. Idempotent. */
+  async removeEventFavorite(eventId: string): Promise<void> {
+    await this.client.delete<unknown>(`/events/${encodeURIComponent(eventId)}/favorite`, {
+      auth: true,
+    });
+  }
+
+  /** PUT /promos/:promoId/favorite. Idempotent. */
+  async addPromoFavorite(promoId: string): Promise<void> {
+    await this.client.put<unknown>(
+      `/promos/${encodeURIComponent(promoId)}/favorite`,
+      undefined,
+      { auth: true },
+    );
+  }
+
+  /** DELETE /promos/:promoId/favorite. Idempotent. */
+  async removePromoFavorite(promoId: string): Promise<void> {
+    await this.client.delete<unknown>(`/promos/${encodeURIComponent(promoId)}/favorite`, {
       auth: true,
     });
   }

@@ -2,8 +2,9 @@ import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/des
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { usePromoFavorite } from "../../hooks/useFavorites";
 import { PhotoView } from "../PhotoView";
-import { InertFavoriteHeart } from "./FavoriteButton";
+import { FavoriteButton } from "./FavoriteButton";
 import type { PromoStripItem } from "./placeholder";
 
 const t = getDictionary();
@@ -12,12 +13,14 @@ const t = getDictionary();
  * One «Акции» promo tile: photo with a red discount badge, an inert heart, a
  * title and a «venue · time» subtitle.
  *
- * DATA IS PLACEHOLDER (no global promotions endpoint — see ./placeholder.ts),
- * so the section that renders this is hidden today. The card is final: when a
- * real promo feed lands, only the mapper changes. The heart is INERT because
- * promos are restaurant-scoped and there is no favourite-a-promo endpoint.
+ * Сердечко сохраняет САМУ АКЦИЮ (`PUT|DELETE /promos/:id/favorite`). Раньше
+ * оно было нарисованным и неактивным: эндпоинта «в избранное акцию» у бэкенда
+ * не было, и заведомо мёртвая иконка честнее, чем локальный `useState`,
+ * который забывает нажатие. Теперь эндпоинт есть.
  */
 export function PromoCard({ promo }: { promo: PromoStripItem }) {
+  const favorite = usePromoFavorite(promo.id);
+
   return (
     <View style={styles.card}>
       <View>
@@ -29,7 +32,11 @@ export function PromoCard({ promo }: { promo: PromoStripItem }) {
             <Text style={styles.badgeText}>{t.explore.promoDiscount(promo.discountPercent)}</Text>
           </View>
         ) : null}
-        <InertFavoriteHeart />
+        <FavoriteButton
+          itemName={promo.title}
+          isFavorite={favorite.isFavorite}
+          onToggle={favorite.toggle}
+        />
       </View>
 
       <View style={styles.text}>

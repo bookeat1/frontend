@@ -48,6 +48,11 @@ import type {
   SlotUnavailableReason,
   DayOfWeek,
   VenueSchedule,
+  FavoriteCounts,
+  FavoriteEvent,
+  FavoriteItem,
+  FavoriteItems,
+  FavoritePromo,
 } from "./types";
 import { stubTables } from "./unknown-data";
 
@@ -944,6 +949,9 @@ export interface ApiEvent {
    * array; optional here for the same reason `tags` is — a server that
    * predates the field must degrade to "no gallery", not to a crash. */
   images?: string[] | null;
+  /** Series id of a recurring event. Verified live on prod 2026-08-19: the
+   * public listing carries it. Absent on a one-off event. */
+  recurrence_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -992,6 +1000,9 @@ export function mapEventSummary(api: ApiEventListItem): EventSummary {
     tags: Array.isArray(api.tags)
       ? api.tags.map((tag) => text(tag)).filter((tag) => tag.length > 0)
       : [],
+    // Нужно сердечку: у повторяющегося события в избранном лежит СЕРИЯ, а не
+    // конкретная дата, поэтому «сохранено ли» сравнивается по recurrence_id.
+    recurrenceId: text(api.recurrence_id).trim() || null,
   };
 }
 
@@ -1177,4 +1188,159 @@ export function mapGuideCollectionDetail(api: ApiGuideCollectionDetail): GuideCo
     ...mapGuideCollectionCard(api),
     venues,
   };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Favorites — one list of venues, events and promos
+ *
+ * `GET /favorites/items[?type=restaurant|event|promo]` →
+ *   { items: [ { kind, favorited_at, restaurant|event|promo } ], counts }
+ *
+ * `counts` is computed for ALL kinds even when `type=` narrows `items`, which
+ * is what lets the tab row render from any single response.
+ *
+ * Two server behaviours the mapper must NOT hide:
+ *   - a recurring event is saved as the SERIES and resolves to the nearest
+ *     upcoming occurrence, so `id` here may differ from the id that was saved
+ *     (`recurrence_id` is the stable one — see favoriteEventKey in ./types);
+ *   - unpublished / expired items are simply absent from the list, so a short
+ *     list is a real answer, never a mapping failure.
+ * ------------------------------------------------------------------------ */
+
+export interface ApiFavoriteEvent {
+  id?: string;
+  restaurant_id?: string;
+  restaurant_name?: string;
+  city?: string;
+  title?: string;
+  description?: string;
+  starts_at?: string;
+  ends_at?: string;
+  venue?: string;
+  cover_image_url?: string | null;
+  tags?: string[] | null;
+  ticketed?: boolean;
+  ticket_price_minor?: number | null;
+  is_recurring?: boolean;
+  recurrence_id?: string | null;
+}
+
+export interface ApiFavoritePromo {
+  id?: string;
+  restaurant_id?: string;
+  restaurant_name?: string;
+  city?: string;
+  title?: string;
+  description?: string;
+  terms?: string;
+  starts_at?: string;
+  ends_at?: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
+}
+
+export interface ApiFavoriteItem {
+  kind?: string;
+  favorited_at?: string;
+  restaurant?: ApiRestaurant;
+  event?: ApiFavoriteEvent;
+  promo?: ApiFavoritePromo;
+}
+
+export interface ApiFavoriteCounts {
+  all?: number;
+  restaurants?: number;
+  events?: number;
+  promos?: number;
+}
+
+export interface ApiFavoriteItems {
+  items?: ApiFavoriteItem[] | null;
+  counts?: ApiFavoriteCounts | null;
+}
+
+function count(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+export function mapFavoriteEvent(api: ApiFavoriteEvent): FavoriteEvent {
+  const recurrenceId = text(api.recurrence_id).trim() || null;
+  return {
+    id: text(api.id),
+    restaurantId: text(api.restaurant_id),
+    restaurantName: text(api.restaurant_name).trim(),
+    city: text(api.city).trim(),
+    title: text(api.title),
+    description: plainText(api.description),
+    startsAt: text(api.starts_at),
+    endsAt: text(api.ends_at),
+    venue: text(api.venue).trim(),
+    coverImageUrl: text(api.cover_image_url).trim() || null,
+    tags: Array.isArray(api.tags)
+      ? api.tags.map((tag) => text(tag)).filter((tag) => tag.length > 0)
+      : [],
+    ticketed: api.ticketed === true,
+    ticketPriceMinor:
+      typeof api.ticket_price_minor === "number" ? api.ticket_price_minor : null,
+    // Признак серии выводится из recurrence_id, если сервер не прислал флаг:
+    // одно поле не должно противоречить другому.
+    isRecurring: api.is_recurring === true || recurrenceId !== null,
+    recurrenceId,
+  };
+}
+
+export function mapFavoritePromo(api: ApiFavoritePromo): FavoritePromo {
+  return {
+    id: text(api.id),
+    restaurantId: text(api.restaurant_id),
+    restaurantName: text(api.restaurant_name).trim(),
+    city: text(api.city).trim(),
+    title: text(api.title),
+    description: plainText(api.description),
+    terms: plainText(api.terms),
+    startsAt: text(api.starts_at),
+    endsAt: text(api.ends_at),
+    coverImageUrl: text(api.cover_image_url).trim() || null,
+    discountPercent: typeof api.discount_percent === "number" ? api.discount_percent : null,
+  };
+}
+
+/**
+ * A row whose `kind` is unknown, or whose entity object is missing or has no
+ * id, is DROPPED: there would be nothing to render and nothing to un-favorite.
+ * A future fourth kind therefore shortens the list instead of crashing it.
+ */
+function mapFavoriteItem(api: ApiFavoriteItem): FavoriteItem | null {
+  const favoritedAt = text(api.favorited_at);
+  switch (text(api.kind)) {
+    case "restaurant": {
+      if (!api.restaurant || text(api.restaurant.id) === "") return null;
+      return { kind: "restaurant", favoritedAt, restaurant: mapRestaurantSummary(api.restaurant) };
+    }
+    case "event": {
+      if (!api.event) return null;
+      const event = mapFavoriteEvent(api.event);
+      return event.id === "" ? null : { kind: "event", favoritedAt, event };
+    }
+    case "promo": {
+      if (!api.promo) return null;
+      const promo = mapFavoritePromo(api.promo);
+      return promo.id === "" ? null : { kind: "promo", favoritedAt, promo };
+    }
+    default:
+      return null;
+  }
+}
+
+export function mapFavoriteItems(api: ApiFavoriteItems | null | undefined): FavoriteItems {
+  const items = (api?.items ?? [])
+    .map(mapFavoriteItem)
+    .filter((item): item is FavoriteItem => item !== null);
+  const counts: FavoriteCounts = {
+    all: count(api?.counts?.all),
+    restaurants: count(api?.counts?.restaurants),
+    events: count(api?.counts?.events),
+    promos: count(api?.counts?.promos),
+  };
+  return { items, counts };
 }

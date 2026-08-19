@@ -1,7 +1,7 @@
 import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { Heart } from "../icons";
 
 const t = getDictionary();
@@ -15,11 +15,14 @@ const t = getDictionary();
  * rules — 44pt target (24pt glyph + 10pt hitSlop on each side) and a
  * mandatory label.
  *
- * Fully CONTROLLED: it owns no state at all, so the caller decides whether
- * the heart is backed by the real `/favorites` endpoint (venue cards, see
- * useRestaurantFavorite) or is part of a placeholder block that has no
- * entity behind it yet (dish / event cards — ./placeholder.ts). A component
- * that silently keeps its own copy of the truth is how the heart used to lie.
+ * Fully CONTROLLED: it owns no state at all — the caller decides what the
+ * heart means (useRestaurantFavorite / useEventFavorite / usePromoFavorite,
+ * each backed by its own real endpoint). A component that silently keeps its
+ * own copy of the truth is how the heart used to lie.
+ *
+ * Рядом жил `InertFavoriteHeart` — нарисованное, но неактивное сердечко для
+ * карточек, под которыми не было сущности с избранным. Оно удалено: у всех
+ * трёх видов (заведение, событие, акция) эндпоинт избранного теперь есть.
  */
 export function FavoriteButton({
   itemName,
@@ -47,23 +50,6 @@ export function FavoriteButton({
         color={isFavorite ? colors.brand.favorite : colors.text.onDark}
       />
     </Pressable>
-  );
-}
-
-/**
- * The same heart, drawn but inert.
- *
- * Used on the dish and event cards, whose CONTENT is placeholder data (there
- * is no cross-venue dish or event endpoint — ./placeholder.ts): there is no
- * entity to favorite, so the control does not respond and is hidden from
- * screen readers. It used to toggle a local `useState` that died with the
- * component, which looked like it worked and stored nothing.
- */
-export function InertFavoriteHeart() {
-  return (
-    <View style={styles.button} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Heart size={24} weight="fill" color={colors.text.onDark} />
-    </View>
   );
 }
 

@@ -899,10 +899,24 @@ export const kk: LocaleOverride<Dictionary> = {
     emptyAction: "Іздеуді ашу",
     errorTitle: "Таңдаулылар жүктелмеді",
     errorDescription: "Байланысты тексеріп, қайталап көріңіз",
-    signedOutTitle: "Мейрамханаларды сақтау үшін кіріңіз",
+    signedOutTitle: "Таңдаулыларды сақтау үшін кіріңіз",
     signedOutDescription: "Таңдаулылар аккаунтта сақталады және кез келген құрылғыда ашылады",
     signIn: "Кіру",
     toggleFailed: "Таңдаулыларды өзгерту мүмкін болмады. Қайталап көріңіз",
+    tabAll: "Барлығы",
+    tabRestaurants: "Мейрамханалар",
+    tabEvents: "Іс-шаралар",
+    tabPromos: "Акциялар",
+    tabWithCount: (label: string, count: number) => `${label} · ${count}`,
+    emptyRestaurantsTitle: "Сақталған мейрамхана жоқ",
+    emptyRestaurantsDescription:
+      "Мейрамхана карточкасындағы жүрекшені басыңыз — ол осында пайда болады.",
+    emptyEventsTitle: "Сақталған іс-шара жоқ",
+    emptyEventsDescription:
+      "«Афишадағы» іс-шара карточкасында жүрекшені басыңыз. Қайталанатын іс-шара түгел, серия ретінде сақталады, тізімде ең жақын күні көрсетіледі. Өткен іс-шаралар тізімнен өздігінен жоғалады.",
+    emptyPromosTitle: "Сақталған акция жоқ",
+    emptyPromosDescription:
+      "Акция карточкасындағы жүрекшені басыңыз. Акция аяқталғанда, ол тізімнен өздігінен жоғалады.",
   },
   profile: {
     title: "Профиль",

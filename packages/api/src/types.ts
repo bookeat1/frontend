@@ -667,6 +667,16 @@ export interface EventSummary {
   /** Free-text labels shown as grey chips under the «venue · date» line.
    * Always an array — `[]` when the event has none (the chip row then hides). */
   tags: string[];
+  /**
+   * Series identifier of a RECURRING event, or null for a one-off.
+   *
+   * Верифицировано на проде 2026-08-19: публичный `GET /events` отдаёт
+   * `recurrence_id` у каждого повторяющегося события. Поле нужно именно
+   * сердечку: в избранное сохраняется СЕРИЯ, и сервер возвращает ближайшую
+   * будущую дату серии — её `id` может отличаться от того, что гость сохранял.
+   * Сравнение «сохранено ли» поэтому идёт по `recurrenceId`, когда он есть.
+   */
+  recurrenceId: string | null;
 }
 
 /** The minimal venue identity carried on an event of the public listing. */
@@ -729,6 +739,110 @@ export interface HomePromo {
   images: string[];
   /** Percentage for the «−N%» badge, or `null` when the feed omits it (no badge). */
   discountPercent: number | null;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Favorites — venues, events and promos in one list
+ * ------------------------------------------------------------------------ */
+
+/** What a saved item IS. The wire calls it `kind`; it is also the `type=`
+ * filter of `GET /favorites/items`. */
+export type FavoriteKind = "restaurant" | "event" | "promo";
+
+/**
+ * A saved EVENT as the favorites endpoint returns it.
+ *
+ * Deliberately NOT `EventSummary`: the favorites payload is a different,
+ * smaller shape (it carries `restaurant_name` / `city` flat instead of a
+ * nested restaurant object, and no gallery, capacity or refund rules), and
+ * pretending otherwise would mean inventing the missing halves.
+ *
+ * `recurrenceId` is the SERIES: a recurring event is saved as the series, and
+ * the item resolves to the nearest upcoming occurrence — so `id` here can
+ * differ from the id the guest tapped. Anything that asks «сохранено ли это
+ * событие» must compare by `recurrenceId` first (see favoriteEventKey).
+ */
+export interface FavoriteEvent {
+  id: string;
+  restaurantId: string;
+  /** Host venue name. Empty when the payload omits it. */
+  restaurantName: string;
+  city: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  /** Room / area inside the venue. Empty when absent. */
+  venue: string;
+  coverImageUrl: string | null;
+  tags: string[];
+  ticketed: boolean;
+  /** Integer MINOR units (tiyin), null when the event sells no tickets. */
+  ticketPriceMinor: number | null;
+  isRecurring: boolean;
+  /** Series id, or null for a one-off event. */
+  recurrenceId: string | null;
+}
+
+/** A saved PROMO as the favorites endpoint returns it. `terms` («условия
+ * акции») exists only here and on the promo detail — the home feed omits it. */
+export interface FavoritePromo {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  city: string;
+  title: string;
+  description: string;
+  terms: string;
+  startsAt: string;
+  endsAt: string;
+  coverImageUrl: string | null;
+  discountPercent: number | null;
+}
+
+/**
+ * One row of `GET /favorites/items`, discriminated by `kind` — the payload
+ * carries exactly one of the three entity fields, so the union is modelled the
+ * way the wire is instead of with three optional properties.
+ */
+export type FavoriteItem =
+  | { kind: "restaurant"; favoritedAt: string; restaurant: RestaurantSummary }
+  | { kind: "event"; favoritedAt: string; event: FavoriteEvent }
+  | { kind: "promo"; favoritedAt: string; promo: FavoritePromo };
+
+/**
+ * Tab counters. The server computes them for ALL kinds even when `type=` is
+ * passed, which is why the tab row can be rendered from any one response and
+ * switching a tab needs no request.
+ */
+export interface FavoriteCounts {
+  all: number;
+  restaurants: number;
+  events: number;
+  promos: number;
+}
+
+/** The whole `GET /favorites/items` answer. */
+export interface FavoriteItems {
+  items: FavoriteItem[];
+  counts: FavoriteCounts;
+}
+
+/**
+ * The key a heart compares itself by.
+ *
+ * ПОЧЕМУ НЕ ПРОСТО `id`: повторяющееся событие сохраняется целиком, как СЕРИЯ.
+ * Сервер отдаёт в избранном ближайшую будущую дату этой серии, и её `id`
+ * отличается от `id` той даты, на которой гость нажал сердечко. Сравнение по
+ * `id` дало бы пустое сердечко на карточке, которая на самом деле сохранена
+ * (и повторный PUT сохранил бы ту же серию второй раз). Поэтому ключ — это
+ * `recurrence_id`, когда он есть, и `id` у разового события.
+ */
+export function favoriteEventKey(event: {
+  id: string;
+  recurrenceId: string | null;
+}): string {
+  return event.recurrenceId ?? event.id;
 }
 
 /**
