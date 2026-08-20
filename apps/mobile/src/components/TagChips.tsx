@@ -7,9 +7,17 @@ import { StyleSheet, Text, View } from "react-native";
  * музыка"). Plain text, no icon. Wraps to multiple lines when there are many.
  *
  * Renders nothing when `tags` is empty, so a caller can drop it straight under
- * the «venue · date» line without its own guard. Same neutral pill styling the
- * catalog card uses (background.chipAlt + text.mutedStrong), kept here so the
- * three event surfaces stay identical.
+ * the «venue · date» line without its own guard.
+ *
+ * ГАММА (правка владельца 2026-08-20, макет 3053:8539): чип-метка внутри
+ * карточки стал бордовым — подложка `background.chipBrand` (фирменный цвет с
+ * прозрачностью 15%), подпись `text.brand` (#96272C). Тот же вид у кухни и
+ * среднего чека на карточке заведения, поэтому все метки в списках читаются
+ * одинаково.
+ *
+ * Чипы-ФИЛЬТРЫ (`FilterChip`) остались серыми и в этой правке не участвуют:
+ * фильтр это переключатель, метка это подпись, и одинаковый вид у них сбивал
+ * бы с толку.
  */
 export function TagChips({
   tags,
@@ -46,7 +54,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
   },
   chip: {
-    backgroundColor: colors.background.chipAlt,
+    backgroundColor: colors.background.chipBrand,
     borderRadius: radius.pill,
     // В макете карточки афиши чип — полноценная метка, а не мелкая подпись:
     // 12 по горизонтали и 6 по вертикали вместо 8/2.
@@ -63,10 +71,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   chipText: {
-    ...typography.labelMedium,
-    color: colors.text.mutedStrong,
+    // 12/16 Medium из макета (node 3053:8540), а не 14: чип-метка мельче
+    // подписи фильтра.
+    ...typography.captionMedium,
+    color: colors.text.brand,
   },
-  // 16 строка + 4 сверху и снизу = 24 в высоту, как в макете.
+  // Компактный размер отличается только полями, подпись та же 12/16.
   chipTextCompact: {
     ...typography.captionMedium,
   },

@@ -168,6 +168,8 @@ export default function ReservationScreen() {
   // Don't offer a decision the guest can't yet make honestly: while the
   // payment check is still running there is no money sentence to show.
   const cancelReady = !canCancel || !payment.isPending;
+  // Меню у заведения есть, если деталка принесла хотя бы одно блюдо.
+  const hasMenu = (restaurant.data?.menuHighlights.length ?? 0) > 0;
 
   const onConfirmCancel = () => {
     setCancelError(null);
@@ -190,21 +192,39 @@ export default function ReservationScreen() {
           booking={data}
           restaurant={restaurant.data}
           actions={
-            // Одна кнопка на всю ширину (макет 918:12960). Чат из этого ряда
-            // убран: экрана чата нет ни в приложении, ни на сервере, а
-            // неактивная кнопка рядом с рабочей читается как поломка. Вернём
-            // её сюда, когда чат появится.
-            <PrimaryButton
-              label={t.booking.cancelBooking}
-              variant="secondary"
-              size="lg"
-              icon={XCircle}
-              disabled={!canCancel || !cancelReady || cancel.isPending}
-              onPress={() => {
-                setCancelError(null);
-                setDialogOpen(true);
-              }}
-            />
+            // Ряд из «На главную» и «Меню» (макет 3059:11285, правка владельца
+            // 2026-08-20). Отмена отсюда УШЛА вниз, отдельным блоком: держать
+            // разрушающее действие рядом с обычной навигацией — приглашение
+            // нажать его случайно.
+            <View style={styles.actionsRow}>
+              <View style={styles.actionCell}>
+                <PrimaryButton
+                  label={t.booking.backToHome}
+                  variant="secondary"
+                  size="lg"
+                  onPress={() => router.replace("/")}
+                />
+              </View>
+              {/* «Меню» показывается только у заведения, где меню есть
+                  (решение владельца). Признак — блюда из деталки заведения:
+                  экран меню питается тем же меню, и у заведения без него
+                  кнопка вела бы на пустой экран. Когда кнопки нет, «На
+                  главную» занимает весь ряд, а не половину, прижатую к краю. */}
+              {hasMenu ? (
+                <View style={styles.actionCell}>
+                  <PrimaryButton
+                    label={t.booking.openMenu}
+                    size="lg"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/restaurant/[id]/menu",
+                        params: { id: data.restaurantId },
+                      })
+                    }
+                  />
+                </View>
+              ) : null}
+            </View>
           }
         />
 
@@ -269,6 +289,26 @@ export default function ReservationScreen() {
 
         {restaurant.data && hasAnyContact(restaurant.data) ? (
           <ContactsCard restaurant={restaurant.data} />
+        ) : null}
+
+        {/* Отмена брони — отдельный блок внизу экрана (макет 3073:11402).
+            Показывается только пока бронь ВООБЩЕ можно отменить: у отменённой
+            и прошедшей брони блок исчезает целиком, а не висит неактивной
+            кнопкой, которая выглядит как поломка. */}
+        {canCancel ? (
+          <BookingCard title={t.booking.cancelSectionTitle}>
+            <PrimaryButton
+              label={t.booking.cancelBooking}
+              variant="secondary"
+              size="lg"
+              icon={XCircle}
+              disabled={!cancelReady || cancel.isPending}
+              onPress={() => {
+                setCancelError(null);
+                setDialogOpen(true);
+              }}
+            />
+          </BookingCard>
         ) : null}
         {/* Белый хвост под последним блоком. Это отдельный элемент, а не
             нижний отступ контейнера: отступ красился бы серым фоном списка,
@@ -339,6 +379,16 @@ const styles = StyleSheet.create({
   content: {
     backgroundColor: colors.background.screen,
     gap: spacing.sm,
+  },
+  // Две кнопки делят ряд поровну (просвет 12 из макета). Ячейки нужны потому,
+  // что PrimaryButton не растягивается сам: без обёртки кнопки схлопнулись бы
+  // по ширине подписи, и «Меню» оказалось бы вдвое уже «На главную».
+  actionsRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  actionCell: {
+    flex: 1,
   },
   notice: {
     borderWidth: 1,

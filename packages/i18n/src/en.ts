@@ -859,6 +859,9 @@ export const en: LocaleOverride<Dictionary> = {
     mapNoCoordinates: "The restaurant hasn't listed coordinates",
 
     chat: "Chat",
+    backToHome: "Back to home",
+    openMenu: "Menu",
+    cancelSectionTitle: "Want to cancel?",
     cancelBooking: "Cancel",
     cancelDialogTitle: "Cancel booking?",
     cancelFreeNoMoney: "You didn't pay anything, so cancelling is free.",
@@ -1035,6 +1038,14 @@ export const en: LocaleOverride<Dictionary> = {
     },
   },
   onboarding: {
+    birthday: {
+      title: "Your date of birth",
+      day: "DD",
+      month: "MM",
+      year: "YYYY",
+      save: "Continue",
+      saving: "Saving…",
+    },
     name: {
       title: "What's your name?",
       subtitle: "Your name is used in bookings — you can't continue without it",

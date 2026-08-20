@@ -25,8 +25,8 @@ import { classifyProfileSaveFailure } from "../../src/lib/profile-edit";
  * so there is no path out of it that leaves a signed-in-but-nameless guest in
  * the app. The only way forward is a non-empty name, saved through the SAME
  * PATCH /users/me the profile editor uses (repository.updateMe → ["me"] cache),
- * after which we `replace` to Home — replace, not push, so this step is not on
- * the back stack afterwards.
+ * after which we `replace` to the birthday step — replace, not push, so this
+ * step is not on the back stack afterwards.
  */
 export default function OnboardingNameScreen() {
   const { dictionary: t } = useLocale();
@@ -63,7 +63,9 @@ export default function OnboardingNameScreen() {
       // Feed the same cache the rest of the app reads, so Home/Profile show the
       // name immediately without a refetch.
       queryClient.setQueryData(["me"], updated);
-      router.replace("/");
+      // Дальше — шаг с датой рождения (правка владельца 2026-08-20). replace,
+      // а не push: имя уже сохранено, и возвращаться к этому шагу незачем.
+      router.replace("/onboarding/birthday");
     } catch (err) {
       const reason = classifyProfileSaveFailure(err);
       const f = t.profile.edit.failure;

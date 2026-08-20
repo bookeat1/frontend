@@ -16,7 +16,16 @@ const t = getDictionary();
  *
  * Серая карточка со скруглением 24: квадратная фотография заведения 64x64
  * слева, название над КРУПНОЙ строкой «когда», пилюля статуса в правом
- * верхнем углу, ниже две строки с иконками — число гостей и адрес.
+ * верхнем углу, под разделительной линией — адрес и число гостей.
+ *
+ * Перерисована по макету 3z0f6dgev4HMwBAHPjTjPo, node 3053:10113 (правка
+ * владельца 2026-08-20): добавлена линия под шапкой, а факты встали в ОДНУ
+ * строку вместо столбика и уменьшились до 12/20 в сером #595959.
+ *
+ * Карточка одна и та же для активных броней и для истории — так в макете и так
+ * сказал владелец. Поэтому пилюля статуса рисуется ВСЕГДА: в активных бронях
+ * статус это главное, ради чего человек открывает вкладку, а прятать его в
+ * истории значило бы делать две разные карточки из одной.
  *
  * Ни названия, ни фотографии, ни адреса в ответе `GET /bookings` нет — он
  * несёт только `restaurant_id` (см. комментарий к `BookingPage` в
@@ -89,23 +98,26 @@ export function BookingListCard({
         <BookingStatusPill status={booking.status} size="compact" />
       </View>
 
+      <View style={styles.divider} />
+
+      {/* Адрес и гости в одну строку, адрес первым — как в макете. Строка
+          переносится (flexWrap), а не обрезается: длинный алматинский адрес
+          на узком экране иначе съедал бы число гостей. */}
       <View style={styles.facts}>
+        {address ? (
+          <View style={styles.fact}>
+            <MapPin size={FACT_ICON_SIZE} color={FACT_ICON_COLOR} weight="regular" />
+            <Text style={styles.factText} numberOfLines={1}>
+              {address}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.fact}>
           <User size={FACT_ICON_SIZE} color={FACT_ICON_COLOR} weight="regular" />
           <Text style={styles.factText} numberOfLines={1}>
             {guests}
           </Text>
         </View>
-        {address ? (
-          <View style={styles.fact}>
-            <MapPin size={FACT_ICON_SIZE} color={FACT_ICON_COLOR} weight="regular" />
-            {/* Адрес — единственная строка карточки, которой позволено занять
-                две: в Алматы это «проспект Аль-Фараби, 128В, БЦ Esentai». */}
-            <Text style={styles.factText} numberOfLines={2}>
-              {address}
-            </Text>
-          </View>
-        ) : null}
       </View>
     </Pressable>
   );
@@ -120,10 +132,11 @@ const FACT_ICON_COLOR = colors.text.muted;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.background.screen,
+    backgroundColor: colors.background.subtle,
     borderRadius: radius.bookingCard,
     padding: spacing.lg,
-    gap: spacing.lg,
+    // Просвет 12 между шапкой, линией и фактами (node 3053:10138).
+    gap: spacing.md,
   },
   pressed: {
     opacity: 0.9,
@@ -161,17 +174,29 @@ const styles = StyleSheet.create({
     ...typography.titleLg,
     color: colors.text.primary,
   },
+  // Линия во всю ширину карточки (node 3073:11372).
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border.control,
+  },
   facts: {
-    gap: spacing.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.md,
   },
   fact: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    flexShrink: 1,
   },
   factText: {
-    ...typography.body,
-    color: colors.text.primary,
+    // 12/20 из макета: факты стали подписью, а не основным текстом — главное
+    // в карточке это дата, и она набрана 20 pt.
+    ...typography.caption,
+    lineHeight: 20,
+    color: colors.text.navInactive,
     flexShrink: 1,
   },
 });

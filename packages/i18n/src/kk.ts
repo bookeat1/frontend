@@ -866,6 +866,9 @@ export const kk: LocaleOverride<Dictionary> = {
     mapNoCoordinates: "Орында координаттар көрсетілмеген",
 
     chat: "Чат",
+    backToHome: "Басты бетке",
+    openMenu: "Мәзір",
+    cancelSectionTitle: "Болдырмағыңыз келе ме?",
     cancelBooking: "Бронды бас тарту",
     cancelDialogTitle: "Бронды бас тарту керек пе?",
     cancelFreeNoMoney: "Сіз ештеңе төлемедіңіз, сондықтан бас тарту тегін.",
@@ -1043,6 +1046,14 @@ export const kk: LocaleOverride<Dictionary> = {
     },
   },
   onboarding: {
+    birthday: {
+      title: "Туған күніңізді көрсетіңіз",
+      day: "КК",
+      month: "АА",
+      year: "ЖЖЖЖ",
+      save: "Жалғастыру",
+      saving: "Сақталуда…",
+    },
     name: {
       title: "Атыңыз кім?",
       subtitle: "Аты броньдарда қолданылады — онсыз әрі қарай жүру мүмкін емес",

@@ -1,4 +1,4 @@
-import { colors, spacing } from "@bookeat/design-tokens";
+import { colors, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet } from "react-native";
@@ -46,7 +46,7 @@ export function FavoriteButton({
     >
       <Heart
         size={24}
-        weight="fill"
+        weight={isFavorite ? "fill" : "regular"}
         color={isFavorite ? colors.brand.favorite : colors.text.onDark}
       />
     </Pressable>
@@ -54,21 +54,24 @@ export function FavoriteButton({
 }
 
 const styles = StyleSheet.create({
+  // Круглая полупрозрачная подложка 32x32 из макета (node 3053:8506):
+  // rgba(255,255,255,0.2). Раньше сердечко лежало на фотографии голым, и его
+  // читаемость держалась на тени; подложка решает ту же задачу честнее и
+  // совпадает с макетом.
+  //
+  // Нативного размытия под ней НЕТ намеренно: на Android и iOS до 26 его не
+  // существует, и половина устройств увидела бы серый круг вместо стеклянного.
+  // Полупрозрачная заливка выглядит одинаково везде.
   button: {
     position: "absolute",
     top: spacing.md,
     right: spacing.md,
-    // 24 glyph + hitSlop 10 = 44 in every direction, per the touch-target rule.
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.overlay.photoControl,
     alignItems: "center",
     justifyContent: "center",
-    // The heart sits on an unpredictable photo; a soft drop shadow is what
-    // keeps a white heart visible over a bright dish.
-    shadowColor: colors.overlay.scrim,
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
   },
   pressed: {
     opacity: 0.7,

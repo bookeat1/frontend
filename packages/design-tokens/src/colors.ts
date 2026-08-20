@@ -21,6 +21,14 @@ export const colors = {
     muted: "#A5A5A5",
     /** Slightly darker muted tone used for chip labels in search results. */
     mutedStrong: "#7D7D7D",
+    /**
+     * Подпись чипа-метки ВНУТРИ карточки — #96272C (Figma
+     * 3z0f6dgev4HMwBAHPjTjPo, node 3053:8540). Тёмная бордовая, а не
+     * `brand.primary` (#B33036): на светлой бордовой подложке чипа сам
+     * фирменный цвет даёт слишком низкий контраст, и макет называет именно
+     * этот, более тёмный оттенок.
+     */
+    brand: "#96272C",
     /** Подпись под заголовком экрана — тёмная, не приглушённая. Отдельный
      * токен, потому что в макете это #171717, а не общий text.primary
      * (#1B1B1B): оттенки соседние, но макет называет именно этот. */
@@ -29,6 +37,10 @@ export const colors = {
     strong: "#000000",
     /** Text placed directly over photos/scrim. */
     onDark: "#FFFFFF",
+    /** Подпись месяца под числом на кадре афиши (node 3053:8888) — #E2E2E2.
+     * Приглушённо-белая: месяц вторичен рядом с числом, но всё ещё лежит на
+     * фотографии, где обычный серый нечитаем. */
+    onPhotoMuted: "#E2E2E2",
     /** Text on the brand-colored primary button. */
     onBrand: "#FFFFFF",
     /**
@@ -46,8 +58,27 @@ export const colors = {
     surface: "#FFFFFF",
     /** Neutral pill chip background (hours, price, menu tag chips). */
     chip: "#F1F1F1",
+    /**
+     * Приглушённая подложка блока внутри белого экрана — #F8F8F8 (в макетах
+     * это переменная `background/subtle`): карточка брони, вторичная кнопка,
+     * дорожка переключателя вкладок. Светлее фона экрана (#F5F5F5), потому что
+     * лежит НА белом, а не под ним.
+     */
+    subtle: "#F8F8F8",
     /** Slightly different chip background used on the search bar + filter row. */
     chipAlt: "#F3F2F2",
+    /**
+     * Подложка чипа-метки внутри карточки — фирменный цвет с прозрачностью
+     * 15% (Figma node 3053:8539, rgba(179,48,54,0.15)). Заменил прежнюю серую
+     * подложку по правке владельца от 2026-08-20: «чипы сейчас все красного
+     * цвета».
+     *
+     * ЭТО НЕ ЧИП-ФИЛЬТР. Ряды «На сегодня / Рестораны / События» остались
+     * прежними: выбранный сплошной `brand.primary` с белым текстом,
+     * невыбранный светло-серый. Разный смысл — разный вид: фильтр это
+     * переключатель, а чип в карточке это подпись.
+     */
+    chipBrand: "rgba(179, 48, 54, 0.15)",
     /** Selected/active filter chip background. */
     chipActive: "#1B1B1B",
     /** "Посмотреть меню" secondary button fill. */
@@ -127,6 +158,19 @@ export const colors = {
   overlay: {
     /** Scrim behind icon buttons placed on photos (back/close). */
     scrim: "rgba(0, 0, 0, 0.55)",
+    /**
+     * Круглая подложка под кнопкой ПОВЕРХ фотографии — сердечко избранного
+     * (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3053:8506). Белая с прозрачностью
+     * 20%: держит иконку читаемой и на светлом блюде, и на тёмном зале.
+     */
+    photoControl: "rgba(255, 255, 255, 0.2)",
+    /**
+     * Затемнение под датой на кадре карточки афиши (node 3053:8885) —
+     * rgba(0,0,0,0.3). Легче общего `scrim`: под ним лежит только дата в две
+     * строки, а не текст во всю карточку, и более плотная заливка убила бы
+     * саму фотографию.
+     */
+    photoDate: "rgba(0, 0, 0, 0.3)",
     /** Bottom gradient over promo banner photos so caption text stays legible. */
     bannerGradientTop: "rgba(0, 0, 0, 0)",
     bannerGradientBottom: "rgba(0, 0, 0, 0.7)",

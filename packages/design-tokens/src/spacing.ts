@@ -55,6 +55,12 @@ export const radius = {
    * содержимого, и правка радиуса диалога не должна тянуть за собой статью.
    */
   contentBlock: 24,
+  /**
+   * Поле ввода даты рождения на регистрации (Figma
+   * 3z0f6dgev4HMwBAHPjTjPo, node 3073:11656 — `rounded-[16px]`). Отдельный
+   * токен, а не `media`: значение совпадает, но роль другая.
+   */
+  field: 16,
 } as const;
 
 /** Minimum hit-slop / touch target per accessibility hard rule (>= 44pt). */
