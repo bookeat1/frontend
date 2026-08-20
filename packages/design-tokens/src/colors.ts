@@ -82,25 +82,38 @@ export const colors = {
     navBarGlassTint: "rgba(255, 255, 255, 0.3)",
   },
   /**
-   * Booking-status pill (Figma file oPxXynSOY3PYhf3gkVR5Ps, section
-   * "Reservation Cancel Flow", node 488:9876). The design only draws two of
-   * them — amber "Pending Confirmation" and green "Confirmed". The remaining
-   * backend statuses (waitlist / arrived / completed / cancelled / no_show)
-   * have no node, so `neutral` and `negative` below are OURS, built from the
-   * existing palette (text.mutedStrong on background.chip, brand red on a
-   * pale red) rather than invented hues.
+   * Пилюля статуса брони. Значения сверены с макетом «Мои брони»
+   * (Figma dVjT37j984ErvOmzxlx29p, node 3004:6781): там нарисованы все три
+   * рабочих тона — pending (3004:6814), confirmed (3004:6830) и cancelled
+   * (3004:6872). До этого тона брались с экрана деталки брони
+   * (oPxXynSOY3PYhf3gkVR5Ps, node 488:9876), где красного не было вовсе и
+   * `negative` был нашим.
+   *
+   * `neutral` (статус `completed`) в макете по-прежнему НЕ нарисован — он
+   * остаётся нашим: приглушённый серый из существующей палитры.
+   *
+   * Осторожно: контраст текста к подложке у всех трёх тонов ниже 4.5:1
+   * (примерно 2.5–3.1:1 при кегле 12). Это значения макета, а не наш выбор;
+   * если понадобится доступный вариант — менять надо макет, а не только код.
    */
   status: {
-    /** pending / waitlist — "the venue has not answered yet". */
-    pendingText: "#C77700",
-    pendingSurface: "#FDF0DC",
-    /** confirmed / arrived — "the table is yours". */
-    positiveText: "#1E9E5A",
-    positiveSurface: "#E4F5EA",
-    /** cancelled / no_show — the booking is dead. */
-    negativeText: "#B33036",
-    negativeSurface: "#F7E4E5",
-    /** completed — over, but nothing went wrong. */
+    /** pending / waitlist — заведение ещё не ответило. */
+    pendingText: "#F67700",
+    pendingSurface: "#FFE4CC",
+    /** confirmed / arrived — стол ваш. */
+    positiveText: "#16A34A",
+    positiveSurface: "#D7F9E3",
+    /** cancelled / no_show — бронь мертва. */
+    negativeText: "#FF323B",
+    negativeSurface: "#FFE9EA",
+    /**
+     * Тот же смысл, но для текста на БЕЛОМ листе (сообщение об ошибке в
+     * диалоге отмены брони). Пилюльный #FF323B на белом даёт около 3.4:1 —
+     * ниже нормы для обычного текста, — поэтому тут остаётся тёмный красный,
+     * который раньше был `negativeText`.
+     */
+    negativeTextOnSurface: "#B33036",
+    /** completed — визит закончился, и ничего не сломалось. */
     neutralText: "#7D7D7D",
     neutralSurface: "#F1F1F1",
   },

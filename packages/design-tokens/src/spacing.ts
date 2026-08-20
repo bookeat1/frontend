@@ -36,6 +36,13 @@ export const radius = {
   avatar: 18,
   /** Confirmation dialog sheet. */
   dialog: 24,
+  /**
+   * Карточка брони в списке «Мои брони» (Figma dVjT37j984ErvOmzxlx29p,
+   * node 3004:6807 — `rounded-[24px]`). Отдельный токен, а не `dialog`:
+   * значение совпадает, но роль другая, и диалог не должен тянуть за собой
+   * карточку списка, если один из двух радиусов поменяют.
+   */
+  bookingCard: 24,
   /** Photo inside a horizontally scrolling Explore card (restaurant, dish,
    * event). Measured on `design-ref/screen-explore.png`: the corner curve of
    * the event photo runs 15px at 1:1 frame scale. */
@@ -71,6 +78,11 @@ export const controlHeight = {
   mapPreview: 208,
   /** Status pill height — 32 tall with 12/6 padding in the design. */
   statusPill: 32,
+  /**
+   * Квадратная фотография заведения в строке «Мои брони»
+   * (node 3004:6810) — 64x64 со скруглением `radius.card` (20).
+   */
+  bookingVenueThumb: 64,
   /** Explore card pills: the red time-slot pill on a restaurant card and the
    * grey tag chip on an event card are both 28 tall
    * (`design-ref/screen-explore.png`). They are inside a horizontally
