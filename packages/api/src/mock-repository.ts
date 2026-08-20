@@ -1,5 +1,6 @@
 import {
   cuisines,
+  guideCategories,
   guideCollection,
   guideCollections,
   homePromotions,
@@ -28,6 +29,7 @@ import type {
   FavoriteItem,
   FavoriteItems,
   FavoriteKind,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -197,6 +199,13 @@ export class MockRestaurantRepository implements RestaurantRepository {
   /** The mock's editorial collections (cards only). An empty list is a real
    * answer; here the fixtures always carry a couple so the «Статьи» list and
    * strip are exercisable with no backend. */
+  /** Рубрики гастрогида. В моке их четыре, чтобы сетку было видно; на проде
+   * ручка отдаёт пустой список, и экран сетку не рисует. */
+  async getGuideCategories(): Promise<GuideCategory[]> {
+    await this.simulateNetwork();
+    return guideCategories();
+  }
+
   async getGuideCollections(): Promise<GuideCollection[]> {
     await this.simulateNetwork();
     return guideCollections();

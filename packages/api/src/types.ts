@@ -846,6 +846,26 @@ export function favoriteEventKey(event: {
 }
 
 /**
+ * Рубрика гастрогида (`GET /gastroguide/categories`) — плитка сетки «Подборки»
+ * на экране гастрогида. Ровно то, что отдаёт гостевой ответ бэкенда
+ * (`categoryResponse`): идентификатор, слаг, название и порядковый номер.
+ *
+ * ВНИМАНИЕ, ПРОБЕЛ В КОНТРАКТЕ: у рубрики на гостевом чтении НЕТ ни картинки,
+ * ни подписи, хотя макет рисует плитку с фотографией и подзаголовком. Поэтому
+ * поля тут нет — вымышленной обложке взяться неоткуда, плитка рисует
+ * стандартную плашку «фото нет». Появится поле у бэкенда — добавится и сюда.
+ */
+export interface GuideCategory {
+  /** Слаг — им же коллекция помечена в `categorySlugs`, поэтому он и ключ, и
+   * связь между рубрикой и подборками. */
+  slug: string;
+  title: string;
+  /** Порядок, заданный редакцией. Список приходит отсортированным, поле
+   * оставлено, чтобы клиент с кэшем мог пересортировать сам. */
+  position: number;
+}
+
+/**
  * One editorial collection of venues — the guest-facing «Статьи» feature, which
  * maps to the backend's GASTROGUIDE (`GET /gastroguide/collections`). This is
  * the LIST shape (card): the venues themselves are only on the detail read

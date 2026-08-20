@@ -117,7 +117,10 @@ export const kk: LocaleOverride<Dictionary> = {
     notFoundTitle: "Топтама табылмады",
     notFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Тізімге оралып, басқасын таңдаңыз.",
-    card: (title: string, author: string) => `${title}, ${author}`,
+    card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
+    guideHeadline: "Дәм туралы таласпайтын қаланың гастрогиді",
+    rubricsTitle: "Топтамалар",
+    rubricFilter: (title: string) => `«${title}» айдарының топтамаларын көрсету`,
     openVenue: (name: string) => `«${name}» ашу`,
   },
   notifications: {

@@ -11,6 +11,7 @@ import {
   mapBooking,
   mapEventSummary,
   mapFavoriteItems,
+  mapGuideCategories,
   mapGuideCollections,
   mapGuideCollectionDetail,
   mapHomePromos,
@@ -29,6 +30,7 @@ import {
   type ApiEventListItem,
   type ApiFavoriteItems,
   type ApiFeedItem,
+  type ApiGuideCategory,
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
   type ApiMenuItem,
@@ -58,6 +60,7 @@ import type {
   EventQuery,
   FavoriteItems,
   FavoriteKind,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -358,6 +361,18 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    * list only needs the cards, so this returns the mapped `items` and drops the
    * paging (the strip and screen show the first page). Public, no session.
    */
+  /**
+   * GET /gastroguide/categories — рубрики гастрогида. Конверт тут НЕ
+   * страничный: ручка отдаёт просто `{items: [...]}` без total/page, в отличие
+   * от списка подборок.
+   */
+  async getGuideCategories(): Promise<GuideCategory[]> {
+    const body = await this.client.get<{ items?: ApiGuideCategory[] | null }>(
+      "/gastroguide/categories",
+    );
+    return mapGuideCategories(body.items);
+  }
+
   async getGuideCollections(): Promise<GuideCollection[]> {
     const page = await this.client.get<ApiPage<ApiGuideCollection>>("/gastroguide/collections");
     return mapGuideCollections(page.items);

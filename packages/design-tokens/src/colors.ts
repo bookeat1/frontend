@@ -141,6 +141,13 @@ export const colors = {
      * the picture still reads as a picture.
      */
     headerScrim: "rgba(0, 0, 0, 0.45)",
+    /**
+     * Затемнение поверх фотографии в шапке гастрогида (макет
+     * dVjT37j984ErvOmzxlx29p, node 1099:6802 — `rgba(0,0,0,0.3)`). Легче, чем
+     * `headerScrim` (0.45): на этом кадре светлый только верх, и заголовок в
+     * 24 pt читается уже при 30 %.
+     */
+    guideHeroScrim: "rgba(0, 0, 0, 0.3)",
     /** Page dots over the Explore hero carousel (design-ref/screen-explore.png):
      * the current page is a solid white capsule, the rest are dimmed dots. */
     carouselDot: "rgba(255, 255, 255, 0.55)",

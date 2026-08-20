@@ -18,6 +18,13 @@ interface FlowHeaderProps {
   /** Optional trailing control, e.g. "Очистить" on the pre-order screen. Wins
    * over `onClose` when both are given. */
   trailing?: React.ReactNode;
+  /**
+   * `onDark` — шапка стоит ПОВЕРХ фотографии (гастрогид, макет 1100:7075):
+   * подложка прозрачная, надпись и стрелка белые. Проп добавлен, чтобы не
+   * заводить вторую шапку на 56 pt: раскладка, центровка длинного русского
+   * заголовка и размеры целей нажатия у них общие.
+   */
+  tone?: "onSurface" | "onDark";
 }
 
 /**
@@ -27,15 +34,25 @@ interface FlowHeaderProps {
  * ("Забронировать столик") shrinks to two lines instead of pushing the buttons
  * off screen at 360px.
  */
-export function FlowHeader({ title, onBack, onClose, trailing }: FlowHeaderProps) {
+export function FlowHeader({ title, onBack, onClose, trailing, tone = "onSurface" }: FlowHeaderProps) {
+  const onDark = tone === "onDark";
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, onDark && styles.rootOnDark]}>
       {onBack ? (
-        <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={onBack} />
+        <IconButton
+          icon={ArrowLeft}
+          tone={onDark ? "onDark" : undefined}
+          accessibilityLabel={t.a11y.backButton}
+          onPress={onBack}
+        />
       ) : (
         <View style={styles.slot} />
       )}
-      <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
+      <Text
+        style={[styles.title, onDark && styles.titleOnDark]}
+        numberOfLines={2}
+        accessibilityRole="header"
+      >
         {title}
       </Text>
       <View style={styles.trailing}>
@@ -57,11 +74,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.background.surface,
   },
+  rootOnDark: {
+    backgroundColor: "transparent",
+  },
   title: {
     ...typography.titleMd,
     color: colors.text.primary,
     flex: 1,
     textAlign: "center",
+  },
+  titleOnDark: {
+    color: colors.text.onDark,
   },
   slot: {
     width: hitSlop.minTouchTarget,
