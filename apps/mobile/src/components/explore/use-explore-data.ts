@@ -3,7 +3,6 @@ import type {
   Cuisine,
   EventPage,
   EventSummary,
-  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -236,24 +235,6 @@ export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
     queryKey: ["guide", "collections"],
     queryFn: () => repository.getGuideCollections(),
     // Editorial content changes on a slow timescale, like the rest of Home.
-    staleTime: 5 * 60_000,
-  });
-}
-
-/**
- * РЕАЛЬНЫЕ ДАННЫЕ — рубрики гастрогида.
- * GET /gastroguide/categories (RestaurantRepository.getGuideCategories).
- *
- * Отдельный ключ от подборок: это другая ручка и другая форма. Пустой ответ —
- * нормальный ответ, и именно он приходит с прода: сетка рубрик тогда не
- * рисуется вовсе. Отказ этой ручки НЕ роняет экран — сетка второстепенна,
- * главное на экране это подборки.
- */
-export function useGuideCategories(): UseQueryResult<GuideCategory[]> {
-  const repository = useRepository();
-  return useQuery<GuideCategory[]>({
-    queryKey: ["guide", "categories"],
-    queryFn: () => repository.getGuideCategories(),
     staleTime: 5 * 60_000,
   });
 }

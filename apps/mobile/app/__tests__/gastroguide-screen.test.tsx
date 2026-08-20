@@ -1,4 +1,4 @@
-import type { GuideCategory, GuideCollection, RestaurantRepository } from "@bookeat/api";
+import type { GuideCollection, RestaurantRepository } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -11,12 +11,14 @@ import ArticlesScreen from "../articles";
  * Экран гастрогида. Проверяем ровно то, что ломается тихо и что было решено
  * осознанно:
  *
- *   1. Сетка рубрик НЕ рисуется, когда `GET /gastroguide/categories` отдал
- *      пусто — это состояние прода, и плитки-заглушки в нём недопустимы.
- *   2. Рубрика показывается только с подборками за ней и работает отбором.
- *   3. На карточке подборки НЕТ сердечка: избранного для подборок на бэкенде
+ *   1. Плитка сетки ОТКРЫВАЕТ подборку, а не отбирает список под собой
+ *      (прежний отбор был нашей выдумкой и снят после просмотра на устройстве).
+ *   2. Сетка и список кормятся одной ручкой подборок и не дублируют друг друга:
+ *      подборка с рубрикой — в сетке, без рубрики — карточкой ниже.
+ *   3. Подборка без обложки показывает стандартную плашку «фото нет».
+ *   4. На карточке подборки НЕТ сердечка: избранного для подборок на бэкенде
  *      не существует, а инертное сердечко из этого приложения уже убирали.
- *   4. Стрелка «назад» появляется только когда есть куда возвращаться:
+ *   5. Стрелка «назад» появляется только когда есть куда возвращаться:
  *      `/articles` — корень вкладки.
  */
 
@@ -74,28 +76,32 @@ vi.mock("../../src/components/articles/GuideHero", async () => {
 });
 
 const getGuideCollections = vi.fn<() => Promise<GuideCollection[]>>();
-const getGuideCategories = vi.fn<() => Promise<GuideCategory[]>>();
 
 vi.mock("../../src/lib/repository", () => ({
-  useRepository: () =>
-    ({ getGuideCollections, getGuideCategories }) as unknown as RestaurantRepository,
+  useRepository: () => ({ getGuideCollections }) as unknown as RestaurantRepository,
 }));
 
-function collection(slug: string, title: string, categorySlugs: string[]): GuideCollection {
+function collection(
+  slug: string,
+  title: string,
+  categorySlugs: string[],
+  coverImageUrl: string | null = "https://cdn.example/cover.jpg",
+): GuideCollection {
   return {
     slug,
     title,
     subtitle: "",
     description: "Описание подборки",
-    coverImageUrl: null,
+    coverImageUrl,
     venueCount: 2,
     categorySlugs,
   };
 }
 
+/** Как на проде: часть подборок помечена рубрикой (сетка), часть — нет (список). */
 const COLLECTIONS = [
-  collection("etno-almaty", "Этно Алматы", ["etno"]),
-  collection("coffee-city", "Кофейный город", ["coffee"]),
+  collection("kazakh-cuisine", "Казахская кухня", ["kazakh-cuisine-rubric"]),
+  collection("almaty-longread", "Сейчас Алматы ест невероятно хорошо", []),
 ];
 
 function renderScreen() {
@@ -108,61 +114,70 @@ function renderScreen() {
 }
 
 beforeEach(() => {
+  push.mockClear();
   canGoBack = false;
   getGuideCollections.mockResolvedValue(COLLECTIONS);
-  getGuideCategories.mockResolvedValue([]);
 });
 
 describe("экран гастрогида", () => {
-  it("без рубрик показывает подборки и не рисует ни одной плитки рубрики", async () => {
+  it("нажатие на плитку сетки открывает подборку, а не отбирает список", async () => {
+    const user = userEvent.setup();
+
     renderScreen();
 
-    await waitFor(() => expect(screen.getByText("Этно Алматы")).toBeTruthy());
-    expect(screen.getByText("Кофейный город")).toBeTruthy();
-    expect(screen.queryByLabelText(t.articles.rubricFilter("Этно"))).toBeNull();
+    const tile = await screen.findByLabelText(
+      t.articles.card("Казахская кухня", "Описание подборки"),
+    );
+    await user.click(tile);
+
+    expect(push).toHaveBeenCalledWith("/articles/kazakh-cuisine");
+    // Список под сеткой на месте: отбора больше нет.
+    expect(screen.getByText("Сейчас Алматы ест невероятно хорошо")).toBeTruthy();
   });
 
-  it("рисует только те рубрики, за которыми есть подборки", async () => {
-    getGuideCategories.mockResolvedValue([
-      { slug: "etno", title: "Этно", position: 1 },
-      { slug: "wine", title: "Вино", position: 2 },
+  it("подборка показывается один раз: с рубрикой в сетке, без рубрики карточкой ниже", async () => {
+    renderScreen();
+
+    await waitFor(() => expect(screen.getAllByText("Казахская кухня").length).toBe(1));
+    expect(screen.getAllByText("Сейчас Алматы ест невероятно хорошо").length).toBe(1);
+  });
+
+  it("подборка без обложки рисует плашку «фото нет», а не пустой кадр", async () => {
+    getGuideCollections.mockResolvedValue([
+      collection("kazakh-cuisine", "Казахская кухня", ["kazakh-cuisine-rubric"], null),
+    ]);
+
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByText("Казахская кухня")).toBeTruthy());
+    expect(screen.getAllByTestId("photo-placeholder").length).toBe(1);
+    expect(screen.queryAllByTestId("photo-image").length).toBe(0);
+  });
+
+  it("все подборки без рубрик остаются списком, сетка не рисуется", async () => {
+    getGuideCollections.mockResolvedValue([
+      collection("almaty-longread", "Сейчас Алматы ест невероятно хорошо", []),
     ]);
 
     renderScreen();
 
     await waitFor(() =>
-      expect(screen.getByLabelText(t.articles.rubricFilter("Этно"))).toBeTruthy(),
+      expect(screen.getByText("Сейчас Алматы ест невероятно хорошо")).toBeTruthy(),
     );
-    expect(screen.queryByLabelText(t.articles.rubricFilter("Вино"))).toBeNull();
-  });
-
-  it("нажатие на рубрику оставляет её подборки, повторное нажатие возвращает все", async () => {
-    getGuideCategories.mockResolvedValue([{ slug: "etno", title: "Этно", position: 1 }]);
-    const user = userEvent.setup();
-
-    renderScreen();
-
-    const tile = await screen.findByLabelText(t.articles.rubricFilter("Этно"));
-    await user.click(tile);
-
-    await waitFor(() => expect(screen.queryByText("Кофейный город")).toBeNull());
-    expect(screen.getByText("Этно Алматы")).toBeTruthy();
-
-    await user.click(screen.getByLabelText(t.articles.rubricFilter("Этно")));
-    await waitFor(() => expect(screen.getByText("Кофейный город")).toBeTruthy());
+    expect(screen.getAllByText("Сейчас Алматы ест невероятно хорошо").length).toBe(1);
   });
 
   it("на карточке подборки нет сердечка", async () => {
     renderScreen();
 
-    await waitFor(() => expect(screen.getByText("Этно Алматы")).toBeTruthy());
-    expect(screen.queryByLabelText(t.explore.favoriteAdd("Этно Алматы"))).toBeNull();
-    expect(screen.queryByLabelText(t.explore.favoriteRemove("Этно Алматы"))).toBeNull();
+    await waitFor(() => expect(screen.getByText("Казахская кухня")).toBeTruthy());
+    expect(screen.queryByLabelText(t.explore.favoriteAdd("Казахская кухня"))).toBeNull();
+    expect(screen.queryByLabelText(t.explore.favoriteRemove("Казахская кухня"))).toBeNull();
   });
 
   it("на корне вкладки стрелки «назад» нет, а при заходе из другого экрана она есть", async () => {
     renderScreen();
-    await waitFor(() => expect(screen.getByText("Этно Алматы")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Казахская кухня")).toBeTruthy());
     expect(screen.queryByLabelText(t.a11y.backButton)).toBeNull();
 
     canGoBack = true;

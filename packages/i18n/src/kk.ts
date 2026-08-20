@@ -119,8 +119,7 @@ export const kk: LocaleOverride<Dictionary> = {
       "Ол жарияланымнан алынған болуы мүмкін. Тізімге оралып, басқасын таңдаңыз.",
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
     guideHeadline: "Дәм туралы таласпайтын қаланың гастрогиді",
-    rubricsTitle: "Топтамалар",
-    rubricFilter: (title: string) => `«${title}» айдарының топтамаларын көрсету`,
+    collectionsTitle: "Топтамалар",
     openVenue: (name: string) => `«${name}» ашу`,
   },
   notifications: {
