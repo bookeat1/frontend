@@ -3,6 +3,8 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapEventSummary,
   mapGuideCollectionDetail,
+  mapGuideRouteDetail,
+  mapGuideRoutes,
   mapHomePromos,
   mapMenuHighlights,
   mapRestaurantDetail,
@@ -476,5 +478,52 @@ describe("блок подборки: событие/акция внутри «С
     expect(mapGuideCollectionDetail(unknown).venues[0].highlight).toBeNull();
     const noID = detail({ highlight: { kind: "event", title: "X" } });
     expect(mapGuideCollectionDetail(noID).venues[0].highlight).toBeNull();
+  });
+});
+
+describe("гастропрогулки", () => {
+  it("остановки сортируются по position, а не по порядку в ответе", () => {
+    const detail = mapGuideRouteDetail({
+      slug: "classic-almaty-tour",
+      title: "Классический тур",
+      points: [
+        { id: "p2", position: 2, kind: "place", title: "Вторая" },
+        { id: "p1", position: 1, kind: "restaurant", title: "Первая" },
+      ],
+    });
+
+    expect(detail.points.map((p) => p.title)).toEqual(["Первая", "Вторая"]);
+  });
+
+  it("заведение без id не становится карточкой: открывать было бы нечего", () => {
+    const detail = mapGuideRouteDetail({
+      slug: "r",
+      title: "Маршрут",
+      points: [{ id: "p1", position: 1, kind: "restaurant", title: "Точка", venue: { name: "Без id" } }],
+    });
+
+    expect(detail.points[0].venue).toBeNull();
+    // Сама остановка при этом на месте: маршрут не сокращается молча.
+    expect(detail.points).toHaveLength(1);
+  });
+
+  it("неизвестный kind считается местом, а точка остаётся в маршруте", () => {
+    const detail = mapGuideRouteDetail({
+      slug: "r",
+      title: "Маршрут",
+      points: [{ id: "p1", position: 1, kind: "museum", title: "Музей" }],
+    });
+
+    expect(detail.points[0].kind).toBe("place");
+    expect(detail.points).toHaveLength(1);
+  });
+
+  it("маршрут без слага выкидывается из списка: открывать его нечем", () => {
+    const routes = mapGuideRoutes([
+      { slug: "", title: "Безымянный" },
+      { slug: "ok", title: "Нормальный" },
+    ]);
+
+    expect(routes.map((r) => r.slug)).toEqual(["ok"]);
   });
 });

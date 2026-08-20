@@ -13,6 +13,8 @@ import {
   mapFavoriteItems,
   mapGuideCategories,
   mapGuideCollections,
+  mapGuideRoutes,
+  mapGuideRouteDetail,
   mapGuideCollectionDetail,
   mapHomePromos,
   mapMenuSections,
@@ -33,6 +35,8 @@ import {
   type ApiGuideCategory,
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
+  type ApiGuideRoute,
+  type ApiGuideRouteDetail,
   type ApiMenuItem,
   type ApiNotificationFeed,
   type ApiPayment,
@@ -63,6 +67,8 @@ import type {
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
+  GuideRoute,
+  GuideRouteDetail,
   HomePromo,
   MenuSection,
   NotificationFeed,
@@ -388,6 +394,29 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       `/gastroguide/collections/${encodeURIComponent(slug)}`,
     );
     return mapGuideCollectionDetail(api);
+  }
+
+  /**
+   * GET /gastroguide/routes?city=<город> — гастропрогулки. Город ОБЯЗАТЕЛЕН:
+   * без него ручка отвечает 422 `city_required`, поэтому вызывающий хук
+   * гейтится на разрешённом городе, как лента акций.
+   */
+  async getGuideRoutes(city: string): Promise<GuideRoute[]> {
+    const page = await this.client.get<ApiPage<ApiGuideRoute>>("/gastroguide/routes", { city });
+    return mapGuideRoutes(page.items);
+  }
+
+  /**
+   * GET /gastroguide/routes/:slug — маршрут с остановками. Неизвестный слаг,
+   * черновик и снятый с публикации маршрут дают одинаковый 404 (так устроена
+   * ручка), он приходит сюда как RepositoryError c `isNotFound`, и экран
+   * показывает честное «не найдено». Гостевая ручка, сессия не нужна.
+   */
+  async getGuideRoute(slug: string): Promise<GuideRouteDetail> {
+    const api = await this.client.get<ApiGuideRouteDetail>(
+      `/gastroguide/routes/${encodeURIComponent(slug)}`,
+    );
+    return mapGuideRouteDetail(api);
   }
 
   /* --- reservation flow --- */
