@@ -123,7 +123,9 @@ const styles = StyleSheet.create({
   },
   error: {
     ...typography.body,
-    color: colors.status.negativeText,
+    // Не `negativeText`: тот подобран под цветную подложку пилюли и на белом
+    // читается плохо. См. комментарий у токена.
+    color: colors.status.negativeTextOnSurface,
   },
   actions: {
     gap: spacing.sm,

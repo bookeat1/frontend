@@ -10,7 +10,7 @@ import { BookingListCard } from "../src/components/booking/BookingListCard";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { CalendarBlank, Clock } from "../src/components/icons";
-import { SegmentedTabs } from "../src/components/SegmentedTabs";
+import { PillTabs } from "../src/components/PillTabs";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
@@ -192,7 +192,7 @@ export default function MyBookingsScreen() {
         ) : (
           <>
             <View style={styles.tabs}>
-              <SegmentedTabs
+              <PillTabs
                 labels={[t.myBookings.tabActive, t.myBookings.tabHistory]}
                 activeIndex={activeTab}
                 onChange={setActiveTab}
@@ -221,15 +221,18 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  // Отступы из макета (node 3004:6800): поля 16 по краям, 24 между
+  // переключателем и первой карточкой (8 снизу от вкладок + 16 сверху у
+  // списка), 12 между карточками.
   tabs: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
     backgroundColor: colors.background.surface,
   },
   list: {
-    padding: spacing.md,
-    gap: spacing.sm,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   listEmpty: {
     flexGrow: 1,

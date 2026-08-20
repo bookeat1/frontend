@@ -7,11 +7,14 @@ import { StyleSheet, Text, View } from "react-native";
 const t = getDictionary();
 
 /**
- * The status pill under the venue name on the Reservation detail screen
- * (Figma node 488:9876).
+ * The status pill: under the venue name on the Reservation detail screen
+ * (Figma node 488:9876, `size="default"`) and in the top-right corner of a
+ * row of «Мои брони» (Figma dVjT37j984ErvOmzxlx29p, node 3004:6814,
+ * `size="compact"` — 28 tall, 12pt label, вместо 32 и 14pt).
  *
- * The design only draws two of them — amber "Pending Confirmation" and green
- * "Confirmed". Every other status the backend can return
+ * The reservation design only draws two of them — amber "Pending Confirmation"
+ * and green "Confirmed"; «Мои брони» adds the red "Cancelled". Every other
+ * status the backend can return
  * (`BookingStatus` = the exact set in domain.BookingStatus) still has to
  * render as SOMETHING, so the remaining five are mapped onto the same three
  * token pairs by meaning:
@@ -50,14 +53,32 @@ const TONE_STYLES: Record<StatusTone, { color: string; backgroundColor: string }
   neutral: { color: colors.status.neutralText, backgroundColor: colors.status.neutralSurface },
 };
 
-export function BookingStatusPill({ status }: { status: BookingStatus }) {
+/** Боковой отступ компактной пилюли (node 3004:6814) — 10, вне 4pt-шкалы,
+ * поэтому число живёт здесь, а не в `spacing`. */
+const COMPACT_PADDING_HORIZONTAL = 10;
+
+export function BookingStatusPill({
+  status,
+  size = "default",
+}: {
+  status: BookingStatus;
+  /** `compact` — вариант из списка броней. По умолчанию прежний размер, чтобы
+   * экран деталки брони остался нетронутым. */
+  size?: "default" | "compact";
+}) {
   const tone = TONE_STYLES[toneForStatus(status)];
   const label = t.booking.status[status];
+  const compact = size === "compact";
   return (
-    <View style={[styles.pill, { backgroundColor: tone.backgroundColor }]}>
+    <View
+      style={[styles.pill, compact && styles.pillCompact, { backgroundColor: tone.backgroundColor }]}
+    >
       {/* Read out as "Статус: Подтверждена" instead of a bare adjective. */}
       <Text
-        style={[styles.label, { color: tone.color }]}
+        style={[styles.label, compact && styles.labelCompact, { color: tone.color }]}
+        // Длинный русский статус переносится, а не обрезается: «Ждёт
+        // подтвержде…» — это не статус, это загадка.
+        numberOfLines={compact ? 2 : 1}
         accessibilityLabel={`${t.booking.statusLabel}: ${label}`}
       >
         {label}
@@ -78,8 +99,25 @@ const styles = StyleSheet.create({
     // the full card width on Android.
     alignSelf: "center",
   },
+  pillCompact: {
+    minHeight: controlHeight.compactPill,
+    paddingHorizontal: COMPACT_PADDING_HORIZONTAL,
+    paddingVertical: spacing.xs + spacing.xxs,
+    // В строке списка пилюля прижата к верхнему правому углу карточки, а не
+    // отцентрована по колонке, как на деталке.
+    alignSelf: "flex-start",
+    // Потолок ширины — единственное, что спасает строку на 360 px. В макете
+    // статус называется «Pending» (7 знаков), по-русски — «Ждёт
+    // подтверждения» (18). Без потолка пилюля забирает почти половину
+    // карточки, и на название заведения остаётся два слога. С ним подпись
+    // переносится на вторую строку, а название и дата остаются читаемыми.
+    maxWidth: "40%",
+  },
   label: {
     ...typography.labelSemiBold,
     textAlign: "center",
+  },
+  labelCompact: {
+    ...typography.captionMedium,
   },
 });
