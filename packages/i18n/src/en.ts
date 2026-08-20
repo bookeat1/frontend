@@ -842,6 +842,7 @@ export const en: LocaleOverride<Dictionary> = {
     contactWebsite: "Restaurant website",
     contactWhatsapp: "Message on WhatsApp",
     contactInstagram: "Restaurant Instagram",
+    contactPhone: "Call the restaurant",
     openInMaps: "Open in maps",
     openInMapsHint: "Your device's maps app will open",
     mapPlaceholderTitle: "Map preview unavailable",

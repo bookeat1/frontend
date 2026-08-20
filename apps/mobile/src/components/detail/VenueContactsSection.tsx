@@ -1,11 +1,11 @@
 import type { Restaurant } from "@bookeat/api";
-import { colors } from "@bookeat/design-tokens";
+import { spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Text, View } from "react-native";
 import { MapPreview } from "../booking/MapPreview";
-import { GlobeSimple, InstagramLogo, MapPin, Phone, WhatsappLogo } from "../icons";
-import { DetailInfoRow, detailStyles } from "./DetailBlocks";
+import { VenueAddressRow, VenuePhoneRow, VenueSocialLinks } from "../contacts/VenueContactLinks";
+import { detailStyles } from "./DetailBlocks";
 
 const t = getDictionary();
 
@@ -14,6 +14,10 @@ const t = getDictionary();
  *
  * Один компонент на оба экрана: до этого он лежал копией в `app/event/[id].tsx`
  * и в `app/promotion/[id].tsx`, и копии уже начали расходиться.
+ *
+ * Сами строки контактов — общие с экраном брони (`contacts/VenueContactLinks`),
+ * поэтому телефон отсюда звонит, WhatsApp пишет, а сайт открывается ровно так
+ * же, как из карточки брони. Раньше здесь лежали неинтерактивные `View`/`Text`.
  *
  * Блок исчезает целиком, а не показывает пустой заголовок:
  *  - заведение ещё не загрузилось (`restaurant === undefined` — запрос идёт
@@ -40,44 +44,15 @@ export function hasVenueContacts(restaurant: Restaurant | undefined): restaurant
 export function VenueContactsSection({ restaurant }: { restaurant: Restaurant | undefined }) {
   if (!hasVenueContacts(restaurant)) return null;
 
-  const { website, whatsapp, instagram } = restaurant.social ?? {};
-  const hasSocial = Boolean(website || whatsapp || instagram);
-
   return (
     <View style={detailStyles.section} testID="venue-contacts">
       <Text style={detailStyles.sectionTitle}>{t.restaurant.contacts}</Text>
 
-      {hasSocial ? (
-        <View style={detailStyles.socialRow}>
-          {website ? (
-            <View style={detailStyles.socialIcon}>
-              <GlobeSimple size={24} color={colors.text.primary} weight="regular" />
-            </View>
-          ) : null}
-          {whatsapp ? (
-            <View style={detailStyles.socialIcon}>
-              <WhatsappLogo size={24} color={colors.text.primary} weight="regular" />
-            </View>
-          ) : null}
-          {instagram ? (
-            <View style={detailStyles.socialIcon}>
-              <InstagramLogo size={24} color={colors.text.primary} weight="regular" />
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-
-      {restaurant.address ? (
-        <DetailInfoRow
-          icon={MapPin}
-          primary={restaurant.address}
-          secondary={restaurant.addressNote}
-        />
-      ) : null}
-
-      {restaurant.phone ? (
-        <DetailInfoRow icon={Phone} primary={restaurant.phone} secondary={t.restaurant.phoneLabel} />
-      ) : null}
+      {/* Просвет между иконками здесь 8, а не 12 как в брони, — так выверено по
+          макету 986:8940; поведение при этом общее. */}
+      <VenueSocialLinks social={restaurant.social} gap={spacing.sm} />
+      <VenueAddressRow restaurant={restaurant} />
+      <VenuePhoneRow restaurant={restaurant} />
 
       <MapPreview restaurant={restaurant} />
     </View>
