@@ -90,16 +90,16 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
               <Text style={styles.chipText}>{cuisineLabel}</Text>
             </View>
           ) : null}
-          <View style={styles.chip}>
-            {/* Числовой диапазон среднего чека («4 000–9 000 ₸»), когда бэкенд
-                его прислал. У большинства заведений его ещё нет — тогда откат на
-                символьную ступень (₸/₸₸/₸₸₸), тот же чип, тот же стиль. */}
-            <Text style={styles.chipText}>
-              {restaurant.priceRange
-                ? formatPriceRange(restaurant.priceRange)
-                : restaurant.priceLevel}
-            </Text>
-          </View>
+          {/* Средний чек ТОЛЬКО цифрами — «8 000–15 000 ₸» (правка владельца
+              2026-08-20). Символьная ступень (₸/₸₸/₸₸₸) больше не подставляется:
+              заведение без числового диапазона остаётся вовсе без чипа цены.
+              Иначе в одном списке цена написана на двух языках, и соседние
+              карточки невозможно сравнить глазами. */}
+          {restaurant.priceRange ? (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{formatPriceRange(restaurant.priceRange)}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </Pressable>
@@ -151,17 +151,21 @@ const styles = StyleSheet.create({
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xs,
+    // Просвет между метками 6 (макет 3053:8208); в шкале такого шага нет,
+    // поэтому он собран из существующих токенов, а не написан числом.
+    gap: spacing.xs + 2,
     marginTop: spacing.xxs,
   },
+  // Бордовая метка из макета 3053:8617: подложка фирменного цвета с
+  // прозрачностью 15%, поля 12/6, радиус-пилюля.
   chip: {
-    backgroundColor: colors.background.chipAlt,
+    backgroundColor: colors.background.chipBrand,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
   },
   chipText: {
     ...typography.captionMedium,
-    color: colors.text.mutedStrong,
+    color: colors.text.brand,
   },
 });

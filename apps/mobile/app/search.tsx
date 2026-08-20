@@ -9,7 +9,7 @@ import { DataErrorState } from "../src/components/DataErrorState";
 import { MagnifyingGlass } from "../src/components/icons";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { FilterChip } from "../src/components/FilterChip";
-import { RestaurantCard } from "../src/components/RestaurantCard";
+import { FavoriteRestaurantCard } from "../src/components/FavoriteRestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
 import { FilterButton } from "../src/components/search/FilterButton";
@@ -277,7 +277,7 @@ export default function SearchScreen() {
             data={items}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <RestaurantCard restaurant={item} onPress={openRestaurant} />
+              <FavoriteRestaurantCard restaurant={item} onPress={openRestaurant} />
             )}
             ItemSeparatorComponent={() => <View style={{ height: spacing.xxl }} />}
             contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}

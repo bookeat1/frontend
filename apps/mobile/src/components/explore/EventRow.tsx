@@ -1,5 +1,5 @@
 import type { EventSummary } from "@bookeat/api";
-import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -10,15 +10,27 @@ import { TagChips } from "../TagChips";
 const t = getDictionary();
 
 /**
- * One row of the vertical «Афиша» list — REAL DATA (GET /events).
+ * Карточка афиши в листинге на главной — РЕАЛЬНЫЕ ДАННЫЕ (GET /events).
  *
- * Layout: a left date block (число + месяц), the title with a «venue · time»
- * line, real `tags` chips under it, and a right thumbnail.
+ * Перерисована по макету 3z0f6dgev4HMwBAHPjTjPo, node 3053:8813 (правка
+ * владельца 2026-08-20). Было: маленькое число слева, текст, крохотная
+ * фотография справа. Стало: слева кадр 139x116 с фотографией, поверх неё
+ * затемнение и дата, справа название, строка «заведение · время» и метки.
  *
- * Tags are the venue's own labels ("Бранч", "Живая музыка"), now carried on the
- * event payload as a top-level `tags` array. The chip row hides itself when the
- * event has none (see TagChips) — no fabricated labels.
+ * ДАТА ЛЕЖИТ НА ФОТОГРАФИИ, а не рядом с ней: карточка отвечает на вопрос
+ * «когда и где», и в новом макете число читается первым, укрупнившись с 24 до
+ * 32. Затемнение под ним обязательно — без него белая цифра тонет на светлом
+ * блюде.
+ *
+ * Метки — собственные теги заведения («Бранч», «Живая музыка»), они приходят
+ * в событии. Ряд меток прячется сам, когда их нет (см. TagChips): выдуманных
+ * подписей здесь не появляется.
  */
+
+/** Кадр с датой — 139x116 из макета (node 3053:8885). */
+const DATE_FRAME_WIDTH = 139;
+const DATE_FRAME_HEIGHT = 116;
+
 export function EventRow({
   event,
   onOpenEvent,
@@ -29,37 +41,50 @@ export function EventRow({
   const dateBlock = formatEventDateBlock(event.startsAt);
   const time = formatTime(event.startsAt);
   const venueName = event.restaurant.name || event.venue;
-  const subtitle = venueName && time ? `${venueName} · ${time}` : venueName || time;
 
   const body = (
     <>
-      {dateBlock ? (
-        <View style={styles.dateBlock}>
-          <Text style={styles.dateDay}>{dateBlock.day}</Text>
-          <Text style={styles.dateMonth}>{dateBlock.month}</Text>
-        </View>
-      ) : (
-        <View style={styles.dateBlock} />
-      )}
-
-      <View style={styles.text}>
-        <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
-          {event.title}
-        </Text>
-        {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
-            {subtitle}
-          </Text>
+      <View style={styles.cover}>
+        <PhotoView uri={event.coverImageUrl} style={styles.coverPhoto} decorative placeholderIconSize={24} />
+        {/* Затемнение и дата — отдельными слоями поверх снимка. Слой
+            затемнения не перехватывает касания: нажатие принадлежит всей
+            карточке. */}
+        <View style={styles.coverScrim} pointerEvents="none" />
+        {dateBlock ? (
+          <View style={styles.dateBlock} pointerEvents="none">
+            <Text style={styles.dateDay}>{dateBlock.day}</Text>
+            <Text style={styles.dateMonth}>{dateBlock.month}</Text>
+          </View>
         ) : null}
-        <TagChips tags={event.tags} />
       </View>
 
-      <PhotoView uri={event.coverImageUrl} style={styles.thumb} decorative placeholderIconSize={24} />
+      <View style={styles.text}>
+        <View style={styles.headline}>
+          <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
+            {event.title}
+          </Text>
+          {/* «Заведение · время» — три отдельных элемента, как в макете:
+              разделитель мельче самих подписей (12 против 14), поэтому строка
+              не склеивается в один Text. Точка появляется только когда есть
+              обе части, иначе подпись начиналась бы или кончалась точкой. */}
+          {venueName || time ? (
+            <View style={styles.meta}>
+              {venueName ? (
+                <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">
+                  {venueName}
+                </Text>
+              ) : null}
+              {venueName && time ? <Text style={styles.metaDot}>·</Text> : null}
+              {time ? <Text style={styles.metaText}>{time}</Text> : null}
+            </View>
+          ) : null}
+        </View>
+        <TagChips tags={event.tags} size="compact" />
+      </View>
     </>
   );
 
-  // Tapping a row opens the event's detail card (same target as the full «Афиша»
-  // list). Without an event id there is nowhere to go, so it stays a plain block.
+  // Без идентификатора события открывать нечего — карточка остаётся блоком.
   if (!event.id) {
     return <View style={styles.row}>{body}</View>;
   }
@@ -84,53 +109,78 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: spacing.lg,
     paddingHorizontal: spacing.lg,
-    minHeight: exploreLayout.eventThumb,
   },
   pressed: {
     opacity: 0.7,
   },
-  dateBlock: {
-    width: 44,
+  cover: {
+    width: DATE_FRAME_WIDTH,
+    height: DATE_FRAME_HEIGHT,
+    borderRadius: radius.card,
+    overflow: "hidden",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background.bannerPlaceholder,
   },
-  // Число даты — самый крупный элемент строки (макет 986:8697). Оно и есть
-  // ответ на вопрос «когда», ради которого человек смотрит на афишу, поэтому
-  // общий заголовочный кегль здесь мал: в ряду из трёх событий взгляд должен
-  // цепляться за числа, а не за названия.
+  coverPhoto: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  coverScrim: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: colors.overlay.photoDate,
+  },
+  dateBlock: {
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  // Число даты — 32/34 из макета: самый крупный элемент карточки.
   dateDay: {
     ...typography.titleLg,
-    fontSize: 24,
-    lineHeight: 28,
-    color: colors.text.primary,
+    fontSize: 32,
+    lineHeight: 34,
+    color: colors.text.onDark,
   },
   dateMonth: {
     ...typography.caption,
-    fontSize: 11,
+    fontSize: 10,
     lineHeight: 14,
-    letterSpacing: 0.4,
+    letterSpacing: 1,
     textTransform: "uppercase",
-    color: colors.text.muted,
+    color: colors.text.onPhotoMuted,
   },
   text: {
     flex: 1,
+    gap: spacing.sm,
+  },
+  headline: {
     gap: spacing.xxs,
-    // Воздух до фотографии: в макете текст не подходит к ней вплотную.
-    paddingRight: spacing.sm,
   },
   title: {
-    ...typography.titleSm,
-    color: colors.text.primary,
+    ...typography.itemName,
+    color: colors.text.strong,
   },
-  subtitle: {
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  metaText: {
     ...typography.body,
-    color: colors.text.muted,
+    color: colors.text.primary,
+    flexShrink: 1,
   },
-  thumb: {
-    width: exploreLayout.eventThumb,
-    height: exploreLayout.eventThumb,
-    borderRadius: radius.media,
-    backgroundColor: colors.background.bannerPlaceholder,
+  metaDot: {
+    ...typography.caption,
+    color: colors.text.primary,
   },
 });
