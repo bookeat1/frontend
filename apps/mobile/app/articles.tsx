@@ -5,19 +5,13 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { ArticleListCard } from "../src/components/articles/ArticleListCard";
-import { GuideCategoryGrid } from "../src/components/articles/GuideCategoryGrid";
+import { GuideCollectionGrid } from "../src/components/articles/GuideCollectionGrid";
+import { splitGuideCollections } from "../src/components/articles/guide-collections";
 import { GUIDE_HERO_CONTENT_HEIGHT, GuideHero } from "../src/components/articles/GuideHero";
-import {
-  categoriesWithCollections,
-  filterCollectionsByCategory,
-} from "../src/components/articles/guide-categories";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { SectionHeader } from "../src/components/explore/SectionCard";
-import {
-  useGuideCategories,
-  useGuideCollections,
-} from "../src/components/explore/use-explore-data";
+import { useGuideCollections } from "../src/components/explore/use-explore-data";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 
 const t = getDictionary();
@@ -25,17 +19,20 @@ const t = getDictionary();
 /**
  * «Гастрогид» — корень четвёртой вкладки (макет dVjT37j984ErvOmzxlx29p,
  * node 1099:6800). Сверху фотография города со слоганом, ниже один белый блок
- * «Подборки»: сетка рубрик и под ней карточки подборок
- * (`GET /gastroguide/collections`).
+ * «Подборки»: сетка плиток и под ней широкие карточки. И сетку, и карточки
+ * кормит ОДНА ручка `GET /gastroguide/collections`, одна подборка показывается
+ * ровно один раз — правило дележа лежит в `guide-collections.ts`.
  *
  * ЧЕГО ЗДЕСЬ НЕТ И ПОЧЕМУ:
  *
  *  - «Гастропрогулки» (вторая секция макета, node 1099:6892) не собрана вовсе:
  *    сущности «маршрут» в бэкенде нет ни в каком виде, наполнять карточки
  *    нечем, а нарисованные от руки маршруты были бы выдумкой;
- *  - сетка рубрик рисуется только когда `GET /gastroguide/categories` что-то
- *    вернул. На проде на 2026-08-20 она отдаёт пустой список, поэтому сетки
- *    сейчас не видно — и это правильнее плиток-заглушек;
+ *  - рубрики (`GET /gastroguide/categories`) этот экран больше не запрашивает:
+ *    их DTO несёт только `{id, slug, title, position}`, плитка из него выходила
+ *    без фотографии, а нажатие на неё отбирало список — обоих поведений в
+ *    продукте быть не должно. Ручка и метод репозитория живы, просто не нужны
+ *    здесь;
  *  - сердечка на карточке подборки нет: избранное на бэкенде знает про
  *    заведения, события и акции, но не про подборки (см. ArticleListCard).
  *
@@ -53,34 +50,12 @@ export default function ArticlesScreen() {
   const router = useRouter();
 
   const collectionsQuery = useGuideCollections();
-  const categoriesQuery = useGuideCategories();
-  const [pickedSlug, setPickedSlug] = useState<string | null>(null);
   const [heroBehindStatusBar, setHeroBehindStatusBar] = useState(true);
 
   const collections = useMemo(() => collectionsQuery.data ?? [], [collectionsQuery.data]);
-
-  // Рубрики без подборок не показываем: плитка, отбирающая пустоту, — мёртвый
-  // контрол. Отказ ручки рубрик экран не роняет, сетка просто не появляется.
-  const rubrics = useMemo(
-    () => categoriesWithCollections(categoriesQuery.data ?? [], collections),
-    [categoriesQuery.data, collections],
-  );
-
-  // Выбранная рубрика ВЫВОДИТСЯ, а не хранится как есть: подборки могли
-  // обновиться и рубрика исчезнуть, и тогда отбор по ней оставил бы гостя с
-  // пустым экраном без объяснений.
-  const selectedSlug = rubrics.some((rubric) => rubric.slug === pickedSlug) ? pickedSlug : null;
-
-  const visibleCollections = useMemo(
-    () => filterCollectionsByCategory(collections, selectedSlug),
-    [collections, selectedSlug],
-  );
+  const { rubrics, articles } = useMemo(() => splitGuideCollections(collections), [collections]);
 
   const openArticle = useCallback((slug: string) => router.push(`/articles/${slug}`), [router]);
-  const toggleRubric = useCallback(
-    (slug: string) => setPickedSlug((current) => (current === slug ? null : slug)),
-    [],
-  );
 
   // Стрелка «назад» только там, где есть куда возвращаться: на корне вкладки
   // (гость пришёл по нижней навигации) её быть не должно, при заходе с главной
@@ -105,15 +80,11 @@ export default function ArticlesScreen() {
         <GuideHero title={t.nav.gastroguide} headline={t.articles.guideHeadline} onBack={onBack} />
 
         <View style={styles.section}>
-          <SectionHeader title={t.articles.rubricsTitle} size="large" />
+          <SectionHeader title={t.articles.collectionsTitle} size="large" />
 
           {rubrics.length > 0 ? (
             <View style={styles.gridWrap}>
-              <GuideCategoryGrid
-                categories={rubrics}
-                selectedSlug={selectedSlug}
-                onToggle={toggleRubric}
-              />
+              <GuideCollectionGrid collections={rubrics} onPress={openArticle} />
             </View>
           ) : null}
 
@@ -125,15 +96,15 @@ export default function ArticlesScreen() {
               onRetry={() => void collectionsQuery.refetch()}
               compact
             />
-          ) : visibleCollections.length === 0 ? (
+          ) : collections.length === 0 ? (
             <EmptyState
               title={t.articles.emptyTitle}
               description={t.articles.emptyDescription}
               compact
             />
-          ) : (
+          ) : articles.length > 0 ? (
             <View style={styles.list}>
-              {visibleCollections.map((collection) => (
+              {articles.map((collection) => (
                 <ArticleListCard
                   key={collection.slug}
                   collection={collection}
@@ -141,7 +112,7 @@ export default function ArticlesScreen() {
                 />
               ))}
             </View>
-          )}
+          ) : null}
         </View>
       </ScrollView>
 
