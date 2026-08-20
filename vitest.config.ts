@@ -36,6 +36,10 @@ export default defineConfig({
     // which surfaces as "Invalid hook call", not as a missing package.
     // `dedupe` alone does not fix it here; the aliases below do.
     dedupe: ["react", "react-dom", "react-native-web"],
+    // `.web.js` ПЕРЕД `.js`: платформенные расширения умеет Metro, но не Vite,
+    // а web-сборка react-native-svg собрана именно так (`elements.web.js`).
+    // Остальной список — дефолт Vite, он обязан остаться прежним.
+    extensions: [".web.js", ".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json"],
     alias: [
       { find: /^react$/, replacement: rootCopyOf("react") },
       { find: /^react-dom$/, replacement: rootCopyOf("react-dom") },
@@ -54,6 +58,14 @@ export default defineConfig({
       // Exact match only: `react-native-web`, `react-native-svg` and
       // `react-native-safe-area-context` must NOT be rewritten.
       { find: /^react-native$/, replacement: here("./test/stubs/react-native.ts") },
+      // react-native-svg отдаёт Node НЕтранспилированный TypeScript (на нём
+      // и падал импорт до появления заглушки Phosphor). Web-сборка того же
+      // пакета — обычный JS и настоящий <svg>, поэтому иконки в тестах
+      // рисуются по-настоящему, а не подменяются заглушкой.
+      {
+        find: /^react-native-svg$/,
+        replacement: `${rootCopyOf("react-native-svg")}/lib/module/ReactNativeSVG.web.js`,
+      },
       // The admin panel's own path alias, the same one Next.js resolves from
       // apps/admin/tsconfig.json ("@/*" -> "./src/*"). Without it every admin
       // component is unimportable from a test.

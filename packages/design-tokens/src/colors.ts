@@ -31,6 +31,13 @@ export const colors = {
     onDark: "#FFFFFF",
     /** Text on the brand-colored primary button. */
     onBrand: "#FFFFFF",
+    /**
+     * Неактивная вкладка нижней навигации — #595959 из макета
+     * (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3039:23943). Отдельный токен, а не
+     * `muted` (#A5A5A5): на полупрозрачной плашке светло-серая подпись в 10 pt
+     * читается хуже, макет рисует именно этот, более тёмный серый.
+     */
+    navInactive: "#595959",
   },
   background: {
     /** Screen background behind white surface cards. */
@@ -66,6 +73,13 @@ export const colors = {
      * staying opaque enough for the 10pt tab labels.
      */
     navBarFallback: "rgba(255, 255, 255, 0.94)",
+    /**
+     * Заливка плашки нижней навигации из макета: белый 30 %. Работает только
+     * поверх НАСТОЯЩЕГО размытия (iOS 26, `expo-glass-effect`) — там это
+     * оттенок стекла. Без размытия столько прозрачности означает подпись
+     * поверх голой фотографии, поэтому используется `navBarFallback`.
+     */
+    navBarGlassTint: "rgba(255, 255, 255, 0.3)",
   },
   /**
    * Booking-status pill (Figma file oPxXynSOY3PYhf3gkVR5Ps, section
@@ -118,6 +132,15 @@ export const colors = {
      * the current page is a solid white capsule, the rest are dimmed dots. */
     carouselDot: "rgba(255, 255, 255, 0.55)",
     carouselDotActive: "#FFFFFF",
+    /**
+     * Вертикальный градиент под плавающей плашкой навигации
+     * (`linear-gradient(rgba(239,239,239,0), rgba(255,255,255,0.65))` в
+     * макете): контент, уезжающий под плашку, гасится к низу экрана.
+     */
+    navBarGradientTop: "rgba(239, 239, 239, 0)",
+    navBarGradientBottom: "rgba(255, 255, 255, 0.65)",
+    /** Рамка плашки навигации — `1px solid rgba(255,255,255,0.14)`. */
+    navBarBorder: "rgba(255, 255, 255, 0.14)",
   },
 } as const;
 

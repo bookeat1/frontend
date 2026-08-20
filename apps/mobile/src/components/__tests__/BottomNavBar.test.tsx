@@ -30,9 +30,31 @@ beforeEach(() => {
   replace.mockClear();
 });
 
-/** Цвет глифа внутри вкладки — так подложка-заглушка иконок отдаёт свой цвет. */
-function iconColorOf(label: string): string | null | undefined {
-  return screen.getByRole("tab", { name: label }).querySelector("span")?.getAttribute("data-color");
+/** <svg> глифа внутри вкладки. Иконки рисуются по-настоящему, без заглушки. */
+function iconOf(label: string): SVGElement {
+  const svg = screen.getByRole("tab", { name: label }).querySelector("svg");
+  if (!svg) throw new Error(`У вкладки «${label}» нет глифа`);
+  return svg;
+}
+
+/**
+ * Цвета ВСЕХ линий глифа.
+ *
+ * Именно всех, а не первой: в выгрузке из Figma цвет был зашит в каждую
+ * линию отдельно, и забытая линия осталась бы серой на активной вкладке.
+ * У «Мои брони» обложка приехала заливкой, а не обводкой, поэтому читаем и
+ * `fill`.
+ */
+function iconColorsOf(label: string): string[] {
+  return [...iconOf(label).querySelectorAll("circle, ellipse, path")].map(
+    (shape) => shape.getAttribute("stroke") ?? shape.getAttribute("fill") ?? "",
+  );
+}
+
+function uniqueColorOf(label: string): string {
+  const colorsUsed = new Set(iconColorsOf(label));
+  expect(colorsUsed.size).toBe(1);
+  return [...colorsUsed][0];
 }
 
 describe("activeNavKey", () => {
@@ -69,6 +91,29 @@ describe("BottomNavBar", () => {
     ]);
   });
 
+  it("рисует глифы из макета (Solar Linear), а не подобия из Phosphor", () => {
+    render(<BottomNavBar />);
+
+    // Каждый глиф узнаётся по своей геометрии из выгрузки Figma: круг радиуса
+    // 8 у компаса, 7.6 у лупы, залитая обложка у блокнота, точка радиуса 1.6
+    // на карте, эллипс-плечи у пользователя. Подобия из Phosphor, которые тут
+    // стояли раньше, ни одной из этих примет не имеют.
+    expect(iconOf("Главная").querySelector('circle[r="8"]')).not.toBeNull();
+    expect(iconOf("Поиск").querySelector('circle[r="7.6"]')).not.toBeNull();
+    expect(iconOf("Мои брони").querySelector("path[fill]")).not.toBeNull();
+    expect(iconOf("Гастрогид").querySelector('circle[r="1.6"]')).not.toBeNull();
+    expect(iconOf("Профиль").querySelector("ellipse")).not.toBeNull();
+  });
+
+  it("красит КАЖДУЮ линию глифа, а не первую: у блокнота их шесть", () => {
+    pathname = "/bookings";
+    render(<BottomNavBar />);
+
+    const strokes = iconColorsOf("Мои брони");
+    expect(strokes.length).toBe(6);
+    expect(strokes.every((color) => color === colors.brand.primary)).toBe(true);
+  });
+
   it("четвёртая вкладка ведёт на /articles и заменяет маршрут, а не кладёт его в стек", () => {
     render(<BottomNavBar />);
 
@@ -85,8 +130,8 @@ describe("BottomNavBar", () => {
     // свойство, react-native-web (на нём крутится этот прогон) его в
     // aria-selected не переносит, а красный/серый — то же самое, что видит
     // гость.
-    expect(iconColorOf("Гастрогид")).toBe(colors.brand.primary);
-    expect(iconColorOf("Главная")).toBe(colors.text.muted);
+    expect(uniqueColorOf("Гастрогид")).toBe(colors.brand.primary);
+    expect(uniqueColorOf("Главная")).toBe(colors.text.navInactive);
   });
 
   it("повторное нажатие на активную вкладку никуда не ведёт", () => {
