@@ -112,7 +112,10 @@ export const en: LocaleOverride<Dictionary> = {
     browseVenues: "Browse venues",
     notFoundTitle: "Collection not found",
     notFoundDescription: "It may have been unpublished. Go back to the list and pick another.",
-    card: (title: string, author: string) => `${title}, ${author}`,
+    card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
+    guideHeadline: "A gastroguide to the city where nobody argues about taste",
+    rubricsTitle: "Collections",
+    rubricFilter: (title: string) => `Show collections in ${title}`,
     openVenue: (name: string) => `Open ${name}`,
   },
   notifications: {

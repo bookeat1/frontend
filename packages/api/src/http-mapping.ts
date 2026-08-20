@@ -24,6 +24,7 @@ import type {
   Cuisine,
   DayAvailability,
   EventSummary,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   GuideCollectionVenue,
@@ -1069,6 +1070,34 @@ export function mapHomePromos(items: ApiFeedItem[] | null | undefined): HomeProm
  * venue block carries only `address` (no social links / instagram), so the
  * detail mapper never invents one.
  */
+/** Гостевой ответ `GET /gastroguide/categories` — четыре поля, ни картинки,
+ * ни подзаголовка (см. `GuideCategory`). */
+export interface ApiGuideCategory {
+  id?: string;
+  slug?: string;
+  title?: string;
+  position?: number;
+}
+
+/**
+ * Рубрики гастрогида. Рубрика без слага или без названия выбрасывается: слаг —
+ * связь с `category_slugs` подборки и ключ списка, а плитка без подписи не
+ * говорит гостю ничего. Порядок задаёт редакция (`position`); сортируем сами,
+ * чтобы порядок не зависел от того, в каком виде страница пришла из кэша.
+ */
+export function mapGuideCategories(
+  items: ApiGuideCategory[] | null | undefined,
+): GuideCategory[] {
+  return (items ?? [])
+    .map((api) => ({
+      slug: text(api.slug),
+      title: text(api.title),
+      position: typeof api.position === "number" ? api.position : 0,
+    }))
+    .filter((c) => c.slug !== "" && c.title !== "")
+    .sort((a, b) => a.position - b.position);
+}
+
 export interface ApiGuideCollection {
   slug?: string;
   title?: string;

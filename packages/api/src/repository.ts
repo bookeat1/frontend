@@ -13,6 +13,7 @@ import type {
   EventQuery,
   FavoriteItems,
   FavoriteKind,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -107,6 +108,16 @@ export interface RestaurantRepository {
    * shows a calm empty state rather than an error. There is no author field on
    * the wire — the byline is a UI constant.
    */
+  /**
+   * Рубрики гастрогида (`GET /gastroguide/categories`) — сетка «Подборки» над
+   * списком коллекций.
+   *
+   * Публичное чтение без сессии. Пустой массив — нормальный ответ («рубрик не
+   * завели»), и именно он приходит с прода на 2026-08-20: экран в этом случае
+   * не рисует сетку вовсе, а не показывает пустые плитки.
+   */
+  getGuideCategories(): Promise<GuideCategory[]>;
+
   getGuideCollections(): Promise<GuideCollection[]>;
 
   /**

@@ -30,19 +30,30 @@ export function SectionHeader({
   title,
   onSeeAll,
   showChevron = true,
+  size = "compact",
 }: {
   title: string;
   onSeeAll?: () => void;
   /** «Выберите кухню» carries no chevron in the design; pass false to drop it.
    * Ignored when `onSeeAll` is set — a navigable header always shows its caret. */
   showChevron?: boolean;
+  /**
+   * Кегль заголовка. `compact` (17) — главная, где таких заголовков пять
+   * подряд и крупные забирали больше места, чем карточки под ними. `large`
+   * (20/28) — экран гастрогида, где секция на экране одна и макет
+   * (dVjT37j984ErvOmzxlx29p, node 1099:6835) рисует именно 20. Проп добавлен,
+   * а не сделан второй компонент: строка «заголовок + шеврон» одна и та же,
+   * различие ровно в одном значении.
+   */
+  size?: "compact" | "large";
 }) {
   const caret = <CaretRight size={24} color={colors.text.mutedStrong} weight="regular" />;
+  const titleStyle = [styles.title, size === "large" && styles.titleLarge];
 
   if (!onSeeAll) {
     return (
       <View style={styles.header}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={titleStyle} numberOfLines={2}>
           {title}
         </Text>
         {showChevron ? caret : null}
@@ -59,7 +70,7 @@ export function SectionHeader({
     >
       {/* Long Russian titles wrap to a second line instead of pushing the
           chevron off a 360-wide screen. */}
-      <Text style={styles.title} numberOfLines={2}>
+      <Text style={titleStyle} numberOfLines={2}>
         {title}
       </Text>
       {caret}
@@ -91,6 +102,9 @@ const styles = StyleSheet.create({
     ...typography.titleSection,
     color: colors.text.primary,
     flexShrink: 1,
+  },
+  titleLarge: {
+    ...typography.titleLg,
   },
   pressed: {
     opacity: 0.7,

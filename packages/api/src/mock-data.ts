@@ -11,6 +11,7 @@ import type {
   Cuisine,
   DayOfWeek,
   EventSummary,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   HomePromo,
@@ -328,6 +329,24 @@ function guideCollectionsData(): GuideCollectionDetail[] {
       },
     ],
   },
+  ];
+}
+
+/**
+ * Рубрики гастрогида для офлайн-мока. Слаги совпадают с `categorySlugs`
+ * подборок выше — иначе сетка рубрик в моке вела бы в пустоту, а на живом
+ * бэкенде связь именно такая. Третья рубрика намеренно НЕ помечает ни одну
+ * подборку: так видно поведение плитки, за которой ничего не стоит.
+ *
+ * На проде эта ручка отдаёт пустой список (рубрик не завели) — мок держит
+ * данные, чтобы сетку вообще можно было увидеть без бэкенда.
+ */
+export function guideCategories(): GuideCategory[] {
+  return [
+    { slug: "evropeyskaya", title: "Европейская", position: 1 },
+    { slug: "italyanskaya", title: "Итальянская", position: 2 },
+    { slug: "avtorskaya", title: "Авторская", position: 3 },
+    { slug: "zavtraki", title: "Завтраки", position: 4 },
   ];
 }
 
