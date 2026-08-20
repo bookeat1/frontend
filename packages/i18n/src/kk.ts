@@ -849,6 +849,7 @@ export const kk: LocaleOverride<Dictionary> = {
     contactWebsite: "Орын сайты",
     contactWhatsapp: "WhatsApp-қа жазу",
     contactInstagram: "Орын Instagram-ы",
+    contactPhone: "Орынға қоңырау шалу",
     openInMaps: "Картадан ашу",
     openInMapsHint: "Құрылғыдағы карта қосымшасы ашылады",
     mapPlaceholderTitle: "Карта алдын ала қарауы қолжетімсіз",
