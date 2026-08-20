@@ -4,8 +4,9 @@ import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GuideVenueBlock } from "../../src/components/articles/GuideVenueBlock";
+import { detailStyles } from "../../src/components/detail/DetailBlocks";
 import { useGuideCollection } from "../../src/components/explore/use-explore-data";
 import { ArrowLeft, Export } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
@@ -18,18 +19,20 @@ const t = getDictionary();
 /**
  * «Статья» — one editorial collection's detail (GET /gastroguide/collections/:slug).
  *
- * Hero cover, title, a «Подборка» chip, the collection description, then the
- * ordered venue blocks. Tapping a venue block opens that restaurant
- * (`/restaurant/:restaurantId`) — the same nav the catalog uses.
+ * Раскладка макета 1001:11921: серый лист экрана, на нём белые блоки с
+ * просветом 8 — тот же приём, что на карточке афиши и акции, поэтому фон,
+ * шапка и белый «пол» берутся из общего `detailStyles`, а не пишутся заново.
+ *
+ * Блок 1 — обложка (240, поля по 8, радиус 24), название, подпись «От BookEat»
+ * и чип «Подборка»; у блока скруглён только НИЗ, потому что сверху он
+ * продолжает белую шапку. Дальше — блоки заведений (`GuideVenueBlock`).
+ * Tapping a venue block opens that restaurant (`/restaurant/:restaurantId`) —
+ * the same nav the catalog uses.
  *
  * The header carries «Поделиться» — the design draws a heart beside it, but
  * there is no favourite-an-article endpoint, and an inert heart is a lie about
  * what the app remembers (see the fake-favorite-heart bug in team-memory). It
  * lands the day the backend can store it.
- *
- * Order under the cover follows the design (node 1001:11921): title, then the
- * byline («От BookEat» — a constant, the payload has no author), then the
- * «Подборка» chip.
  *
  * States: an unknown slug is a 404 → an honest "not found" (no retry, there is
  * nothing to re-fetch that would exist); any other failure → a retryable error.
@@ -37,6 +40,7 @@ const t = getDictionary();
 export default function ArticleDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const query = useGuideCollection(slug);
   const collection = query.data;
 
@@ -58,8 +62,8 @@ export default function ArticleDetailScreen() {
   };
 
   const header = (right?: React.ReactNode) => (
-    <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-      <View style={styles.header}>
+    <SafeAreaView edges={["top"]} style={detailStyles.headerSafeArea}>
+      <View style={detailStyles.header}>
         <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={() => router.back()} />
         {right}
       </View>
@@ -68,7 +72,7 @@ export default function ArticleDetailScreen() {
 
   if (query.isLoading) {
     return (
-      <View style={styles.root}>
+      <View style={detailStyles.root}>
         {header()}
         <LoadingState title={t.articles.loading} />
       </View>
@@ -77,7 +81,7 @@ export default function ArticleDetailScreen() {
 
   if (notFound) {
     return (
-      <View style={styles.root}>
+      <View style={detailStyles.root}>
         {header()}
         <EmptyState title={t.articles.notFoundTitle} description={t.articles.notFoundDescription} />
       </View>
@@ -86,7 +90,7 @@ export default function ArticleDetailScreen() {
 
   if (query.isError || !collection) {
     return (
-      <View style={styles.root}>
+      <View style={detailStyles.root}>
         {header()}
         <ErrorState
           title={t.articles.errorTitle}
@@ -98,7 +102,7 @@ export default function ArticleDetailScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={detailStyles.root}>
       {header(
         <IconButton
           icon={Export}
@@ -107,34 +111,48 @@ export default function ArticleDetailScreen() {
         />,
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.coverContainer}>
-          <PhotoView
-            uri={collection.coverImageUrl}
-            style={styles.cover}
-            transition={200}
-            priority="high"
-            placeholderIconSize={40}
-            decorative
-          />
-        </View>
-
-        <View style={styles.summary}>
-          <Text style={styles.title}>{collection.title}</Text>
-          <Text style={styles.author}>{t.explore.articleAuthorDefault}</Text>
-          <View style={styles.chip}>
-            <Text style={styles.chipLabel}>{t.articles.collectionChip}</Text>
+      <ScrollView
+        style={detailStyles.scrollFloor}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={detailStyles.scrollContent}
+      >
+        <View style={styles.summaryBlock}>
+          <View style={styles.coverContainer}>
+            <PhotoView
+              uri={collection.coverImageUrl}
+              style={styles.cover}
+              transition={200}
+              priority="high"
+              placeholderIconSize={40}
+              decorative
+            />
           </View>
-          {collection.subtitle ? <Text style={styles.subtitle}>{collection.subtitle}</Text> : null}
-          {collection.description ? <Text style={styles.description}>{collection.description}</Text> : null}
+
+          <View style={styles.summary}>
+            {/* Название и подпись стоят вплотную (просвет 2): это одна
+                надпись из двух строк, а не два независимых пункта. */}
+            <View style={styles.titleGroup}>
+              <Text style={styles.title}>{collection.title}</Text>
+              <Text style={styles.author}>{t.explore.articleAuthorDefault}</Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipLabel}>{t.articles.collectionChip}</Text>
+            </View>
+            {/* Подзаголовка и описания в макете нет: там весь текст статьи
+                разложен по блокам заведений. У живых подборок он лежит именно
+                в этих полях, и прятать его значило бы потерять единственную
+                копию редакционного текста. */}
+            {collection.subtitle ? <Text style={styles.subtitle}>{collection.subtitle}</Text> : null}
+            {collection.description ? (
+              <Text style={styles.description}>{collection.description}</Text>
+            ) : null}
+          </View>
         </View>
 
         {collection.venues.length > 0 ? (
-          <View style={styles.venues}>
-            {collection.venues.map((venue) => (
-              <GuideVenueBlock key={venue.restaurantId} venue={venue} onPress={openRestaurant} />
-            ))}
-          </View>
+          collection.venues.map((venue) => (
+            <GuideVenueBlock key={venue.restaurantId} venue={venue} onPress={openRestaurant} />
+          ))
         ) : (
           // Статья про места вне каталога заканчивается текстом, и без этой
           // кнопки — в никуда. Подставлять сюда «похожие заведения» я не стал:
@@ -148,37 +166,34 @@ export default function ArticleDetailScreen() {
             />
           </View>
         )}
+
+        {/* Белый «пол» под последним блоком — отдельный элемент, а не нижний
+            отступ контейнера: отступ красился бы серым, и под последней
+            карточкой снова тянулась бы серая полоса. В макете последний блок
+            уходит под индикатор «домой» (34), поэтому высота = нижняя
+            безопасная зона; на устройствах без неё остаётся 16, чтобы блок не
+            упирался в самый край экрана. */}
+        <View style={[styles.bottomFloor, { height: Math.max(insets.bottom, spacing.lg) }]} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background.surface,
-  },
   browse: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
   },
-  headerSafeArea: {
+  // Обложка, название, подпись и чип — ОДИН белый блок. Скруглён только низ:
+  // сверху он продолжает белую шапку экрана без просвета.
+  summaryBlock: {
     backgroundColor: colors.background.surface,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    height: 56,
-    paddingHorizontal: spacing.sm,
-  },
-  scrollContent: {
-    paddingBottom: spacing.xxxl,
-    gap: spacing.sm,
+    borderBottomLeftRadius: radius.contentBlock,
+    borderBottomRightRadius: radius.contentBlock,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
   coverContainer: {
-    padding: spacing.sm,
-    backgroundColor: colors.background.surface,
+    paddingHorizontal: spacing.sm,
   },
   cover: {
     width: "100%",
@@ -187,13 +202,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chip,
   },
   summary: {
-    backgroundColor: colors.background.surface,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    gap: spacing.sm,
+    gap: spacing.lg,
+  },
+  titleGroup: {
+    gap: spacing.xxs,
   },
   title: {
     ...typography.titleLg,
+    color: colors.text.primary,
+  },
+  author: {
+    ...typography.body,
     color: colors.text.primary,
   },
   chip: {
@@ -201,15 +221,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chip,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   chipLabel: {
-    ...typography.captionMedium,
-    color: colors.text.mutedStrong,
-  },
-  author: {
-    ...typography.body,
-    color: colors.text.muted,
+    ...typography.labelMedium,
+    color: colors.text.primary,
   },
   subtitle: {
     ...typography.body,
@@ -219,8 +235,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
   },
-  venues: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+  bottomFloor: {
+    // Съедает просвет 8, который контейнер ставит между блоками: последний
+    // блок должен переходить в белый «пол» без серой полоски.
+    marginTop: -spacing.sm,
+    backgroundColor: colors.background.surface,
   },
 });
