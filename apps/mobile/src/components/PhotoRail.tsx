@@ -33,6 +33,14 @@ interface PhotoRailProps {
   /** Corner radius of a frame — the hero radius on a detail screen, the
    * smaller media radius inside a card. */
   borderRadius?: number;
+  /**
+   * Точки под лентой. По умолчанию есть — на карточке афиши/акции кадр во всю
+   * ширину, и без них не видно, что фотографий несколько.
+   *
+   * Блок статьи (node 1001:11921) их не рисует: там кадр уже контейнера, край
+   * следующей фотографии виден сам по себе и говорит то же самое.
+   */
+  showDots?: boolean;
 }
 
 /**
@@ -57,6 +65,7 @@ export function PhotoRail({
   inset = spacing.sm,
   style,
   borderRadius = radius.photoHero,
+  showDots = true,
 }: PhotoRailProps) {
   const { width } = useWindowDimensions();
   const photos = uris.filter((uri): uri is string => typeof uri === "string" && uri.trim() !== "");
@@ -120,15 +129,17 @@ export function PhotoRail({
         ))}
       </ScrollView>
 
-      <View
-        style={styles.dots}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        {photos.map((uri, i) => (
-          <View key={`${uri}-dot-${i}`} style={[styles.dot, i === index && styles.dotActive]} />
-        ))}
-      </View>
+      {showDots ? (
+        <View
+          style={styles.dots}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          {photos.map((uri, i) => (
+            <View key={`${uri}-dot-${i}`} style={[styles.dot, i === index && styles.dotActive]} />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -47,6 +47,14 @@ export const radius = {
    * event). Measured on `design-ref/screen-explore.png`: the corner curve of
    * the event photo runs 15px at 1:1 frame scale. */
   media: 16,
+  /**
+   * Белый блок содержимого на сером листе экрана «Статьи»
+   * (Figma dVjT37j984ErvOmzxlx29p, node 1001:11921 — `rounded-[24px]` у блока
+   * заведения, `rounded-b-[24px]` у шапки статьи). Отдельный токен, а не
+   * `dialog`/`photoHero`: значение совпадает, но роль другая — это лист
+   * содержимого, и правка радиуса диалога не должна тянуть за собой статью.
+   */
+  contentBlock: 24,
 } as const;
 
 /** Minimum hit-slop / touch target per accessibility hard rule (>= 44pt). */

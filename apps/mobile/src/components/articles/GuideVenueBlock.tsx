@@ -8,6 +8,12 @@ import { PhotoRail } from "../PhotoRail";
 
 const t = getDictionary();
 
+/** Ширина и высота одной фотографии в ленте блока — 256x148 из макета
+ * (node 1001:11921, `Menu Item Image`). Кадр УЖЕ карточки (343 при экране 375),
+ * поэтому вторая фотография видна краем и лента читается как лента. */
+export const GUIDE_PHOTO_WIDTH = 256;
+export const GUIDE_PHOTO_HEIGHT = 148;
+
 /** Instagram as the design writes it — «@handle», not a URL. The venue field
  * holds whatever the cabinet typed: a full link, a bare handle, sometimes with
  * a trailing slash. Everything before the handle is dropped and one «@» is put
@@ -23,6 +29,28 @@ export function instagramHandle(raw: string): string {
     .replace(/^@/, "")
     .split(/[/?#]/)[0];
   return handle ? `@${handle}` : "";
+}
+
+/**
+ * Нижняя подпись блока — «адрес · @инстаграм» (node 1013:13736).
+ *
+ * В макете это ТРИ отдельных элемента: адрес и ник в 14/20, а точка между ними
+ * в 12/16, — поэтому строка не склеивается в один `Text`, и разделитель здесь
+ * решается данными, а не пробелами в шаблоне. Точка появляется только когда
+ * есть обе части: иначе подпись начиналась бы или кончалась висящей точкой.
+ */
+export function guideFooterParts(
+  address: string,
+  instagram: string,
+): { address: string; handle: string; separator: boolean } | null {
+  const trimmedAddress = address.trim();
+  const handle = instagramHandle(instagram);
+  if (!trimmedAddress && !handle) return null;
+  return {
+    address: trimmedAddress,
+    handle,
+    separator: Boolean(trimmedAddress) && Boolean(handle),
+  };
 }
 
 /**
@@ -49,14 +77,9 @@ export function GuideVenueBlock({
   venue: GuideCollectionVenue;
   onPress: (restaurantId: string) => void;
 }) {
-  // The rail is inside a padded card, so the screen width is not the frame
-  // width — measure the block's own content box instead of re-deriving every
-  // enclosing padding here (the article screen's, and this block's).
-  const [contentWidth, setContentWidth] = React.useState(0);
-
   const highlight = venue.highlight;
   const photos = highlight ? [highlight.coverImageUrl, ...highlight.images] : [venue.imageUrl];
-  const handle = instagramHandle(venue.instagram);
+  const footer = guideFooterParts(venue.address, venue.instagram);
 
   return (
     <Pressable
@@ -64,43 +87,52 @@ export function GuideVenueBlock({
       accessibilityLabel={t.articles.openVenue(venue.name)}
       onPress={() => onPress(venue.restaurantId)}
       style={({ pressed }) => [styles.block, pressed && styles.pressed]}
-      onLayout={(e) =>
-        setContentWidth(Math.max(0, e.nativeEvent.layout.width - spacing.lg * 2))
-      }
     >
       <View style={styles.titleRow}>
         <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">
           {venue.name}
         </Text>
-        <CaretRight size={24} color={colors.text.mutedStrong} weight="regular" />
+        <CaretRight size={24} color={colors.text.muted} weight="regular" />
       </View>
 
+      {/* Кадр фиксированный (256), а не по ширине карточки: в макете лента
+          уезжает за правый край блока, и обрезает её `overflow: hidden` самого
+          блока. Одну фотографию `PhotoRail` рисует во всю ширину — так же, как
+          рисовал обычную обложку до появления галерей. */}
       <PhotoRail
         uris={photos}
-        height={180}
+        height={GUIDE_PHOTO_HEIGHT}
         inset={0}
-        // Before the first layout pass the width is unknown; the rail then
-        // falls back to its screen-width default, which is only ever visible
-        // for one frame and never for the single-photo case.
-        frameWidth={contentWidth > 0 ? contentWidth : undefined}
-        borderRadius={radius.media}
+        frameWidth={GUIDE_PHOTO_WIDTH}
+        borderRadius={radius.card}
+        showDots={false}
       />
 
-      {/* Заголовок и текст события/акции — над адресом заведения, как в макете.
-          У простого блока их нет, и остаётся редакционная заметка. */}
-      {highlight?.title ? <Text style={styles.highlightTitle}>{highlight.title}</Text> : null}
-      {highlight?.description ? <Text style={styles.note}>{highlight.description}</Text> : null}
-      {venue.note ? <Text style={styles.note}>{venue.note}</Text> : null}
+      <View style={styles.textGroup}>
+        {/* Заголовок и текст события/акции — над адресом заведения, как в макете.
+            У простого блока их нет, и остаётся редакционная заметка. */}
+        {highlight?.title ? <Text style={styles.highlightTitle}>{highlight.title}</Text> : null}
+        {highlight?.description ? <Text style={styles.note}>{highlight.description}</Text> : null}
+        {venue.note ? <Text style={styles.note}>{venue.note}</Text> : null}
 
-      {/* Адрес — строкой, без иконки: в макете (node 1001:11921) это подпись
-          «адрес · @инстаграм», а не пункт с пином. */}
-      {venue.address || handle ? (
-        <View style={styles.footer}>
-          <Text style={styles.address} numberOfLines={2} ellipsizeMode="tail">
-            {[venue.address, handle].filter(Boolean).join(" · ")}
-          </Text>
-        </View>
-      ) : null}
+        {/* Адрес — строкой, без иконки: в макете (node 1013:13736) это подпись
+            «адрес · @инстаграм», а не пункт с пином. */}
+        {footer ? (
+          <View style={styles.footer}>
+            {footer.address ? (
+              <Text style={styles.address} numberOfLines={2} ellipsizeMode="tail">
+                {footer.address}
+              </Text>
+            ) : null}
+            {footer.separator ? <Text style={styles.separator}>·</Text> : null}
+            {footer.handle ? (
+              <Text style={styles.handle} numberOfLines={1} ellipsizeMode="tail">
+                {footer.handle}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -108,23 +140,31 @@ export function GuideVenueBlock({
 const styles = StyleSheet.create({
   block: {
     backgroundColor: colors.background.surface,
-    borderRadius: radius.card,
+    borderRadius: radius.contentBlock,
+    // Лента фотографий шире карточки и должна упираться в её край, а не
+    // вылезать на серый фон.
+    overflow: "hidden",
     padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.xxl,
   },
   pressed: {
     opacity: 0.7,
   },
   titleRow: {
     flexDirection: "row",
-    alignItems: "center",
+    // По макету шеврон стоит у ВЕРХНЕЙ строки заголовка, а не по центру блока
+    // из двух строк.
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: spacing.sm,
+    gap: spacing.xxl,
   },
   name: {
-    ...typography.titleMd,
+    ...typography.titleLg,
     color: colors.text.primary,
     flexShrink: 1,
+  },
+  textGroup: {
+    gap: spacing.lg,
   },
   highlightTitle: {
     ...typography.titleSm,
@@ -137,11 +177,22 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   address: {
+    ...typography.body,
+    color: colors.text.primary,
+    // Длинный адрес («Микрорайон Мирас, 2, Бостандыкский район») на экране
+    // 360 pt сжимается и переносится, а не выталкивает ник за край.
+    flexShrink: 1,
+  },
+  separator: {
     ...typography.caption,
-    color: colors.text.muted,
+    color: colors.text.primary,
+  },
+  handle: {
+    ...typography.body,
+    color: colors.text.primary,
     flexShrink: 1,
   },
 });
