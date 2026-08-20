@@ -10,6 +10,7 @@ import { IconButton } from "../../../src/components/IconButton";
 import { useRestaurantFavorite } from "../../../src/hooks/useFavorites";
 import { MapPreview } from "../../../src/components/booking/MapPreview";
 import { MenuItemCard } from "../../../src/components/MenuItemCard";
+import { DETAIL_FOOTER_CLEARANCE } from "../../../src/components/detail/DetailBlocks";
 import { PhotoView } from "../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
@@ -379,8 +380,15 @@ const styles = StyleSheet.create({
   // Белый «пол» ПОД содержимым: он виден только там, где содержимое кончилось —
   // при оттягивании снизу. Сам список блоков красит contentContainer, иначе
   // белое залило бы и просветы между блоками, и разделители исчезли бы.
+  //
+  // Отрицательный отступ съедает просвет, который контейнер ставит между всеми
+  // блоками: последний блок должен переходить в белый «пол» без серой полоски
+  // над кнопкой (правка владельца от 20.08).
   bottomFloor: {
-    height: spacing.xxxl,
+    marginTop: -spacing.sm,
+    // Высотой с липкую кнопку: иначе на коротком экране под последним блоком
+    // остаётся полоса фона ровно там, где кнопка его не закрывает.
+    height: DETAIL_FOOTER_CLEARANCE,
     backgroundColor: colors.background.surface,
   },
   scrollFloor: {
