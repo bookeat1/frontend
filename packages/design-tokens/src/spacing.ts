@@ -17,8 +17,16 @@ export const spacing = {
  * Named by the role they play, not by their pixel value.
  */
 export const radius = {
-  /** Chips, pill buttons, icon buttons, the search input, bottom-nav pill. */
+  /** Chips, pill buttons, icon buttons, the search input. */
   pill: 999,
+  /**
+   * Плавающая плашка нижней навигации (Figma 3z0f6dgev4HMwBAHPjTjPo,
+   * node 3039:23943 — `rounded-[36px]`). Отдельный токен, а не `pill`:
+   * в макете это конкретные 36. При высоте плашки 58 RN всё равно обрежет
+   * радиус до половины высоты (29), поэтому визуально это капсула — но
+   * значение остаётся тем, что нарисовано.
+   */
+  navBar: 36,
   /** Cards: menu item photos, promo banners, map preview, search result photo. */
   card: 20,
   /** The single largest photo on screen — restaurant cover photo only. */

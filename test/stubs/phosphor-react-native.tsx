@@ -30,10 +30,12 @@ const icon = (name: string) =>
 
 export const ArrowLeft = icon("ArrowLeft");
 export const BookOpen = icon("BookOpen");
+export const Camera = icon("Camera");
 export const CalendarBlank = icon("CalendarBlank");
 export const CaretDown = icon("CaretDown");
 export const CaretLeft = icon("CaretLeft");
 export const CaretRight = icon("CaretRight");
+export const ChatCircle = icon("ChatCircle");
 export const CheckCircle = icon("CheckCircle");
 export const Clock = icon("Clock");
 export const Compass = icon("Compass");
@@ -51,6 +53,9 @@ export const Minus = icon("Minus");
 export const Note = icon("Note");
 export const Phone = icon("Phone");
 export const Plus = icon("Plus");
+export const Question = icon("Question");
+export const SignOut = icon("SignOut");
+export const ThumbsUp = icon("ThumbsUp");
 export const User = icon("User");
 export const UserCircle = icon("UserCircle");
 export const Users = icon("Users");
