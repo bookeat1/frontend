@@ -16,6 +16,8 @@ import type {
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
+  GuideRoute,
+  GuideRouteDetail,
   HomePromo,
   MenuSection,
   NotificationFeed,
@@ -123,6 +125,17 @@ export interface RestaurantRepository {
   getGuideCategories(): Promise<GuideCategory[]>;
 
   getGuideCollections(): Promise<GuideCollection[]>;
+
+  /**
+   * Гастропрогулки города (`GET /gastroguide/routes?city=`). Город обязателен:
+   * без него ручка отвечает 422.
+   */
+  getGuideRoutes(city: string): Promise<GuideRoute[]>;
+
+  /** Один маршрут с остановками (`GET /gastroguide/routes/:slug`). Неизвестный
+   * или снятый с публикации слаг — 404. */
+  getGuideRoute(slug: string): Promise<GuideRouteDetail>;
+
 
   /**
    * One collection with its venues (`GET /gastroguide/collections/:slug`), for

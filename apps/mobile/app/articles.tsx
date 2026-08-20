@@ -6,12 +6,13 @@ import React, { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { ArticleListCard } from "../src/components/articles/ArticleListCard";
 import { GuideCollectionGrid } from "../src/components/articles/GuideCollectionGrid";
+import { GuideRouteCard } from "../src/components/articles/GuideRouteCard";
 import { splitGuideCollections } from "../src/components/articles/guide-collections";
 import { GUIDE_HERO_CONTENT_HEIGHT, GuideHero } from "../src/components/articles/GuideHero";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { SectionHeader } from "../src/components/explore/SectionCard";
-import { useGuideCollections } from "../src/components/explore/use-explore-data";
+import { useGuideCollections, useGuideRoutes } from "../src/components/explore/use-explore-data";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 
 const t = getDictionary();
@@ -23,11 +24,17 @@ const t = getDictionary();
  * кормит ОДНА ручка `GET /gastroguide/collections`, одна подборка показывается
  * ровно один раз — правило дележа лежит в `guide-collections.ts`.
  *
+ * Ниже вторым белым блоком идут «Гастропрогулки» (node 1099:6892) — отдельная
+ * ручка `GET /gastroguide/routes?city=`. Это НЕ подборки: маршрут это
+ * последовательность остановок, и среди них есть места, которых нет и не будет
+ * в каталоге заведений (парк, базар, Кок-Тобе).
+ *
+ * БЛОК ЦЕЛИКОМ СКРЫТ, пока маршрутов нет: пустых состояний тут два подряд быть
+ * не должно, а «Подборки» уже объясняют человеку, что раздел живой. Ошибка
+ * загрузки маршрутов тоже не рушит экран — подборки грузятся своим запросом.
+ *
  * ЧЕГО ЗДЕСЬ НЕТ И ПОЧЕМУ:
  *
- *  - «Гастропрогулки» (вторая секция макета, node 1099:6892) не собрана вовсе:
- *    сущности «маршрут» в бэкенде нет ни в каком виде, наполнять карточки
- *    нечем, а нарисованные от руки маршруты были бы выдумкой;
  *  - рубрики (`GET /gastroguide/categories`) этот экран больше не запрашивает:
  *    их DTO несёт только `{id, slug, title, position}`, плитка из него выходила
  *    без фотографии, а нажатие на неё отбирало список — обоих поведений в
@@ -50,12 +57,16 @@ export default function ArticlesScreen() {
   const router = useRouter();
 
   const collectionsQuery = useGuideCollections();
+  const routesQuery = useGuideRoutes();
   const [heroBehindStatusBar, setHeroBehindStatusBar] = useState(true);
 
   const collections = useMemo(() => collectionsQuery.data ?? [], [collectionsQuery.data]);
   const { rubrics, articles } = useMemo(() => splitGuideCollections(collections), [collections]);
 
+  const routes = useMemo(() => routesQuery.data ?? [], [routesQuery.data]);
+
   const openArticle = useCallback((slug: string) => router.push(`/articles/${slug}`), [router]);
+  const openRoute = useCallback((slug: string) => router.push(`/routes/${slug}`), [router]);
 
   // Стрелка «назад» только там, где есть куда возвращаться: на корне вкладки
   // (гость пришёл по нижней навигации) её быть не должно, при заходе с главной
@@ -114,6 +125,17 @@ export default function ArticlesScreen() {
             </View>
           ) : null}
         </View>
+
+        {routes.length > 0 ? (
+          <View style={styles.section}>
+            <SectionHeader title={t.articles.routesTitle} size="large" />
+            <View style={styles.list}>
+              {routes.map((route) => (
+                <GuideRouteCard key={route.slug} route={route} onPress={openRoute} />
+              ))}
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
 
       <BottomNavBar />

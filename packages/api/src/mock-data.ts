@@ -13,6 +13,8 @@ import type {
   EventSummary,
   GuideCategory,
   GuideCollection,
+  GuideRoute,
+  GuideRouteDetail,
   GuideCollectionDetail,
   HomePromo,
   MenuHighlight,
@@ -360,6 +362,76 @@ export function guideCollections(): GuideCollection[] {
  * exactly as the live endpoint does. */
 export function guideCollection(slug: string): GuideCollectionDetail | undefined {
   return guideCollectionsData().find((c) => c.slug === slug);
+}
+
+/**
+ * Гастропрогулки для офлайн-режима и тестов. Взяты с боевых данных
+ * («Классический тур по Алматы»), чтобы мок и живая ручка вели себя одинаково:
+ * есть точка-заведение с карточкой, точка-заведение БЕЗ карточки (заведение
+ * погашено) и обычное место. Именно на этих трёх случаях и ветвится экран.
+ */
+function guideRoutesData(): GuideRouteDetail[] {
+  return [
+    {
+      slug: "classic-almaty-tour",
+      title: "Классический тур по Алматы",
+      description: "Однодневный маршрут по знаковым гастрономическим точкам города.",
+      coverImageUrl: null,
+      durationLabel: "1 день · 3 точки",
+      pointCount: 3,
+      points: [
+        {
+          id: "p1",
+          position: 1,
+          kind: "restaurant",
+          title: "Утро: Daily Coffee",
+          description: "Старт дня с чашки спешелти в самом сердце города.",
+          photoUrl: null,
+          address: "Абылайхана 147",
+          venue: {
+            id: "r1",
+            name: "Daily Coffee",
+            address: "Абылайхана 147",
+            cuisineType: "Кофейня",
+            city: "Алматы",
+            priceCategory: "₸₸",
+            imageUrl: null,
+          },
+        },
+        {
+          id: "p2",
+          position: 2,
+          kind: "place",
+          title: "Прогулка: Парк 28 панфиловцев",
+          description: "Зелёное сердце города и Вознесенский собор.",
+          photoUrl: null,
+          address: "ул. Гоголя",
+          venue: null,
+        },
+        {
+          id: "p3",
+          position: 3,
+          kind: "restaurant",
+          title: "Ужин: закрытое заведение",
+          description: "Заведение погасили в каталоге, остановка осталась.",
+          photoUrl: null,
+          address: "ул. Омаровой, 35а",
+          venue: null,
+        },
+      ],
+    },
+  ];
+}
+
+/** Карточки маршрутов, как их отдаёт `GET /gastroguide/routes`. */
+export function guideRoutes(): GuideRoute[] {
+  return guideRoutesData().map(({ points: _points, ...card }) => card);
+}
+
+/** Один маршрут с остановками; `undefined` для неизвестного слага, чтобы мок
+ * отвечал 404 так же, как живая ручка. */
+export function guideRoute(slug: string): GuideRouteDetail | undefined {
+  return guideRoutesData().find((r) => r.slug === slug);
 }
 
 export const restaurants: Restaurant[] = [

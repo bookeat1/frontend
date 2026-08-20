@@ -4,6 +4,8 @@ import type {
   EventPage,
   EventSummary,
   GuideCollection,
+  GuideRoute,
+  GuideRouteDetail,
   GuideCollectionDetail,
   HomePromo,
   RestaurantSummary,
@@ -229,6 +231,60 @@ export function useExplorePromotion(promoId: string | undefined): {
  * screen. Public, no session. An empty answer is the normal "nothing published"
  * — the section hides on it (see useExploreArticles).
  */
+/**
+ * РЕАЛЬНЫЕ ДАННЫЕ — гастропрогулки для экрана гастрогида.
+ * GET /gastroguide/routes?city=<город> (RestaurantRepository.getGuideRoutes).
+ *
+ * ГОРОД: ручка требует город (без него 422 `city_required`), поэтому запрос
+ * гейтится на разрешённом городе ровно так же, как лента акций: город берётся
+ * из того же кэша `["me"]`, что и шапка главной, с откатом на город по
+ * умолчанию из словаря. Второго запроса профиля это не создаёт.
+ */
+export function useGuideRoutes(): UseQueryResult<GuideRoute[]> {
+  const repository = useRepository();
+  const { dictionary: t } = useLocale();
+
+  // Наблюдатель за тем же ключом `["me"]`, что заполняет главная, но БЕЗ
+  // собственного запроса (`enabled: false`) и без useAuth: гастрогид открыт и
+  // гостю, и требовать здесь AuthProvider значило бы привязать редакционный
+  // раздел к авторизации ради одного слова «Алматы». Как только профиль
+  // появится в кэше, хук перерисуется сам и переспросит маршруты для его
+  // города.
+  const me = useQuery<AuthUser>({
+    queryKey: ["me"],
+    queryFn: () => Promise.reject(new Error("profile is fetched elsewhere")),
+    enabled: false,
+  });
+  const city = me.data?.city?.trim() || t.explore.cityFallback;
+
+  return useQuery<GuideRoute[]>({
+    queryKey: ["guide", "routes", city],
+    queryFn: () => repository.getGuideRoutes(city),
+    enabled: city.length > 0,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * РЕАЛЬНЫЕ ДАННЫЕ — один маршрут с остановками, для экрана гастропрогулки.
+ * GET /gastroguide/routes/:slug (RestaurantRepository.getGuideRoute).
+ *
+ * Свой ключ кэша, как и у подборки: список и деталка разной формы, и общий
+ * ключ позволил бы дешёвому списку вытеснить дорогую деталку.
+ */
+export function useGuideRoute(slug: string | undefined): UseQueryResult<GuideRouteDetail> {
+  const repository = useRepository();
+  return useQuery<GuideRouteDetail>({
+    queryKey: ["guide", "route", slug],
+    queryFn: () => {
+      if (!slug) throw new Error("route slug is required");
+      return repository.getGuideRoute(slug);
+    },
+    enabled: Boolean(slug),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
   const repository = useRepository();
   return useQuery<GuideCollection[]>({

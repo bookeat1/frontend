@@ -3,6 +3,8 @@ import {
   guideCategories,
   guideCollection,
   guideCollections,
+  guideRoutes,
+  guideRoute,
   homePromotions,
   restaurants,
   restaurantStories,
@@ -31,6 +33,8 @@ import type {
   FavoriteKind,
   GuideCategory,
   GuideCollection,
+  GuideRoute,
+  GuideRouteDetail,
   GuideCollectionDetail,
   HomePromo,
   MenuSection,
@@ -204,6 +208,21 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async getGuideCategories(): Promise<GuideCategory[]> {
     await this.simulateNetwork();
     return guideCategories();
+  }
+
+  async getGuideRoutes(_city: string): Promise<GuideRoute[]> {
+    await this.simulateNetwork();
+    return guideRoutes();
+  }
+
+  /** Маршрут с остановками; неизвестный слаг — 404, как у живой ручки. */
+  async getGuideRoute(slug: string): Promise<GuideRouteDetail> {
+    await this.simulateNetwork();
+    const route = guideRoute(slug);
+    if (!route) {
+      throw new RepositoryError(`Route ${slug} not found`, undefined, 404);
+    }
+    return route;
   }
 
   async getGuideCollections(): Promise<GuideCollection[]> {

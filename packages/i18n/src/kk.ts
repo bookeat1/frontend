@@ -120,6 +120,13 @@ export const kk: LocaleOverride<Dictionary> = {
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
     guideHeadline: "Дәм туралы таласпайтын қаланың гастрогиді",
     collectionsTitle: "Топтамалар",
+    routesTitle: "Гастросеруендер",
+    routePoints: (count: number) => `${count} нүкте`,
+    routeLoading: "Маршрут жүктелуде…",
+    routeErrorTitle: "Маршрут жүктелмеді",
+    routeNotFoundTitle: "Маршрут табылмады",
+    routeNotFoundDescription:
+      "Ол жарияланымнан алынған болуы мүмкін. Гастрогидке оралып, басқасын таңдаңыз.",
     openVenue: (name: string) => `«${name}» ашу`,
   },
   notifications: {

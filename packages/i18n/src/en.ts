@@ -115,6 +115,13 @@ export const en: LocaleOverride<Dictionary> = {
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
     guideHeadline: "A gastroguide to the city where nobody argues about taste",
     collectionsTitle: "Collections",
+    routesTitle: "Gastro walks",
+    routePoints: (count: number) => `${count} ${count === 1 ? "stop" : "stops"}`,
+    routeLoading: "Loading the route…",
+    routeErrorTitle: "Could not load the route",
+    routeNotFoundTitle: "Route not found",
+    routeNotFoundDescription:
+      "It may have been unpublished. Go back to the guide and pick another one.",
     openVenue: (name: string) => `Open ${name}`,
   },
   notifications: {

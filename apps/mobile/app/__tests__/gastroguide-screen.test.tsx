@@ -1,4 +1,4 @@
-import type { GuideCollection, RestaurantRepository } from "@bookeat/api";
+import type { GuideCollection, GuideRoute, RestaurantRepository } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -76,9 +76,11 @@ vi.mock("../../src/components/articles/GuideHero", async () => {
 });
 
 const getGuideCollections = vi.fn<() => Promise<GuideCollection[]>>();
+const getGuideRoutes = vi.fn<(city: string) => Promise<GuideRoute[]>>();
 
 vi.mock("../../src/lib/repository", () => ({
-  useRepository: () => ({ getGuideCollections }) as unknown as RestaurantRepository,
+  useRepository: () =>
+    ({ getGuideCollections, getGuideRoutes }) as unknown as RestaurantRepository,
 }));
 
 function collection(
@@ -104,6 +106,17 @@ const COLLECTIONS = [
   collection("almaty-longread", "Сейчас Алматы ест невероятно хорошо", []),
 ];
 
+function route(slug: string, title: string, durationLabel = "1 день · 4 точки"): GuideRoute {
+  return {
+    slug,
+    title,
+    description: "Описание маршрута",
+    coverImageUrl: "https://cdn.example/route.jpg",
+    durationLabel,
+    pointCount: 4,
+  };
+}
+
 function renderScreen() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -117,6 +130,7 @@ beforeEach(() => {
   push.mockClear();
   canGoBack = false;
   getGuideCollections.mockResolvedValue(COLLECTIONS);
+  getGuideRoutes.mockResolvedValue([]);
 });
 
 describe("экран гастрогида", () => {
@@ -199,5 +213,46 @@ describe("экран гастрогида", () => {
     renderScreen();
 
     await waitFor(() => expect(screen.getByText(t.states.failedTitle)).toBeTruthy());
+  });
+
+  it("секции «Гастропрогулки» нет, пока маршрутов нет", async () => {
+    renderScreen();
+
+    // Ждём отрисовки подборок, чтобы проверка не поймала момент до загрузки.
+    await screen.findByText("Казахская кухня");
+    expect(screen.queryByText(t.articles.routesTitle)).toBeNull();
+  });
+
+  it("маршруты рисуются секцией ниже подборок и открываются по нажатию", async () => {
+    const user = userEvent.setup();
+    getGuideRoutes.mockResolvedValue([route("classic-almaty-tour", "Классический тур по Алматы")]);
+
+    renderScreen();
+
+    expect(await screen.findByText(t.articles.routesTitle)).toBeTruthy();
+    const card = await screen.findByLabelText(
+      t.articles.card("Классический тур по Алматы", "1 день · 4 точки"),
+    );
+    await user.click(card);
+
+    expect(push).toHaveBeenCalledWith("/routes/classic-almaty-tour");
+  });
+
+  it("без редакционной строки длительности карточка показывает число точек", async () => {
+    getGuideRoutes.mockResolvedValue([route("almaty-citizen-day", "День алматинца", "")]);
+
+    renderScreen();
+
+    expect(await screen.findByText("4 точки")).toBeTruthy();
+  });
+
+  it("отказ ручки маршрутов не рушит экран: подборки на месте, секции маршрутов нет", async () => {
+    getGuideRoutes.mockRejectedValue(new Error("сеть недоступна"));
+
+    renderScreen();
+
+    expect(await screen.findByText("Казахская кухня")).toBeTruthy();
+    await waitFor(() => expect(getGuideRoutes).toHaveBeenCalled());
+    expect(screen.queryByText(t.articles.routesTitle)).toBeNull();
   });
 });

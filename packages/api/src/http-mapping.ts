@@ -27,6 +27,9 @@ import type {
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
+  GuideRoute,
+  GuideRouteDetail,
+  GuideRoutePoint,
   GuideCollectionVenue,
   GuideHighlight,
   MenuHighlight,
@@ -1165,6 +1168,103 @@ export function mapGuideCollections(
   items: ApiGuideCollection[] | null | undefined,
 ): GuideCollection[] {
   return (items ?? []).map(mapGuideCollectionCard).filter((c) => c.slug !== "");
+}
+
+/* --- гастропрогулки --- */
+
+export interface ApiGuideRoute {
+  slug?: string;
+  title?: string;
+  description?: string | null;
+  cover_image_url?: string | null;
+  duration_label?: string | null;
+  point_count?: number;
+}
+
+export interface ApiGuideRoutePoint {
+  id?: string;
+  position?: number;
+  kind?: string;
+  title?: string;
+  description?: string | null;
+  photo_url?: string | null;
+  address?: string | null;
+  venue?: ApiGuideRouteVenue | null;
+}
+
+export interface ApiGuideRouteVenue {
+  id?: string;
+  name?: string;
+  address?: string | null;
+  cuisine_type?: string | null;
+  city?: string | null;
+  price_category?: string | null;
+  primary_image_url?: string | null;
+}
+
+export interface ApiGuideRouteDetail extends ApiGuideRoute {
+  points?: ApiGuideRoutePoint[] | null;
+}
+
+function mapGuideRouteCard(api: ApiGuideRoute): GuideRoute {
+  return {
+    slug: text(api.slug),
+    title: text(api.title),
+    description: plainText(api.description),
+    coverImageUrl: text(api.cover_image_url) || null,
+    durationLabel: text(api.duration_label),
+    pointCount: typeof api.point_count === "number" ? api.point_count : 0,
+  };
+}
+
+/** Список маршрутов. Маршрут без слага выкидываем: слаг — и ключ списка, и
+ * параметр перехода, открывать по пустому нечего. Та же защита, что у
+ * подборок. */
+export function mapGuideRoutes(items: ApiGuideRoute[] | null | undefined): GuideRoute[] {
+  return (items ?? []).map(mapGuideRouteCard).filter((r) => r.slug !== "");
+}
+
+/**
+ * Остановка маршрута.
+ *
+ * НЕИЗВЕСТНЫЙ `kind` считаем местом, а не выкидываем точку: выкинуть значит
+ * молча сократить маршрут, а «место» — безопасная трактовка, при которой точка
+ * просто не претендует на карточку заведения.
+ *
+ * Заведение подставляем ТОЛЬКО когда у него есть id: без него открыть экран
+ * заведения нельзя, и карточка-обманка хуже её отсутствия.
+ */
+function mapGuideRoutePoint(api: ApiGuideRoutePoint, index: number): GuideRoutePoint {
+  const venueId = text(api.venue?.id);
+  return {
+    id: text(api.id),
+    position: typeof api.position === "number" ? api.position : index + 1,
+    kind: api.kind === "restaurant" ? "restaurant" : "place",
+    title: text(api.title),
+    description: plainText(api.description),
+    photoUrl: text(api.photo_url) || null,
+    address: text(api.address),
+    venue:
+      api.venue && venueId
+        ? {
+            id: venueId,
+            name: text(api.venue.name),
+            address: text(api.venue.address),
+            cuisineType: text(api.venue.cuisine_type),
+            city: text(api.venue.city),
+            priceCategory: text(api.venue.price_category),
+            imageUrl: text(api.venue.primary_image_url) || null,
+          }
+        : null,
+  };
+}
+
+export function mapGuideRouteDetail(api: ApiGuideRouteDetail): GuideRouteDetail {
+  const points = (api.points ?? []).map(mapGuideRoutePoint);
+  return {
+    ...mapGuideRouteCard(api),
+    points: [...points].sort((a, b) => a.position - b.position),
+  };
 }
 
 /** One venue block of a collection detail. Ordered by `position` ascending so
