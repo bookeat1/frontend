@@ -268,10 +268,10 @@ export const en: LocaleOverride<Dictionary> = {
     favoriteFailed: "Couldn't save — please try again",
   },
   nav: {
-    overview: "Overview",
+    overview: "Home",
     search: "Search",
     bookings: "My bookings",
-    favorites: "Favorites",
+    gastroguide: "Gastroguide",
     profile: "Profile",
   },
   weekdays: {
@@ -949,6 +949,7 @@ export const en: LocaleOverride<Dictionary> = {
       friends: "Friends",
     },
     menu: {
+      favorites: "Favorites",
       foodProfile: "Foodie profile",
       myReviews: "My reviews",
       personalData: "Personal data",

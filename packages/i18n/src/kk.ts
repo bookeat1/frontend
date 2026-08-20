@@ -276,10 +276,10 @@ export const kk: LocaleOverride<Dictionary> = {
     favoriteFailed: "Сақтау мүмкін болмады — қайталап көріңіз",
   },
   nav: {
-    overview: "Шолу",
+    overview: "Басты бет",
     search: "Іздеу",
     bookings: "Менің брондарым",
-    favorites: "Таңдаулылар",
+    gastroguide: "Гастрогид",
     profile: "Профиль",
   },
   weekdays: {
@@ -957,6 +957,7 @@ export const kk: LocaleOverride<Dictionary> = {
       friends: "Достар",
     },
     menu: {
+      favorites: "Таңдаулылар",
       foodProfile: "Фуди-профиль",
       myReviews: "Менің пікірлерім",
       personalData: "Жеке деректер",

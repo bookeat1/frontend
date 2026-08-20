@@ -559,10 +559,11 @@ export const ru = {
     favoriteFailed: "Не получилось сохранить — попробуйте ещё раз",
   },
   nav: {
-    overview: "Обзор",
+    overview: "Главная",
     search: "Поиск",
     bookings: "Мои брони",
-    favorites: "Избранные",
+    /** Четвёртая вкладка ведёт на /articles — подборки гастрогида. */
+    gastroguide: "Гастрогид",
     profile: "Профиль",
   },
   weekdays: {
@@ -1583,6 +1584,8 @@ export const ru = {
     },
     /** Пункты меню витрины. «Настройки» берём из profile.settings. */
     menu: {
+      /** Избранное потеряло вкладку внизу, поэтому вход в него живёт здесь. */
+      favorites: "Избранные",
       foodProfile: "Фуди-профиль",
       myReviews: "Мои отзывы",
       personalData: "Персональные данные",

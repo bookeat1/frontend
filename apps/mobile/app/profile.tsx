@@ -7,7 +7,7 @@ import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
-import { ChatCircle, ForkKnife, GearSix, GlobeSimple, MapPin, Question, SignOut, ThumbsUp, User } from "../src/components/icons";
+import { ChatCircle, ForkKnife, GearSix, GlobeSimple, Heart, MapPin, Question, SignOut, ThumbsUp, User } from "../src/components/icons";
 import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
 import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
 import { ProfileMenuRow } from "../src/components/profile/ProfileMenuRow";
@@ -196,10 +196,21 @@ export default function ProfileScreen() {
               />
             </View>
 
-            {/* Фуди-профиль / Мои отзывы — track-C: no screen yet, so both rows
+            {/* «Избранные» стоит первой строкой сразу под счётчиком броней:
+                вкладки внизу у избранного больше нет (её место занял
+                гастрогид), и искать вход гость будет здесь, рядом с бронями,
+                а не внизу у «Выйти».
+
+                Фуди-профиль / Мои отзывы — track-C: no screen yet, so both rows
                 are non-interactive «Скоро» rather than dead chevrons.
                 TODO(track-C backend): give them an onPress once the screens land. */}
             <View style={styles.group}>
+              <ProfileMenuRow
+                icon={Heart}
+                label={t.profile.menu.favorites}
+                onPress={() => router.push("/favorites")}
+                comingSoonLabel={t.profile.comingSoon}
+              />
               <ProfileMenuRow
                 icon={ForkKnife}
                 label={t.profile.menu.foodProfile}

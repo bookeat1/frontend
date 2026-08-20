@@ -1,47 +1,63 @@
-import { colors, spacing, typography } from "@bookeat/design-tokens";
+import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BookOpen, Compass, Heart, MagnifyingGlass, UserCircle } from "./icons";
+import { BookOpen, Compass, MagnifyingGlass, MapPin, UserCircle } from "./icons";
 
 const t = getDictionary();
 
 /** The five destinations of the tab bar. Every one of them is a real route. */
-type NavKey = "overview" | "search" | "bookings" | "favorites" | "profile";
+type NavKey = "overview" | "search" | "bookings" | "gastroguide" | "profile";
 
 interface NavItem {
   key: NavKey;
   label: string;
   icon: typeof Compass;
-  route: "/" | "/search" | "/bookings" | "/favorites" | "/profile";
+  route: "/" | "/search" | "/bookings" | "/articles" | "/profile";
 }
 
 const items: NavItem[] = [
   { key: "overview", label: t.nav.overview, icon: Compass, route: "/" },
   { key: "search", label: t.nav.search, icon: MagnifyingGlass, route: "/search" },
   { key: "bookings", label: t.nav.bookings, icon: BookOpen, route: "/bookings" },
-  { key: "favorites", label: t.nav.favorites, icon: Heart, route: "/favorites" },
+  // Четвёртая вкладка — гастрогид, а не избранное. Глиф в макете называется
+  // «Point On Map», ближайший в наборе Phosphor — MapPin.
+  { key: "gastroguide", label: t.nav.gastroguide, icon: MapPin, route: "/articles" },
   { key: "profile", label: t.nav.profile, icon: UserCircle, route: "/profile" },
 ];
 
 /**
- * Height of the bar itself, without the home-indicator inset.
+ * Высота самой плашки (Figma node 3039:23944).
  *
- * 8 padding + 24 glyph + 4 gap + 14 label + 8 padding. Exported because the bar
- * FLOATS above the content now (see below): every screen that renders it has to
- * reserve this much room at the end of its scroll, or the last row of content
- * ends up permanently under the glass.
+ * 1 (рамка-паддинг) + 8 + 24 глиф + 2 + 14 подпись + 8 + 1 = 58.
  */
 export const NAV_BAR_HEIGHT = 58;
 
 /**
+ * Отступ плавающей плашки от краёв экрана: в макете она 359 шириной на экране
+ * 375, то есть по 8 слева и справа. Тот же отступ работает нижним полем там,
+ * где у телефона нет полосы home-indicator (Android с кнопками): иначе плашка
+ * прилипла бы к нижней грани и перестала «висеть».
+ */
+export const NAV_BAR_EDGE_INSET = spacing.sm;
+
+/** Зазор между плашкой и полосой home-indicator (`gap-[2px]` в макете). */
+const NAV_BAR_INDICATOR_GAP = spacing.xxs;
+
+/**
  * How much bottom padding a scrollable screen needs so its last item clears the
- * floating bar — the bar plus the home indicator underneath it.
+ * floating bar.
+ *
+ * Плашка больше не прижата к нижней грани: под ней лежит зона home-indicator
+ * (safe-area), а если её нет — те же 8, что и по бокам. Поэтому места надо
+ * резервировать больше, чем раньше (раньше было 58 + inset, что на телефоне
+ * без индикатора давало ровно 58 и упирало последнюю строку в плашку).
  */
 export function useNavBarSpacing(): number {
-  return NAV_BAR_HEIGHT + useSafeAreaInsets().bottom;
+  const bottom = useSafeAreaInsets().bottom;
+  return NAV_BAR_HEIGHT + NAV_BAR_INDICATOR_GAP + Math.max(bottom, NAV_BAR_EDGE_INSET);
 }
 
 /**
@@ -54,31 +70,42 @@ export function useNavBarSpacing(): number {
  *
  * `/booking/:id` (one reservation) maps to the «Бронь» tab even though that
  * screen does not render the bar today, so the mapping stays right if it ever
- * does.
+ * does. `/articles/:slug` (одна подборка) точно так же подсвечивает
+ * «Гастрогид»: статья открывается из списка и остаётся тем же разделом.
+ *
+ * `/favorites` больше не вкладка (вход в избранное переехал в профиль), так
+ * что на этом экране не подсвечено ничего — это честнее, чем подсветить чужую
+ * вкладку.
  */
 export function activeNavKey(pathname: string): NavKey | null {
   if (pathname === "/") return "overview";
   if (pathname.startsWith("/search")) return "search";
   if (pathname.startsWith("/bookings") || pathname.startsWith("/booking/")) return "bookings";
-  if (pathname.startsWith("/favorites")) return "favorites";
+  if (pathname.startsWith("/articles")) return "gastroguide";
   if (pathname.startsWith("/profile")) return "profile";
   return null;
 }
 
 /**
- * Bottom tab bar (Figma nodes 432:4322–432:4339).
+ * Bottom tab bar (Figma 3z0f6dgev4HMwBAHPjTjPo, «Bottom Navigation»,
+ * node 3039:23943).
+ *
+ * Плашка ПЛАВАЕТ: белый скруглённый прямоугольник с отступом 8 от каждого края
+ * экрана и мягкой тенью, а не полоса во всю ширину. Под ней — зона
+ * home-indicator, она остаётся прозрачной: там виден фон экрана.
  *
  * All five tabs navigate. Switching tabs REPLACES the current route rather
  * than pushing: tabs are siblings, not a stack, and pushing would build a back
- * history of "Обзор → Поиск → Обзор → Поиск" that nobody expects on a phone.
- * Tapping the tab you are already on does nothing, instead of remounting the
- * screen and throwing away its scroll position.
+ * history of "Главная → Поиск → Главная → Поиск" that nobody expects on a
+ * phone. Tapping the tab you are already on does nothing, instead of
+ * remounting the screen and throwing away its scroll position.
  *
- * The bar is SOLID, not frosted. The liquid-glass version looked right in the
- * simulator and dirty on a real phone: over a photo it smeared into blotches
- * and the labels lost contrast, which is worse than no effect at all. A real
- * blur (the Telegram look) needs a native module and therefore a new build —
- * it ships with the next one; until then the honest answer is an opaque bar.
+ * The bar is SOLID, not frosted. В макете плашка полупрозрачная (белый 30 % с
+ * размытием) — это вариант «жидкого стекла», от которого проект уже
+ * отказывался: на реальном телефоне поверх фотографии заливка расплывалась
+ * пятнами, а подписи в 10 pt теряли контраст. Настоящее размытие требует
+ * нативного модуля и новой сборки; до тех пор честный ответ — непрозрачная
+ * плашка с той же геометрией, радиусом и тенью.
  */
 export function BottomNavBar() {
   const pathname = usePathname();
@@ -86,69 +113,81 @@ export function BottomNavBar() {
   const active = activeNavKey(pathname);
   const insets = useSafeAreaInsets();
 
-  const tabs = (
-    <View style={[styles.row, { paddingBottom: insets.bottom }]}>
-      {items.map(({ key, label, icon: Icon, route }) => {
-        const isActive = key === active;
-        const color = isActive ? colors.brand.primary : colors.text.muted;
-        return (
-          <Pressable
-            key={key}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
-            accessibilityLabel={label}
-            onPress={() => {
-              if (isActive) return;
-              router.replace(route);
-            }}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-          >
-            {/* Толщина линии 2 в сетке 24 — по макету. У Phosphor это «bold»:
-                regular рисует 1.5 и рядом с текстом выглядит бледнее подписи. */}
-            <Icon size={24} color={color} weight="bold" />
-            {/* Длинные подписи («Избранные») сжимаются в одну строку, а не
-                выталкивают соседнюю вкладку за край на 360 px. */}
-            <Text style={[styles.label, { color }]} numberOfLines={1}>
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+  return (
+    <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, NAV_BAR_EDGE_INSET) }]}>
+      <View style={styles.panel}>
+        <View style={styles.row}>
+          {items.map(({ key, label, icon: Icon, route }) => {
+            const isActive = key === active;
+            const color = isActive ? colors.brand.primary : colors.text.muted;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                accessibilityLabel={label}
+                onPress={() => {
+                  if (isActive) return;
+                  router.replace(route);
+                }}
+                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+              >
+                {/* Толщина линии 2 в сетке 24 — по макету. У Phosphor это «bold»:
+                    regular рисует 1.5 и рядом с текстом выглядит бледнее подписи. */}
+                <Icon size={24} color={color} weight="bold" />
+                {/* Длинные подписи («Гастрогид», «Мои брони») сжимаются в одну
+                    строку, а не выталкивают соседнюю вкладку за край на 360 px. */}
+                <Text style={[styles.label, { color }]} numberOfLines={1}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
     </View>
   );
-
-  return <View style={[styles.bar, styles.fallback]}>{tabs}</View>;
 }
 
 const styles = StyleSheet.create({
-  bar: {
+  dock: {
+    // box-none: в просветах слева, справа и под плашкой лежит контент экрана —
+    // прозрачная область не должна перехватывать у него касания.
+    pointerEvents: "box-none",
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border.subtle,
+    paddingHorizontal: NAV_BAR_EDGE_INSET,
   },
-  fallback: {
-    // Непрозрачный белый: полупрозрачная заливка на светлом контенте читалась
-    // как грязь, а на фотографии — как дефект.
+  panel: {
     backgroundColor: colors.background.surface,
+    borderRadius: radius.navBar,
+    // `p-px` из макета: рамка плашки. Заливка непрозрачная, поэтому белая
+    // рамка в 14 % не нарисована — но её толщина остаётся частью высоты 58.
+    padding: 1,
+    marginBottom: NAV_BAR_INDICATOR_GAP,
+    // Тень ровно из макета: `0px 1px 20px rgba(0, 0, 0, 0.1)`.
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 20,
+    // У Android нет параметров тени — только elevation; 8 даёт сопоставимую
+    // мягкость (тот же приём, что у липкого футера в DetailBlocks).
+    elevation: 8,
   },
   row: {
     flexDirection: "row",
     alignItems: "stretch",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
   },
   item: {
     flex: 1,
-    // Padding + 24pt glyph + label makes the row ~52 tall, so every tab clears
-    // the 44pt touch-target rule without hitSlop (which would overlap its
-    // neighbour).
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    // 8 + 24 глиф + 2 + 14 подпись + 8 = 56 — ячейка сама по себе выше
+    // минимальных 44 pt, hitSlop не нужен (он бы залез на соседнюю вкладку).
+    paddingVertical: spacing.sm,
     alignItems: "center",
-    gap: spacing.xs,
+    gap: spacing.xxs,
+    borderRadius: radius.navBar,
   },
   pressed: {
     opacity: 0.6,
