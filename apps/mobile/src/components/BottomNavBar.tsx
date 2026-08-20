@@ -1,10 +1,19 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
+import { LinearGradient } from "expo-linear-gradient";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BookOpen, Compass, MagnifyingGlass, MapPin, UserCircle } from "./icons";
+import {
+  CompassIcon,
+  MagniferIcon,
+  type NavIconProps,
+  NotebookIcon,
+  PointOnMapIcon,
+  UserRoundedIcon,
+} from "./nav-icons";
 
 const t = getDictionary();
 
@@ -14,24 +23,27 @@ type NavKey = "overview" | "search" | "bookings" | "gastroguide" | "profile";
 interface NavItem {
   key: NavKey;
   label: string;
-  icon: typeof Compass;
+  icon: React.ComponentType<NavIconProps>;
   route: "/" | "/search" | "/bookings" | "/articles" | "/profile";
 }
 
+/**
+ * Глифы — ровно те пять, что нарисованы в макете (набор Solar Linear), а не
+ * их подобия из Phosphor: раньше «Гастрогид» рисовался булавкой MapPin вместо
+ * карты с точкой, а «Мои брони» — раскрытой книгой вместо блокнота.
+ */
 const items: NavItem[] = [
-  { key: "overview", label: t.nav.overview, icon: Compass, route: "/" },
-  { key: "search", label: t.nav.search, icon: MagnifyingGlass, route: "/search" },
-  { key: "bookings", label: t.nav.bookings, icon: BookOpen, route: "/bookings" },
-  // Четвёртая вкладка — гастрогид, а не избранное. Глиф в макете называется
-  // «Point On Map», ближайший в наборе Phosphor — MapPin.
-  { key: "gastroguide", label: t.nav.gastroguide, icon: MapPin, route: "/articles" },
-  { key: "profile", label: t.nav.profile, icon: UserCircle, route: "/profile" },
+  { key: "overview", label: t.nav.overview, icon: CompassIcon, route: "/" },
+  { key: "search", label: t.nav.search, icon: MagniferIcon, route: "/search" },
+  { key: "bookings", label: t.nav.bookings, icon: NotebookIcon, route: "/bookings" },
+  { key: "gastroguide", label: t.nav.gastroguide, icon: PointOnMapIcon, route: "/articles" },
+  { key: "profile", label: t.nav.profile, icon: UserRoundedIcon, route: "/profile" },
 ];
 
 /**
  * Высота самой плашки (Figma node 3039:23944).
  *
- * 1 (рамка-паддинг) + 8 + 24 глиф + 2 + 14 подпись + 8 + 1 = 58.
+ * 1 (рамка) + 8 + 24 глиф + 2 + 14 подпись + 8 + 1 = 58.
  */
 export const NAV_BAR_HEIGHT = 58;
 
@@ -90,9 +102,9 @@ export function activeNavKey(pathname: string): NavKey | null {
  * Bottom tab bar (Figma 3z0f6dgev4HMwBAHPjTjPo, «Bottom Navigation»,
  * node 3039:23943).
  *
- * Плашка ПЛАВАЕТ: белый скруглённый прямоугольник с отступом 8 от каждого края
+ * Плашка ПЛАВАЕТ: скруглённый прямоугольник с отступом 8 от каждого края
  * экрана и мягкой тенью, а не полоса во всю ширину. Под ней — зона
- * home-indicator, она остаётся прозрачной: там виден фон экрана.
+ * home-indicator: там виден фон экрана, приглушённый градиентом.
  *
  * All five tabs navigate. Switching tabs REPLACES the current route rather
  * than pushing: tabs are siblings, not a stack, and pushing would build a back
@@ -100,12 +112,29 @@ export function activeNavKey(pathname: string): NavKey | null {
  * phone. Tapping the tab you are already on does nothing, instead of
  * remounting the screen and throwing away its scroll position.
  *
- * The bar is SOLID, not frosted. В макете плашка полупрозрачная (белый 30 % с
- * размытием) — это вариант «жидкого стекла», от которого проект уже
- * отказывался: на реальном телефоне поверх фотографии заливка расплывалась
- * пятнами, а подписи в 10 pt теряли контраст. Настоящее размытие требует
- * нативного модуля и новой сборки; до тех пор честный ответ — непрозрачная
- * плашка с той же геометрией, радиусом и тенью.
+ * ФОН СОБРАН ПО МАКЕТУ И ЧЕСТНО ДЕГРАДИРУЕТ.
+ *
+ * Под плашкой лежит вертикальный градиент из макета (прозрачный сверху →
+ * белый 65 % снизу): он гасит контент, уезжающий под навигацию, и работает на
+ * всех платформах.
+ *
+ * Сама плашка размыта настоящим системным размытием там, где оно есть, — это
+ * iOS 26 и `expo-glass-effect` (UIVisualEffectView). Тогда заливка ровно из
+ * макета: белый 30 % как оттенок стекла, рамка белым 14 %, радиус 36.
+ *
+ * На Android и на iOS до 26 нативного размытия НЕТ: `expo-glass-effect` там
+ * вырождается в обычный View, а `expo-blur` в проект не установлен и по OTA
+ * не приедет. Рисовать вместо размытия белый 30 % нельзя — это не «почти
+ * стекло», это подпись в 10 pt поверх голой фотографии. Поэтому там плашка
+ * заливается почти непрозрачным белым (`navBarFallback`), геометрия и рамка
+ * остаются макетными.
+ *
+ * ПРО КОНТРАСТ (историю уже проходили: прошлую попытку «жидкого стекла»
+ * откатили, потому что подписи в 10 pt терялись поверх фотографии). Сверх
+ * макета добавлено ровно два: `colorScheme="light"` у стекла, чтобы система
+ * не перекрасила материал в тёмный поверх тёмного фото и красная активная
+ * подпись не оказалась на почти чёрном; и более тёмный серый неактивной
+ * подписи из макета (#595959 вместо прежнего #A5A5A5).
  */
 export function BottomNavBar() {
   const pathname = usePathname();
@@ -113,40 +142,76 @@ export function BottomNavBar() {
   const active = activeNavKey(pathname);
   const insets = useSafeAreaInsets();
 
-  return (
-    <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, NAV_BAR_EDGE_INSET) }]}>
-      <View style={styles.panel}>
-        <View style={styles.row}>
-          {items.map(({ key, label, icon: Icon, route }) => {
-            const isActive = key === active;
-            const color = isActive ? colors.brand.primary : colors.text.muted;
-            return (
-              <Pressable
-                key={key}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isActive }}
-                accessibilityLabel={label}
-                onPress={() => {
-                  if (isActive) return;
-                  router.replace(route);
-                }}
-                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-              >
-                {/* Толщина линии 2 в сетке 24 — по макету. У Phosphor это «bold»:
-                    regular рисует 1.5 и рядом с текстом выглядит бледнее подписи. */}
-                <Icon size={24} color={color} weight="bold" />
-                {/* Длинные подписи («Гастрогид», «Мои брони») сжимаются в одну
-                    строку, а не выталкивают соседнюю вкладку за край на 360 px. */}
-                <Text style={[styles.label, { color }]} numberOfLines={1}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+  const tabs = (
+    <View style={styles.row}>
+      {items.map(({ key, label, icon: Icon, route }) => {
+        const isActive = key === active;
+        const color = isActive ? colors.brand.primary : colors.text.navInactive;
+        return (
+          <Pressable
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={label}
+            onPress={() => {
+              if (isActive) return;
+              router.replace(route);
+            }}
+            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+          >
+            <Icon size={24} color={color} />
+            {/* Длинные подписи («Гастрогид», «Мои брони») сжимаются в одну
+                строку, а не выталкивают соседнюю вкладку за край на 360 px. */}
+            <Text style={[styles.label, { color }]} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
+
+  return (
+    <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, NAV_BAR_EDGE_INSET) }]}>
+      {/* Градиент лежит во всю ширину дока, под плашкой и под зоной
+          home-indicator, и не перехватывает касания. */}
+      <LinearGradient
+        colors={[colors.overlay.navBarGradientTop, colors.overlay.navBarGradientBottom]}
+        style={styles.gradient}
+      />
+      <NavPanel>{tabs}</NavPanel>
+    </View>
+  );
+}
+
+/**
+ * Плашка: настоящее стекло там, где оно есть, иначе — заливка.
+ *
+ * Проверяются ОБА флага. `isLiquidGlassAvailable` говорит, что приложение
+ * вообще в дизайне Liquid Glass, а `isGlassEffectAPIAvailable` — что на этом
+ * устройстве есть сам класс UIGlassEffect: на части бет iOS 26 его нет, и
+ * обращение к нему роняет приложение (expo/expo#40911).
+ */
+function NavPanel({ children }: { children: React.ReactNode }) {
+  const hasNativeGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+
+  if (hasNativeGlass) {
+    return (
+      // Скругление приезжает из `styles.panel`: RN разбирает style в
+      // отдельные нативные пропы, и `borderRadius` ловит объявленный в модуле
+      // Prop("borderRadius") — им нативная сторона режет сам материал.
+      <GlassView
+        style={styles.panel}
+        glassEffectStyle="regular"
+        colorScheme="light"
+        tintColor={colors.background.navBarGlassTint}
+      >
+        {children}
+      </GlassView>
+    );
+  }
+
+  return <View style={[styles.panel, styles.panelFallback]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -160,12 +225,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: NAV_BAR_EDGE_INSET,
   },
+  gradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: "none",
+  },
   panel: {
-    backgroundColor: colors.background.surface,
     borderRadius: radius.navBar,
-    // `p-px` из макета: рамка плашки. Заливка непрозрачная, поэтому белая
-    // рамка в 14 % не нарисована — но её толщина остаётся частью высоты 58.
-    padding: 1,
+    // Рамка из макета (`1px solid rgba(255,255,255,0.14)`) заодно играет роль
+    // его же `p-px`: 1 сверху и 1 снизу — это те самые два пикселя высоты 58.
+    borderWidth: 1,
+    borderColor: colors.overlay.navBarBorder,
     marginBottom: NAV_BAR_INDICATOR_GAP,
     // Тень ровно из макета: `0px 1px 20px rgba(0, 0, 0, 0.1)`.
     shadowColor: "#000",
@@ -175,6 +248,9 @@ const styles = StyleSheet.create({
     // У Android нет параметров тени — только elevation; 8 даёт сопоставимую
     // мягкость (тот же приём, что у липкого футера в DetailBlocks).
     elevation: 8,
+  },
+  panelFallback: {
+    backgroundColor: colors.background.navBarFallback,
   },
   row: {
     flexDirection: "row",
