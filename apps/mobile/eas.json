@@ -24,15 +24,17 @@
       "autoIncrement": false,
       "credentialsSource": "local",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
+        "EXPO_PUBLIC_API_URL": "https://test.backend.book-eat.com/api/v1",
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404"
       },
       "channel": "production"
     },
     "production-main": {
       "extends": "production",
       "env": {
-        "BOOKEAT_TARGET": "main"
+        "BOOKEAT_TARGET": "main",
+        "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
       },
       "channel": "production",
       "credentialsSource": "local"
