@@ -81,8 +81,16 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
             {restaurant.description}
           </Text>
         ) : null}
-        <Text style={styles.status}>{statusLabel}</Text>
         <View style={styles.chipsRow}>
+          {/* «Открыто»/«Закрыто» — такой же чип, как кухня и чек (правка
+              владельца 2026-08-21: на поиске статус оставался подписью
+              старого вида). Один вид у всех меток карточки, и тот же, что на
+              карточке заведения. */}
+          {statusLabel ? (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{statusLabel}</Text>
+            </View>
+          ) : null}
           {/* У части заведений в каталоге cuisine_type пустой — тогда чипа
               просто нет, вместо пустого серого прямоугольника. */}
           {cuisineLabel ? (
@@ -143,10 +151,6 @@ const styles = StyleSheet.create({
   description: {
     ...typography.body,
     color: colors.text.muted,
-  },
-  status: {
-    ...typography.body,
-    color: colors.text.primary,
   },
   chipsRow: {
     flexDirection: "row",

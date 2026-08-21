@@ -40,6 +40,19 @@ describe("карточка заведения", () => {
     expect(screen.queryByText("₸₸")).toBeNull();
   });
 
+  it("статус заведения — такой же чип, как остальные метки", () => {
+    // Раньше «Открыто»/«Закрыто» было подписью старого вида: на одной карточке
+    // соседствовали метка-пилюля и обычная строка.
+    render(
+      <RestaurantCard
+        restaurant={{ ...BASE, schedule: { openNow: false, todayHours: null } as never }}
+        onPress={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Закрыт/)).toBeTruthy();
+  });
+
   it("без числового диапазона чипа цены нет вовсе, а не символы ₸₸", () => {
     render(<RestaurantCard restaurant={BASE} onPress={vi.fn()} />);
 
