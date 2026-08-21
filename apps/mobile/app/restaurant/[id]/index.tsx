@@ -148,15 +148,16 @@ export default function RestaurantDetailScreen() {
                       честно скажет просто «Открыто». */}
                   <Text style={styles.chipText}>{openUntilTodayLabel(restaurant.schedule)}</Text>
                 </View>
-                <View style={styles.chip}>
-                  {/* Числовой диапазон среднего чека, если бэкенд его прислал;
-                      иначе — символьная ступень (₸/₸₸/₸₸₸). Тот же чип и стиль. */}
-                  <Text style={styles.chipText}>
-                    {restaurant.priceRange
-                      ? formatPriceRange(restaurant.priceRange)
-                      : restaurant.priceLevel}
-                  </Text>
-                </View>
+                {/* Средний чек ТОЛЬКО цифрами (правка владельца 2026-08-20),
+                    как и в списках. Символьная ступень (₸/₸₸/₸₸₸) больше не
+                    подставляется: заведение без числового диапазона остаётся
+                    без чипа цены, а не показывает цену другим языком, чем
+                    соседние экраны. */}
+                {restaurant.priceRange ? (
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>{formatPriceRange(restaurant.priceRange)}</Text>
+                  </View>
+                ) : null}
                 {/* Рейтинг показываем только когда отзывы реально есть:
                     «0,0» у заведения без отзывов читается как плохая оценка. */}
                 {restaurant.reviewsCount > 0 ? (
@@ -382,8 +383,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   // 36 высотой, текст с отступом 12 по бокам — размеры чипа из макета.
+  // Гамма — та же бордовая, что у меток в списках (правка владельца
+  // 2026-08-21 «chips should be same color»): карточка заведения и карточка в
+  // каталоге показывают одни и те же факты, и разный цвет читался бы как
+  // разный смысл.
   chip: {
-    backgroundColor: colors.background.chip,
+    backgroundColor: colors.background.chipBrand,
     borderRadius: radius.pill,
     minHeight: 36,
     justifyContent: "center",
@@ -392,7 +397,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     ...typography.labelMedium,
-    color: colors.text.primary,
+    color: colors.text.brand,
   },
   // Блок карточки заведения — белая полоса ВО ВСЮ ШИРИНУ, без скругления
   // (макет 340:2535). Разделяет блоки серый просвет между ними, а не линия и
