@@ -14,8 +14,8 @@
       [
         "expo-notifications",
         {
-          "color": "#B33036",
-          "defaultChannel": "bookings"
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#B33036"
         }
       ],
       [
