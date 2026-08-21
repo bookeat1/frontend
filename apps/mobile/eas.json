@@ -71,6 +71,10 @@
         "ascApiKeyId": "AXCB3363NM",
         "ascApiKeyIssuerId": "eeb61671-98db-4a37-8af1-1f8ef7bb96f9",
         "ascAppId": "6757542577"
+      },
+      "android": {
+        "serviceAccountKeyPath": "/home/tai/.bookeat/google-play-service-account.json",
+        "track": "internal"
       }
     }
   }
