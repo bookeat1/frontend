@@ -65,6 +65,42 @@ export function useRecommendedRestaurants() {
 }
 
 /**
+ * Фотографии для ряда «Выберите кухню».
+ *
+ * Ручка кухонь отдаёт только название, картинки кухни на бэкенде нет. Раньше
+ * снимки лежали в самом приложении, и кухня без снимка ВЫПАДАЛА из ряда: на
+ * боевом каталоге из девяти кухонь картинки были у двух, поэтому ряд выглядел
+ * пустым (правка владельца 2026-08-21).
+ *
+ * Теперь фотография берётся у реального заведения этой кухни. Она всегда есть,
+ * права на неё наши, и новая кухня в каталоге появляется в ряду сама, без
+ * досылки сборки.
+ *
+ * Берём ПЕРВОЕ заведение каждой кухни в порядке каталога: там уже задан
+ * `display_order`, то есть выбор редакции, а не случайность.
+ */
+export function useCuisinePhotos(): Map<string, string> {
+  const repository = useRepository();
+  const query = useQuery<RestaurantSummary[]>({
+    queryKey: ["catalog-preview"],
+    queryFn: () => repository.getCatalogPreview(),
+    staleTime: 5 * 60_000,
+  });
+
+  return useMemo(() => {
+    const byCuisine = new Map<string, string>();
+    for (const venue of query.data ?? []) {
+      const uri = venue.coverPhoto?.uri;
+      if (!uri) continue;
+      for (const cuisine of venue.cuisines) {
+        if (!byCuisine.has(cuisine.id)) byCuisine.set(cuisine.id, uri);
+      }
+    }
+    return byCuisine;
+  }, [query.data]);
+}
+
+/**
  * REAL DATA — «Выберите кухню».
  * GET /restaurants/cuisines (RestaurantRepository.getCuisines). The list is the
  * distinct `cuisine_type` values of the live catalog, each id being

@@ -56,6 +56,13 @@ export const colors = {
     screen: "#F5F5F5",
     /** Card / sheet surface. */
     surface: "#FFFFFF",
+    /**
+     * Тот же белый лист, но прозрачный — начало затухания у края
+     * горизонтального ряда. Отдельный токен, потому что «прозрачный» в
+     * градиенте обязан быть ТЕМ ЖЕ цветом с нулевой прозрачностью: чистый
+     * `transparent` на iOS даёт серую кайму по краям перехода.
+     */
+    surfaceTransparent: "rgba(255, 255, 255, 0)",
     /** Neutral pill chip background (hours, price, menu tag chips). */
     chip: "#F1F1F1",
     /**

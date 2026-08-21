@@ -7,7 +7,7 @@ import { CardStrip } from "./CardStrip";
 import { CuisineChip } from "./CuisineChip";
 import { cuisinePhoto } from "./cuisine-photos";
 import { SectionCard, SectionHeader } from "./SectionCard";
-import { useExploreCuisines } from "./use-explore-data";
+import { useCuisinePhotos, useExploreCuisines } from "./use-explore-data";
 
 const t = getDictionary();
 
@@ -21,9 +21,17 @@ const t = getDictionary();
  * FAILED cuisine list HIDES the whole section rather than showing a broken or
  * empty block, keeping the home screen finished on real data. Only the loading
  * state draws anything provisional — a row of skeleton circles.
+ *
+ * КАРТИНКИ (правка владельца 2026-08-21). Раньше кухня без снимка, лежащего в
+ * приложении, выпадала из ряда: на боевом каталоге снимки были у двух кухонь
+ * из девяти, и ряд выглядел пустым. Теперь недостающие снимки берутся у
+ * реальных заведений этой кухни (useCuisinePhotos), и кухня скрывается, только
+ * если фотографии нет ВООБЩЕ нигде — то есть у всех её заведений пустой
+ * каталог фотографий.
  */
 export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cuisine) => void }) {
   const query = useExploreCuisines();
+  const photos = useCuisinePhotos();
 
   if (query.isLoading) {
     return (
@@ -38,7 +46,9 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
   // ряду картинок читается как «не загрузилось», а не как «такая кухня есть».
   // Решение владельца от 17.08.2026 — до тех пор, пока фотографии не появятся
   // у всех (см. cuisine-photos.ts, картинки лежат в самом приложении).
-  const cuisines = (query.data ?? []).filter((cuisine) => cuisinePhoto(cuisine.id) !== undefined);
+  const cuisines = (query.data ?? []).filter(
+    (cuisine) => cuisinePhoto(cuisine.id) !== undefined || photos.has(cuisine.id),
+  );
   // Hide the whole section on empty OR error — a cuisine shortcut the guest
   // never sees is better than a dead or broken block on the first screen.
   if (query.isError || cuisines.length === 0) {
@@ -53,7 +63,9 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
         keyExtractor={(cuisine) => cuisine.id}
         accessibilityLabel={t.explore.cuisineTitle}
         itemWidth={exploreLayout.cuisineChip}
-        renderItem={({ item }) => <CuisineChip cuisine={item} onSelect={onPickCuisine} />}
+        renderItem={({ item }) => (
+          <CuisineChip cuisine={item} onSelect={onPickCuisine} photoUri={photos.get(item.id)} />
+        )}
       />
     </SectionCard>
   );

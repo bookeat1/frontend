@@ -13,20 +13,25 @@ const t = getDictionary();
  * One circular cuisine chip in the «Выберите кухню» rail. Tapping it opens the
  * catalog filtered to that cuisine (see the home screen's onPickCuisine).
  *
- * The picture is a BUNDLED asset (see cuisine-photos.ts), not a remote url —
- * there is still no per-cuisine image endpoint, and a local file needs no
- * caching, resizing or 404 handling, which is what PhotoView exists for. A
- * cuisine we have no picture for keeps that neutral placeholder circle.
+ * Картинка берётся в двух местах. Сначала — снимок, лежащий в самом
+ * приложении (cuisine-photos.ts): он показывается мгновенно и работает без
+ * сети. Если своего снимка нет, подставляется фотография РЕАЛЬНОГО заведения
+ * этой кухни из каталога (`photoUri`, см. useCuisinePhotos).
  *
- * TODO(backend): when an image endpoint lands, drop the bundle and pass the
- * url to PhotoView instead.
+ * Так ряд заполнен целиком, не требуя досылать сборку под каждую новую кухню:
+ * на боевом каталоге из девяти кухонь своих снимков было два, и остальные семь
+ * просто не показывались.
  */
 export function CuisineChip({
   cuisine,
   onSelect,
+  photoUri,
 }: {
   cuisine: Cuisine;
   onSelect: (cuisine: Cuisine) => void;
+  /** Фотография заведения этой кухни — запасной вариант, когда своего
+   * снимка в приложении нет. */
+  photoUri?: string;
 }) {
   const photo = cuisinePhoto(cuisine.id);
 
@@ -48,12 +53,7 @@ export function CuisineChip({
           importantForAccessibility="no-hide-descendants"
         />
       ) : (
-        <PhotoView
-          uri={undefined}
-          style={styles.circle}
-          decorative
-          placeholderIconSize={28}
-        />
+        <PhotoView uri={photoUri} style={styles.circle} decorative placeholderIconSize={28} />
       )}
       <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
         {cuisine.name}
