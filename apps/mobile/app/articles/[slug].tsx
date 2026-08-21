@@ -216,16 +216,18 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
   },
+  // Метка той же бордовой гаммы, что чипы в списках и на карточке заведения
+  // (правка владельца 2026-08-21: в статьях метка оставалась серой).
   chip: {
     alignSelf: "flex-start",
-    backgroundColor: colors.background.chip,
+    backgroundColor: colors.background.chipBrand,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   chipLabel: {
     ...typography.labelMedium,
-    color: colors.text.primary,
+    color: colors.text.brand,
   },
   subtitle: {
     ...typography.body,
