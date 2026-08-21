@@ -67,6 +67,9 @@ export interface RestaurantRepository {
   getMapPreviewUrl(restaurantId: string, options?: MapPreviewOptions): string | undefined;
   getPopularRestaurants(): Promise<RestaurantSummary[]>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
+  /** Короткая выборка каталога ради фотографий (см. http-repository). */
+  getCatalogPreview(perPage?: number): Promise<RestaurantSummary[]>;
+
   getCuisines(): Promise<Cuisine[]>;
   /** Cities the catalog actually has venues in, for the city filter. */
   getCities(): Promise<string[]>;

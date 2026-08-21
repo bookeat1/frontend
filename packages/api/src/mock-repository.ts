@@ -148,6 +148,11 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return { query, items, total: items.length };
   }
 
+  async getCatalogPreview(): Promise<RestaurantSummary[]> {
+    await this.simulateNetwork();
+    return restaurants.map(toSummary);
+  }
+
   async getCuisines(): Promise<Cuisine[]> {
     await this.simulateNetwork();
     return cuisines;

@@ -302,6 +302,23 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return cuisineIds.flatMap((id) => catalog.variantsById.get(id) ?? [id]);
   }
 
+  /**
+   * GET /restaurants?per_page=N — короткая выборка каталога РАДИ ФОТОГРАФИЙ.
+   *
+   * Нужна ряду «Выберите кухню»: сама ручка кухонь отдаёт только `{id, name}`,
+   * картинки для кухни на бэкенде нет и не планируется, а класть в приложение
+   * по снимку на каждую кухню значит каждый раз досылать сборку, когда в
+   * каталоге появляется новая. Здесь фотография берётся у РЕАЛЬНОГО заведения
+   * этой кухни — она всегда есть, всегда наша и обновляется сама.
+   */
+  async getCatalogPreview(perPage = 50): Promise<RestaurantSummary[]> {
+    const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants", {
+      page: 1,
+      per_page: perPage,
+    });
+    return (page.items ?? []).map(mapRestaurantSummary);
+  }
+
   async getCuisines(): Promise<Cuisine[]> {
     const catalog = await this.getCuisineCatalog();
     return catalog.list;
