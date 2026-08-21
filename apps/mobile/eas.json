@@ -46,6 +46,14 @@
         "buildType": "apk"
       },
       "channel": "production"
+    },
+    "production-apk-main": {
+      "extends": "production-main",
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "production"
     }
   },
   "submit": {
