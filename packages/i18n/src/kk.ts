@@ -868,6 +868,8 @@ export const kk: LocaleOverride<Dictionary> = {
     chat: "Чат",
     backToHome: "Басты бетке",
     openMenu: "Мәзір",
+    cancelWindowClosed:
+      "Келуге екі сағаттан аз қалды — қолданбада болдырмау мүмкін емес. Жоспарыңыз өзгерсе, мейрамханаға қоңырау шалыңыз.",
     cancelSectionTitle: "Болдырмағыңыз келе ме?",
     cancelBooking: "Бронды бас тарту",
     cancelDialogTitle: "Бронды бас тарту керек пе?",

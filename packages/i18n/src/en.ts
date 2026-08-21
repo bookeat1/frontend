@@ -861,6 +861,8 @@ export const en: LocaleOverride<Dictionary> = {
     chat: "Chat",
     backToHome: "Back to home",
     openMenu: "Menu",
+    cancelWindowClosed:
+      "Less than two hours before the visit — cancelling in the app is no longer possible. Call the venue if your plans changed.",
     cancelSectionTitle: "Want to cancel?",
     cancelBooking: "Cancel",
     cancelDialogTitle: "Cancel booking?",

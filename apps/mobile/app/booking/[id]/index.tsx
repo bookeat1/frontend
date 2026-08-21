@@ -1,4 +1,4 @@
-import { canGuestCancel, RepositoryError } from "@bookeat/api";
+import { canGuestCancel, isCancellableBookingStatus, RepositoryError } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -66,6 +66,9 @@ export default function ReservationScreen() {
   const preorder = usePreorder(id);
 
   const canCancel = booking.data ? canGuestCancel(booking.data) : false;
+  // Статус ещё позволяет отмену (бронь жива), даже если двухчасовое окно уже
+  // закрылось: от этого зависит, показывать ли блок отмены вообще.
+  const cancellable = booking.data ? isCancellableBookingStatus(booking.data.status) : false;
   const payment = useBookingPayment(id, canCancel);
   const cancel = useCancelBooking();
 
@@ -291,23 +294,32 @@ export default function ReservationScreen() {
           <ContactsCard restaurant={restaurant.data} />
         ) : null}
 
-        {/* Отмена брони — отдельный блок внизу экрана (макет 3073:11402).
-            Показывается только пока бронь ВООБЩЕ можно отменить: у отменённой
-            и прошедшей брони блок исчезает целиком, а не висит неактивной
-            кнопкой, которая выглядит как поломка. */}
-        {canCancel ? (
+        {/* Отмена брони — САМЫЙ ПОСЛЕДНИЙ блок экрана (макет 3073:11402).
+            Блок стоит на месте у любой живой брони, даже когда кнопка уже не
+            работает: за два часа до визита заведение держит стол, и отмена
+            уходит в разговор с рестораном (правило от 18.08.2026). Раньше в
+            этом случае блок исчезал целиком, и человек видел экран, где
+            отмены просто нет, — это читается как потерянная кнопка, а не как
+            правило. Теперь правило написано словами.
+
+            У отменённой и прошедшей брони блока нет вовсе: отменять там
+            нечего. */}
+        {cancellable ? (
           <BookingCard title={t.booking.cancelSectionTitle}>
             <PrimaryButton
               label={t.booking.cancelBooking}
               variant="secondary"
               size="lg"
               icon={XCircle}
-              disabled={!cancelReady || cancel.isPending}
+              disabled={!canCancel || !cancelReady || cancel.isPending}
               onPress={() => {
                 setCancelError(null);
                 setDialogOpen(true);
               }}
             />
+            {!canCancel ? (
+              <Text style={styles.cancelHint}>{t.booking.cancelWindowClosed}</Text>
+            ) : null}
           </BookingCard>
         ) : null}
         {/* Белый хвост под последним блоком. Это отдельный элемент, а не
@@ -389,6 +401,11 @@ const styles = StyleSheet.create({
   },
   actionCell: {
     flex: 1,
+  },
+  // Пояснение под неактивной кнопкой отмены.
+  cancelHint: {
+    ...typography.caption,
+    color: colors.text.muted,
   },
   notice: {
     borderWidth: 1,
