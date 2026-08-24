@@ -809,6 +809,8 @@ export interface VenueTodayBooking {
    * rows; on an answered booking it is merely the age of the record.
    */
   waiting_minutes: number;
+  /** Блюда, заказанные заранее. Пустой массив у брони без предзаказа. */
+  preorder: AdminBookingPreorderItem[];
 }
 
 /**

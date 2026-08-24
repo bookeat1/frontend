@@ -7,7 +7,7 @@ import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
-import { ChatCircle, ForkKnife, GearSix, GlobeSimple, Heart, MapPin, Question, SignOut, ThumbsUp, User } from "../src/components/icons";
+import { GearSix, GlobeSimple, Heart, MapPin, SignOut, User} from "../src/components/icons";
 import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
 import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
 import { ProfileMenuRow } from "../src/components/profile/ProfileMenuRow";
@@ -201,24 +201,17 @@ export default function ProfileScreen() {
                 гастрогид), и искать вход гость будет здесь, рядом с бронями,
                 а не внизу у «Выйти».
 
-                Фуди-профиль / Мои отзывы — track-C: no screen yet, so both rows
-                are non-interactive «Скоро» rather than dead chevrons.
-                TODO(track-C backend): give them an onPress once the screens land. */}
+                СТРОК «СКОРО» ЗДЕСЬ БОЛЬШЕ НЕТ (обратная связь живого гостя,
+                24.08.2026). Фуди-профиль, отзывы, центр помощи и оценка
+                приложения были нерабочими подписями: обещание в меню, за
+                которым ничего не открывается, раздражает сильнее, чем
+                отсутствие пункта. Строки вернутся вместе со своими экранами,
+                а не раньше. */}
             <View style={styles.group}>
               <ProfileMenuRow
                 icon={Heart}
                 label={t.profile.menu.favorites}
                 onPress={() => router.push("/favorites")}
-                comingSoonLabel={t.profile.comingSoon}
-              />
-              <ProfileMenuRow
-                icon={ForkKnife}
-                label={t.profile.menu.foodProfile}
-                comingSoonLabel={t.profile.comingSoon}
-              />
-              <ProfileMenuRow
-                icon={ChatCircle}
-                label={t.profile.menu.myReviews}
                 comingSoonLabel={t.profile.comingSoon}
               />
             </View>
@@ -246,19 +239,7 @@ export default function ProfileScreen() {
               />
             </View>
 
-            {/* Центр помощи / Оценить приложение — track-C placeholders; Настройки
-                is real. TODO(track-C backend): wire the first two. */}
             <View style={styles.group}>
-              <ProfileMenuRow
-                icon={Question}
-                label={t.profile.menu.helpCenter}
-                comingSoonLabel={t.profile.comingSoon}
-              />
-              <ProfileMenuRow
-                icon={ThumbsUp}
-                label={t.profile.menu.rateApp}
-                comingSoonLabel={t.profile.comingSoon}
-              />
               <ProfileMenuRow
                 icon={GearSix}
                 label={t.profile.settings}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   classifyBookingActionFailure,
   type AdminBooking,
+  type AdminBookingPreorderItem,
   type BookingActionFailureKind,
   type BookingReasonInput,
   type VenueToday,
@@ -15,7 +16,7 @@ import {
 
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
-import { formatTime } from "@/lib/format";
+import { formatMinorTenge, formatTime } from "@/lib/format";
 import { formatBookingWhen, formatWaiting, telHref } from "@/lib/venue-today";
 import { Button } from "./ui/Button";
 import { StatusBadge } from "./ui/StatusBadge";
@@ -219,6 +220,29 @@ export function VenueTodayBoard({
   );
 }
 
+/**
+ * Состав предзаказа в строке заявки и в списке дня.
+ *
+ * У брони без предзаказа не рисуется ничего: пустая строка «Предзаказ» в
+ * каждой карточке превращается в мебель, и её перестают замечать там, где
+ * заказ действительно есть.
+ */
+function PreorderNote({ items }: { items: AdminBookingPreorderItem[] }) {
+  if (!items || items.length === 0) return null;
+  const total = items.reduce((sum, i) => sum + i.total_minor, 0);
+  return (
+    <div className="mt-xxs rounded-card bg-surface-subtle px-sm py-xxs">
+      <span className="text-[13px] font-medium text-text">{copy.preorderTitle}</span>
+      <span className="block text-[13px] text-text-muted">
+        {items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}
+      </span>
+      <span className="block text-[13px] text-text-muted">
+        {copy.preorderTotal(formatMinorTenge(total))}
+      </span>
+    </div>
+  );
+}
+
 function AwaitingRow({
   booking,
   busyKind,
@@ -257,6 +281,10 @@ function AwaitingRow({
           <span className="text-sm text-text-muted">{booking.phone}</span>
         )}
         <span className="text-[13px] text-text-muted">{formatWaiting(booking.waiting_minutes)}</span>
+        {/* Заказанные блюда прямо в заявке: хостес решает, подтверждать ли
+            бронь, глядя на этот экран, а кухне состав нужен до прихода
+            гостя. */}
+        <PreorderNote items={booking.preorder} />
       </div>
 
       <div className="flex shrink-0 gap-sm">

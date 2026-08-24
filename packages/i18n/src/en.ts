@@ -378,6 +378,8 @@ export const en: LocaleOverride<Dictionary> = {
       total: (n: number) => `Total: ${n}`,
     },
     today: {
+      preorderTitle: "Pre-order",
+      preorderTotal: (sum: string) => `Total ${sum}`,
       awaitingTitle: "Need a response",
       awaitingMore: (n: number) => `${n} more →`,
       confirm: "Confirm",
