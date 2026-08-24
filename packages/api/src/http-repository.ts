@@ -1046,6 +1046,18 @@ async function optional<T>(promise: Promise<T>): Promise<T | undefined> {
   }
 }
 
+/**
+ * Venue TYPES that live in the free-text `cuisine_type` column but are not
+ * cuisines, so they must not become chips in «Выберите кухню». Keyed the same
+ * way as the catalog — `cuisineIdFor`, i.e. trimmed and lower-cased.
+ *
+ * This is a stopgap for as long as the cuisine is a string typed by hand. Once
+ * cuisines are a real dictionary, a venue type stops being expressible here at
+ * all and this set goes away with it. The venue itself stays in the catalog and
+ * stays searchable — only the circle on Home is suppressed.
+ */
+const NON_CUISINE_TYPES = new Set(["винный бар"]);
+
 function buildCuisineCatalog(items: ApiRestaurant[]): CuisineCatalog {
   const list: Cuisine[] = [];
   const variantsById = new Map<string, string[]>();
@@ -1053,6 +1065,7 @@ function buildCuisineCatalog(items: ApiRestaurant[]): CuisineCatalog {
     const name = (item.cuisine_type ?? "").trim();
     if (!name) continue;
     const id = cuisineIdFor(name);
+    if (NON_CUISINE_TYPES.has(id)) continue;
     const variants = variantsById.get(id);
     if (!variants) {
       // The first spelling seen becomes the chip label.
