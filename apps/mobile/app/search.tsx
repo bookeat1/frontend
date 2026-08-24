@@ -15,7 +15,8 @@ import { SearchBar } from "../src/components/SearchBar";
 import type { AvailabilityPicker } from "../src/components/search/AvailabilityBar";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
-import { useSearchScreen } from "../src/hooks/useSearch";
+import { EMPTY_UI_FACETS, useSearchScreen, type UiOnlyFacets } from "../src/hooks/useSearch";
+import { dateChoices } from "../src/lib/availability-label";
 import { MAX_GUESTS } from "../src/lib/availability-options";
 import { toDateKey } from "../src/lib/format";
 
@@ -146,6 +147,9 @@ export default function SearchScreen() {
 
   const resetFilters = () => {
     setFilters(EMPTY_FILTERS);
+    // Повод и удобства тоже видны чипами, поэтому «сбросить» обязано убирать и
+    // их: иначе ряд чипов пережил бы сброс и показывал фильтры, которых уже нет.
+    setUiFacets(EMPTY_UI_FACETS);
     setText("");
   };
 
@@ -159,9 +163,25 @@ export default function SearchScreen() {
     return map;
   }, [cuisinesQuery.data]);
 
+  // Подпись выбранного дня — тот же расчёт, что и в капсуле внутри шторки.
+  // «Сегодня» пересчитывать в течение сессии не нужно: экран живёт минуты, а
+  // не сутки.
+  const dateLabelFor = useMemo(() => dateChoices(new Date()).labelFor, []);
+
   const selectedChips = useMemo(
-    () => buildSelectedChips(filters, cuisineNameById),
-    [filters, cuisineNameById],
+    () => buildSelectedChips(filters, uiFacets, cuisineNameById, dateLabelFor),
+    [filters, uiFacets, cuisineNameById, dateLabelFor],
+  );
+
+  // Снятие чипа применяется СРАЗУ, без открытия шторки: и поддержанные
+  // бэкендом фильтры (новый запрос уходит сам, `filters` — часть queryKey), и
+  // UI-фасеты, которые выдачу не сужают, но показаны выбранными.
+  const removeChip = useCallback(
+    (chip: SelectedChip) => {
+      if (chip.removeFilters) setFilters(chip.removeFilters);
+      if (chip.removeFacets) setUiFacets(chip.removeFacets);
+    },
+    [setFilters, setUiFacets],
   );
 
   // «Часто ищут»: короткий ряд быстрых чипов из РЕАЛЬНЫХ кухонь каталога.
@@ -230,9 +250,11 @@ export default function SearchScreen() {
                     label={chip.label}
                     selected
                     selectedTone="brand"
-                    // Тап по выбранному чипу снимает именно этот фильтр —
-                    // применяется сразу, это уже поддержанный бэкендом фасет.
-                    onPress={() => setFilters(chip.remove)}
+                    // Тап по чипу и тап по крестику — одно и то же действие:
+                    // снять именно этот фильтр и сразу переспросить сервер.
+                    onPress={() => removeChip(chip)}
+                    onRemove={() => removeChip(chip)}
+                    removeAccessibilityLabel={t.a11y.removeFilter(chip.label)}
                   />
                 ))}
               </ScrollView>
@@ -353,39 +375,57 @@ export default function SearchScreen() {
 interface SelectedChip {
   key: string;
   label: string;
-  /** Как выглядят фильтры после снятия этого чипа. */
-  remove: (prev: SearchFilters) => SearchFilters;
+  /** Как выглядят фильтры поиска после снятия чипа. Нет — чип их не трогает. */
+  removeFilters?: (prev: SearchFilters) => SearchFilters;
+  /** То же для UI-фасетов (повод, удобства). */
+  removeFacets?: (prev: UiOnlyFacets) => UiOnlyFacets;
 }
 
-/** Разворачивает применённые поддерживаемые фильтры в чипы «выбранного»: одна
- * запись на кухню + по одной на «открыто сейчас»/«бронь онлайн»/город/цену.
- * Повод и удобства сюда НЕ попадают — они выдачу не сужают (track-C). */
+/** Подписи повода и удобств лежат в словаре под теми же id, что и в шторке.
+ * Читаем как словарь строк: id в `UiOnlyFacets` — обычная строка, и
+ * незнакомый должен показаться собой, а не пропасть из ряда. */
+function facetLabel(dict: Record<string, string>, id: string): string {
+  return dict[id] ?? id;
+}
+
+/**
+ * Разворачивает ВЕСЬ применённый подбор в чипы «выбранного» — ровно то, что
+ * гость собрал в шторке: дата и гости, повод, цена, кухни, удобства,
+ * «открыто сейчас», «бронь онлайн», город. Порядок совпадает с порядком
+ * разделов шторки, чтобы ряд читался как её краткий пересказ.
+ *
+ * Повод и удобства попадают сюда, хотя выдачу НЕ сужают (их нет в поисковом
+ * запросе бэкенда, track-C): решение владельца — показывать всё выбранное.
+ * Пока бэкенд их не поддержит, чип «Свидание» честнее читать как «вы это
+ * выбрали», а не как «список сужен».
+ *
+ * Дата и гости — ОДИН чип: сервер принимает их только парой, и два чипа
+ * снимались бы наполовину (см. AvailabilityBar).
+ */
 function buildSelectedChips(
   filters: SearchFilters,
+  facets: UiOnlyFacets,
   cuisineNameById: Map<string, string>,
+  dateLabelFor: (dateKey: string) => string,
 ): SelectedChip[] {
   const chips: SelectedChip[] = [];
 
-  if (filters.openNowOnly) {
+  if (filters.availability !== undefined) {
+    const { date, guests } = filters.availability;
     chips.push({
-      key: "openNow",
-      label: t.search.filterOpenNow,
-      remove: (prev) => ({ ...prev, openNowOnly: false }),
+      key: "availability",
+      label: t.search.filterAvailability(dateLabelFor(date), t.booking.guestsCount(guests)),
+      removeFilters: (prev) => ({ ...prev, availability: undefined }),
     });
   }
-  if (filters.onlineBookableOnly) {
+  for (const id of facets.occasionIds) {
     chips.push({
-      key: "onlineBookable",
-      label: t.search.filterOnlineBookable,
-      remove: (prev) => ({ ...prev, onlineBookableOnly: false }),
-    });
-  }
-  if (filters.city !== undefined) {
-    const city = filters.city;
-    chips.push({
-      key: "city",
-      label: city,
-      remove: (prev) => ({ ...prev, city: undefined }),
+      key: `occasion:${id}`,
+      label: facetLabel(t.search.filters.occasion, id),
+      removeFacets: (prev) => ({
+        ...prev,
+        occasionIds: prev.occasionIds.filter((x) => x !== id),
+      }),
     });
   }
   if (filters.priceLevel !== undefined) {
@@ -393,14 +433,49 @@ function buildSelectedChips(
     chips.push({
       key: "price",
       label: priceLevel,
-      remove: (prev) => ({ ...prev, priceLevel: undefined }),
+      removeFilters: (prev) => ({ ...prev, priceLevel: undefined }),
     });
   }
   for (const id of filters.cuisineIds) {
     chips.push({
       key: `cuisine:${id}`,
       label: cuisineNameById.get(id) ?? id,
-      remove: (prev) => ({ ...prev, cuisineIds: prev.cuisineIds.filter((x) => x !== id) }),
+      removeFilters: (prev) => ({
+        ...prev,
+        cuisineIds: prev.cuisineIds.filter((x) => x !== id),
+      }),
+    });
+  }
+  for (const id of facets.amenityIds) {
+    chips.push({
+      key: `amenity:${id}`,
+      label: facetLabel(t.search.filters.amenities, id),
+      removeFacets: (prev) => ({
+        ...prev,
+        amenityIds: prev.amenityIds.filter((x) => x !== id),
+      }),
+    });
+  }
+  if (filters.openNowOnly) {
+    chips.push({
+      key: "openNow",
+      label: t.search.filterOpenNow,
+      removeFilters: (prev) => ({ ...prev, openNowOnly: false }),
+    });
+  }
+  if (filters.onlineBookableOnly) {
+    chips.push({
+      key: "onlineBookable",
+      label: t.search.filterOnlineBookable,
+      removeFilters: (prev) => ({ ...prev, onlineBookableOnly: false }),
+    });
+  }
+  if (filters.city !== undefined) {
+    const city = filters.city;
+    chips.push({
+      key: "city",
+      label: city,
+      removeFilters: (prev) => ({ ...prev, city: undefined }),
     });
   }
 

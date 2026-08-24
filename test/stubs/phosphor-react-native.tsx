@@ -15,6 +15,12 @@ import React from "react";
  * rendered at all, so that the logic around it can be tested. Every icon
  * renders the same marked-up span carrying its name, which is enough for a
  * test to say "the fork-and-knife tile is showing" if one ever needs to.
+ *
+ * СПИСОК ОБЯЗАН СОВПАДАТЬ с реэкспортом `src/components/icons.tsx`. Забытая
+ * иконка — не «нет картинки», а `undefined` вместо компонента: React валит
+ * весь рендер сообщением «Element type is invalid» и показывает пальцем на
+ * ЧУЖОЙ компонент, тот, в чьей разметке она стояла. Так пропадали CaretUp
+ * (любой разворот сворачиваемого раздела) и Check (галочка удобства).
  */
 interface StubIconProps {
   size?: number | string;
@@ -29,13 +35,17 @@ const icon = (name: string) =>
   };
 
 export const ArrowLeft = icon("ArrowLeft");
+export const Bell = icon("Bell");
+export const BellSimple = icon("BellSimple");
 export const BookOpen = icon("BookOpen");
 export const Camera = icon("Camera");
 export const CalendarBlank = icon("CalendarBlank");
 export const CaretDown = icon("CaretDown");
 export const CaretLeft = icon("CaretLeft");
 export const CaretRight = icon("CaretRight");
+export const CaretUp = icon("CaretUp");
 export const ChatCircle = icon("ChatCircle");
+export const Check = icon("Check");
 export const CheckCircle = icon("CheckCircle");
 export const Clock = icon("Clock");
 export const Compass = icon("Compass");
@@ -51,16 +61,23 @@ export const MagnifyingGlass = icon("MagnifyingGlass");
 export const MapPin = icon("MapPin");
 export const Minus = icon("Minus");
 export const Note = icon("Note");
+export const Percent = icon("Percent");
 export const Phone = icon("Phone");
 export const Plus = icon("Plus");
 export const Question = icon("Question");
+export const SealPercent = icon("SealPercent");
+export const Shield = icon("Shield");
 export const SignOut = icon("SignOut");
 export const ThumbsUp = icon("ThumbsUp");
+export const Trash = icon("Trash");
 export const User = icon("User");
 export const UserCircle = icon("UserCircle");
 export const Users = icon("Users");
+export const Warning = icon("Warning");
 export const WarningCircle = icon("WarningCircle");
 export const WhatsappLogo = icon("WhatsappLogo");
+export const WifiSlash = icon("WifiSlash");
+export const Wrench = icon("Wrench");
 export const X = icon("X");
 export const XCircle = icon("XCircle");
 

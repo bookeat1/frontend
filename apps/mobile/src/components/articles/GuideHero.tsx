@@ -17,10 +17,12 @@ import { FlowHeader } from "../FlowHeader";
  * (`assets/home-header.jpg`). Тёмная заливка под фотографией — цвет, который
  * гость видит, пока кадр декодируется, а не «второй плейсхолдер».
  *
- * Стрелка «назад» рисуется только когда есть куда возвращаться: `/articles`
- * теперь корень вкладки, и на корне вкладки стрелка вела бы в никуда или,
- * хуже, на чужую вкладку. Экран передаёт `onBack` только при
- * `router.canGoBack()`.
+ * СТРЕЛКИ «НАЗАД» ТУТ НЕТ И ПРОПА ПОД НЕЁ НЕТ. `/articles` — корень вкладки,
+ * а из корня вкладки возвращаться некуда: стрелка либо вела в никуда, либо
+ * уводила на другую вкладку. Шапку рисует общий `FlowHeader`, и он БЕЗ `onBack`
+ * оставляет слева пустой слот той же ширины — заголовок остаётся по центру,
+ * а не съезжает влево. Вложенные экраны раздела (`/articles/[slug]`,
+ * `/routes/[slug]`) рисуют свою стрелку сами, эта правка их не касается.
  */
 
 /** Высота шапки НИЖЕ строки состояния: в макете кадр 300 при статус-баре 44
@@ -34,20 +36,19 @@ const HEADLINE_BLOCK_HEIGHT = 140;
 export function GuideHero({
   title,
   headline,
-  onBack,
 }: {
   /** Название раздела в шапке на 56 pt («Гастрогид»). */
   title: string;
   /** Крупный слоган поверх фотографии. */
   headline: string;
-  onBack?: () => void;
 }) {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.root, { height: insets.top + GUIDE_HERO_CONTENT_HEIGHT }]}>
-      {/* Фотография и затемнение — декоративные слои ПОД управлением: прятать
-          их надо поштучно, иначе из дерева доступности исчезнет и стрелка. */}
+      {/* Фотография и затемнение — декоративные слои ПОД заголовком: прятать
+          их от скринридера надо поштучно, иначе из дерева доступности исчезнет
+          и заголовок раздела. */}
       <Image
         source={require("../../../assets/gastroguide-hero.jpg")}
         style={styles.photo}
@@ -64,7 +65,7 @@ export function GuideHero({
       />
 
       <View style={{ paddingTop: insets.top }}>
-        <FlowHeader title={title} onBack={onBack} tone="onDark" />
+        <FlowHeader title={title} tone="onDark" />
       </View>
 
       <View style={styles.headlineBlock}>

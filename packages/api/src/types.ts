@@ -403,6 +403,25 @@ export function isCancellableBookingStatus(status: BookingStatus): boolean {
   return (CANCELLABLE_BOOKING_STATUSES as readonly BookingStatus[]).includes(status);
 }
 
+/**
+ * Статусы, из которых бронь уже никуда не переходит: визит состоялся, гость
+ * не пришёл или бронь отменена. Переписаны с того же `bookingTransitions` в
+ * backend-core/internal/domain/booking.go — у этих трёх набор целей пустой,
+ * и любой запрос на смену статуса отвечает 422.
+ *
+ * `arrived` СЮДА НЕ ВХОДИТ: гость за столом, визит идёт, и заказать что-то
+ * ещё он может.
+ *
+ * Практический смысл на клиенте: у такой брони бессмысленны действия,
+ * которые что-то меняют в предстоящем визите — предзаказ и меню в первую
+ * очередь. Показывать их — обещать то, чего сервер уже не примет.
+ */
+export const TERMINAL_BOOKING_STATUSES = ["completed", "cancelled", "no_show"] as const;
+
+export function isTerminalBookingStatus(status: BookingStatus): boolean {
+  return (TERMINAL_BOOKING_STATUSES as readonly BookingStatus[]).includes(status);
+}
+
 /** За сколько до начала визита гость ещё может отменить бронь сам. */
 export const CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
 

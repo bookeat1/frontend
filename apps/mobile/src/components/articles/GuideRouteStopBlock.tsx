@@ -50,7 +50,13 @@ export function GuideRouteStopBlock({
         {venue ? <CaretRight size={20} color={colors.text.muted} /> : null}
       </View>
 
-      <PhotoView uri={photo} style={styles.photo} decorative placeholderIconSize={32} />
+      {/* Фотография отступает от края блока на 8, текст — на 16: тот же
+          разнобой, что на карточке поиска, на «Афише» и в блоке подборки.
+          Поэтому боковой отступ ставит каждая строка сама, а не блок целиком —
+          общий отступ сложился бы с этим и увёл фотографию на 24. */}
+      <View style={styles.photoWrap}>
+        <PhotoView uri={photo} style={styles.photo} decorative placeholderIconSize={32} />
+      </View>
 
       {point.description ? <Text style={styles.description}>{point.description}</Text> : null}
       {address ? <Text style={styles.address}>{address}</Text> : null}
@@ -77,14 +83,17 @@ const styles = StyleSheet.create({
   block: {
     backgroundColor: colors.background.surface,
     borderRadius: radius.contentBlock,
+    // Боковых отступов у блока НЕТ: у фотографии он 8, у текста 16, одним
+    // значением это не выражается. См. `photoWrap` и отступы строк ниже
+    // (правка владельца 2026-08-24, тот же разбор, что на поиске и «Афише»).
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
     gap: spacing.md,
   },
   pressed: {
     opacity: 0.7,
   },
   headline: {
+    paddingHorizontal: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -108,6 +117,9 @@ const styles = StyleSheet.create({
     color: colors.text.strong,
     flex: 1,
   },
+  photoWrap: {
+    paddingHorizontal: spacing.sm,
+  },
   photo: {
     width: "100%",
     height: 148,
@@ -115,10 +127,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chip,
   },
   description: {
+    paddingHorizontal: spacing.lg,
     ...typography.body,
     color: colors.text.primary,
   },
   address: {
+    paddingHorizontal: spacing.lg,
     ...typography.body,
     color: colors.text.muted,
   },

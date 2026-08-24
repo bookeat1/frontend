@@ -68,11 +68,6 @@ export default function ArticlesScreen() {
   const openArticle = useCallback((slug: string) => router.push(`/articles/${slug}`), [router]);
   const openRoute = useCallback((slug: string) => router.push(`/routes/${slug}`), [router]);
 
-  // Стрелка «назад» только там, где есть куда возвращаться: на корне вкладки
-  // (гость пришёл по нижней навигации) её быть не должно, при заходе с главной
-  // по шеврону «Статьи» — должна.
-  const onBack = router.canGoBack() ? () => router.back() : undefined;
-
   return (
     <View style={styles.root}>
       {/* Часы и заряд белые, пока под ними фотография шапки, и тёмные, когда
@@ -88,7 +83,14 @@ export default function ArticlesScreen() {
           if (passed === heroBehindStatusBar) setHeroBehindStatusBar(!passed);
         }}
       >
-        <GuideHero title={t.nav.gastroguide} headline={t.articles.guideHeadline} onBack={onBack} />
+        {/* Стрелки «назад» здесь нет НИ ПРИ КАКОМ заходе: это корень вкладки,
+            и возвращаться из корня некуда. Раньше она показывалась по
+            `router.canGoBack()` — то есть при заходе с главной по шеврону
+            «Гастрогид», где в стеке остаётся запись, — и гость видел на
+            корневой вкладке кнопку, которая уводила его на другую вкладку.
+            У вложенных экранов раздела (`/articles/[slug]`, `/routes/[slug]`)
+            стрелка своя и остаётся на месте. */}
+        <GuideHero title={t.nav.gastroguide} headline={t.articles.guideHeadline} />
 
         <View style={styles.section}>
           <SectionHeader title={t.articles.collectionsTitle} size="large" />

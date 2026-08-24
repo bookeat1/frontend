@@ -18,8 +18,9 @@ import ArticlesScreen from "../articles";
  *   3. Подборка без обложки показывает стандартную плашку «фото нет».
  *   4. На карточке подборки НЕТ сердечка: избранного для подборок на бэкенде
  *      не существует, а инертное сердечко из этого приложения уже убирали.
- *   5. Стрелка «назад» появляется только когда есть куда возвращаться:
- *      `/articles` — корень вкладки.
+ *   5. Стрелки «назад» на корне вкладки НЕТ НИКОГДА — даже когда в стеке есть
+ *      куда возвращаться (заход с главной по шеврону «Гастрогид»). Заголовок
+ *      при этом остаётся по центру.
  */
 
 const t = getDictionary("ru");
@@ -58,17 +59,9 @@ vi.mock("../../src/components/articles/GuideHero", async () => {
   const { FlowHeader } = await import("../../src/components/FlowHeader");
   return {
     ...actual,
-    GuideHero: ({
-      title,
-      headline,
-      onBack,
-    }: {
-      title: string;
-      headline: string;
-      onBack?: () => void;
-    }) => (
+    GuideHero: ({ title, headline }: { title: string; headline: string }) => (
       <div>
-        <FlowHeader title={title} onBack={onBack} tone="onDark" />
+        <FlowHeader title={title} tone="onDark" />
         <span>{headline}</span>
       </div>
     ),
@@ -189,14 +182,30 @@ describe("экран гастрогида", () => {
     expect(screen.queryByLabelText(t.explore.favoriteRemove("Казахская кухня"))).toBeNull();
   });
 
-  it("на корне вкладки стрелки «назад» нет, а при заходе из другого экрана она есть", async () => {
+  it("на корне вкладки стрелки «назад» нет — ни с пустым стеком, ни с непустым", async () => {
     renderScreen();
     await waitFor(() => expect(screen.getByText("Казахская кухня")).toBeTruthy());
     expect(screen.queryByLabelText(t.a11y.backButton)).toBeNull();
 
+    // Заход с главной по шеврону «Гастрогид» оставляет в стеке запись, и
+    // раньше ровно на этом экран рисовал стрелку. Возвращаться из корня
+    // вкладки некуда — стрелки не должно быть и здесь.
     canGoBack = true;
     renderScreen();
-    await waitFor(() => expect(screen.getAllByLabelText(t.a11y.backButton).length).toBe(1));
+    await waitFor(() => expect(screen.getAllByText("Казахская кухня").length).toBeGreaterThan(0));
+    expect(screen.queryByLabelText(t.a11y.backButton)).toBeNull();
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("оставляет заголовок «Гастрогид» на месте, без стрелки", async () => {
+    renderScreen();
+
+    const heading = await screen.findByRole("heading", { name: t.nav.gastroguide });
+    expect(heading).toBeTruthy();
+    // Слева от заголовка остаётся пустой слот той же ширины, что и кнопка,
+    // поэтому шапка не съезжает: заголовок — по-прежнему средняя колонка.
+    expect(heading.previousElementSibling).toBeTruthy();
+    expect(heading.previousElementSibling?.getAttribute("role")).not.toBe("button");
   });
 
   it("пустой ответ — спокойное пустое состояние, а не ошибка", async () => {

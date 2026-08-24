@@ -150,6 +150,7 @@ export const en: LocaleOverride<Dictionary> = {
     availabilityUnavailable: "Could not check free tables. Please try again.",
     availabilityEmpty: (guests: number, date: string) =>
       `No free tables for ${guests} on ${date}`,
+    filterAvailability: (date: string, guests: string) => `${date} · ${guests}`,
     resultsCount: (count: number) => `${count} ${count === 1 ? "restaurant" : "restaurants"}`,
     filterOpenNow: "Open now",
     filterOnlineBookable: "Book online",
@@ -1175,6 +1176,7 @@ export const en: LocaleOverride<Dictionary> = {
     galleryImage: (index: number) => `Image ${index}`,
     openFilters: "Open filters",
     openFiltersWithCount: (count: number) => `Open filters, ${count} selected`,
+    removeFilter: (name: string) => `Remove filter ${name}`,
     shareButton: "Share",
     previousMonth: "Previous month",
     nextMonth: "Next month",

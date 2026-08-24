@@ -3,8 +3,8 @@ import type { AvailabilityFilter } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { dateOptions, guestOptions } from "../../lib/availability-options";
-import { fromDateKey } from "../../lib/format";
+import { guestOptions } from "../../lib/availability-options";
+import { dateChoices } from "../../lib/availability-label";
 import { CalendarBlank, User, X } from "../icons";
 import { WheelSheet } from "./WheelSheet";
 
@@ -51,26 +51,16 @@ export function AvailabilityBar({
 }) {
   const [picker, setPicker] = useState<AvailabilityPicker | null>(initialPicker ?? null);
 
-  const dates = useMemo(
-    () =>
-      dateOptions(today, {
-        today: t.booking.today,
-        tomorrow: t.booking.tomorrow,
-        format: (date) =>
-          date.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" }),
-      }),
-    [today],
-  );
+  // Подпись дня считает общий `dateChoices` — тот же, что рисует чип подбора
+  // над выдачей. Два расчёта разъехались бы на «Сегодня»/«12 августа».
+  const { options: dates, labelFor } = useMemo(() => dateChoices(today), [today]);
   const guests = useMemo(() => guestOptions((n) => t.booking.guestsCount(n)), []);
 
   // Пока дату не выбрали, показываем «Сегодня», а не «Любой день» (решение
   // владельца 18.08.2026): человек чаще всего ищет на сегодня, и подпись
   // называет то, что он получит, нажав «Найти», а не абстрактное состояние
   // фильтра.
-  const dateLabel = value
-    ? (dates.find((d) => d.value === value.date)?.label ??
-      fromDateKey(value.date).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }))
-    : t.booking.today;
+  const dateLabel = value ? labelFor(value.date) : t.booking.today;
   const guestsLabel = t.booking.guestsCount(value?.guests ?? DEFAULT_GUESTS);
 
   return (

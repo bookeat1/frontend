@@ -155,6 +155,7 @@ export const kk: LocaleOverride<Dictionary> = {
     availabilityUnavailable: "Бос үстелдерді тексеру мүмкін болмады. Қайталап көріңіз.",
     availabilityEmpty: (guests: number, date: string) =>
       `${date} күні ${guests} қонаққа бос үстел табылмады`,
+    filterAvailability: (date: string, guests: string) => `${date} · ${guests}`,
     resultsCount: (count: number) => `${count} мейрамхана`,
     filterOpenNow: "Қазір ашық",
     filterOnlineBookable: "Онлайн бронь",
@@ -1183,6 +1184,7 @@ export const kk: LocaleOverride<Dictionary> = {
     galleryImage: (index: number) => `Сурет ${index}`,
     openFilters: "Сүзгілерді ашу",
     openFiltersWithCount: (count: number) => `Сүзгілерді ашу, таңдалды: ${count}`,
+    removeFilter: (name: string) => `${name} сүзгісін алып тастау`,
     shareButton: "Бөлісу",
     previousMonth: "Алдыңғы ай",
     nextMonth: "Келесі ай",

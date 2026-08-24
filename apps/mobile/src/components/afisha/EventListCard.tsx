@@ -20,6 +20,10 @@ const t = getDictionary();
  *
  * Unlike EventRow (the compact Home row that opens the venue), this card opens
  * the event DETAIL screen — the whole card is one button.
+ *
+ * КАРТОЧКА ДЕРЖИТ БОКОВЫЕ ОТСТУПЫ САМА и делает это по-разному для фотографии
+ * (8) и для текста (16). Контейнер списка не должен добавлять свой
+ * `paddingHorizontal` — он сложится с этими.
  */
 export function EventListCard({
   event,
@@ -45,7 +49,9 @@ export function EventListCard({
       onPress={() => onPress(event.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <PhotoView uri={event.coverImageUrl} style={styles.cover} decorative placeholderIconSize={40} />
+      <View style={styles.coverWrap}>
+        <PhotoView uri={event.coverImageUrl} style={styles.cover} decorative placeholderIconSize={40} />
+      </View>
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
           {event.title}
@@ -68,6 +74,13 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
+  // Фотография отступает от края экрана на 8, подпись под ней — на 16, как на
+  // карточке поиска и как на обложке подборки. Отступ живёт ЗДЕСЬ, а не на
+  // контейнере списка: общий отступ у списка складывался бы с этим и отжимал
+  // фотографию дальше положенного (та же ошибка, что чинили на поиске).
+  coverWrap: {
+    paddingHorizontal: spacing.sm,
+  },
   cover: {
     width: "100%",
     height: 148,
@@ -75,6 +88,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chip,
   },
   body: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.xxs,
   },
   title: {

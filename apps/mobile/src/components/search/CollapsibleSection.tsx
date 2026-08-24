@@ -1,6 +1,6 @@
 import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CaretDown, CaretUp } from "../icons";
 
 interface CollapsibleSectionProps {
@@ -13,6 +13,16 @@ interface CollapsibleSectionProps {
   hasSelection: boolean;
   expanded: boolean;
   onToggle: () => void;
+  /**
+   * Чипы выбранных значений, которые видно у СВЁРНУТОГО раздела вместо
+   * красной подписи «1 выбрано»: гость читает, что именно выбрано, и снимает
+   * лишнее, не разворачивая список. Пусто (`hasSelection === false`) — раздел
+   * выглядит как раньше, «Не выбрано».
+   *
+   * Ряд прокручивается горизонтально: «Можно с животными» и «Молельная
+   * комната» рядом не влезают в 360 и иначе разорвали бы заголовок раздела.
+   */
+  selectionChips?: React.ReactNode;
   /** The chips / checkbox rows shown when the section is open. */
   children: React.ReactNode;
 }
@@ -29,9 +39,11 @@ export function CollapsibleSection({
   hasSelection,
   expanded,
   onToggle,
+  selectionChips,
   children,
 }: CollapsibleSectionProps) {
   const Caret = expanded ? CaretUp : CaretDown;
+  const showChips = !expanded && hasSelection && selectionChips !== undefined;
   return (
     <View>
       <Pressable
@@ -43,10 +55,26 @@ export function CollapsibleSection({
       >
         <Text style={styles.title}>{title}</Text>
         <View style={styles.right}>
-          <Text style={[styles.summary, hasSelection && styles.summaryActive]}>{summary}</Text>
+          {showChips ? null : (
+            <Text style={[styles.summary, hasSelection && styles.summaryActive]}>{summary}</Text>
+          )}
           <Caret size={20} color={colors.text.primary} weight="regular" />
         </View>
       </Pressable>
+      {/* Чипы под заголовком, а не в его правой части: с крестиком и длинным
+          русским названием они отжали бы название раздела в перенос. Метка
+          самого заголовка при этом по-прежнему называет счёт («Кухня: 1
+          выбрано») — скринридер не теряет сводку. */}
+      {showChips ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.chips}
+        >
+          {selectionChips}
+        </ScrollView>
+      ) : null}
       {expanded ? <View style={styles.body}>{children}</View> : null}
     </View>
   );
@@ -79,6 +107,12 @@ const styles = StyleSheet.create({
   },
   summaryActive: {
     color: colors.brand.primary,
+  },
+  chips: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
   },
   body: {
     marginTop: spacing.md,

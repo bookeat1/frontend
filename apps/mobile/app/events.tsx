@@ -84,7 +84,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
   },
   listContent: {
-    padding: spacing.lg,
+    // БЕЗ бокового отступа намеренно: `EventListCard` держит его сама и
+    // по-разному для фотографии (`spacing.sm`, 8) и для подписи
+    // (`spacing.lg`, 16). Общие 16 здесь складывались с внутренними и
+    // отжимали фотографию от края дальше макетных 8 — ровно та же ошибка,
+    // что чинили на экране поиска (правка владельца 2026-08-24).
+    paddingTop: spacing.lg,
     gap: spacing.xl,
     paddingBottom: spacing.xxxl,
   },

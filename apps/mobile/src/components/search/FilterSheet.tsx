@@ -139,6 +139,45 @@ export function FilterSheet({
   const summary = (count: number) =>
     count === 0 ? t.search.filters.summaryNone : t.search.filters.summaryCount(count);
 
+  // Что выбрано в свёрнутом разделе: те же чипы, что и внутри него, только с
+  // крестиком. Название кухни берём из загруженного списка; если он ещё не
+  // пришёл — показываем id, но не прячем чип: спрятанный выбранный фильтр
+  // читается как «ничего не выбрано».
+  const cuisineName = (id: string) => cuisines.find((c) => c.id === id)?.name ?? id;
+
+  const selectedCuisineChips = draft.cuisineIds.map((id) => (
+    <FilterChip
+      key={id}
+      label={cuisineName(id)}
+      selected
+      selectedTone="brand"
+      onPress={() => toggleCuisine(id)}
+      onRemove={() => toggleCuisine(id)}
+      removeAccessibilityLabel={t.a11y.removeFilter(cuisineName(id))}
+    />
+  ));
+
+  // Подписи удобств лежат в словаре под теми же id (AMENITY_IDS). Читаем их
+  // как словарь строк: в `UiOnlyFacets` id — обычная строка, и незнакомый id
+  // из старого сохранённого состояния должен показаться собой, а не пропасть.
+  const amenityName = (id: string): string =>
+    (t.search.filters.amenities as Record<string, string>)[id] ?? id;
+
+  const selectedAmenityChips = facets.amenityIds.map((id) => {
+    const label = amenityName(id);
+    return (
+      <FilterChip
+        key={id}
+        label={label}
+        selected
+        selectedTone="brand"
+        onPress={() => toggleAmenity(id)}
+        onRemove={() => toggleAmenity(id)}
+        removeAccessibilityLabel={t.a11y.removeFilter(label)}
+      />
+    );
+  });
+
   if (!mounted) return null;
 
   return (
@@ -225,6 +264,7 @@ export function FilterSheet({
                 hasSelection={draft.cuisineIds.length > 0}
                 expanded={cuisineOpen}
                 onToggle={() => setCuisineOpen((v) => !v)}
+                selectionChips={selectedCuisineChips}
               >
                 {cuisinesFailed ? (
                   // Кухни грузятся отдельным запросом: если он упал — именно
@@ -259,6 +299,7 @@ export function FilterSheet({
                 hasSelection={facets.amenityIds.length > 0}
                 expanded={amenitiesOpen}
                 onToggle={() => setAmenitiesOpen((v) => !v)}
+                selectionChips={selectedAmenityChips}
               >
                 {AMENITY_IDS.map((id) => (
                   <CheckboxRow

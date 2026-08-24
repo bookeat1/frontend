@@ -1,4 +1,9 @@
-import { canGuestCancel, isCancellableBookingStatus, RepositoryError } from "@bookeat/api";
+import {
+  canGuestCancel,
+  isCancellableBookingStatus,
+  isTerminalBookingStatus,
+  RepositoryError,
+} from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -173,6 +178,11 @@ export default function ReservationScreen() {
   const cancelReady = !canCancel || !payment.isPending;
   // Меню у заведения есть, если деталка принесла хотя бы одно блюдо.
   const hasMenu = (restaurant.data?.menuHighlights.length ?? 0) > 0;
+  // Бронь, из которой уже никуда не перейти: визит прошёл, гость не пришёл
+  // или бронь отменена. Предзаказывать в неё нечего.
+  const terminal = isTerminalBookingStatus(data.status);
+  // «Меню» показываем только живой брони с меню у заведения.
+  const showMenuAction = hasMenu && !terminal;
 
   const onConfirmCancel = () => {
     setCancelError(null);
@@ -214,10 +224,13 @@ export default function ReservationScreen() {
                   выбрав блюда глазами, не понимал, почему они никуда не
                   добавились.
 
-                  Кнопка есть только у заведения с меню: иначе она вела бы на
-                  пустой экран. Когда её нет, «На главную» занимает весь ряд, а
-                  не половину, прижатую к краю. */}
-              {hasMenu ? (
+                  Кнопки НЕТ в двух случаях: у заведения нет меню (вела бы на
+                  пустой экран) и бронь терминальная — «Не пришли», «Отменена»,
+                  «Завершена» (предзаказывать в прошедший визит нечего, и
+                  сервер такой предзаказ уже не примет). Когда её нет, «На
+                  главную» занимает весь ряд: ячейка `flex: 1` одна и забирает
+                  всю ширину, а не висит половинкой у края. */}
+              {showMenuAction ? (
                 <View style={styles.actionCell}>
                   <PrimaryButton
                     label={t.booking.openMenu}

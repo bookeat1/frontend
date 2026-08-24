@@ -98,11 +98,14 @@ export function GuideVenueBlock({
       {/* Кадр фиксированный (256), а не по ширине карточки: в макете лента
           уезжает за правый край блока, и обрезает её `overflow: hidden` самого
           блока. Одну фотографию `PhotoRail` рисует во всю ширину — так же, как
-          рисовал обычную обложку до появления галерей. */}
+          рисовал обычную обложку до появления галерей.
+
+          `inset` — это боковой отступ ленты внутри блока, и он МЕНЬШЕ отступа
+          текста: фотография стоит на 8 от края блока, подписи на 16. */}
       <PhotoRail
         uris={photos}
         height={GUIDE_PHOTO_HEIGHT}
-        inset={0}
+        inset={spacing.sm}
         frameWidth={GUIDE_PHOTO_WIDTH}
         borderRadius={radius.card}
         showDots={false}
@@ -144,13 +147,18 @@ const styles = StyleSheet.create({
     // Лента фотографий шире карточки и должна упираться в её край, а не
     // вылезать на серый фон.
     overflow: "hidden",
-    padding: spacing.lg,
+    // Боковых отступов у блока НЕТ: фотография отступает от его края на 8, а
+    // текст на 16, и одним общим значением это не выражается. Каждая строка
+    // ставит свой отступ сама, иначе он сложился бы с внутренним и фотография
+    // ушла бы от края дальше макетных 8 (правка владельца 2026-08-24).
+    paddingVertical: spacing.lg,
     gap: spacing.xxl,
   },
   pressed: {
     opacity: 0.7,
   },
   titleRow: {
+    paddingHorizontal: spacing.lg,
     flexDirection: "row",
     // По макету шеврон стоит у ВЕРХНЕЙ строки заголовка, а не по центру блока
     // из двух строк.
@@ -164,6 +172,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   textGroup: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.lg,
   },
   highlightTitle: {

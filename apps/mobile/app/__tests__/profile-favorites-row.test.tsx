@@ -93,3 +93,33 @@ describe("профиль: вход в избранное", () => {
     expect(favorites.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+/**
+ * Дыры в макете профиля. Зазор между группами (32) рассчитан на группы из
+ * нескольких строк. После удаления нерабочих строк «Скоро» «Избранные»
+ * остались в блоке одни, получили 32 сверху и 32 снизу и стали читаться как
+ * провал в вёрстке, а не как отдельный блок (замечание владельца по скрину,
+ * 24.08.2026). Тест держит два факта: «Избранные» лежат в ОДНОМ блоке с
+ * остальными пунктами про меня, а «Выйти из аккаунта» — по-прежнему в своём.
+ */
+describe("профиль: группировка пунктов", () => {
+  it("держит «Избранные» в одном блоке с остальными пунктами про меня", async () => {
+    renderProfile();
+
+    const favorites = await screen.findByRole("button", { name: "Избранные" });
+    const personalData = screen.getByRole("button", { name: "Персональные данные" });
+    const settings = screen.getByRole("button", { name: "Настройки" });
+
+    expect(favorites.parentElement).toBe(personalData.parentElement);
+    expect(settings.parentElement).toBe(personalData.parentElement);
+  });
+
+  it("оставляет «Выйти из аккаунта» отдельным блоком", async () => {
+    renderProfile();
+
+    const favorites = await screen.findByRole("button", { name: "Избранные" });
+    const logout = screen.getByRole("button", { name: "Выйти из аккаунта" });
+
+    expect(logout.parentElement).not.toBe(favorites.parentElement);
+  });
+});
