@@ -65,8 +65,14 @@ export const en: LocaleOverride<Dictionary> = {
     heroBanner: (index: number, total: number) => `Banner ${index} of ${total}`,
     sectionSeeAll: (section: string) => `${section}: see all`,
 
-    greeting: (name: string) => `Hi, ${name}`,
-    greetingNoName: "Hi",
+    greetings: {
+      welcome: "Welcome",
+      morning: "Good morning",
+      afternoon: "Good afternoon",
+      evening: "Good evening",
+      night: "Good night",
+      withName: (greeting: string, name: string) => `${greeting}, ${name}`,
+    },
     cityFallback: "Almaty",
     cityLabel: (city: string) => `City: ${city}`,
     notifications: "Notifications",
@@ -161,7 +167,7 @@ export const en: LocaleOverride<Dictionary> = {
     emptyTitle: "Nothing found",
     emptyDescription:
       "Try changing your search or resetting the filters — you'll find more restaurants that way",
-    emptyResetFilters: "Reset filters",
+    emptyResetFilters: "Reset",
     errorTitle: "Couldn't load",
     errorDescription:
       "Check your internet connection and try again",
@@ -199,13 +205,15 @@ export const en: LocaleOverride<Dictionary> = {
       summaryCount: (count: number) => `${count} selected`,
       extraTitle: "More",
       apply: "Apply",
-      reset: "Reset filters",
+      reset: "Reset",
     },
   },
   restaurant: {
     openNow: "Open",
     closedNow: "Closed",
     openUntil: (time: string) => `Open until ${time}`,
+    /** Closed venue that still opens later today — see ru.opensAt. */
+    opensAt: (time: string) => `Opens at ${time}`,
     hoursUnknownShort: "Hours not listed",
     cuisineAndPrice: (cuisine: string, price: string) => `${cuisine} · ${price}`,
     reviewsCount: (count: number) => `${count} ${count === 1 ? "review" : "reviews"}`,
@@ -258,7 +266,8 @@ export const en: LocaleOverride<Dictionary> = {
       range: (from: string, to: string) => `${from} – ${to}`,
       /** No "next day" wording (owner, 2026-08-24) — hours only. */
       rangeNextDay: (from: string, to: string) => `${from} – ${to}`,
-      untilMidnight: (from: string) => `${from} – 00:00 (midnight)`,
+      /** No "(midnight)" suffix (owner, 2026-08-24) — hours only. */
+      untilMidnight: (from: string) => `${from} – 00:00`,
       openTimeUnknown: "Open, time not listed",
       dayOff: "Closed",
       unknownDay: "Not listed",
@@ -841,7 +850,7 @@ export const en: LocaleOverride<Dictionary> = {
 
     reservationSummary: (guests: string, when: string, time: string) =>
       `${guests} · ${when} · ${time}`,
-    whatHappensNextTitle: "What happens next?",
+    whatHappensNextTitle: "What's next?",
     whatHappensNext: {
       pending:
         "The restaurant usually confirms a booking within 15–30 minutes. As soon as it's confirmed, we'll send a notification.",
@@ -1074,7 +1083,7 @@ export const en: LocaleOverride<Dictionary> = {
     signInSubtitleFavorite: "Sign in — we'll save the restaurant to favorites right away",
 
     phoneLabel: "Phone number",
-    phoneHint: "We'll send a code by SMS or messenger",
+    phoneHint: "We'll send a code by SMS or messenger (WhatsApp/Telegram)",
     phoneIncomplete: (expected: number | null) =>
       expected === null ? "Check the number — it looks incomplete" : `Enter ${expected} digits of the number`,
     submitRequestCode: "Get code",

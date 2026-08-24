@@ -18,6 +18,7 @@ import { toDateKey } from "../src/lib/format";
 import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
+import { homeGreeting, usePartOfDay } from "../src/lib/greeting";
 import { useLocale } from "../src/lib/locale";
 
 /**
@@ -69,7 +70,17 @@ export default function HomeScreen() {
   // hasn't answered yet, falls back to the no-name greeting and the default
   // city rather than gating the screen.
   const firstName = account?.fullName?.trim().split(/\s+/)[0];
-  const greeting = firstName ? t.explore.greeting(firstName) : t.explore.greetingNoName;
+  // Гость — «Добро пожаловать», вошедший — приветствие по времени суток на его
+  // устройстве. `usePartOfDay` пересчитывает его при каждом возврате в
+  // приложение, иначе свёрнутая с вечера главная встречает утром «Добрый
+  // вечер». Границы часов — `GREETING_HOURS` в src/lib/greeting.ts.
+  const part = usePartOfDay();
+  const greeting = homeGreeting({
+    authStatus: status,
+    firstName,
+    part,
+    strings: t.explore.greetings,
+  });
   const city = account?.city?.trim() || t.explore.cityFallback;
 
   const openSearch = useCallback(() => router.push("/search"), [router]);

@@ -81,7 +81,7 @@ export const typography = {
     fontSize: 14,
     lineHeight: 20,
   },
-  /** Search-chip small labels ("Казахская кухня", "12 000-20 000 ₸"). */
+  /** Search-chip small labels ("Казахская кухня", "12 000–20 000 ₸"). */
   captionMedium: {
     fontFamily: fontFamilies.notoSansMedium,
     fontSize: 12,

@@ -277,6 +277,65 @@ describe("mapSchedule reports what the server said and nothing more", () => {
     });
   });
 
+  /**
+   * ФОРМАТ ЧАСА — ЛОГИКА, А НЕ ТЕКСТ (правка владельца 2026-08-24:
+   * «Открыто до 2:00» → «Открыто до 02:00»).
+   *
+   * Час без ведущего нуля ломает не только колонку графика: строки «ЧЧ:ММ»
+   * сравниваются лексикографически (openUntilTodayLabel), и «10:00» < «9:00»
+   * оказывается правдой. Поэтому нормализация стоит ЗДЕСЬ, на входе данных, —
+   * один раз для всех экранов, а не в словаре одного из них.
+   */
+  it("pads the hour, so «2:00» from the server reads «02:00» everywhere", () => {
+    const schedule = mapSchedule({
+      timezone: "Asia/Almaty",
+      open_now: true,
+      days: [
+        { day_of_week: 4, is_open: true, opens_at: "9:00", closes_at: "2:00", closes_next_day: true },
+      ],
+    });
+    expect(schedule?.days[0].opensAt).toBe("09:00");
+    expect(schedule?.days[0].closesAt).toBe("02:00");
+  });
+
+  it("keeps midnight as 00:00 and accepts the 24:00 spelling of it", () => {
+    const schedule = mapSchedule({
+      timezone: "Asia/Almaty",
+      open_now: true,
+      days: [
+        { day_of_week: 1, is_open: true, opens_at: "0:00", closes_at: "24:00", closes_next_day: true },
+        { day_of_week: 2, is_open: true, opens_at: "10:00", closes_at: "23:59", closes_next_day: false },
+      ],
+    });
+    expect(schedule?.days[0].opensAt).toBe("00:00");
+    expect(schedule?.days[0].closesAt).toBe("00:00");
+    expect(schedule?.days[1].closesAt).toBe("23:59");
+  });
+
+  it("a 24-hour clock stays a 24-hour clock — 13:00 is not turned into 1:00", () => {
+    const schedule = mapSchedule({
+      timezone: "Asia/Almaty",
+      open_now: true,
+      days: [
+        { day_of_week: 3, is_open: true, opens_at: "13:00", closes_at: "23:00", closes_next_day: false },
+      ],
+    });
+    expect(schedule?.days[0].opensAt).toBe("13:00");
+    expect(schedule?.days[0].closesAt).toBe("23:00");
+  });
+
+  it("an impossible clock is «unknown», not a padded lie", () => {
+    const schedule = mapSchedule({
+      timezone: "Asia/Almaty",
+      open_now: true,
+      days: [
+        { day_of_week: 5, is_open: true, opens_at: "25:00", closes_at: "10:70", closes_next_day: false },
+      ],
+    });
+    expect(schedule?.days[0].opensAt).toBeNull();
+    expect(schedule?.days[0].closesAt).toBeNull();
+  });
+
   it("keeps closes_next_day, so 12:00–01:00 is thirteen hours and not one", () => {
     const schedule = mapSchedule({
       timezone: "Asia/Almaty",

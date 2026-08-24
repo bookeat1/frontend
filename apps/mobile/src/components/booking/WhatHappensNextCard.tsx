@@ -8,7 +8,8 @@ import { BookingCard } from "./BookingCard";
 const t = getDictionary();
 
 /**
- * "Что происходит дальше?" (Figma node 488:9876).
+ * "Что дальше?" (Figma node 488:9876 — в макете заголовок длиннее, укорочен
+ * по правке владельца 2026-08-24).
  *
  * NOTE ON THE MOCKUP: both exported frames show the SAME paragraph — "the
  * restaurant usually confirms reservations within 15–30 minutes, we'll notify

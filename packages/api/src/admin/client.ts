@@ -1,4 +1,5 @@
 import { RepositoryError } from "../repository";
+import type { SocialLink, SocialLinkInput } from "./social-links";
 import type {
   AdminBooking,
   AdminEvent,
@@ -705,6 +706,44 @@ export class AdminApiClient {
       "GET",
       `/restaurants/${encodeURIComponent(restaurantId)}`,
     );
+  }
+
+  // ---- Ссылки на соцсети ----------------------------------------------------
+  //
+  // Тот же PATCH /restaurants/:id и тот же публичный GET. Роут смонтирован на
+  // группе RequireRestaurantManager, а `social_links` (в отличие от is_active и
+  // маркетинговых флагов) для не-админа НЕ вырезается — значит менеджер своего
+  // заведения правит свои ссылки сам, без суперадмина.
+
+  /**
+   * GET /restaurants/:id → `social_links`. Ключ ОПУЩЕН, когда ссылок нет
+   * (`omitempty`), поэтому пустой ответ и отсутствие ссылок — одно и то же.
+   */
+  async getRestaurantSocialLinks(restaurantId: string): Promise<SocialLink[]> {
+    const restaurant = await this.request<{ social_links?: SocialLink[] }>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}`,
+    );
+    return restaurant.social_links ?? [];
+  }
+
+  /**
+   * PATCH /restaurants/:id — ЗАМЕЩАЕТ весь набор ссылок заведения
+   * (ReplaceSocialLinks удаляет строки и вставляет присланные заново). Значит
+   * отправлять можно только полный набор: `[]` стирает все ссылки, а частичный
+   * список тихо потеряет остальные. Ответ — обновлённое заведение целиком,
+   * читаем из него тот же список.
+   */
+  async setRestaurantSocialLinks(
+    restaurantId: string,
+    links: SocialLinkInput[],
+  ): Promise<SocialLink[]> {
+    const restaurant = await this.request<{ social_links?: SocialLink[] }>(
+      "PATCH",
+      `/restaurants/${encodeURIComponent(restaurantId)}`,
+      { body: { social_links: links } },
+    );
+    return restaurant.social_links ?? [];
   }
 
   /**

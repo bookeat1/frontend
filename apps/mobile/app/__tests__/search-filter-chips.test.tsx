@@ -172,7 +172,7 @@ describe("свёрнутый раздел шторки показывает вы
     ).toBeTruthy();
   });
 
-  it("«Сбросить фильтры» в шторке очищает и чипы выбранного", async () => {
+  it("«Сбросить» в шторке очищает и чипы выбранного", async () => {
     params = { cuisine: "greek" };
     renderSearch();
     const user = userEvent.setup();
@@ -188,7 +188,7 @@ describe("свёрнутый раздел шторки показывает вы
     // Один чип в ряду над выдачей, второй — в шторке.
     expect(inSheet.length).toBe(2);
 
-    // «Сбросить фильтры» подписаны одинаково у кнопки шторки и у ссылки в
+    // «Сбросить» подписано одинаково у кнопки шторки и у ссылки в
     // пустой выдаче; шторка лежит в разметке последней.
     const resets = screen.getAllByRole("button", { name: t.search.filters.reset });
     await user.click(resets[resets.length - 1]);

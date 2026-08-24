@@ -87,10 +87,10 @@ export function scheduleDayFor(
  *
  * Случай «закрывается на следующий день» РАЗЛИЧАЕТСЯ здесь по-прежнему: у него
  * своя строка словаря (`rangeNextDay`) и своя ветка для закрытия ровно в
- * полночь. С 2026-08-24 подпись «следующего дня» из русского словаря убрана по
- * просьбе владельца — в графике остаются только часы, — но решение о том, какая
- * это строка, осталось в коде: вернуть слова можно правкой словаря, не трогая
- * логику перехода через полночь.
+ * полночь. С 2026-08-24 из русского словаря убраны обе словесные приписки —
+ * и «следующего дня», и «(полночь)», — в графике остаются только часы. Решение
+ * о том, какая это строка, осталось в коде: вернуть слова можно правкой
+ * словаря, не трогая логику перехода через полночь.
  */
 export function dayHoursLabel(day: ScheduleDay | undefined): string {
   if (!day) return t.restaurant.schedule.unknownDay;
@@ -108,20 +108,72 @@ export function hasKnownDays(schedule: VenueSchedule | null): boolean {
 
 /**
  * Статус для компактного блока часов: серверное «Открыто» + время закрытия
- * СЕГОДНЯ («Открыто до 23:00»).
+ * СЕГОДНЯ («Открыто до 23:00») и серверное «Закрыто» + время открытия
+ * СЕГОДНЯ («Откроется в 10:00», правка владельца 2026-08-24).
  *
  * Открытость по-прежнему берётся ТОЛЬКО из `openNow` — эта функция ничего не
- * вычисляет об открытости, а лишь дописывает к уже известному «Открыто» время
- * закрытия из сегодняшней строки графика. Если сервер не сказал «открыто» или
- * на сегодня нет времени закрытия, возвращается обычный `openStateLabel`.
+ * вычисляет об открытости, а лишь дописывает к уже известному ответу сервера
+ * время из сегодняшней строки графика.
+ *
+ * «Откроется в» ставится строго при трёх условиях сразу: сервер сказал
+ * «закрыто», у СЕГОДНЯШНЕГО дня есть время открытия, и это время ещё впереди
+ * по часам заведения. Закрытое поздним вечером заведение получает голое
+ * «Закрыто»: «Откроется в 10:00» без слова «завтра» в 23:00 — обещание не про
+ * тот день, а слова «завтра» в словаре нет.
  */
-export function openUntilTodayLabel(schedule: VenueSchedule | null): string {
-  if (openState(schedule) !== "open" || !schedule) return openStateLabel(schedule);
-  const day = scheduleDayFor(schedule, venueDayOfWeek(schedule.timezone));
-  if (day?.isOpen && day.closesAt) {
-    return t.restaurant.openUntil(day.closesAt);
+export function openUntilTodayLabel(
+  schedule: VenueSchedule | null,
+  now: Date = new Date(),
+): string {
+  if (!schedule) return openStateLabel(schedule);
+  const day = scheduleDayFor(schedule, venueDayOfWeek(schedule.timezone, now));
+
+  if (openState(schedule) === "open") {
+    if (day?.isOpen && day.closesAt) {
+      return t.restaurant.openUntil(day.closesAt);
+    }
+    return openStateLabel(schedule);
   }
+
+  if (openState(schedule) === "closed") {
+    // Сравнение строк "ЧЧ:ММ" честно только при ВЕДУЩЕМ НУЛЕ: "9:00" < "10:00"
+    // лексикографически ложно. Ведущий ноль гарантирует `clockTime`
+    // (packages/api/src/http-mapping.ts), и `venueClock` ниже нормализует
+    // ответ движка тем же образом.
+    const clock = venueClock(schedule.timezone, now);
+    if (day?.isOpen && day.opensAt && clock && clock < day.opensAt) {
+      return t.restaurant.opensAt(day.opensAt);
+    }
+  }
+
   return openStateLabel(schedule);
+}
+
+/**
+ * Текущее время «ЧЧ:ММ» В ТАЙМЗОНЕ ЗАВЕДЕНИЯ, либо `null`, когда движок зону
+ * не знает.
+ *
+ * Это НЕ вычисление открытости — открытость по-прежнему приходит только из
+ * `openNow`. Часы нужны ровно для одного решения: сегодняшнее время открытия
+ * ещё впереди (тогда закрытому заведению можно дописать «Откроется в 10:00»)
+ * или уже позади (тогда остаётся голое «Закрыто», потому что «завтра» мы
+ * гостю не обещали).
+ */
+function venueClock(timezone: string, now: Date): string | null {
+  if (!timezone) return null;
+  try {
+    const value = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(now);
+    // Часть движков печатает полночь как «24:00» — это тот же ноль часов.
+    const normalized = value.startsWith("24:") ? `00:${value.slice(3)}` : value;
+    return /^\d{2}:\d{2}$/.test(normalized) ? normalized : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

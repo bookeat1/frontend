@@ -1,15 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { CatalogVenue, CatalogVenueInput } from "@bookeat/api/admin";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { parseSocialLinkRows, type CatalogVenue, type CatalogVenueInput } from "@bookeat/api/admin";
 
+import { apiClient } from "@/lib/api";
+import { t } from "@/lib/i18n";
 import { useIsPlatformAdmin, useVenueCatalog, useVenueMutations } from "@/lib/use-venue-catalog";
+import {
+  EMPTY_VENUE_FILTERS,
+  collectCityOptions,
+  collectCuisineOptions,
+  filterVenues,
+  hasActiveVenueFilters,
+  type VenueFilters,
+} from "@/lib/venue-filters";
 
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
+import { VenueFilterBar } from "./VenueFilterBar";
 import { Button } from "./ui/Button";
 import { Field, TextArea, TextInput } from "./ui/FormControls";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
+import {
+  SOCIAL_LINK_ERROR_COPY,
+  SocialLinksField,
+  draftsFromLinks,
+  type SocialLinkDraft,
+} from "./ui/SocialLinksField";
 
 /** Ступени среднего чека, как их понимает каталог. Пустая — «не выбрано». */
 const PRICE_TIERS = ["", "₸", "₸₸", "₸₸₸"] as const;
@@ -30,14 +48,31 @@ const PRICE_TIERS = ["", "₸", "₸₸", "₸₸₸"] as const;
  */
 export function VenuesView() {
   const isAdmin = useIsPlatformAdmin();
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<VenueFilters>(EMPTY_VENUE_FILTERS);
   const [editing, setEditing] = useState<CatalogVenue | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const query = useVenueCatalog(search.trim());
+  // Что умеет сервер, уходит на сервер: название и город. Кухни и признака
+  // «скрыто» у эндпоинта нет — они отбираются здесь, из уже загруженной
+  // страницы каталога (per_page=100 при сегодняшних 45 заведениях).
+  const query = useVenueCatalog(filters.search.trim(), filters.city);
   const { create, update, setActive } = useVenueMutations();
 
-  const venues = useMemo(() => query.data?.items ?? [], [query.data]);
+  // Списки для выпадающих собираются из НЕотфильтрованного каталога: иначе
+  // выбор города схлопнул бы список городов до одного выбранного, и снять
+  // фильтр было бы нечем. Тот же ключ запроса, что и выше, когда фильтров нет,
+  // — react-query отдаёт один и тот же результат, а не второй запрос.
+  const optionsQuery = useVenueCatalog("", "");
+  const allVenues = useMemo(() => optionsQuery.data?.items ?? [], [optionsQuery.data]);
+  const cityOptions = useMemo(() => collectCityOptions(allVenues), [allVenues]);
+  const cuisineOptions = useMemo(() => collectCuisineOptions(allVenues), [allVenues]);
+
+  const loaded = useMemo(() => query.data?.items ?? [], [query.data]);
+  // Серверный отбор повторяется здесь один в один (те же правила), поэтому
+  // повторное применение ничего не отсекает сверх положенного, но избавляет от
+  // зависимости «а точно ли сервер уже отфильтровал».
+  const venues = useMemo(() => filterVenues(loaded, filters), [loaded, filters]);
+  const filtersActive = hasActiveVenueFilters(filters);
 
   if (!isAdmin) {
     return (
@@ -55,14 +90,14 @@ export function VenuesView() {
         <Button onClick={() => setCreating(true)}>Добавить заведение</Button>
       </div>
 
-      <div className="mt-md max-w-md">
-        <TextInput
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Поиск по названию"
-          aria-label="Поиск заведения по названию"
-        />
-      </div>
+      <VenueFilterBar
+        filters={filters}
+        onChange={setFilters}
+        cityOptions={cityOptions}
+        cuisineOptions={cuisineOptions}
+        shown={venues.length}
+        total={allVenues.length || loaded.length}
+      />
 
       {query.isLoading ? (
         <LoadingState />
@@ -70,10 +105,10 @@ export function VenuesView() {
         <ErrorState message="Список не загрузился" onRetry={() => void query.refetch()} />
       ) : venues.length === 0 ? (
         <EmptyState
-          title={search.trim() ? "Ничего не нашлось" : "Заведений пока нет"}
+          title={filtersActive ? "Ничего не нашлось" : "Заведений пока нет"}
           description={
-            search.trim()
-              ? "Проверьте написание или очистите поиск."
+            filtersActive
+              ? "Под выбранные фильтры не подходит ни одно заведение. Снимите лишние — кнопка «Сбросить фильтры» выше."
               : "Добавьте первое заведение — оно сразу появится в приложении."
           }
         />
@@ -201,6 +236,24 @@ function VenueFormModal({
     venue?.price_range?.max != null ? String(venue.price_range.max) : "",
   );
   const [photo, setPhoto] = useState(venue?.primary_image ?? "");
+  const [socialRows, setSocialRows] = useState<SocialLinkDraft[]>([]);
+  const [socialError, setSocialError] = useState<{ index: number; message: string } | null>(null);
+
+  // Ссылки на соцсети приходят ТОЛЬКО в детальном ответе: листинг каталога
+  // (GET /admin/restaurants) их не отдаёт вообще. Поэтому при правке они
+  // догружаются отдельным запросом — и пока он не ответил, ключ social_links в
+  // PATCH не уходит: он замещает набор целиком, и отправить его вслепую значит
+  // стереть заведению все ссылки.
+  const socialQuery = useQuery({
+    queryKey: ["venue-social-links", venue?.id ?? null],
+    queryFn: () => apiClient.getRestaurantSocialLinks(venue!.id),
+    enabled: Boolean(venue?.id),
+  });
+  const socialLoaded = venue ? socialQuery.isSuccess : true;
+
+  useEffect(() => {
+    if (socialQuery.data) setSocialRows(draftsFromLinks(socialQuery.data));
+  }, [socialQuery.data]);
 
   const canSubmit = name.trim().length > 0 && !submitting;
 
@@ -228,6 +281,17 @@ function VenueFormModal({
     // заведения, а не «оставил как было».
     if (photo.trim()) {
       input.images = [{ image_url: photo.trim(), is_primary: true }];
+    }
+    // Соцсети: пустые строки отбрасываются, ник превращается в ссылку, две
+    // ссылки одного вида не проходят (см. parseSocialLinkRows).
+    const social = parseSocialLinkRows(socialRows);
+    if (!social.ok) {
+      setSocialError({ index: social.index, message: SOCIAL_LINK_ERROR_COPY[social.error] });
+      return;
+    }
+    setSocialError(null);
+    if (socialLoaded) {
+      input.social_links = social.links;
     }
     onSubmit(input);
   };
@@ -301,6 +365,28 @@ function VenueFormModal({
           label="Главное фото"
           hint="Оно показывается в каталоге и на карточке заведения."
         />
+
+        {venue && socialQuery.isPending ? (
+          <p className="text-sm text-text-muted" role="status">
+            {t.admin.socialLinks.loadingTitle}
+          </p>
+        ) : venue && socialQuery.isError ? (
+          <p className="text-sm text-brand" role="alert">
+            {t.admin.socialLinks.loadFailed}
+          </p>
+        ) : (
+          <SocialLinksField
+            rows={socialRows}
+            onChange={(next) => {
+              setSocialRows(next);
+              setSocialError(null);
+            }}
+            disabled={submitting}
+            errorIndex={socialError?.index ?? null}
+            errorMessage={socialError?.message ?? null}
+            idPrefix="venue-social"
+          />
+        )}
 
         {failed ? (
           <p className="text-sm text-brand">Не удалось сохранить. Проверьте поля и попробуйте ещё раз.</p>

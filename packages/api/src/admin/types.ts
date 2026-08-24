@@ -5,6 +5,7 @@
  * consume a framework-light surface without dragging in the mobile mock data
  * (which imports .jpg assets) or the React-Native peer types.
  */
+import type { SocialLink, SocialLinkInput } from "./social-links";
 
 /** Auth token pair returned by /auth/login, /auth/refresh. */
 export interface TokenPair {
@@ -258,6 +259,11 @@ export interface CatalogVenue {
   display_order?: number | null;
   primary_image?: string | null;
   images?: { image_url: string; is_primary: boolean }[];
+  /** Ссылки на соцсети. Приходят ТОЛЬКО в детальном ответе
+   * (aggregateToResponse: GET /restaurants/:id и ответ на PATCH); в листинге
+   * каталога (GET /admin/restaurants → listItemToResponse) их нет вообще, и
+   * `undefined` тут значит «не знаем», а не «их нет». */
+  social_links?: SocialLink[];
 }
 
 /** Body of POST /restaurants and PATCH /restaurants/:id. Every field is
@@ -283,6 +289,11 @@ export interface CatalogVenueInput {
   is_premium?: boolean;
   display_order?: number;
   images?: { image_url: string; is_primary: boolean }[];
+  /** Ссылки на соцсети. Ключ ЗАМЕЩАЕТ весь набор заведения
+   * (usecase/restaurants: ReplaceSocialLinks), поэтому отправлять его можно
+   * только зная текущий набор: пропуск ключа сохраняет ссылки, `[]` — стирает
+   * все. */
+  social_links?: SocialLinkInput[];
 }
 
 // ---- Events ----------------------------------------------------------------

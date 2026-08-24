@@ -69,8 +69,14 @@ export const kk: LocaleOverride<Dictionary> = {
     heroBanner: (index: number, total: number) => `${total} баннердің ${index}-і`,
     sectionSeeAll: (section: string) => `${section}: барлығын көру`,
 
-    greeting: (name: string) => `Сәлем, ${name}`,
-    greetingNoName: "Сәлем",
+    greetings: {
+      welcome: "Қош келдіңіз",
+      morning: "Қайырлы таң",
+      afternoon: "Қайырлы күн",
+      evening: "Қайырлы кеш",
+      night: "Қайырлы түн",
+      withName: (greeting: string, name: string) => `${greeting}, ${name}`,
+    },
     cityFallback: "Алматы",
     cityLabel: (city: string) => `Қала: ${city}`,
     notifications: "Хабарламалар",
@@ -167,7 +173,7 @@ export const kk: LocaleOverride<Dictionary> = {
     emptyTitle: "Ештеңе табылмады",
     emptyDescription:
       "Сұрауды өзгертіп немесе сүзгілерді тазалап көріңіз — сонда көбірек мейрамхана табылады",
-    emptyResetFilters: "Сүзгілерді тазалау",
+    emptyResetFilters: "Тазалау",
     errorTitle: "Жүктеу мүмкін болмады",
     errorDescription: "Интернет байланысын тексеріп, қайталап көріңіз",
     loadingTitle: "Мейрамханаларды іздеп жатырмыз…",
@@ -197,20 +203,22 @@ export const kk: LocaleOverride<Dictionary> = {
         parking: "Тұрақ",
         prayer_room: "Намазхана",
         kids_chairs: "Балалар орындығы",
-        pets: "Жануарлармен болады",
+        pets: "Үй жануарларына рұқсат",
         live_music: "Тірі музыка",
       },
       summaryNone: "Таңдалмаған",
       summaryCount: (count: number) => `${count} таңдалды`,
       extraTitle: "Тағы",
       apply: "Қолдану",
-      reset: "Сүзгілерді тазалау",
+      reset: "Тазалау",
     },
   },
   restaurant: {
     openNow: "Ашық",
     closedNow: "Жабық",
     openUntil: (time: string) => `${time} дейін ашық`,
+    /** Бүгін әлі ашылатын жабық мейрамхана — ru.opensAt қараңыз. */
+    opensAt: (time: string) => `Ашылады: ${time}`,
     hoursUnknownShort: "Жұмыс уақыты көрсетілмеген",
     cuisineAndPrice: (cuisine: string, price: string) => `${cuisine} · ${price}`,
     reviewsCount: (count: number) => `${count} пікір`,
@@ -266,7 +274,8 @@ export const kk: LocaleOverride<Dictionary> = {
       range: (from: string, to: string) => `${from} – ${to}`,
       /** «келесі күнгі» алынып тасталды (2026-08-24) — тек уақыт. */
       rangeNextDay: (from: string, to: string) => `${from} – ${to}`,
-      untilMidnight: (from: string) => `${from} – 00:00 (түн ортасы)`,
+      /** «(түн ортасы)» алынып тасталды (2026-08-24) — тек уақыт. */
+      untilMidnight: (from: string) => `${from} – 00:00`,
       openTimeUnknown: "Ашық, уақыты көрсетілмеген",
       dayOff: "Демалыс",
       unknownDay: "Көрсетілмеген",
@@ -848,7 +857,7 @@ export const kk: LocaleOverride<Dictionary> = {
 
     reservationSummary: (guests: string, when: string, time: string) =>
       `${guests} · ${when} · ${time}`,
-    whatHappensNextTitle: "Әрі қарай не болады?",
+    whatHappensNextTitle: "Келесі қадам",
     whatHappensNext: {
       pending:
         "Әдетте орын бронды 15–30 минутта растайды. Бронь расталысымен хабарлама жібереміз.",
@@ -1082,7 +1091,7 @@ export const kk: LocaleOverride<Dictionary> = {
     signInSubtitleFavorite: "Кіріңіз — мейрамхананы бірден таңдаулыға сақтаймыз",
 
     phoneLabel: "Телефон нөмірі",
-    phoneHint: "Кодты SMS немесе мессенджер арқылы жібереміз",
+    phoneHint: "Кодты SMS немесе мессенджер (WhatsApp/Telegram) арқылы жібереміз",
     phoneIncomplete: (expected: number | null) =>
       expected === null ? "Нөмірді тексеріңіз — толық емес сияқты" : `Нөмірдің ${expected} санын енгізіңіз`,
     submitRequestCode: "Код алу",

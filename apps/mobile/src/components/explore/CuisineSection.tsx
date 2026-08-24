@@ -62,7 +62,7 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
         data={cuisines}
         keyExtractor={(cuisine) => cuisine.id}
         accessibilityLabel={t.explore.cuisineTitle}
-        itemWidth={exploreLayout.cuisineChip}
+        itemWidth={exploreLayout.cuisineChipLabel}
         renderItem={({ item }) => (
           <CuisineChip cuisine={item} onSelect={onPickCuisine} photoUri={photos.get(item.id)} />
         )}
@@ -80,7 +80,11 @@ function SkeletonRow() {
       accessibilityLabel={t.explore.cuisineLoading}
     >
       {[0, 1, 2, 3].map((key) => (
-        <View key={key} style={styles.skeletonCircle} />
+        // Ячейка той же ширины, что у настоящего чипа, — иначе на загрузке ряд
+        // стоит с одним шагом, а после загрузки прыгает на другой.
+        <View key={key} style={styles.skeletonCell}>
+          <View style={styles.skeletonCircle} />
+        </View>
       ))}
     </View>
   );
@@ -89,9 +93,13 @@ function SkeletonRow() {
 const styles = StyleSheet.create({
   skeletonRow: {
     flexDirection: "row",
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     overflow: "hidden",
+  },
+  skeletonCell: {
+    width: exploreLayout.cuisineChipLabel,
+    alignItems: "center",
   },
   skeletonCircle: {
     width: exploreLayout.cuisineChip,

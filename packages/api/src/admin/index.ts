@@ -31,3 +31,16 @@ export {
   type PriceRangeInput,
   type PriceRangeParseError,
 } from "./price-input";
+export {
+  SOCIAL_LINK_TYPES,
+  isKnownSocialLinkType,
+  normalizeSocialLink,
+  parseSocialLinkRows,
+  sameSocialLinks,
+  type KnownSocialLinkType,
+  type SocialLink,
+  type SocialLinkError,
+  type SocialLinkInput,
+  type SocialLinkNormalizeResult,
+  type SocialLinkRowsResult,
+} from "./social-links";

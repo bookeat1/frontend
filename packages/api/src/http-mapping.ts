@@ -237,13 +237,27 @@ export interface ApiSchedule {
   days: ApiScheduleDay[];
 }
 
-/** "12:00" / "12:00:00" -> "12:00". Всё остальное — null (неизвестно). */
+/**
+ * "12:00" / "12:00:00" -> "12:00". Всё остальное — null (неизвестно).
+ *
+ * ВЕДУЩИЙ НОЛЬ ОБЯЗАТЕЛЕН, и это не косметика. Час без него («9:00», «2:00»)
+ * ломает две вещи сразу: колонку графика, где часы должны стоять друг под
+ * другом, и лексикографическое сравнение "ЧЧ:ММ" (в `openUntilTodayLabel`
+ * "9:00" < "10:00" оказывается ложью). Формат правится ЗДЕСЬ, на входе, а не
+ * в словаре — иначе тот же час без нуля вылезет на любом следующем экране.
+ *
+ * «24:00» — законная запись полуночи конца суток (ISO 8601); сервер, который
+ * так пишет закрытие, имеет в виду 00:00, а не «времени нет». Раньше такой
+ * день превращался в «Открыто, время не указано».
+ */
 function clockTime(raw: string | null | undefined): string | null {
   const match = /^(\d{1,2}):(\d{2})/.exec(text(raw));
   if (!match) return null;
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return null;
+  if (minutes > 59) return null;
+  if (hours === 24) return minutes === 0 ? "00:00" : null;
+  if (hours > 23) return null;
   return `${String(hours).padStart(2, "0")}:${match[2]}`;
 }
 

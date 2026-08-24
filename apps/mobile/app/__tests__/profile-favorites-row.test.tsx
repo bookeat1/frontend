@@ -74,10 +74,10 @@ function renderProfile() {
 }
 
 describe("профиль: вход в избранное", () => {
-  it("рисует строку «Избранные» и ведёт ею на /favorites", async () => {
+  it("рисует строку «Избранное» и ведёт ею на /favorites", async () => {
     renderProfile();
 
-    const row = await screen.findByRole("button", { name: "Избранные" });
+    const row = await screen.findByRole("button", { name: "Избранное" });
     row.click();
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/favorites"));
@@ -86,27 +86,27 @@ describe("профиль: вход в избранное", () => {
   it("держит её в верхней группе, рядом с бронями, а не внизу у выхода", async () => {
     renderProfile();
 
-    const favorites = await screen.findByRole("button", { name: "Избранные" });
+    const favorites = await screen.findByRole("button", { name: "Избранное" });
     const logout = screen.getByRole("button", { name: "Выйти из аккаунта" });
 
-    // «Избранные» встречается в дереве РАНЬШЕ «Выйти из аккаунта».
+    // «Избранное» встречается в дереве РАНЬШЕ «Выйти из аккаунта».
     expect(favorites.compareDocumentPosition(logout) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
 /**
  * Дыры в макете профиля. Зазор между группами (32) рассчитан на группы из
- * нескольких строк. После удаления нерабочих строк «Скоро» «Избранные»
+ * нескольких строк. После удаления нерабочих строк «Скоро» «Избранное»
  * остались в блоке одни, получили 32 сверху и 32 снизу и стали читаться как
  * провал в вёрстке, а не как отдельный блок (замечание владельца по скрину,
- * 24.08.2026). Тест держит два факта: «Избранные» лежат в ОДНОМ блоке с
+ * 24.08.2026). Тест держит два факта: «Избранное» лежит в ОДНОМ блоке с
  * остальными пунктами про меня, а «Выйти из аккаунта» — по-прежнему в своём.
  */
 describe("профиль: группировка пунктов", () => {
-  it("держит «Избранные» в одном блоке с остальными пунктами про меня", async () => {
+  it("держит «Избранное» в одном блоке с остальными пунктами про меня", async () => {
     renderProfile();
 
-    const favorites = await screen.findByRole("button", { name: "Избранные" });
+    const favorites = await screen.findByRole("button", { name: "Избранное" });
     const personalData = screen.getByRole("button", { name: "Персональные данные" });
     const settings = screen.getByRole("button", { name: "Настройки" });
 
@@ -117,7 +117,7 @@ describe("профиль: группировка пунктов", () => {
   it("оставляет «Выйти из аккаунта» отдельным блоком", async () => {
     renderProfile();
 
-    const favorites = await screen.findByRole("button", { name: "Избранные" });
+    const favorites = await screen.findByRole("button", { name: "Избранное" });
     const logout = screen.getByRole("button", { name: "Выйти из аккаунта" });
 
     expect(logout.parentElement).not.toBe(favorites.parentElement);

@@ -55,7 +55,19 @@ export function CuisineChip({
       ) : (
         <PhotoView uri={photoUri} style={styles.circle} decorative placeholderIconSize={28} />
       )}
-      <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
+      {/* Название кухни приходит из каталога и показывается ЦЕЛИКОМ.
+          Раньше здесь стояло numberOfLines={1} и «Средиземноморская»
+          превращалась в обрезок (правка владельца 2026-08-24). Две строки
+          спасают составные названия, а одно длинное слово переносить не по
+          чему — поэтому шрифт ужимается до 0.75 (12 → 9) в пределах
+          ширины ячейки. Обрезка — последнее, чего мы хотим: сокращённое
+          название кухни гость не узнаёт. */}
+      <Text
+        style={styles.label}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+      >
         {cuisine.name}
       </Text>
     </Pressable>
@@ -64,7 +76,8 @@ export function CuisineChip({
 
 const styles = StyleSheet.create({
   chip: {
-    width: exploreLayout.cuisineChip,
+    // Ячейка шире круга — подпись под ним длиннее круга (см. cuisineChipLabel).
+    width: exploreLayout.cuisineChipLabel,
     alignItems: "center",
     gap: spacing.sm,
   },
@@ -82,5 +95,8 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     textAlign: "center",
     width: "100%",
+    // Две строки резервируются всегда, чтобы круги соседних кухонь стояли на
+    // одной высоте независимо от длины названия.
+    minHeight: typography.caption.lineHeight * 2,
   },
 });

@@ -119,10 +119,15 @@ describe("work past midnight reads as thirteen hours, not one", () => {
     expect(dayHoursLabel(day({}))).toBe(t.restaurant.schedule.rangeNextDay("12:00", "01:00"));
   });
 
-  it("midnight closing is spelled out, not shown as a next-day range", () => {
+  // The «(полночь)» suffix was dropped on 2026-08-24 — the column shows hours
+  // only. The BRANCH still exists (untilMidnight is its own dictionary key), so
+  // the literal is asserted here as well: without it the test would pass even if
+  // the suffix crept back in through the dictionary.
+  it("midnight closing shows plain hours, with no «(полночь)» suffix", () => {
     expect(dayHoursLabel(day({ opensAt: "19:00", closesAt: "00:00" }))).toBe(
       t.restaurant.schedule.untilMidnight("19:00"),
     );
+    expect(dayHoursLabel(day({ opensAt: "19:00", closesAt: "00:00" }))).toBe("19:00 – 00:00");
   });
 
   it("a same-day range is a plain range", () => {
@@ -194,5 +199,105 @@ describe("venueDayOfWeek — the only date arithmetic allowed here", () => {
     const moment = new Date("2026-07-30T12:00:00.000Z");
     expect(() => venueDayOfWeek("Not/AZone", moment)).not.toThrow();
     expect(venueDayOfWeek("", moment)).toBe(moment.getDay());
+  });
+});
+
+/**
+ * «Откроется в 10:00» — правка владельца 2026-08-24: голое «Закрыто» не
+ * отвечает на единственный вопрос гостя, стоящего перед закрытой дверью.
+ *
+ * Строка приписывается ТОЛЬКО к серверному «закрыто» и только пока сегодняшнее
+ * время открытия впереди. Ничего об открытости здесь по-прежнему не
+ * вычисляется: `openNow` остаётся единственным источником.
+ */
+describe("closed venue that still opens today says WHEN", () => {
+  const scheduleAt = (
+    openNow: boolean | null,
+    opensAt: string,
+    timezone = "Asia/Almaty",
+  ): VenueSchedule => ({
+    timezone,
+    openNow,
+    days: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+      dayOfWeek: dayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+      isOpen: true,
+      opensAt,
+      closesAt: "23:00",
+      closesNextDay: false,
+    })),
+  });
+
+  // 2026-07-30T03:00Z = 08:00 в Алматы, до открытия.
+  const beforeOpening = new Date("2026-07-30T03:00:00.000Z");
+  // 2026-07-30T05:00Z = 10:00 в Алматы, после открытия в 09:00.
+  const afterOpening = new Date("2026-07-30T05:00:00.000Z");
+  // 2026-07-30T18:00Z = 23:00 в Алматы, вечер того же дня.
+  const lateEvening = new Date("2026-07-30T18:00:00.000Z");
+
+  it("appends today's opening time to the server's «Закрыто»", () => {
+    expect(openUntilTodayLabel(scheduleAt(false, "10:00"), beforeOpening)).toBe(
+      t.restaurant.opensAt("10:00"),
+    );
+  });
+
+  it("says nothing about tomorrow once today's opening has passed", () => {
+    expect(openUntilTodayLabel(scheduleAt(false, "10:00"), lateEvening)).toBe(
+      t.restaurant.closedNow,
+    );
+  });
+
+  /**
+   * ГРАНИЦА ФОРМАТА ВРЕМЕНИ. Сравнение «ЧЧ:ММ» строками верно только с ведущим
+   * нулём: без него «10:00» < «9:00» — правда, и закрытое в 10:00 заведение
+   * пообещало бы открыться в 9:00, то есть в прошлом. Этот тест падает ровно
+   * тогда, когда ведущий ноль потеряется по дороге (см. clockTime).
+   */
+  it("compares padded HH:MM, so 10:00 is AFTER 09:00 and not before", () => {
+    expect(openUntilTodayLabel(scheduleAt(false, "09:00"), afterOpening)).toBe(
+      t.restaurant.closedNow,
+    );
+    expect(openUntilTodayLabel(scheduleAt(false, "09:00"), beforeOpening)).toBe(
+      t.restaurant.opensAt("09:00"),
+    );
+  });
+
+  it("never turns «не знаем» or «открыто» into an opening promise", () => {
+    expect(openUntilTodayLabel(scheduleAt(null, "10:00"), beforeOpening)).toBe(
+      t.restaurant.hoursUnknownShort,
+    );
+    expect(openUntilTodayLabel(scheduleAt(true, "10:00"), beforeOpening)).toBe(
+      t.restaurant.openUntil("23:00"),
+    );
+  });
+
+  it("stays silent on a day off and on a timezone the engine cannot resolve", () => {
+    const dayOff = scheduleAt(false, "10:00");
+    dayOff.days = dayOff.days.map((day) => ({
+      ...day,
+      isOpen: false,
+      opensAt: null,
+      closesAt: null,
+    }));
+    expect(openUntilTodayLabel(dayOff, beforeOpening)).toBe(t.restaurant.closedNow);
+    expect(openUntilTodayLabel(scheduleAt(false, "10:00", ""), beforeOpening)).toBe(
+      t.restaurant.closedNow,
+    );
+  });
+});
+
+/**
+ * ДИАПАЗОНЫ — ТИРЕ, А НЕ ДЕФИС (правка владельца 2026-08-24). Проверяется
+ * кодовая точка, а не «похожий символ»: дефис-минус U+002D и тире U+2013
+ * в исходнике на глаз неразличимы.
+ */
+describe("every «from–to» range uses an en dash", () => {
+  const EN_DASH = "–";
+
+  it("day hours are joined by U+2013", () => {
+    const label = t.restaurant.schedule.range("10:00", "23:00");
+    expect(label).toContain(EN_DASH);
+    expect(label).not.toContain("-");
+    expect(t.restaurant.schedule.rangeNextDay("12:00", "01:00")).toContain(EN_DASH);
+    expect(t.restaurant.schedule.untilMidnight("19:00")).toContain(EN_DASH);
   });
 });

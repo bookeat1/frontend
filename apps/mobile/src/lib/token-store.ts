@@ -48,7 +48,7 @@ export function setSessionTokenGateway(next: SessionTokenGateway | null): void {
  * What the repositories pass as `getToken`. Proactive: every authenticated
  * request — reads included — goes out with a token that has at least a minute
  * left on it, which is what stops a 15-minute access token from turning
- * «Бронь» / «Избранные» / «Профиль» into a fake network error.
+ * «Бронь» / «Избранное» / «Профиль» into a fake network error.
  *
  * Before AuthProvider has mounted there is no gateway yet; the raw cell is the
  * honest answer (undefined ⇒ the client fails fast with a 401 and the screens

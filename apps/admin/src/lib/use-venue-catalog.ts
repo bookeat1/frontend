@@ -21,12 +21,22 @@ export function useIsPlatformAdmin(): boolean {
   return Boolean(token) && user?.role === "admin";
 }
 
-export function useVenueCatalog(search: string): UseQueryResult<ApiPage<CatalogVenue>> {
+/**
+ * @param search подстрока названия — фильтрует СЕРВЕР (`name ILIKE '%…%'`)
+ * @param city точное значение города — тоже сервер (`r.city = $1`). Кухни и
+ *   статуса «показывается/скрыто» у этого эндпоинта нет вовсе (adminList читает
+ *   только search/city/page/per_page), они отбираются в панели —
+ *   см. `lib/venue-filters.ts`.
+ */
+export function useVenueCatalog(
+  search: string,
+  city = "",
+): UseQueryResult<ApiPage<CatalogVenue>> {
   const { user } = useAuth();
   const enabled = useIsPlatformAdmin();
   return useQuery({
-    queryKey: ["venue-catalog", user?.id ?? null, search],
-    queryFn: () => apiClient.listCatalogVenues({ search, perPage: 100 }),
+    queryKey: ["venue-catalog", user?.id ?? null, search, city],
+    queryFn: () => apiClient.listCatalogVenues({ search, city, perPage: 100 }),
     enabled,
     // Каталог меняется руками и редко; лишний рефетч на каждый фокус вкладки
     // здесь только моргает списком.
