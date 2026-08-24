@@ -14,6 +14,17 @@ import { afterEach, beforeEach, expect, vi } from "vitest";
  */
 process.env.TZ = "Asia/Almaty";
 
+/**
+ * `__DEV__` — глобальная переменная Metro/React Native, которой в vitest нет.
+ * Экраны читают её напрямую (`__DEV__ && devCode` на шаге ввода кода), и без
+ * этой строки любой рендер такого экрана падает с `ReferenceError: __DEV__ is
+ * not defined` — не из-за проверяемого кода, а из-за окружения.
+ *
+ * `false`, а не `true`: это поведение РЕЛИЗНОЙ сборки, и отладочные блоки, у
+ * которых нет права попасть к гостю, тесты видеть не должны.
+ */
+(globalThis as { __DEV__?: boolean }).__DEV__ = false;
+
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",

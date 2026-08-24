@@ -12,6 +12,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useToggleEntityFavorite, useToggleFavorite } from "../../src/hooks/useFavorites";
 import { useAuth } from "../../src/lib/auth";
 import { DEFAULT_COUNTRY, nationalLength } from "../../src/lib/countries";
+import { classifyOtpRequestFailure } from "../../src/lib/otp-error-copy";
 import { formatStoredPhoneForDisplay, phoneFromE164 } from "../../src/lib/phone";
 
 const t = getDictionary();
@@ -129,6 +130,14 @@ export default function SignInScreen() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  /**
+   * A WARNING on the code step, not a refusal: the request for the code timed
+   * out on our side, so we cannot confirm delivery — but the code very probably
+   * exists (see classifyOtpRequestFailure). Kept apart from `formError` and
+   * `fieldError` on purpose: it must not paint the cells red and it must not
+   * survive a real verification error.
+   */
+  const [deliveryWarning, setDeliveryWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [tick, setTick] = useState(() => Date.now());
 
@@ -193,20 +202,6 @@ export default function SignInScreen() {
     }
   };
 
-  /** Turns a failed `/auth/otp/request` into a sentence that is true. */
-  const describeRequestError = (error: unknown): string => {
-    if (error instanceof RepositoryError) {
-      // Per-IP tier of the rate limiter. The server said how long to wait, so
-      // that is the number shown — never a guess.
-      if (error.isRateLimited) {
-        return t.auth.errorRateLimited(error.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS);
-      }
-      // The only 422 left once the client has checked that the number is
-      // complete: the per-phone budget (1/min, 5/hour).
-      if (error.isValidation) return t.auth.errorTooOften;
-    }
-    return t.auth.errorDescription;
-  };
 
   const sendCode = async (e164: string, complete: boolean): Promise<void> => {
     setFormError(null);
@@ -229,9 +224,17 @@ export default function SignInScreen() {
     }
 
     setSubmitting(true);
+    // When the SERVER's clock for this phone starts. The backend writes the
+    // otp_codes row and hands the code to the delivery waterfall about a second
+    // after the request arrives, so both countdowns below (resend cooldown and
+    // the 5-minute TTL) belong to this moment — not to whenever the response
+    // finally comes back. It matters on the timeout path, where the answer is
+    // twenty seconds late by definition.
+    const startedAt = Date.now();
     try {
       const result = await requestCode(e164);
       const now = Date.now();
+      setDeliveryWarning(null);
       setSentToPhone(e164);
       setSentAt(now);
       setResendAt(now + RESEND_COOLDOWN_SECONDS * 1000);
@@ -253,7 +256,33 @@ export default function SignInScreen() {
       }
       setStep("code");
     } catch (error) {
-      setFormError(describeRequestError(error));
+      const failure = classifyOtpRequestFailure(error, t.auth, RESEND_COOLDOWN_SECONDS);
+      if (failure.canStillEnterCode) {
+        // We stopped listening; the server almost certainly sent the code
+        // anyway. Refusing to show the field here is what stranded guests with
+        // a valid code and nowhere to type it. So: same step forward as a
+        // success, with the uncertainty stated above the field instead of
+        // being dressed up as a failure.
+        setFormError(null);
+        setDeliveryWarning(failure.message);
+        setSentToPhone(e164);
+        // BOTH countdowns run from when the request left, not from now:
+        // otherwise the guest waits the full minute again on top of the twenty
+        // seconds already spent, and the "код скорее всего истёк" line is
+        // twenty seconds optimistic. Anchoring them here also guarantees the
+        // resend link cannot appear instantly (the cooldown is 60 s, the
+        // deadline 20 s) and cannot get stuck.
+        setSentAt(startedAt);
+        setResendAt(startedAt + RESEND_COOLDOWN_SECONDS * 1000);
+        setAttempts(0);
+        // No dev echo to pre-fill: we never saw a response body.
+        setDevCode(null);
+        setCode("");
+        setStep("code");
+        return;
+      }
+      setDeliveryWarning(null);
+      setFormError(failure.message);
       // A 429 tells us exactly how long the server wants to be left alone.
       if (error instanceof RepositoryError && error.isRateLimited && error.retryAfterSeconds) {
         setResendAt(Date.now() + error.retryAfterSeconds * 1000);
@@ -334,6 +363,10 @@ export default function SignInScreen() {
     const next = raw.replace(/\D/g, "").slice(0, CODE_LENGTH);
     setCode(next);
     if (fieldError) setFieldError(null);
+    // The guest is typing a code, which answers the only question the warning
+    // asked ("did anything arrive?"). It goes away on the first digit and never
+    // competes with a real verification error.
+    if (deliveryWarning) setDeliveryWarning(null);
     if (next.length === CODE_LENGTH && !submitting && !verifyingRef.current && !attemptsExhausted) {
       verifyingRef.current = true;
       void verify(next).finally(() => {
@@ -369,6 +402,7 @@ export default function SignInScreen() {
     setCode("");
     setFieldError(null);
     setFormError(null);
+    setDeliveryWarning(null);
     setAttempts(0);
     // Re-arm the dev-prefill auto-submit so a fresh code can fire again even if
     // a fixed debug code happens to repeat (see the effect above).
@@ -459,6 +493,15 @@ export default function SignInScreen() {
                 {t.auth.codeTitle}
               </Text>
               <CodeSentTo phone={formatStoredPhoneForDisplay(sentToPhone)} />
+
+              {/* «Не дождались ответа» — a warning, not an error: the cells
+                  stay normal and the guest can type the code that most likely
+                  did arrive. Cleared by the first digit (onCodeChange). */}
+              {deliveryWarning ? (
+                <Text style={styles.warning} accessibilityRole="alert">
+                  {deliveryWarning}
+                </Text>
+              ) : null}
 
               {/* The honest note for an environment that accepts the request
                   and delivers nothing. Off by default; see
@@ -635,6 +678,21 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
+  },
+  /**
+   * Предупреждение на шаге кода: жёлтая подложка отличает его и от ошибки
+   * (красный `formError`), и от нейтральной справки (`notice`).
+   *
+   * Текст тёмный, а НЕ `status.pendingText`: #F67700 на #FFE4CC даёт около
+   * 2.8:1 — это прямо оговорено в colors.ts как значение макета, ниже нормы для
+   * обычного текста. #1B1B1B на той же подложке даёт больше 12:1.
+   */
+  warning: {
+    ...typography.labelMedium,
+    color: colors.text.primary,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.status.pendingSurface,
   },
   notice: {
     ...typography.caption,

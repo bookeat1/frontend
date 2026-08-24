@@ -263,7 +263,8 @@ export const kk: LocaleOverride<Dictionary> = {
     schedule: {
       today: "бүгін",
       range: (from: string, to: string) => `${from} – ${to}`,
-      rangeNextDay: (from: string, to: string) => `${from} – келесі күнгі ${to}`,
+      /** «келесі күнгі» алынып тасталды (2026-08-24) — тек уақыт. */
+      rangeNextDay: (from: string, to: string) => `${from} – ${to}`,
       untilMidnight: (from: string) => `${from} – 00:00 (түн ортасы)`,
       openTimeUnknown: "Ашық, уақыты көрсетілмеген",
       dayOff: "Демалыс",
@@ -1108,6 +1109,8 @@ export const kk: LocaleOverride<Dictionary> = {
     errorTooOften: "Кодты минутына бір рет және сағатына бес реттен көп сұрауға болмайды. Күте тұрып, қайталап көріңіз",
     errorRateLimited: (seconds: number) => `Сұраныс тым көп. ${seconds} с кейін қайталап көріңіз`,
     errorDescription: "Байланысты тексеріп, қайталап көріңіз",
+    errorTimedOut: "Жауап келмеді. Код бәрібір жіберілген болуы мүмкін — хабарламаларды тексеріңіз",
+    errorServerFailure: "Бізде бірдеңе бұзылды, қайталап көріңіз",
 
     deliveryDisabledNotice:
       "Бұл серверде код жеткізу өшірілген — хабарлама келмейді. Экранды тек осы қадамға дейін тексеруге болады",

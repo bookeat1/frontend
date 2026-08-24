@@ -26,7 +26,9 @@ import { Bell, CalendarBlank, MapPin, User } from "../icons";
  *
  * Оба селектора — половинки одной капсулы (макет главной), и оба ведут в
  * `/search`: своего состояния даты и гостей главная не держит, тап просто
- * открывает каталог, где живёт настоящий выбор.
+ * открывает каталог, где живёт настоящий выбор. Половины при этом РАЗНЫЕ:
+ * каждая открывает в каталоге своё колесо (правка владельца 2026-08-24), —
+ * поэтому два колбэка, а не один общий «открыть поиск».
  *
  * The bell opens the «Уведомления» screen (`/notifications`) and carries an
  * unread badge fed by the real feed's `unread_count` (B5 Part 2), read from the
@@ -39,7 +41,8 @@ export function HomeHeader({
   city,
   dateValue,
   guestsValue,
-  onOpenSearch,
+  onOpenDate,
+  onOpenGuests,
   onOpenNotifications,
   onOpenCity,
 }: {
@@ -47,7 +50,10 @@ export function HomeHeader({
   city: string;
   dateValue: string;
   guestsValue: string;
-  onOpenSearch: () => void;
+  /** Открыть каталог с раскрытым выбором ДАТЫ. */
+  onOpenDate: () => void;
+  /** Открыть каталог с раскрытым выбором ЧИСЛА ГОСТЕЙ. */
+  onOpenGuests: () => void;
   onOpenNotifications: () => void;
   /** Opens the city picker (same screen the profile uses). */
   onOpenCity: () => void;
@@ -129,7 +135,7 @@ export function HomeHeader({
           style={({ pressed }) => [styles.selector, styles.selectorLeft, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={`${t.explore.dateSelectorLabel}: ${dateValue}`}
-          onPress={onOpenSearch}
+          onPress={onOpenDate}
         >
           <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
           <Text style={styles.selectorValue} numberOfLines={1}>
@@ -140,7 +146,7 @@ export function HomeHeader({
           style={({ pressed }) => [styles.selector, styles.selectorRight, pressed && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel={`${t.explore.guestsSelectorLabel}: ${guestsValue}`}
-          onPress={onOpenSearch}
+          onPress={onOpenGuests}
         >
           <User size={24} color={colors.text.primary} weight="regular" />
           <Text style={styles.selectorValue} numberOfLines={1}>

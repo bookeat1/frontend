@@ -514,9 +514,41 @@ export class RepositoryError extends Error {
      * be wrong. Branch on `isOffline`, not on the absence of a status.
      */
     public readonly networkFailure: boolean = false,
+    /**
+     * The request was aborted by OUR OWN client-side deadline
+     * (`AbortSignal.timeout` in http-client.ts) — as opposed to the device
+     * having no network at all. A subset of `networkFailure`: it is set
+     * TOGETHER with it, so every existing `isOffline` consumer keeps behaving
+     * exactly as before, and only a caller that wants to say something more
+     * precise has to know about it.
+     *
+     * The distinction matters wherever the request had a SIDE EFFECT the
+     * server may have completed after we stopped listening — sending an OTP is
+     * exactly that case: "проверьте соединение" is a lie when the code is
+     * already in the guest's messages.
+     */
+    public readonly timedOut: boolean = false,
   ) {
     super(message);
     this.name = "RepositoryError";
+  }
+
+  /**
+   * We gave up waiting; the server may or may not have finished the work. Check
+   * this BEFORE `isOffline` — a timeout is also flagged as a network failure,
+   * so the more specific branch has to come first.
+   */
+  get isTimeout(): boolean {
+    return this.timedOut;
+  }
+
+  /**
+   * The server answered, and answered with a failure of its own (HTTP 5xx).
+   * Not a transport failure: retrying immediately is pointless-ish but honest,
+   * and the copy must not blame the guest's connection.
+   */
+  get isServerFailure(): boolean {
+    return this.status !== undefined && this.status >= 500;
   }
 
   /**

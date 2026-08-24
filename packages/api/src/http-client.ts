@@ -26,6 +26,19 @@ export interface ApiPage<T> {
 
 const DEFAULT_TIMEOUT_MS = 8000;
 
+/**
+ * True when a rejected `fetch` was rejected by OUR OWN `AbortSignal.timeout`
+ * rather than by the network. See the call site for why this is not an
+ * `instanceof` check.
+ */
+function isTimeoutReason(cause: unknown): boolean {
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    (cause as { name?: unknown }).name === "TimeoutError"
+  );
+}
+
 /** `Retry-After` in delta-seconds, or undefined when the header is absent or
  * in the HTTP-date form this API never uses. */
 function parseRetryAfter(raw: string | null): number | undefined {
@@ -265,10 +278,22 @@ export class HttpClient {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
     } catch (cause) {
-      if (cause instanceof Error && cause.name === "TimeoutError") {
-        // A hung connection that never answered is, from the guest's side, the
-        // same as being offline: nothing to read, retry is the only move. So it
-        // carries the same `networkFailure` flag → the «Нет подключения» state.
+      // Duck-typed on `name`, NOT `instanceof Error`. The abort reason is a
+      // DOMException, and whether that is an `Error` in the current realm is a
+      // property of the runtime, not of the failure: under jsdom it is not
+      // (verified — the branch below silently swallowed every timeout there),
+      // and nothing guarantees Hermes agrees with Node either. `name` is the
+      // part of the contract every implementation honours.
+      if (isTimeoutReason(cause)) {
+        // A hung connection that never answered is, for most screens, the same
+        // as being offline: nothing to read, retry is the only move. So it
+        // keeps the `networkFailure` flag → the «Нет подключения» state.
+        //
+        // It ALSO carries `timedOut`, because the two are not the same thing
+        // where the request had a side effect: an OTP request that we stopped
+        // waiting for may well have delivered the code. Callers that care
+        // branch on `isTimeout` first (see the sign-in screen); everyone else
+        // sees no change.
         throw new RepositoryError(
           `Request to ${path} timed out after ${this.timeoutMs}ms`,
           cause,
@@ -276,6 +301,7 @@ export class HttpClient {
           undefined,
           undefined,
           undefined,
+          true,
           true,
         );
       }

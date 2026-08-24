@@ -204,28 +204,38 @@ export default function RestaurantDetailScreen() {
               />
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
-              <ScrollableMenu
-                items={restaurant.menuHighlights}
-                onOpenDish={(dishId) =>
-                  router.push({
-                    pathname: "/restaurant/[id]/menu",
-                    params: { id: restaurant.id, dish: dishId },
-                  })
-                }
-              />
-              {/* Кнопка ведёт на отдельный экран меню — только чтение, без
-                  корзины. Раньше она была disabled, потому что единственный
-                  экран меню жил внутри флоу брони и складывал блюда в его
-                  черновик; в результате у заведения с 200 блюдами меню нельзя
-                  было открыть вообще. */}
-              <PrimaryButton
-                label={t.restaurant.viewMenu}
-                variant="secondary"
-                onPress={() => router.push(`/restaurant/${restaurant.id}/menu`)}
-              />
-            </View>
+            {/* Меню целиком — заголовок, лента и кнопка — есть ТОЛЬКО у
+                заведения, у которого в API действительно есть позиции
+                (правка владельца 2026-08-24). Признака «меню нет» бэкенд не
+                присылает: GET /restaurants/:id/menu отдаёт либо список, либо
+                пустой массив, либо не отвечает вовсе — во всех трёх случаях
+                `menuHighlights` пуст, и показывать нечего. Кнопка
+                «Посмотреть меню» уходит вместе с блоком осознанно: экран
+                меню читает ТУ ЖЕ ручку и открылся бы пустым. */}
+            {restaurant.menuHighlights.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
+                <ScrollableMenu
+                  items={restaurant.menuHighlights}
+                  onOpenDish={(dishId) =>
+                    router.push({
+                      pathname: "/restaurant/[id]/menu",
+                      params: { id: restaurant.id, dish: dishId },
+                    })
+                  }
+                />
+                {/* Кнопка ведёт на отдельный экран меню — только чтение, без
+                    корзины. Раньше она была disabled, потому что единственный
+                    экран меню жил внутри флоу брони и складывал блюда в его
+                    черновик; в результате у заведения с 200 блюдами меню нельзя
+                    было открыть вообще. */}
+                <PrimaryButton
+                  label={t.restaurant.viewMenu}
+                  variant="secondary"
+                  onPress={() => router.push(`/restaurant/${restaurant.id}/menu`)}
+                />
+              </View>
+            ) : null}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t.restaurant.contacts}</Text>
@@ -276,12 +286,10 @@ function ScrollableMenu({
    * бы держать две копии одного экрана. */
   onOpenDish: (dishId: string) => void;
 }) {
-  // Пустая лента = у заведения действительно нет блюд в API (например,
-  // «Adept»). Отсутствие фотографий блюдом больше не считается.
-  if (items.length === 0) {
-    return <Text style={styles.sectionEmpty}>{t.restaurant.menuEmpty}</Text>;
-  }
-
+  // Пустого состояния здесь нет: блок с меню целиком не рисуется, когда
+  // позиций нет (см. вызов выше). Раньше на его месте оставались заголовок
+  // «Популярное меню», строка «Ресторан ещё не добавил меню» и кнопка,
+  // ведущая на такой же пустой экран.
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View style={styles.menuRow}>
@@ -421,10 +429,6 @@ const styles = StyleSheet.create({
   menuRow: {
     flexDirection: "row",
     gap: spacing.sm,
-  },
-  sectionEmpty: {
-    ...typography.body,
-    color: colors.text.muted,
   },
   socialRow: {
     flexDirection: "row",

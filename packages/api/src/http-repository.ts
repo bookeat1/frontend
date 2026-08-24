@@ -781,8 +781,36 @@ function mapOtpRequested(api: ApiOtpRequested): OtpRequest {
   };
 }
 
+/**
+ * Deadline for the two endpoints that DELIVER a one-time code, in ms.
+ *
+ * Why it is not the client default (8 000 ms): the backend sends the code
+ * SYNCHRONOUSLY inside the request. Its delivery waterfall
+ * (internal/infrastructure/otpsender/waterfall.go) has a 12-second budget —
+ * Telegram Gateway, then WhatsApp, then SMS — and the HTTP server's own
+ * WriteTimeout is 15 s. With an 8-second client deadline the app gave up on a
+ * request that was still working: the guest got the code on their phone and the
+ * screen said «Проверьте соединение», never advancing to the code field. A real
+ * sign-in blocker.
+ *
+ * 20 s = the server's 12-second delivery budget + headroom for a slow mobile
+ * connection, and still under the 15 s WriteTimeout + TLS handshake, so we now
+ * always outlive the server rather than the other way round.
+ *
+ * Scoped to these endpoints on purpose. Raising the global default would make
+ * every dead screen in the app spin for 20 seconds before admitting failure.
+ */
+const OTP_DELIVERY_TIMEOUT_MS = 20_000;
+
 export class HttpAuthRepository implements AuthRepository {
   private readonly client: HttpClient;
+  /**
+   * A second client differing ONLY in the deadline, used by the two OTP-REQUEST
+   * endpoints. Verification is deliberately left on the normal client: it sends
+   * nothing, it only compares a code, so 8 seconds is right there and a longer
+   * wait would just be a longer spinner on a broken connection.
+   */
+  private readonly otpDeliveryClient: HttpClient;
   /** Аватар — единственная загрузка файла в приложении, и она не может идти
    * через HttpClient: тот всегда ставит `Content-Type: application/json`, а
    * multipart требует, чтобы заголовок с границей выставил сам fetch. Поэтому
@@ -796,6 +824,16 @@ export class HttpAuthRepository implements AuthRepository {
     this.client = new HttpClient({
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
+      getToken: options.getToken,
+      onUnauthorized: options.onUnauthorized,
+      getLanguage: options.getLanguage,
+    });
+    this.otpDeliveryClient = new HttpClient({
+      baseUrl: options.baseUrl,
+      // An explicit `timeoutMs` from the caller still wins — a test that wants
+      // a 50 ms deadline gets one — but the DEFAULT here is the long one, not
+      // the client's 8 s.
+      timeoutMs: options.timeoutMs ?? OTP_DELIVERY_TIMEOUT_MS,
       getToken: options.getToken,
       onUnauthorized: options.onUnauthorized,
       getLanguage: options.getLanguage,
@@ -907,7 +945,9 @@ export class HttpAuthRepository implements AuthRepository {
    * infrastructure/otpsender.Stub, which answers success and sends nothing.
    */
   async requestOtp(phone: string): Promise<OtpRequest> {
-    const api = await this.client.post<ApiOtpRequested>("/auth/otp/request", { phone });
+    // Long deadline — see OTP_DELIVERY_TIMEOUT_MS: this call carries the
+    // delivery, not just the bookkeeping.
+    const api = await this.otpDeliveryClient.post<ApiOtpRequested>("/auth/otp/request", { phone });
     return mapOtpRequested(api);
   }
 
@@ -961,7 +1001,8 @@ export class HttpAuthRepository implements AuthRepository {
    * requestOtp.
    */
   async requestPhoneChangeOtp(newPhone: string): Promise<OtpRequest> {
-    const api = await this.client.post<ApiOtpRequested>(
+    // Same synchronous waterfall as sign-in, so the same long deadline.
+    const api = await this.otpDeliveryClient.post<ApiOtpRequested>(
       "/users/me/phone/otp/request",
       { new_phone: newPhone },
       { auth: true },

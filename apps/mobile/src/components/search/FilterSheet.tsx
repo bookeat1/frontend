@@ -11,7 +11,7 @@ import { FilterChip } from "../FilterChip";
 import { IconButton } from "../IconButton";
 import { PrimaryButton } from "../PrimaryButton";
 import { X } from "../icons";
-import { AvailabilityBar } from "./AvailabilityBar";
+import { AvailabilityBar, type AvailabilityPicker } from "./AvailabilityBar";
 import { CheckboxRow } from "./CheckboxRow";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { SegmentedControl } from "./SegmentedControl";
@@ -60,6 +60,12 @@ interface FilterSheetProps {
   onRetryCuisines: () => void;
   /** Города для группы «Ещё» (EXTRA_FACETS). Пусто/не нужно — если флаг выключен. */
   cities: string[];
+  /**
+   * Колесо даты/гостей, раскрытое сразу вместе со шторкой. Приходит с главной
+   * через параметр маршрута `focus`: гость нажал там дату — он должен увидеть
+   * выбор даты, а не список фильтров, в котором её ещё надо найти.
+   */
+  initialPicker?: AvailabilityPicker;
   /** Применить: коммитим черновик обратно в реальные фильтры и закрываем. */
   onApply: (filters: SearchFilters, uiFacets: UiOnlyFacets) => void;
   onClose: () => void;
@@ -85,6 +91,7 @@ export function FilterSheet({
   cuisinesFailed,
   onRetryCuisines,
   cities,
+  initialPicker,
   onApply,
   onClose,
 }: FilterSheetProps) {
@@ -177,6 +184,7 @@ export function FilterSheet({
                 Два места для одного выбора всегда кончаются так — поэтому и
                 сейчас место остаётся ровно одно, просто другое. */}
             <AvailabilityBar
+              initialPicker={initialPicker}
               value={draft.availability}
               onChange={(availability) => setDraft((prev) => ({ ...prev, availability }))}
             />

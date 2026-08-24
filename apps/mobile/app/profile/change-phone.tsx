@@ -21,6 +21,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useAuth } from "../../src/lib/auth";
 import { DEFAULT_COUNTRY, nationalLength } from "../../src/lib/countries";
 import { useLocale } from "../../src/lib/locale";
+import { classifyOtpRequestFailure } from "../../src/lib/otp-error-copy";
 import { formatStoredPhoneForDisplay, phoneFromE164 } from "../../src/lib/phone";
 
 const CODE_LENGTH = 6;
@@ -83,6 +84,9 @@ export default function ChangePhoneScreen() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  /** Предупреждение на шаге кода, а не отказ — см. sign-in.tsx: запрос кода не
+   * дождался ответа, но код почти наверняка ушёл. */
+  const [deliveryWarning, setDeliveryWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [tick, setTick] = useState(() => Date.now());
 
@@ -114,6 +118,12 @@ export default function ChangePhoneScreen() {
       // 422 — the client already blocks an incomplete number, so the remaining
       // validation failure is the same-number case.
       if (error.isValidation) return c.errorSameNumber;
+      // Оба следующих случая приходят без статуса/со статусом сервера и раньше
+      // сливались в общее «попробуйте ещё раз». Запрос кода здесь идёт через
+      // тот же синхронный водопад доставки, что и на входе, поэтому «не
+      // дождались ответа» — это отдельная правда: код мог уйти.
+      if (error.isTimeout) return t.auth.errorTimedOut;
+      if (error.isServerFailure) return t.auth.errorServerFailure;
     }
     return c.errorGeneric;
   };
@@ -140,9 +150,14 @@ export default function ChangePhoneScreen() {
     }
 
     setSubmitting(true);
+    // Момент, с которого идут оба отсчёта: сервер создаёт код почти сразу после
+    // прихода запроса, а не тогда, когда до нас доходит ответ. На ветке
+    // таймаута ответ опаздывает на двадцать секунд по определению — см. sign-in.
+    const startedAt = Date.now();
     try {
       const result = await repository.requestPhoneChangeOtp(e164);
       const now = Date.now();
+      setDeliveryWarning(null);
       setSentToPhone(e164);
       setSentAt(now);
       setResendAt(now + RESEND_COOLDOWN_SECONDS * 1000);
@@ -151,6 +166,26 @@ export default function ChangePhoneScreen() {
       setCode("");
       setStep("code");
     } catch (error) {
+      // Тот же синхронный водопад доставки, что и на входе, — значит и тот же
+      // вывод: мы перестали ждать, но код гостю, скорее всего, пришёл. Ведём на
+      // шаг кода с предупреждением вместо отказа на шаге номера.
+      const failure = classifyOtpRequestFailure(error, t.auth, RESEND_COOLDOWN_SECONDS);
+      if (failure.canStillEnterCode) {
+        setFieldError(null);
+        setFormError(null);
+        setDeliveryWarning(failure.message);
+        setSentToPhone(e164);
+        setSentAt(startedAt);
+        setResendAt(startedAt + RESEND_COOLDOWN_SECONDS * 1000);
+        setAttempts(0);
+        setDevCode(null);
+        setCode("");
+        setStep("code");
+        return;
+      }
+      setDeliveryWarning(null);
+      // describeError, а не failure.message: на этом экране 409/401/422 значат
+      // не то же самое, что на входе, и их разбор остаётся здесь.
       setFieldError(describeError(error));
       if (error instanceof RepositoryError && error.isRateLimited && error.retryAfterSeconds) {
         setResendAt(Date.now() + error.retryAfterSeconds * 1000);
@@ -216,6 +251,8 @@ export default function ChangePhoneScreen() {
     const next = raw.replace(/\D/g, "").slice(0, CODE_LENGTH);
     setCode(next);
     if (fieldError) setFieldError(null);
+    // Гость печатает код — вопрос «дошло ли» снят, предупреждение уходит.
+    if (deliveryWarning) setDeliveryWarning(null);
     if (next.length === CODE_LENGTH && !submitting && !verifyingRef.current && !attemptsExhausted) {
       verifyingRef.current = true;
       void confirm(next).finally(() => {
@@ -229,6 +266,7 @@ export default function ChangePhoneScreen() {
     setCode("");
     setFieldError(null);
     setFormError(null);
+    setDeliveryWarning(null);
     setAttempts(0);
   };
 
@@ -291,6 +329,12 @@ export default function ChangePhoneScreen() {
               <Text style={styles.subtitle}>
                 {c.codeSentTo(formatStoredPhoneForDisplay(sentToPhone))}
               </Text>
+
+              {deliveryWarning ? (
+                <Text style={styles.warning} accessibilityRole="alert">
+                  {deliveryWarning}
+                </Text>
+              ) : null}
 
               {DELIVERY_DISABLED ? (
                 <Text style={styles.notice} accessibilityRole="alert">
@@ -414,6 +458,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
+  },
+  /** Предупреждение (не ошибка) на шаге кода — жёлтая подложка. Тёмный текст,
+   * а не `status.pendingText`: см. тот же стиль в sign-in.tsx. */
+  warning: {
+    ...typography.labelMedium,
+    color: colors.text.primary,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.status.pendingSurface,
   },
   notice: {
     ...typography.caption,

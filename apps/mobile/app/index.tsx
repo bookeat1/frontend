@@ -77,13 +77,26 @@ export default function HomeScreen() {
   // просто в каталог: человек уже назвал день и компанию, и заставлять его
   // повторить это на следующем экране — терять то, что он только что сказал.
   // Дальше выбор становится настоящим фильтром по свободным столам.
+  // ...и открывает в каталоге ИМЕННО ТУ половину, по которой нажали: `focus`
+  // говорит экрану поиска, какое колесо раскрыть. Без него человек, нажавший
+  // «2 гостя», попадал в каталог, где число гостей спрятано за кнопкой
+  // фильтров, и должен был искать его заново.
   const openSearchWithParty = useCallback(
-    () =>
+    (focus: "date" | "guests") =>
       router.push({
         pathname: "/search",
-        params: { guests: String(EXPLORE_DEFAULT_GUESTS), date: toDateKey(new Date()) },
+        params: {
+          guests: String(EXPLORE_DEFAULT_GUESTS),
+          date: toDateKey(new Date()),
+          focus,
+        },
       }),
     [router],
+  );
+  const openSearchDate = useCallback(() => openSearchWithParty("date"), [openSearchWithParty]);
+  const openSearchGuests = useCallback(
+    () => openSearchWithParty("guests"),
+    [openSearchWithParty],
   );
   const openNotifications = useCallback(() => router.push("/notifications"), [router]);
 
@@ -175,7 +188,8 @@ export default function HomeScreen() {
           city={city}
           dateValue={t.booking.today}
           guestsValue={t.booking.guestsCount(EXPLORE_DEFAULT_GUESTS)}
-          onOpenSearch={openSearchWithParty}
+          onOpenDate={openSearchDate}
+          onOpenGuests={openSearchGuests}
           onOpenNotifications={openNotifications}
           onOpenCity={openCity}
         />

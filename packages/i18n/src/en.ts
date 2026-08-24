@@ -255,7 +255,8 @@ export const en: LocaleOverride<Dictionary> = {
     schedule: {
       today: "today",
       range: (from: string, to: string) => `${from} – ${to}`,
-      rangeNextDay: (from: string, to: string) => `${from} – ${to} next day`,
+      /** No "next day" wording (owner, 2026-08-24) — hours only. */
+      rangeNextDay: (from: string, to: string) => `${from} – ${to}`,
       untilMidnight: (from: string) => `${from} – 00:00 (midnight)`,
       openTimeUnknown: "Open, time not listed",
       dayOff: "Closed",
@@ -1100,6 +1101,8 @@ export const en: LocaleOverride<Dictionary> = {
     errorTooOften: "You can request a code once a minute and up to five times an hour. Wait and try again",
     errorRateLimited: (seconds: number) => `Too many requests. Try again in ${seconds}s`,
     errorDescription: "Check your connection and try again",
+    errorTimedOut: "No answer from the server. The code may still have been sent — check your messages",
+    errorServerFailure: "Something broke on our side, please try again",
 
     deliveryDisabledNotice:
       "Code delivery is disabled on this server — the message won't arrive. This screen can only be tested up to this step",

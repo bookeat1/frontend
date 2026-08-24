@@ -102,7 +102,7 @@ export function VenueScheduleCard({
               key={dayOfWeek}
               style={[styles.row, isToday && styles.rowToday]}
               // Одной строкой для скринридера: «Понедельник, сегодня,
-              // 12:00 – 01:00 следующего дня».
+              // 12:00 – 01:00».
               accessible
               accessibilityLabel={[
                 t.weekdays[WEEKDAY_BY_DAY_OF_WEEK[dayOfWeek]],

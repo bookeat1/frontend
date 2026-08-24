@@ -12,6 +12,7 @@ import { FilterChip } from "../src/components/FilterChip";
 import { FavoriteRestaurantCard } from "../src/components/FavoriteRestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
+import type { AvailabilityPicker } from "../src/components/search/AvailabilityBar";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
@@ -43,6 +44,18 @@ function availabilityFromParams(
   return { date: day, guests: n };
 }
 
+/**
+ * Какое колесо подбора раскрыть сразу после перехода с главной. На главной
+ * дата и гости — две ОТДЕЛЬНЫЕ половины капсулы, и переход должен продолжать
+ * начатое: нажал дату — открыт выбор даты, нажал гостей — выбор гостей.
+ * Всё остальное (параметра нет, чужое значение, массив) — «фильтр не
+ * раскрывать»: экран открывается обычным списком, а не пустым/сломанным.
+ */
+function focusFromParams(focus: string | string[] | undefined): AvailabilityPicker | undefined {
+  const raw = Array.isArray(focus) ? focus[0] : focus;
+  return raw === "date" || raw === "guests" ? raw : undefined;
+}
+
 const FREQUENT_CUISINE_LIMIT = 8;
 
 /**
@@ -67,10 +80,11 @@ export default function SearchScreen() {
   // hands a string (or string[]), so narrow it to a single id.
   // Капсула на главной ведёт сюда и приносит свой выбор: /search?guests=2.
   // Дата необязательна — с главной приходит «сегодня», если её не выбирали.
-  const { cuisine, guests, date } = useLocalSearchParams<{
+  const { cuisine, guests, date, focus } = useLocalSearchParams<{
     cuisine?: string;
     guests?: string;
     date?: string;
+    focus?: string;
   }>();
   const initialCuisineId = Array.isArray(cuisine) ? cuisine[0] : cuisine;
   const initialAvailability = useMemo(
@@ -92,7 +106,24 @@ export default function SearchScreen() {
     citiesQuery,
   } = useSearchScreen({ initialCuisineId, initialAvailability });
 
-  const [sheetVisible, setSheetVisible] = useState(false);
+  // Шторка фильтров: открыта сразу, если с главной пришёл `focus`. Оба
+  // состояния читают параметр ОДИН раз (инициализатор), поэтому закрыть
+  // шторку можно, и она не откроется обратно сама.
+  const initialPicker = useMemo(() => focusFromParams(focus), [focus]);
+  const [sheetVisible, setSheetVisible] = useState(() => initialPicker !== undefined);
+  // Раскрытое колесо — одноразовое: гость закрыл шторку и открыл её сам
+  // кнопкой-ползунками — он ждёт список фильтров, а не снова колесо даты.
+  const [sheetPicker, setSheetPicker] = useState<AvailabilityPicker | undefined>(
+    () => initialPicker,
+  );
+  const openSheet = useCallback(() => {
+    setSheetPicker(undefined);
+    setSheetVisible(true);
+  }, []);
+  const closeSheet = useCallback(() => {
+    setSheetVisible(false);
+    setSheetPicker(undefined);
+  }, []);
   // Подсказки «Часто ищут» живут по фокусу поля, а не по пустой строке: гость
   // видит их в тот момент, когда собирается искать, а не всё время, пока просто
   // листает каталог.
@@ -185,7 +216,7 @@ export default function SearchScreen() {
               горизонтально прокручивается: на 360px три длинных названия кухонь
               иначе перенеслись бы на пол-экрана до результатов. */}
           <View style={styles.filterRow}>
-            <FilterButton count={activeFilterCount} onPress={() => setSheetVisible(true)} />
+            <FilterButton count={activeFilterCount} onPress={openSheet} />
             {selectedChips.length > 0 ? (
               <ScrollView
                 horizontal
@@ -305,12 +336,13 @@ export default function SearchScreen() {
         cuisinesFailed={cuisinesQuery.isError}
         onRetryCuisines={() => cuisinesQuery.refetch()}
         cities={citiesQuery.data ?? []}
+        initialPicker={sheetPicker}
         onApply={(nextFilters, nextFacets) => {
           setFilters(nextFilters);
           setUiFacets(nextFacets);
-          setSheetVisible(false);
+          closeSheet();
         }}
-        onClose={() => setSheetVisible(false)}
+        onClose={closeSheet}
       />
 
       <BottomNavBar />
@@ -396,7 +428,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   listContent: {
-    paddingHorizontal: spacing.lg,
+    // БЕЗ бокового отступа намеренно: карточка уже держит его сама и делает
+    // это по-разному для фотографии и для подписи — снимок отступает от края
+    // на `spacing.sm` (8), текст под ним на `spacing.lg` (16), ровно как в
+    // макете экрана поиска. Общие 16 здесь складывались с внутренними и
+    // отжимали фотографию на 24 от края (правка владельца 2026-08-24).
     paddingBottom: spacing.xxxl,
   },
   frequentBlock: {

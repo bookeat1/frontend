@@ -25,18 +25,31 @@ const t = getDictionary();
 
 const DEFAULT_GUESTS = 2;
 
+/** Какая половина капсулы раскрыта колесом. */
+export type AvailabilityPicker = "date" | "guests";
+
 export function AvailabilityBar({
   value,
   onChange,
   today = new Date(),
+  initialPicker,
 }: {
   value: AvailabilityFilter | undefined;
   /** undefined = фильтр снят. */
   onChange: (next: AvailabilityFilter | undefined) => void;
   /** Точка отсчёта дат. Параметр — ради тестов, в приложении всегда «сегодня». */
   today?: Date;
+  /**
+   * Колесо, раскрытое сразу при монтировании: гость нажал на главной именно
+   * дату или именно гостей и должен попасть в этот выбор, а не в шторку
+   * фильтров вообще. Читается ОДИН раз (инициализатор состояния) — дальше
+   * колесом управляет гость, и повторное чтение пропа спорило бы с ним.
+   * Шторка размонтируется при закрытии, поэтому следующее открытие снова
+   * начинается с того, что ей передали.
+   */
+  initialPicker?: AvailabilityPicker;
 }) {
-  const [picker, setPicker] = useState<"date" | "guests" | null>(null);
+  const [picker, setPicker] = useState<AvailabilityPicker | null>(initialPicker ?? null);
 
   const dates = useMemo(
     () =>
