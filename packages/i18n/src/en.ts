@@ -745,7 +745,10 @@ export const en: LocaleOverride<Dictionary> = {
     preorderEdit: "Edit pre-order",
     preorderSummary: (count: number, total: string) =>
       `${count} ${count === 1 ? "item" : "items"} · ${total}`,
+    preorderSummaryTitle: "Your order",
     preorderTitle: "Pre-order",
+    preorderSave: "Save order",
+    preorderSaving: "Saving…",
     preorderDone: "Done",
     preorderClear: "Clear",
     preorderEmptyTitle: "This restaurant has no menu yet",

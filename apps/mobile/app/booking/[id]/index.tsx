@@ -271,8 +271,36 @@ export default function ReservationScreen() {
           </BookingCard>
         ) : null}
 
-        {preorder.data && preorder.data.items.length > 0 ? (
+        {/* Предзаказ можно собрать И ПОСЛЕ брони (правка владельца 2026-08-24).
+            Блок показывается у любой живой брони: пустой — с приглашением
+            выбрать блюда, заполненный — со списком и правкой. У отменённой и
+            прошедшей брони его нет: менять там нечего. */}
+        {cancellable && restaurant.data && (restaurant.data.menuHighlights.length > 0 ||
+          (preorder.data?.items.length ?? 0) > 0) ? (
           <BookingCard title={t.booking.preorderSectionTitle}>
+            {(preorder.data?.items.length ?? 0) === 0 ? (
+              <Text style={styles.preorderHint}>{t.booking.preorderOptional}</Text>
+            ) : null}
+            <PrimaryButton
+              label={
+                (preorder.data?.items.length ?? 0) > 0
+                  ? t.booking.preorderEdit
+                  : t.booking.preorderAdd
+              }
+              variant="secondary"
+              size="lg"
+              onPress={() =>
+                router.push({
+                  pathname: "/restaurant/[id]/book/menu",
+                  params: { id: data.restaurantId, booking: data.id },
+                })
+              }
+            />
+          </BookingCard>
+        ) : null}
+
+        {preorder.data && preorder.data.items.length > 0 ? (
+          <BookingCard title={t.booking.preorderSummaryTitle}>
             {preorder.data.items.map((item) => (
               <View key={item.id} style={styles.preorderRow}>
                 <Text style={styles.preorderName} numberOfLines={2}>
@@ -405,6 +433,10 @@ const styles = StyleSheet.create({
   // Пояснение под неактивной кнопкой отмены.
   cancelHint: {
     ...typography.caption,
+    color: colors.text.muted,
+  },
+  preorderHint: {
+    ...typography.body,
     color: colors.text.muted,
   },
   notice: {
