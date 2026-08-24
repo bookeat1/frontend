@@ -386,6 +386,8 @@ export const kk: LocaleOverride<Dictionary> = {
       total: (n: number) => `Барлығы: ${n}`,
     },
     today: {
+      preorderTitle: "Алдын ала тапсырыс",
+      preorderTotal: (sum: string) => `Барлығы ${sum}`,
       awaitingTitle: "Жауап қажет",
       awaitingMore: (n: number) => `тағы ${n} →`,
       confirm: "Растау",

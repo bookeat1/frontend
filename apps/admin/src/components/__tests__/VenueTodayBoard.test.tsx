@@ -33,6 +33,7 @@ function row(over: Partial<VenueTodayBooking> = {}): VenueTodayBooking {
     phone: "+7 701 000 00 00",
     guests: 2,
     status: "pending",
+    preorder: [],
     created_at: "2026-07-28T18:00:00+05:00",
     waiting_minutes: 7,
     ...over,

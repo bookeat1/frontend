@@ -759,6 +759,8 @@ export const ru = {
      * что происходит сегодня. Читает это хостес посреди смены, поэтому
      * формулировки короткие и без терминов. */
     today: {
+      preorderTitle: "Предзаказ",
+      preorderTotal: (sum: string) => `Итого ${sum}`,
       awaitingTitle: "Требуют ответа",
       awaitingMore: (n: number) => `ещё ${n} →`,
       confirm: "Подтвердить",
