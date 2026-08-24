@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminBooking, BookingStatus } from "@bookeat/api/admin";
+import type { AdminBooking, AdminBookingPreorderItem, BookingStatus } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { formatTime, todayISODate } from "@/lib/format";
+import { formatMinorTenge, formatTime, todayISODate } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
 import { StatusBadge } from "./ui/StatusBadge";
@@ -135,7 +135,36 @@ export function BookingsView() {
   );
 }
 
-function BookingsTable({
+/**
+ * Состав предзаказа под именем гостя.
+ *
+ * Ничего не рисует у брони без предзаказа: пустой заголовок «Предзаказ» в
+ * каждой строке — это шум, из-за которого перестают замечать те строки, где
+ * заказ действительно есть.
+ */
+function PreorderLines({ items }: { items: AdminBookingPreorderItem[] }) {
+  if (!items || items.length === 0) return null;
+  const total = items.reduce((sum, i) => sum + i.total_minor, 0);
+  return (
+    <div className="mt-xs rounded-card bg-surface-subtle px-sm py-xs">
+      <span className="block text-[12px] font-medium text-text">
+        {t.admin.bookings.preorderTitle}
+      </span>
+      <ul className="mt-[2px] space-y-[2px]">
+        {items.map((item, index) => (
+          <li key={`${item.name}-${index}`} className="text-[12px] text-text-muted">
+            {item.quantity} × {item.name}
+          </li>
+        ))}
+      </ul>
+      <span className="mt-[2px] block text-[12px] text-text-muted">
+        {t.admin.bookings.preorderTotal(formatMinorTenge(total))}
+      </span>
+    </div>
+  );
+}
+
+export function BookingsTable({
   bookings,
   pending,
   onAction,
@@ -170,6 +199,10 @@ function BookingsTable({
                     {b.name || "—"}
                   </span>
                   <span className="block text-[12px] text-text-muted">{b.phone}</span>
+                  {/* Предзаказ виден прямо в строке брони, а не за отдельным
+                      кликом: гость заказал блюда заранее ровно для того, чтобы
+                      кухня узнала о них до его прихода. */}
+                  <PreorderLines items={b.preorder} />
                 </td>
                 <td className="px-md py-md text-text">{b.guests}</td>
                 <td className="px-md py-md">
