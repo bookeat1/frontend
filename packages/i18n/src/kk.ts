@@ -371,6 +371,8 @@ export const kk: LocaleOverride<Dictionary> = {
       emptyDescription: "Басқа күнді таңдаңыз немесе мәртебе бойынша сүзгіні алып тастаңыз",
       loadingTitle: "Брондарды жүктеп жатырмыз…",
       colGuest: "Қонақ",
+      preorderTitle: "Алдын ала тапсырыс",
+      preorderTotal: (sum: string) => `Барлығы ${sum}`,
       colTime: "Уақыты",
       colGuests: "Қонақ саны",
       colStatus: "Мәртебе",

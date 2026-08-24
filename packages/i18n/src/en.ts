@@ -363,6 +363,8 @@ export const en: LocaleOverride<Dictionary> = {
       emptyDescription: "Pick another date or clear the status filter",
       loadingTitle: "Loading bookings…",
       colGuest: "Guest",
+      preorderTitle: "Pre-order",
+      preorderTotal: (sum: string) => `Total ${sum}`,
       colTime: "Time",
       colGuests: "Guests",
       colStatus: "Status",

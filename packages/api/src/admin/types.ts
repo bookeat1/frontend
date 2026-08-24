@@ -67,6 +67,20 @@ export interface AdminBooking {
   cancellation_reason: string | null;
   confirmed_at: string | null;
   created_at: string;
+  /** Блюда, заказанные гостем заранее. Всегда массив: у брони без предзаказа
+   * он пуст, и клиенту не нужно разбирать два разных «ничего». */
+  preorder: AdminBookingPreorderItem[];
+}
+
+/** Одна строка предзаказа так, как её видит заведение: что готовить, сколько
+ * порций и почём. Цена зафиксирована в момент заказа, не пересчитывается по
+ * текущему меню. */
+export interface AdminBookingPreorderItem {
+  name: string;
+  quantity: number;
+  price_minor: number;
+  total_minor: number;
+  comment?: string;
 }
 
 /** One menu item (admin.menuItemResponse). Price is a decimal string. */
