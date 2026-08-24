@@ -237,9 +237,10 @@ export default function ProfileScreen() {
                 onPress={() => router.push("/settings/language")}
                 comingSoonLabel={t.profile.comingSoon}
               />
-            </View>
-
-            <View style={styles.group}>
+              {/* «Настройки» стоят здесь, а не отдельным блоком: после удаления
+                  нерабочих строк «Скоро» отдельная группа из одного пункта
+                  оставляла на экране пустые полосы, и он читался как
+                  недоделанный. */}
               <ProfileMenuRow
                 icon={GearSix}
                 label={t.profile.settings}
@@ -247,6 +248,8 @@ export default function ProfileScreen() {
                 comingSoonLabel={t.profile.comingSoon}
               />
             </View>
+
+
 
             <View style={styles.group}>
               <ProfileMenuRow
