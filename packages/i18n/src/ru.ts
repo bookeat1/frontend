@@ -1317,7 +1317,11 @@ export const ru = {
     preorderAdd: "Выбрать блюда",
     preorderEdit: "Изменить предзаказ",
     preorderSummary: (count: number, total: string) => `${count} поз. · ${total}`,
+    preorderSummaryTitle: "Ваш заказ",
     preorderTitle: "Предзаказ",
+    /** Кнопка сохранения предзаказа у уже созданной брони. */
+    preorderSave: "Сохранить заказ",
+    preorderSaving: "Сохраняем…",
     preorderDone: "Готово",
     preorderClear: "Очистить",
     preorderEmptyTitle: "У заведения пока нет меню",

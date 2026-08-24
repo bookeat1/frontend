@@ -12,6 +12,7 @@ import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { useMenuSections } from "../../../../src/hooks/useBooking";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
+import { usePreorderCart } from "../../../../src/lib/preorder-cart";
 import { formatMoneyMinor } from "../../../../src/lib/format";
 
 const t = getDictionary();
@@ -28,20 +29,35 @@ interface Section {
  * SectionList (windowed) and never a ScrollView with 300 children — the
  * latter mounts every row on open and janks badly on a mid-range Android.
  *
- * Nothing is sent from here. The cart lives in the booking draft and is
- * attached AFTER the booking exists, because `PUT /bookings/:id/preorder` is
- * booking-scoped. That endpoint also prices every line from the venue's own
- * menu, so the totals on this screen are explicitly labelled an estimate.
+ * ДВА РЕЖИМА, один экран.
+ *
+ *  - БЕЗ параметра `booking` — выбор блюд ВНУТРИ оформления брони. Ничего не
+ *    отправляется: корзина живёт в черновике и прикрепляется к брони сразу
+ *    после её создания, потому что ручка предзаказа привязана к брони.
+ *  - С параметром `booking` — правка предзаказа у СУЩЕСТВУЮЩЕЙ брони (правка
+ *    владельца 2026-08-24: «предзаказ можно делать до и после брони»). Тогда
+ *    корзина берётся из самой брони, а кнопка внизу сохраняет её на сервер.
+ *
+ * Второй экран не заводился намеренно: список блюд, поиск по категориям и
+ * счётчики здесь одни и те же, а две копии разъезжаются на первой же правке.
+ *
+ * Цены на этом экране в обоих режимах помечены как оценка: окончательную
+ * сумму считает сервер по меню заведения.
  */
 export default function PreorderMenuScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, booking } = useLocalSearchParams<{ id: string; booking?: string }>();
   const router = useRouter();
   const draft = useBookingDraft();
+  const cart = usePreorderCart(booking);
   const menu = useMenuSections(id);
+  const attached = Boolean(booking);
 
   const quantities = useMemo(
-    () => new Map(draft.preorder.map((line) => [line.menuItemId, line.quantity])),
-    [draft.preorder],
+    () =>
+      attached
+        ? cart.quantities
+        : new Map(draft.preorder.map((line) => [line.menuItemId, line.quantity])),
+    [attached, cart.quantities, draft.preorder],
   );
 
   const sections = useMemo<Section[]>(
@@ -55,17 +71,17 @@ export default function PreorderMenuScreen() {
     [menu.data],
   );
 
-  const total = estimatePreorderTotalMinor(draft.preorder);
-  const count = draft.preorder.reduce((sum, line) => sum + line.quantity, 0);
+  const lines = attached ? cart.lines : draft.preorder;
+  const total = estimatePreorderTotalMinor(lines);
+  const count = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const setQuantity = useCallback(
     (dish: MenuDish, quantity: number) => {
-      draft.setPreorderQuantity(
-        { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor },
-        quantity,
-      );
+      const line = { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor };
+      if (attached) cart.setQuantity(line, quantity);
+      else draft.setPreorderQuantity(line, quantity);
     },
-    [draft],
+    [attached, cart, draft],
   );
 
   const renderItem = useCallback(
@@ -90,7 +106,7 @@ export default function PreorderMenuScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t.booking.preorderClear}
-                onPress={draft.clearPreorder}
+                onPress={attached ? cart.clear : draft.clearPreorder}
                 style={styles.clearButton}
               >
                 <Text style={styles.clearLabel}>{t.booking.preorderClear}</Text>
@@ -147,7 +163,32 @@ export default function PreorderMenuScreen() {
               </Text>
             </View>
           ) : null}
-          <PrimaryButton size="lg" label={t.booking.preorderDone} onPress={() => router.back()} />
+          {/* В режиме правки существующей брони кнопка ОТПРАВЛЯЕТ состав, а не
+              просто закрывает экран: иначе человек уйдёт назад, будучи уверен,
+              что блюда сохранены. */}
+          <PrimaryButton
+            size="lg"
+            label={
+              attached
+                ? cart.save.isPending
+                  ? t.booking.preorderSaving
+                  : t.booking.preorderSave
+                : t.booking.preorderDone
+            }
+            disabled={attached && cart.save.isPending}
+            onPress={() => {
+              if (!attached) {
+                router.back();
+                return;
+              }
+              cart.save.mutate(undefined, { onSuccess: () => router.back() });
+            }}
+          />
+          {attached && cart.save.isError ? (
+            <Text style={styles.saveError} accessibilityRole="alert">
+              {t.booking.preorderSaveFailed}
+            </Text>
+          ) : null}
         </View>
       </SafeAreaView>
     </View>
@@ -387,6 +428,13 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...typography.caption,
     color: colors.text.muted,
+  },
+  // Ошибка сохранения предзаказа: рядом с кнопкой, а не всплывашкой — человек
+  // должен видеть её в тот момент, когда решает, что делать дальше.
+  saveError: {
+    ...typography.caption,
+    color: colors.status.negativeTextOnSurface,
+    textAlign: "center",
   },
   totalValue: {
     ...typography.titleMd,
