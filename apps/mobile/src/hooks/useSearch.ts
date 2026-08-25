@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { trackEvent } from "../lib/analytics";
 import { useRepository } from "../lib/repository";
+import { useCuisines } from "./useCuisines";
 
 const DEBOUNCE_MS = 350;
 
@@ -56,7 +57,10 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 export function useSearchScreen(options?: {
-  initialCuisineId?: string;
+  /** Коды кухонь, пришедшие ссылкой (`/search?cuisine=european,kazakh`).
+   * Список, а не одно значение: фильтр по кухне мультивыбор, и с главной
+   * теперь может прийти больше одной. */
+  initialCuisineIds?: readonly string[];
   /** Дата и гости, пришедшие с главной (капсула над лентой). */
   initialAvailability?: SearchFilters["availability"];
 }) {
@@ -64,12 +68,12 @@ export function useSearchScreen(options?: {
   const [text, setText] = useState("");
   // A `cuisine` seed from the Home «Выберите кухню» chip pre-selects that
   // filter. Read once (useState initializer): the guest is free to clear it,
-  // and re-reading the param would fight that. The id is casefold(cuisine_type)
-  // — the exact value the backend's cuisine filter matches on.
+  // and re-reading the param would fight that. Значение — код справочника
+  // (`european`), ровно то, что понимает серверный фильтр `?cuisine=`.
   const [filters, setFilters] = useState<SearchFilters>(() => {
     let initial = EMPTY_FILTERS;
-    if (options?.initialCuisineId) {
-      initial = { ...initial, cuisineIds: [options.initialCuisineId] };
+    if (options?.initialCuisineIds && options.initialCuisineIds.length > 0) {
+      initial = { ...initial, cuisineIds: [...options.initialCuisineIds] };
     }
     if (options?.initialAvailability) {
       initial = { ...initial, availability: options.initialAvailability };
@@ -120,10 +124,10 @@ export function useSearchScreen(options?: {
     queryFn: () => repository.searchRestaurants(query),
   });
 
-  const cuisinesQuery = useQuery({
-    queryKey: ["cuisines"],
-    queryFn: () => repository.getCuisines(),
-  });
+  // Тот же справочник и тот же кэш, что у ряда кухонь на главной: гость
+  // приходит сюда именно с него, и второй запрос за тем же списком — лишняя
+  // сеть на телефоне (см. useCuisines).
+  const cuisinesQuery = useCuisines();
 
   const citiesQuery = useQuery({
     queryKey: ["cities"],

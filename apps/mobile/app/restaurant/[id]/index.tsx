@@ -16,11 +16,11 @@ import { PhotoView } from "../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
 import { StoriesRail } from "../../../src/components/restaurant/StoriesRail";
+import { splitCuisines } from "../../../src/lib/cuisine-display";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { formatPriceRange } from "../../../src/lib/format";
-import { openUntilTodayLabel } from "../../../src/lib/schedule";
 import { trackEvent } from "../../../src/lib/analytics";
 
 const t = getDictionary();
@@ -137,17 +137,28 @@ export default function RestaurantDetailScreen() {
                   {t.restaurant.favoriteFailed}
                 </Text>
               ) : null}
+              {/* Раньше в этой строке всегда стоял хотя бы признак открытости,
+                  поэтому её рисовали безусловно. Теперь она может оказаться
+                  пустой (кухонь нет, чек не заполнен, отзывов нет) — и тогда
+                  на экране остался бы отступ 24 без содержимого. */}
+              {hasSummaryChips(restaurant) ? (
               <View style={styles.chipsRow}>
-                {/* Ровно то, что сказал сервер: «Открыто» / «Закрыто» /
-                    «Часы работы не указаны». Раньше здесь было «Открыто до
-                    24:00», собранное из свободного текста и часов телефона. */}
-                <View style={styles.chip}>
-                  {/* «Открыто до 23:00», как в макете 340:2535. Время берётся
-                      из сегодняшней строки графика, а сама открытость — из
-                      серверного open_now; если чего-то из этого нет, чип
-                      честно скажет просто «Открыто». */}
-                  <Text style={styles.chipText}>{openUntilTodayLabel(restaurant.schedule)}</Text>
-                </View>
+                {/* КУХНЯ И ЧЕК — то, что стоит в этой строке макета 340:2535
+                    (правка владельца 2026-08-25). Признак открытости отсюда
+                    УБРАН: он остался единственным местом, где ему и место, —
+                    в блоке расписания под описанием («Открыто до 23:00» +
+                    «Ежедневно с 10:00 до 23:00», см. VenueScheduleCard).
+                    Расстояния («500 м» в макете) здесь нет и не будет: у нас
+                    нет ни геопозиции гостя, ни расстояния в API, а прошлая
+                    версия этой строки считала его из хеша id.
+
+                    Кухонь у заведения набор, и правило показа — ТО ЖЕ, что на
+                    карточке в списке (splitCuisines): две отдельными чипами,
+                    остальные под «+N». Одно правило на приложение важнее, чем
+                    выигрыш в пару чипов на экране, где места чуть больше; ряд
+                    при этом умеет переноситься, чтобы длинные названия на 360
+                    не уезжали за край. */}
+                <CuisineChips cuisines={restaurant.cuisines} />
                 {/* Средний чек ТОЛЬКО цифрами (правка владельца 2026-08-20),
                     как и в списках. Символьная ступень (₸/₸₸/₸₸₸) больше не
                     подставляется: заведение без числового диапазона остаётся
@@ -168,6 +179,7 @@ export default function RestaurantDetailScreen() {
                   </View>
                 ) : null}
                 </View>
+              ) : null}
               </View>
             </View>
 
@@ -273,6 +285,45 @@ export default function RestaurantDetailScreen() {
         </>
       )}
     </View>
+  );
+}
+
+/**
+ * Есть ли в шапке хоть один чип. Кухни считаются ПОСЛЕ отсева безымянных —
+ * тем же правилом, каким их рисует CuisineChips, иначе строка могла бы
+ * появиться ради чипа, которого не будет.
+ */
+function hasSummaryChips(restaurant: Restaurant): boolean {
+  return (
+    splitCuisines(restaurant.cuisines).visible.length > 0 ||
+    restaurant.priceRange !== undefined ||
+    restaurant.reviewsCount > 0
+  );
+}
+
+/**
+ * Кухни заведения в шапке. Правило показа общее с карточкой в списке
+ * (splitCuisines): главная и следующая — своими чипами, остаток — «+N», а
+ * полный набор уходит в метку для скринридера. Заведение без кухонь не рисует
+ * НИЧЕГО — ни чипа, ни «+0» (на бою такое есть: «Agora wine and deli»).
+ */
+function CuisineChips({ cuisines }: { cuisines: Restaurant["cuisines"] }) {
+  const { visible, hiddenCount, hiddenNames } = splitCuisines(cuisines);
+  return (
+    <>
+      {visible.map((cuisine) => (
+        <View key={cuisine.id} style={styles.chip}>
+          <Text style={styles.chipText} numberOfLines={1}>
+            {cuisine.name}
+          </Text>
+        </View>
+      ))}
+      {hiddenCount > 0 ? (
+        <View style={styles.chip} accessibilityLabel={hiddenNames}>
+          <Text style={styles.chipText}>{`+${hiddenCount}`}</Text>
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -388,6 +439,11 @@ const styles = StyleSheet.create({
   chipsRow: {
     marginTop: spacing.lg,
     flexDirection: "row",
+    // Перенос: в строке теперь могут стоять две кухни, «+N» и чек, а
+    // «Средиземноморская» на экране 360 съедает половину ширины сама. Без
+    // переноса последний чип уезжал бы за край без всякого признака, что он
+    // там есть. `gap` работает и как вертикальный просвет между рядами.
+    flexWrap: "wrap",
     gap: spacing.xs,
   },
   // 36 высотой, текст с отступом 12 по бокам — размеры чипа из макета.

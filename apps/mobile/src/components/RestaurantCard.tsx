@@ -2,6 +2,7 @@ import type { RestaurantSummary } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { cuisineLine, splitCuisines } from "../lib/cuisine-display";
 import { formatPriceRange } from "../lib/format";
 import { openStateLabel } from "../lib/schedule";
 import { PhotoView } from "./PhotoView";
@@ -29,7 +30,14 @@ const IMAGE_HEIGHT = 148;
  * the description.
  */
 export function RestaurantCard({ restaurant, onPress, photoOverlay }: RestaurantCardProps) {
-  const cuisineLabel = restaurant.cuisines.map((c) => c.name).join(", ");
+  // У заведения может быть НЕСКОЛЬКО кухонь (набор из справочника, порядок
+  // значим — первая главная). В карточку помещаются две, остальные сворачиваются
+  // в «+N»: см. splitCuisines, там же почему именно две.
+  const { visible: visibleCuisines, hiddenCount, hiddenNames } = splitCuisines(
+    restaurant.cuisines,
+  );
+  // Скринридер получает набор ЦЕЛИКОМ, включая свёрнутые под «+N».
+  const cuisineLabel = cuisineLine(restaurant.cuisines);
   // Раньше рядом со статусом стояло расстояние («Открыто · 3.4 км»),
   // посчитанное из хеша id заведения. Ни геопозиции гостя, ни расстояния в API
   // нет — строка теперь говорит только то, что мы действительно знаем.
@@ -91,11 +99,23 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
               <Text style={styles.chipText}>{statusLabel}</Text>
             </View>
           ) : null}
-          {/* У части заведений в каталоге cuisine_type пустой — тогда чипа
-              просто нет, вместо пустого серого прямоугольника. */}
-          {cuisineLabel ? (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{cuisineLabel}</Text>
+          {/* Кухни отдельными чипами, а не одной строкой через запятую:
+              «Европейская, Средиземноморская, Грузинская» в одном чипе
+              растягивается на всю карточку и читается как одно название.
+              Заведение без кухонь (на бою такое есть — «Agora wine and deli»)
+              просто не даёт ни одного чипа, а не пустой серый прямоугольник. */}
+          {visibleCuisines.map((cuisine) => (
+            <View key={cuisine.id} style={styles.chip}>
+              <Text style={styles.chipText} numberOfLines={1}>
+                {cuisine.name}
+              </Text>
+            </View>
+          ))}
+          {/* Остаток набора. Знак «+» с числом переводить не нужно, а имена
+              спрятанных кухонь озвучиваются в accessibilityLabel карточки. */}
+          {hiddenCount > 0 ? (
+            <View style={styles.chip} accessibilityLabel={hiddenNames}>
+              <Text style={styles.chipText}>{`+${hiddenCount}`}</Text>
             </View>
           ) : null}
           {/* Средний чек ТОЛЬКО цифрами — «8 000–15 000 ₸» (правка владельца

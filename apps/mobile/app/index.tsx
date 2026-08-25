@@ -29,7 +29,7 @@ import { useLocale } from "../src/lib/locale";
  * section blocks on the grey screen background.
  *
  * REAL DATA today: «Выбрали для вас» (popular catalog), «Выберите кухню»
- * (distinct cuisine_type values) and «Афиша» (GET /events). «Акции» and
+ * (справочник кухонь, GET /cuisines) and «Афиша» (GET /events). «Акции» and
  * «Статьи» have no endpoint yet and hide themselves cleanly (their hooks return
  * [] — see use-explore-data.ts), so the screen looks finished on real data.
  */
@@ -158,9 +158,10 @@ export default function HomeScreen() {
     [router],
   );
 
-  // A cuisine chip opens the catalog pre-filtered to that cuisine. The id is
-  // casefold(cuisine_type), exactly what the search filter matches on, so the
-  // search screen just seeds `filters.cuisineIds` from the `cuisine` param.
+  // A cuisine chip opens the catalog pre-filtered to that cuisine. `id` —
+  // это код справочника (`european`), ровно то, что понимает серверный
+  // фильтр, поэтому экран поиска просто засевает `filters.cuisineIds`
+  // параметром `cuisine` (он принимает и несколько кодов через запятую).
   const pickCuisine = useCallback(
     (cuisine: Cuisine) =>
       router.push({ pathname: "/search", params: { cuisine: cuisine.id } }),

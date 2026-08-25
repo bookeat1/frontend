@@ -87,7 +87,19 @@ export default function SearchScreen() {
     date?: string;
     focus?: string;
   }>();
-  const initialCuisineId = Array.isArray(cuisine) ? cuisine[0] : cuisine;
+  // Кухонь в ссылке может быть несколько — через запятую, теми же кодами, что
+  // уходят серверу (`/search?cuisine=european,kazakh`). Разбираем и список, и
+  // повторяющийся параметр, потому что expo-router отдаёт `string[]`, если он
+  // встретился дважды. Пустые куски выкидываем: «european,,» это одна кухня, а
+  // не две, и пустой чип-фильтр гость снять не сможет.
+  const initialCuisineIds = useMemo(
+    () =>
+      (Array.isArray(cuisine) ? cuisine : [cuisine])
+        .flatMap((value) => (value ?? "").split(","))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    [cuisine],
+  );
   const initialAvailability = useMemo(
     () => availabilityFromParams(guests, date),
     [guests, date],
@@ -105,7 +117,7 @@ export default function SearchScreen() {
     searchQueryResult,
     cuisinesQuery,
     citiesQuery,
-  } = useSearchScreen({ initialCuisineId, initialAvailability });
+  } = useSearchScreen({ initialCuisineIds, initialAvailability });
 
   // Шторка фильтров: открыта сразу, если с главной пришёл `focus`. Оба
   // состояния читают параметр ОДИН раз (инициализатор), поэтому закрыть
@@ -184,13 +196,12 @@ export default function SearchScreen() {
     [setFilters, setUiFacets],
   );
 
-  // «Часто ищут»: короткий ряд быстрых чипов из РЕАЛЬНЫХ кухонь каталога.
-  // У `Cuisine` нет поля популярности/счётчика (это {id, name}, собранный
-  // дедупом ответа /restaurants/search и отсортированный по названию), поэтому
-  // сортировать не по чему — берём первые FREQUENT_CUISINE_LIMIT в том порядке,
-  // как их вернул запрос. id — это casefold(cuisine_type), ровно та форма, на
-  // которую матчит фильтр (cuisineIdFor), так что чип сразу сузит выдачу и
-  // всплывёт в ряду выбранных. Пусто/грузится/ошибка — не рисуем ничего: блок
+  // «Часто ищут»: короткий ряд быстрых подсказок из СПРАВОЧНИКА кухонь.
+  // Поля популярности у кухни нет, зато есть `display_order` — порядок,
+  // который расставила платформа; сервер уже отдал список в нём, поэтому
+  // берём первые FREQUENT_CUISINE_LIMIT как есть, ничего не пересортировывая.
+  // Значение — код справочника, ровно та форма, на которую матчит фильтр, так
+  // что подсказка сразу сузит выдачу и всплывёт в ряду выбранных. Пусто/грузится/ошибка — не рисуем ничего: блок
   // необязательный, скелет и ошибка здесь были бы шумом.
   const frequentCuisines = useMemo(
     () => (cuisinesQuery.data ?? []).slice(0, FREQUENT_CUISINE_LIMIT),

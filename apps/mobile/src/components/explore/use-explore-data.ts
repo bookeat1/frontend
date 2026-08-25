@@ -14,6 +14,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useAuth } from "../../lib/auth";
 import { useLocale } from "../../lib/locale";
+import { useCuisines } from "../../hooks/useCuisines";
 import { useRepository } from "../../lib/repository";
 import {
   PLACEHOLDER_ARTICLES,
@@ -67,14 +68,13 @@ export function useRecommendedRestaurants() {
 /**
  * Фотографии для ряда «Выберите кухню».
  *
- * Ручка кухонь отдаёт только название, картинки кухни на бэкенде нет. Раньше
- * снимки лежали в самом приложении, и кухня без снимка ВЫПАДАЛА из ряда: на
- * боевом каталоге из девяти кухонь картинки были у двух, поэтому ряд выглядел
- * пустым (правка владельца 2026-08-21).
+ * ТРЕТИЙ, последний источник картинки для круга — после ссылки из справочника
+ * и снимка, вшитого в сборку (см. CuisineChip). Нужен, пока у части кухонь
+ * `image_url` в справочнике не проставлен, а своего снимка в приложении нет:
+ * без него такая кухня выпадает из ряда целиком.
  *
- * Теперь фотография берётся у реального заведения этой кухни. Она всегда есть,
- * права на неё наши, и новая кухня в каталоге появляется в ряду сама, без
- * досылки сборки.
+ * Фотография берётся у реального заведения этой кухни: она всегда есть, права
+ * на неё наши, и новая кухня появляется в ряду сама, без досылки сборки.
  *
  * Берём ПЕРВОЕ заведение каждой кухни в порядке каталога: там уже задан
  * `display_order`, то есть выбор редакции, а не случайность.
@@ -102,18 +102,14 @@ export function useCuisinePhotos(): Map<string, string> {
 
 /**
  * REAL DATA — «Выберите кухню».
- * GET /restaurants/cuisines (RestaurantRepository.getCuisines). The list is the
- * distinct `cuisine_type` values of the live catalog, each id being
- * casefold(cuisine_type) — exactly what the search filter matches on (see
- * conventions/bookeat-frontend.md, "Кухни — это cuisine_type").
+ *
+ * Справочник кухонь `GET /cuisines`: состав и порядок задаёт сервер. Сам
+ * запрос и его кэш живут в одном месте на всё приложение (useCuisines) —
+ * поиск читает тот же самый. Здесь остаётся имя, под которым его знает
+ * главная.
  */
-export function useExploreCuisines() {
-  const repository = useRepository();
-  return useQuery<Cuisine[]>({
-    queryKey: ["cuisines"],
-    queryFn: () => repository.getCuisines(),
-    staleTime: 5 * 60_000,
-  });
+export function useExploreCuisines(): UseQueryResult<Cuisine[]> {
+  return useCuisines();
 }
 
 /**

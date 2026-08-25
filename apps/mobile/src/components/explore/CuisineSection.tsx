@@ -12,9 +12,10 @@ import { useCuisinePhotos, useExploreCuisines } from "./use-explore-data";
 const t = getDictionary();
 
 /**
- * «Выберите кухню» — circular cuisine chips built from the catalog's distinct
- * `cuisine_type` values (GET /restaurants/cuisines). Tapping a chip opens the
- * catalog filtered to that cuisine.
+ * «Выберите кухню» — круги кухонь из СПРАВОЧНИКА (`GET /cuisines`): и состав,
+ * и порядок задаёт сервер (`display_order`), а не то, какие заведения попали в
+ * первую страницу каталога. Тап открывает каталог, отфильтрованный по этой
+ * кухне (значение фильтра — код справочника).
  *
  * This is a secondary navigation shortcut (the same filter lives on the search
  * screen), so it stays out of the way when it has nothing to add: an EMPTY or
@@ -42,12 +43,19 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
     );
   }
 
-  // Показываем только кухни, для которых есть фотография: круг-заглушка в
-  // ряду картинок читается как «не загрузилось», а не как «такая кухня есть».
-  // Решение владельца от 17.08.2026 — до тех пор, пока фотографии не появятся
-  // у всех (см. cuisine-photos.ts, картинки лежат в самом приложении).
+  // Показываем только кухни, для которых картинка есть хоть где-то: круг-
+  // заглушка в ряду картинок читается как «не загрузилось», а не как «такая
+  // кухня есть». Решение владельца от 17.08.2026.
+  //
+  // Источников три, в порядке предпочтения (см. CuisineChip): ссылка из
+  // справочника, вшитый в сборку снимок, фотография заведения этой кухни.
+  // Порядок ряда при этом остаётся справочный — фильтр только выкидывает
+  // лишнее, не пересортировывает.
   const cuisines = (query.data ?? []).filter(
-    (cuisine) => cuisinePhoto(cuisine.id) !== undefined || photos.has(cuisine.id),
+    (cuisine) =>
+      Boolean(cuisine.imageUrl) ||
+      cuisinePhoto(cuisine.id) !== undefined ||
+      photos.has(cuisine.id),
   );
   // Hide the whole section on empty OR error — a cuisine shortcut the guest
   // never sees is better than a dead or broken block on the first screen.

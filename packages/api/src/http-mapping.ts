@@ -58,7 +58,21 @@ import type {
   FavoriteItems,
   FavoritePromo,
 } from "./types";
+import type { VenueCuisine } from "./admin/cuisines";
 import { stubTables } from "./unknown-data";
+
+/**
+ * Запись справочника кухонь в ответе сервера — `cuisineResponse` из
+ * internal/transport/rest/cuisines/dto.go. Форма ОДНА и та же в трёх местах:
+ * `GET /cuisines`, `GET /restaurants/:id/cuisines` и массив `cuisines` внутри
+ * заведения, — поэтому тип берётся из общего модуля справочника, а не
+ * описывается здесь второй раз (кабинет заведения читает тот же).
+ *
+ * `image_url` необязателен и на бою 2026-08-25 НЕ ПРИХОДИТ ни у одной из 14
+ * кухонь, хотя сами картинки в R2 уже лежат. Значит «картинки нет» — это
+ * нормальное, а не исключительное состояние, и клиент обязан его пережить.
+ */
+export type ApiCuisine = VenueCuisine;
 
 export interface ApiImage {
   id: string;
@@ -85,7 +99,12 @@ export interface ApiRestaurant {
   name: string;
   name_i18n?: Record<string, string>;
   description: string;
+  /** Старая свободная строка. Сервер собирает её из набора кухонь через
+   * запятую и продолжает отдавать ради уже установленных сборок. */
   cuisine_type: string;
+  /** Набор кухонь из справочника, в порядке заведения (первая — главная).
+   * Отсутствует у заведения, которому набор ещё не проставили. */
+  cuisines?: ApiCuisine[] | null;
   address: string;
   opening_hours: string;
   city: string;
@@ -361,22 +380,49 @@ function imageToPhoto(url: string, id: string, alt: string, category: Photo["cat
 }
 
 /**
- * The cuisine dimension the catalog actually filters on is the free-text
- * `cuisine_type` column, NOT `restaurant_categories`: on the live catalog
- * every restaurant has `category_id: null` and GET /restaurant-categories
- * returns an empty list, while GET /restaurants/search?cuisine=… matches
- * `r.cuisine_type = ANY(...)` (postgres/restaurant/repository.go). So a
- * Cuisine's id is the case-folded cuisine_type — case-folded because the data
- * really does contain both "Европейская" and "европейская" and they must
- * collapse into one chip. The exact spellings behind a chip are kept by the
- * repository (see cuisineCatalog in http-repository.ts) because the server's
- * comparison is case-sensitive.
+ * СТАРЫЙ способ опознать кухню — по свободному тексту `cuisine_type`.
+ *
+ * Остаётся ровно для заведений, которым набор кухонь из справочника ещё не
+ * проставили (на бою 2026-08-25 такое одно из 22 — «Agora wine and deli» с
+ * текстом «Винный бар»). Регистр складывается, потому что в колонке живут и
+ * «Европейская», и «европейская», и разной кухни из них не получается.
+ * Сервер эту форму по-прежнему понимает — `?cuisine=европейская` отвечает тем
+ * же, чем `?cuisine=european`.
  */
 export function cuisineIdFor(cuisineType: string): string {
   return cuisineType.trim().toLocaleLowerCase("ru-RU");
 }
 
+/** Запись справочника внутри ответа о заведении → кухня для экрана. Значение
+ * фильтра — `code`; UUID мобильному приложению не нужен (см. Cuisine). */
+export function mapCuisine(api: ApiCuisine): Cuisine {
+  const code = text(api.code).trim().toLowerCase();
+  const name = text(api.name).trim();
+  const imageUrl = text(api.image_url).trim();
+  return {
+    // Кода без имени и имени без кода в справочнике не бывает, но если запись
+    // пришла кривой — берём то, что есть, вместо пустого чипа без значения.
+    id: code || cuisineIdFor(name),
+    name: name || code,
+    ...(imageUrl ? { imageUrl } : {}),
+  };
+}
+
+/**
+ * Кухни заведения. Порядок значим: первая — главная.
+ *
+ * Источников два, и они сосуществуют. Есть массив `cuisines` из справочника —
+ * читаем его целиком (заведение может иметь до пяти кухонь). Нет — падаем на
+ * старую строку `cuisine_type`, которую сервер продолжает собирать из набора
+ * для старых сборок. Нет и её — кухонь у заведения нет, и это законное
+ * состояние: карточка просто не рисует чип, а не рисует пустой.
+ */
 function cuisineForRestaurant(api: ApiRestaurant): Cuisine[] {
+  const fromDictionary = (api.cuisines ?? [])
+    .map(mapCuisine)
+    .filter((cuisine) => cuisine.id !== "" && cuisine.name !== "");
+  if (fromDictionary.length > 0) return fromDictionary;
+
   const name = text(api.cuisine_type).trim();
   if (!name) return [];
   return [{ id: cuisineIdFor(name), name }];

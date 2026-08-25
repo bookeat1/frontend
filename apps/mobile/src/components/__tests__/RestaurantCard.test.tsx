@@ -61,3 +61,87 @@ describe("карточка заведения", () => {
     expect(screen.getByText("Европейская кухня")).toBeTruthy();
   });
 });
+
+/**
+ * НЕСКОЛЬКО КУХОНЬ (переезд на справочник, 2026-08-25).
+ *
+ * До справочника кухня была одной свободной строкой, и карточка рисовала её
+ * одним чипом. Теперь у заведения набор до пяти кухонь, порядок значим:
+ * нулевая позиция — главная. Одна строка через запятую тут не годится —
+ * «Европейская, Грузинская, Казахская» в одном чипе растягивается на всю
+ * карточку и читается как ОДНО название кухни.
+ */
+describe("кухни на карточке", () => {
+  const cuisine = (id: string, name: string) => ({ id, name });
+
+  it("рисует кухни отдельными чипами, главная первой", () => {
+    render(
+      <RestaurantCard
+        restaurant={{
+          ...BASE,
+          cuisines: [cuisine("georgian", "Грузинская"), cuisine("european", "Европейская")],
+        }}
+        onPress={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Грузинская")).toBeTruthy();
+    expect(screen.getByText("Европейская")).toBeTruthy();
+    // Именно два чипа, а не один со склейкой.
+    expect(screen.queryByText("Грузинская, Европейская")).toBeNull();
+  });
+
+  it("остаток набора сворачивается в «+N», а карточка не разъезжается по высоте", () => {
+    render(
+      <RestaurantCard
+        restaurant={{
+          ...BASE,
+          cuisines: [
+            cuisine("european", "Европейская"),
+            cuisine("mediterranean", "Средиземноморская"),
+            cuisine("georgian", "Грузинская"),
+            cuisine("kazakh", "Казахская"),
+          ],
+        }}
+        onPress={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Европейская")).toBeTruthy();
+    expect(screen.getByText("Средиземноморская")).toBeTruthy();
+    expect(screen.getByText("+2")).toBeTruthy();
+    expect(screen.queryByText("Грузинская")).toBeNull();
+  });
+
+  it("скринридер слышит набор ЦЕЛИКОМ, включая свёрнутые под «+N»", () => {
+    render(
+      <RestaurantCard
+        restaurant={{
+          ...BASE,
+          cuisines: [
+            cuisine("european", "Европейская"),
+            cuisine("mediterranean", "Средиземноморская"),
+            cuisine("georgian", "Грузинская"),
+          ],
+        }}
+        onPress={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Грузинская/ })).toBeTruthy();
+  });
+
+  it("заведение без кухонь не показывает ни чипа, ни «+0»", () => {
+    // На бою такое есть — «Agora wine and deli» (проверено 2026-08-25).
+    render(
+      <RestaurantCard
+        restaurant={{ ...BASE, name: "Agora wine and deli", cuisines: [] }}
+        onPress={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Agora wine and deli")).toBeTruthy();
+    expect(screen.queryByText("+0")).toBeNull();
+    expect(screen.queryByText("Европейская кухня")).toBeNull();
+  });
+});

@@ -16,6 +16,7 @@ import { useIsPlatformAdmin } from "@/lib/use-venue-catalog";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { Button } from "./ui/Button";
 import { Field, TextInput } from "./ui/FormControls";
+import { CIRCLE_MAX_EDGE } from "@/lib/image-downscale";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 
@@ -316,11 +317,16 @@ function CuisineFormModal({
           />
         </Field>
 
+        {/* Картинку кухни показывают КРУЖКОМ 72 pt на главной приложения, а не
+            обложкой — поэтому потолок свой, маленький. Без него в бакет
+            уезжает исходный PNG на 200–430 КБ ради 216 пикселей на экране
+            (замер 2026-08-25, см. lib/image-downscale.ts). */}
         <ImageUploadField
           value={image}
           onChange={setImage}
           label={copy.fieldImage}
           hint={copy.fieldImageHint}
+          maxEdge={CIRCLE_MAX_EDGE}
         />
 
         {error ? (

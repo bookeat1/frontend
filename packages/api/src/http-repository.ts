@@ -6,7 +6,7 @@ import {
   type UnauthorizedHandler,
 } from "./http-client";
 import {
-  cuisineIdFor,
+  mapCuisine,
   mapAvailability,
   mapBooking,
   mapEventSummary,
@@ -48,6 +48,7 @@ import {
   type ApiTokenPair,
   type ApiUser,
 } from "./http-mapping";
+import { sortCuisines, type CuisineDictionaryEntry } from "./admin/cuisines";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { buildMapPreviewUrl, type MapPreviewOptions } from "./static-map";
 import type {
@@ -106,9 +107,9 @@ const POPULAR_PAGE_SIZE = 20;
  * can show. */
 const PROMO_PAGE_SIZE = 8;
 /** Backend caps per_page at 100 (domain.RestaurantFilter.PerPage doc
- * comment); used as the working page for the search screen and for building
- * the cuisine list out of the catalog. The live catalog is 29 venues, so one
- * page still covers it — revisit (real pagination) before it passes 100. */
+ * comment); used as the working page for the search screen. The live catalog
+ * is 22 venues, so one page still covers it — revisit (real pagination) before
+ * it passes 100. */
 const SEARCH_PAGE_SIZE = 100;
 /** One screen of the guest's own bookings. Small on purpose: the list is
  * offset-paginated and every visible row costs one extra venue request for the
@@ -130,14 +131,16 @@ function clampPerPage(value: number): number {
   return Math.min(100, Math.max(1, Math.trunc(value)));
 }
 
-/** The chip label plus every exact spelling of that cuisine present in the
- * catalog. The server's cuisine filter is a case-sensitive
- * `cuisine_type = ANY($1)`, and the data really does contain both
- * "Европейская" and "европейская", so one chip has to send both. */
-interface CuisineCatalog {
-  list: Cuisine[];
-  variantsById: Map<string, string[]>;
-}
+/**
+ * Запись справочника, как её отдаёт публичный `GET /cuisines`.
+ *
+ * Это `CuisineDictionaryEntry`, но `display_order`/`is_active` объявлены
+ * необязательными НАРОЧНО: в Go они не указатели и всегда сериализуются, а
+ * читать их как «обязаны быть» значит уронить весь ряд кухонь на одном
+ * отсутствующем ключе. Правило файла общее — см. шапку http-mapping.ts.
+ */
+type ApiCuisineEntry = Omit<CuisineDictionaryEntry, "display_order" | "is_active"> &
+  Partial<Pick<CuisineDictionaryEntry, "display_order" | "is_active">>;
 
 /**
  * HTTP-backed RestaurantRepository over `/api/v1`. See http-mapping.ts for
@@ -149,7 +152,6 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   /** Kept beside the client because one endpoint (the map preview) is consumed
    * as a URL by an <Image> rather than fetched through HttpClient. */
   private readonly baseUrl: string;
-  private cuisinesPromise: Promise<CuisineCatalog> | null = null;
 
   constructor(options: HttpRepositoryOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
@@ -160,27 +162,6 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       onUnauthorized: options.onUnauthorized,
       getLanguage: options.getLanguage,
     });
-  }
-
-  /**
-   * There is no cuisines endpoint: GET /restaurant-categories exists but is
-   * empty on the live catalog and no restaurant carries a category_id, while
-   * the dimension search actually filters on is the free-text `cuisine_type`
-   * column (see cuisineIdFor in http-mapping.ts). So the cuisine list is
-   * derived from one page of the catalog and cached for the process lifetime
-   * — cleared on failure so a network blip doesn't wedge the filter row.
-   */
-  private async getCuisineCatalog(): Promise<CuisineCatalog> {
-    if (!this.cuisinesPromise) {
-      this.cuisinesPromise = this.client
-        .get<ApiPage<ApiRestaurant>>("/restaurants", { page: 1, per_page: SEARCH_PAGE_SIZE })
-        .then((page) => buildCuisineCatalog(page.items ?? []))
-        .catch((err) => {
-          this.cuisinesPromise = null;
-          throw err;
-        });
-    }
-    return this.cuisinesPromise;
   }
 
   /**
@@ -247,7 +228,12 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    * (per_page=100 → 24 items), so filtering it client-side hides no rows.
    */
   async searchRestaurants(query: SearchQuery): Promise<SearchResult> {
-    const cuisines = await this.cuisineVariants(query.filters.cuisineIds);
+    // Кухни уходят ОДНИМ параметром через запятую: сервер разбирает список,
+    // ORит его и сравнивает без учёта регистра, понимая и коды справочника, и
+    // старую текстовую строку (проверено на бою 2026-08-25 —
+    // `?cuisine=european,kazakh` даёт 15 при 13 и 2 по одиночке). Поэтому
+    // никакого разворачивания «всех написаний» на клиенте больше нет.
+    const cuisines = query.filters.cuisineIds.map((id) => id.trim()).filter(Boolean);
 
     const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/search", {
       q: query.text.trim() || undefined,
@@ -292,24 +278,15 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return { query, items, total };
   }
 
-  /** Expands the selected chips into the exact `cuisine_type` spellings the
-   * server compares against. An id we've never seen (stale filter state after
-   * the catalog changed) is passed through rather than dropped, so the user
-   * gets an honest empty result instead of a silently wider one. */
-  private async cuisineVariants(cuisineIds: string[]): Promise<string[]> {
-    if (cuisineIds.length === 0) return [];
-    const catalog = await this.getCuisineCatalog();
-    return cuisineIds.flatMap((id) => catalog.variantsById.get(id) ?? [id]);
-  }
-
   /**
    * GET /restaurants?per_page=N — короткая выборка каталога РАДИ ФОТОГРАФИЙ.
    *
-   * Нужна ряду «Выберите кухню»: сама ручка кухонь отдаёт только `{id, name}`,
-   * картинки для кухни на бэкенде нет и не планируется, а класть в приложение
-   * по снимку на каждую кухню значит каждый раз досылать сборку, когда в
-   * каталоге появляется новая. Здесь фотография берётся у РЕАЛЬНОГО заведения
-   * этой кухни — она всегда есть, всегда наша и обновляется сама.
+   * Последний запасной источник картинки для круга «Выберите кухню», после
+   * ссылки из справочника (`image_url`) и снимка, вшитого в сборку. Нужен,
+   * пока `image_url` проставлен не у всех: на бою 2026-08-25 его нет ни у
+   * одной из 14 кухонь, а своего снимка в приложении нет у четырёх. Здесь
+   * фотография берётся у РЕАЛЬНОГО заведения этой кухни — она всегда есть,
+   * всегда наша и обновляется сама.
    */
   async getCatalogPreview(perPage = 50): Promise<RestaurantSummary[]> {
     const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants", {
@@ -319,9 +296,30 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return (page.items ?? []).map(mapRestaurantSummary);
   }
 
+  /**
+   * `GET /cuisines` — СПРАВОЧНИК кухонь (только активные, в порядке
+   * `display_order`), а не выжимка из каталога.
+   *
+   * Раньше список собирался дедупом одной страницы `/restaurants`: он зависел
+   * от того, какие заведения попали в первую сотню, порядок был алфавитный, и
+   * в него пролезали типы заведения вроде «Винный бар» — их приходилось
+   * отсеивать списком-заплаткой. В справочнике типа заведения нет по
+   * определению (проверено на бою 2026-08-25: 14 записей, «Винного бара»
+   * среди них нет), поэтому заплатка удалена вместе со сбором.
+   *
+   * Порядок сервер уже задал, но сортировка повторяется здесь: она дешёвая, а
+   * молча показать ряд в порядке выдачи, если сервер однажды отдаст его
+   * иначе, — это ровно тот класс расхождений, который потом ищут глазами.
+   */
   async getCuisines(): Promise<Cuisine[]> {
-    const catalog = await this.getCuisineCatalog();
-    return catalog.list;
+    const items = await this.client.get<ApiCuisineEntry[]>("/cuisines");
+    // `is_active === false` публичная ручка не отдаёт, но если отдаст —
+    // скрытую кухню сервер всё равно не примет фильтром, и показывать её
+    // значило бы обещать выдачу, которой не будет.
+    const active = (items ?? []).filter((entry) => entry.is_active !== false);
+    return sortCuisines(
+      active.map((entry) => ({ ...entry, display_order: entry.display_order ?? 0 })),
+    ).map(mapCuisine);
   }
 
   /** GET /cities returns a bare array of city names (the domain's city enum),
@@ -1044,39 +1042,6 @@ async function optional<T>(promise: Promise<T>): Promise<T | undefined> {
   } catch {
     return undefined;
   }
-}
-
-/**
- * Venue TYPES that live in the free-text `cuisine_type` column but are not
- * cuisines, so they must not become chips in «Выберите кухню». Keyed the same
- * way as the catalog — `cuisineIdFor`, i.e. trimmed and lower-cased.
- *
- * This is a stopgap for as long as the cuisine is a string typed by hand. Once
- * cuisines are a real dictionary, a venue type stops being expressible here at
- * all and this set goes away with it. The venue itself stays in the catalog and
- * stays searchable — only the circle on Home is suppressed.
- */
-const NON_CUISINE_TYPES = new Set(["винный бар"]);
-
-function buildCuisineCatalog(items: ApiRestaurant[]): CuisineCatalog {
-  const list: Cuisine[] = [];
-  const variantsById = new Map<string, string[]>();
-  for (const item of items) {
-    const name = (item.cuisine_type ?? "").trim();
-    if (!name) continue;
-    const id = cuisineIdFor(name);
-    if (NON_CUISINE_TYPES.has(id)) continue;
-    const variants = variantsById.get(id);
-    if (!variants) {
-      // The first spelling seen becomes the chip label.
-      list.push({ id, name });
-      variantsById.set(id, [name]);
-    } else if (!variants.includes(name)) {
-      variants.push(name);
-    }
-  }
-  list.sort((a, b) => a.name.localeCompare(b.name, "ru-RU"));
-  return { list, variantsById };
 }
 
 export { RepositoryError };

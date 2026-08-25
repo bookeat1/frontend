@@ -77,4 +77,30 @@ describe("ряд кухонь на главной", () => {
 
     expect(await screen.findByText("Казахская")).toBeTruthy();
   });
+
+  it("ссылки из справочника хватает: ни своего снимка, ни фото заведения не нужно", async () => {
+    // Переезд на справочник (2026-08-25): у кухни есть `imageUrl` — и этого
+    // достаточно, чтобы круг появился, даже если в сборке снимка нет.
+    cuisines.data = [
+      { id: "japanese", name: "Японская", imageUrl: "https://cdn.example/cuisines/japanese.png" },
+    ];
+
+    render(<CuisineSection onPickCuisine={vi.fn()} />);
+
+    expect(await screen.findByText("Японская")).toBeTruthy();
+  });
+
+  it("ряд идёт в порядке справочника, а не по алфавиту", async () => {
+    cuisines.data = [
+      { id: "european", name: "Европейская", imageUrl: "https://cdn.example/e.png" },
+      { id: "authors", name: "Авторская", imageUrl: "https://cdn.example/a.png" },
+    ];
+
+    render(<CuisineSection onPickCuisine={vi.fn()} />);
+
+    // Порядок ряда задаёт платформа своим display_order; по алфавиту
+    // «Авторская» стояла бы первой.
+    const labels = (await screen.findAllByRole("button")).map((node) => node.textContent);
+    expect(labels).toEqual(["Европейская", "Авторская"]);
+  });
 });

@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { AdminApiError, imageUploadErrorCode } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { downscaleImage, UPLOAD_MAX_EDGE } from "@/lib/image-downscale";
 import { t } from "@/lib/i18n";
 import { Button } from "./Button";
 import { TextInput } from "./FormControls";
@@ -61,6 +62,13 @@ export interface ImageUploadFieldProps {
   onChange: (url: string) => void;
   label?: string;
   hint?: string;
+  /**
+   * Наибольшая сторона в пикселях, до которой картинку ужимают ПЕРЕД
+   * отправкой. По умолчанию — потолок обычной обложки; экран, который рисует
+   * картинку маленьким кружком, передаёт свой (см. `CIRCLE_MAX_EDGE`).
+   * Уменьшение всегда «по возможности»: не получилось — уходит исходник.
+   */
+  maxEdge?: number;
 }
 
 /**
@@ -69,11 +77,20 @@ export interface ImageUploadFieldProps {
  * the current image, a spinner while uploading, and inline errors. Used for the
  * promo and event cover fields; reusable as-is for the stories cover next.
  */
-export function ImageUploadField({ value, onChange, label, hint }: ImageUploadFieldProps) {
+export function ImageUploadField({
+  value,
+  onChange,
+  label,
+  hint,
+  maxEdge = UPLOAD_MAX_EDGE,
+}: ImageUploadFieldProps) {
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
+  // Ужатие занимает доли секунды, но это работа: кнопка обязана быть занята,
+  // иначе второй тап начнёт вторую загрузку того же файла.
+  const [preparing, setPreparing] = useState(false);
 
   const upload = useMutation({
     mutationFn: (file: File) => apiClient.uploadImage(file),
@@ -90,23 +107,39 @@ export function ImageUploadField({ value, onChange, label, hint }: ImageUploadFi
     fileRef.current?.click();
   }
 
-  function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     // Reset the input so selecting the SAME file again still fires onChange.
     e.target.value = "";
     if (!file) return;
 
+    // Тип проверяем у ИСХОДНОГО файла: чего мы не умеем декодировать, того и
+    // не ужать, а сервер нюхает содержимое и откажет ровно по тому же списку.
     if (!isAcceptedType(file.type)) {
       setError(messageForError(new Error("PRECHECK_BAD_TYPE")));
       return;
     }
-    if (file.size > MAX_BYTES) {
+
+    // Ужимаем ДО проверки размера: снимок с телефона на 12 МБ после этого
+    // проходит под лимит, а раньше был бы отвергнут целиком.
+    setError(null);
+    setPreparing(true);
+    let prepared = file;
+    try {
+      prepared = await downscaleImage(file, { maxEdge });
+    } finally {
+      setPreparing(false);
+    }
+
+    if (prepared.size > MAX_BYTES) {
       setError(messageForError(new Error("PRECHECK_TOO_LARGE")));
       return;
     }
-    upload.mutate(file);
+    upload.mutate(prepared);
   }
 
+  // Одно «занято» на обе фазы: ужатие в браузере и сама отправка.
+  const busy = preparing || upload.isPending;
   const trimmed = value.trim();
   const showPreview = trimmed.length > 0 && !previewFailed;
 
@@ -138,10 +171,10 @@ export function ImageUploadField({ value, onChange, label, hint }: ImageUploadFi
             variant="secondary"
             size="sm"
             onClick={pickFile}
-            loading={upload.isPending}
-            disabled={upload.isPending}
+            loading={busy}
+            disabled={busy}
           >
-            {upload.isPending
+            {busy
               ? t.admin.imageUpload.uploading
               : trimmed
                 ? t.admin.imageUpload.replaceButton
@@ -152,7 +185,7 @@ export function ImageUploadField({ value, onChange, label, hint }: ImageUploadFi
               type="button"
               variant="ghost"
               size="sm"
-              disabled={upload.isPending}
+              disabled={busy}
               aria-label={t.admin.imageUpload.removeLabel}
               onClick={() => {
                 setError(null);
@@ -172,7 +205,7 @@ export function ImageUploadField({ value, onChange, label, hint }: ImageUploadFi
           className="sr-only"
           tabIndex={-1}
           aria-hidden="true"
-          onChange={onFileSelected}
+          onChange={(e) => void onFileSelected(e)}
         />
       </div>
 

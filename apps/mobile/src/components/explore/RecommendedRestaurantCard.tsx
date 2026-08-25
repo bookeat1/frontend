@@ -3,6 +3,7 @@ import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/des
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRestaurantFavorite } from "../../hooks/useFavorites";
+import { cuisineLine } from "../../lib/cuisine-display";
 import { PhotoView } from "../PhotoView";
 import { FavoriteButton } from "./FavoriteButton";
 
@@ -24,7 +25,10 @@ export function RecommendedRestaurantCard({
   restaurant: RestaurantSummary;
   onOpenRestaurant: (id: string) => void;
 }) {
-  const cuisineLabel = restaurant.cuisines.map((cuisine) => cuisine.name).join(", ");
+  // Карточка шириной в 160 — чипам тут места нет, поэтому набор кухонь
+  // остаётся одной строкой в порядке заведения (главная первой) и обрезается
+  // по ширине. Полный набор виден в списке поиска и на карточке заведения.
+  const cuisineLabel = cuisineLine(restaurant.cuisines);
   const favorite = useRestaurantFavorite(restaurant.id);
 
   return (

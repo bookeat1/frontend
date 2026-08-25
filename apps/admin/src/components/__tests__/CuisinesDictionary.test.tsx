@@ -76,7 +76,7 @@ describe("справочник кухонь", () => {
     expect(screen.getByRole<HTMLImageElement>("img", { name: "Европейская" }).src).toBe(
       "https://example.test/cuisines/european.png",
     );
-    expect(screen.getByText("Показывается")).toBeTruthy();
+    expect(screen.getByText("Активная")).toBeTruthy();
   });
 
   it("кухню без картинки не рисует дырой", async () => {
