@@ -45,10 +45,21 @@ const getCuisines = vi.fn(async () => [
   { id: "italian", name: "Итальянская" },
 ]);
 const getCities = vi.fn(async () => [] as string[]);
+// Справочник удобств приходит с сервера — подписи галочек и чипов берутся
+// ТОЛЬКО отсюда, своих у приложения больше нет.
+const getAmenities = vi.fn(async () => [
+  { id: "terrace", name: "Терраса" },
+  { id: "wifi", name: "Wi-Fi" },
+]);
 
 vi.mock("../../src/lib/repository", () => ({
   useRepository: () =>
-    ({ searchRestaurants, getCuisines, getCities }) as unknown as RestaurantRepository,
+    ({
+      searchRestaurants,
+      getCuisines,
+      getAmenities,
+      getCities,
+    }) as unknown as RestaurantRepository,
 }));
 
 function renderSearch() {
@@ -142,7 +153,7 @@ describe("свёрнутый раздел шторки показывает вы
     await user.click(
       screen.getByRole("button", { name: `${amenities}: ${t.search.filters.summaryNone}` }),
     );
-    await user.click(screen.getByRole("checkbox", { name: t.search.filters.amenities.terrace }));
+    await user.click(screen.getByRole("checkbox", { name: "Терраса" }));
     await user.click(
       screen.getByRole("button", {
         name: `${amenities}: ${t.search.filters.summaryCount(1)}`,
@@ -152,7 +163,7 @@ describe("свёрнутый раздел шторки показывает вы
     // Вместо красной подписи «1 выбрано» — чип с названием и крестиком.
     expect(screen.queryByText(t.search.filters.summaryCount(1))).toBeNull();
     const remove = screen.getByRole("button", {
-      name: t.a11y.removeFilter(t.search.filters.amenities.terrace),
+      name: t.a11y.removeFilter("Терраса"),
     });
 
     await user.click(remove);
@@ -161,7 +172,7 @@ describe("свёрнутый раздел шторки показывает вы
     await waitFor(() =>
       expect(
         screen.queryByRole("button", {
-          name: t.a11y.removeFilter(t.search.filters.amenities.terrace),
+          name: t.a11y.removeFilter("Терраса"),
         }),
       ).toBeNull(),
     );

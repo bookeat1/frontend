@@ -170,6 +170,8 @@ export const kk: LocaleOverride<Dictionary> = {
     onlineBookableNone:
       "Бұл мейрамханалардың бірде-біреуі онлайн бронь қабылдамайды — оларға қоңырау шалу керек",
     filterCuisinesFailed: "Асханалар жүктелмеді — қайталау",
+    filterAmenitiesFailed: "Ыңғайлылықтар жүктелмеді — қайталау",
+    filterAmenitiesEmpty: "Ыңғайлылықтар әзірге енгізілмеген",
     emptyTitle: "Ештеңе табылмады",
     emptyDescription:
       "Сұрауды өзгертіп немесе сүзгілерді тазалап көріңіз — сонда көбірек мейрамхана табылады",
@@ -197,15 +199,6 @@ export const kk: LocaleOverride<Dictionary> = {
       priceAll: "Барлығы",
       cuisineTitle: "Асхана",
       amenitiesTitle: "Ыңғайлылықтар",
-      amenities: {
-        terrace: "Терраса",
-        halal: "Халал",
-        parking: "Тұрақ",
-        prayer_room: "Намазхана",
-        kids_chairs: "Балалар орындығы",
-        pets: "Үй жануарларына рұқсат",
-        live_music: "Тірі музыка",
-      },
       summaryNone: "Таңдалмаған",
       summaryCount: (count: number) => `${count} таңдалды`,
       extraTitle: "Тағы",

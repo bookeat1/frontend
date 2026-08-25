@@ -1,4 +1,4 @@
-import type { Cuisine, PriceLevel, SearchFilters } from "@bookeat/api";
+import type { Amenity, Cuisine, PriceLevel, SearchFilters } from "@bookeat/api";
 import { EMPTY_FILTERS } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -18,8 +18,12 @@ import { SegmentedControl } from "./SegmentedControl";
 
 const t = getDictionary();
 
-/** Поводы и удобства — ФИКСИРОВАННЫЕ id UI-состояния (в бэкенде их нет,
- * track-C). Порядок = порядок в макете. Подписи берутся из i18n по этим id. */
+/** Повод — ФИКСИРОВАННЫЕ id UI-состояния (серверного поля под него нет).
+ * Порядок = порядок в макете. Подписи берутся из i18n по этим id.
+ *
+ * Удобства раньше были таким же зашитым списком (`AMENITY_IDS` из семи
+ * значений). Список удалён: справочник приходит с сервера
+ * (`GET /venue-features`, 19 записей) и подписи тоже — см. проп `amenities`. */
 // EXTRA_FACETS — «Открыто сейчас»/«Бронь онлайн»/город. Этих трёх в макете
 // шторки НЕТ; добавлены по просьбе Damir (2026-08-05), потому что бэкенд их
 // поддерживает и «бронь онлайн» реально полезен. Чтобы вернуться строго к
@@ -27,15 +31,6 @@ const t = getDictionary();
 const SHOW_EXTRA_FACETS = true;
 
 const OCCASION_IDS = ["date", "friends", "kids", "business", "celebration"] as const;
-const AMENITY_IDS = [
-  "terrace",
-  "halal",
-  "parking",
-  "prayer_room",
-  "kids_chairs",
-  "pets",
-  "live_music",
-] as const;
 
 /** Ступени цены, которые понимает каталог (₸/₸₸/₸₸₸ — четвёртой нет), плюс
  * «Все» как отсутствие фильтра. Значение сегмента ложится прямо на
@@ -58,6 +53,16 @@ interface FilterSheetProps {
   cuisines: Cuisine[];
   cuisinesFailed: boolean;
   onRetryCuisines: () => void;
+  /**
+   * Справочник удобств — приходит тем же способом, что и кухни: экран грузит,
+   * шторка только показывает. Приходит ЦЕЛИКОМ, включая записи, которых пока
+   * нет ни у одного заведения (решение владельца): выбор такого удобства даёт
+   * обычную пустую выдачу со ссылкой «Сбросить фильтры».
+   */
+  amenities: Amenity[];
+  amenitiesLoading: boolean;
+  amenitiesFailed: boolean;
+  onRetryAmenities: () => void;
   /** Города для группы «Ещё» (EXTRA_FACETS). Пусто/не нужно — если флаг выключен. */
   cities: string[];
   /**
@@ -79,9 +84,11 @@ interface FilterSheetProps {
  * только по «Применить»; закрытие крестиком/по фону — отмена. «Сбросить
  * фильтры» очищает черновик до пустого (гостей возвращает к дефолту).
  *
- * Бэкенд ищет только по кухне/цене/«открыто сейчас»/«бронь онлайн»/городу.
- * Повод, удобства, дата и гости фильтром пока не являются — они живут в
- * `UiOnlyFacets` и запоминаются, но выдачу не сужают (track-C ниже).
+ * Бэкенд ищет по кухне, УДОБСТВАМ (`?features=`), цене, «открыто сейчас»,
+ * «бронь онлайн», городу, дате и гостям — всё это лежит в `SearchFilters` и
+ * реально сужает выдачу. Фильтром НЕ является только повод: серверного поля
+ * под него нет, он живёт в `UiOnlyFacets` и запоминается, но выдачу не
+ * сужает.
  */
 export function FilterSheet({
   visible,
@@ -90,6 +97,10 @@ export function FilterSheet({
   cuisines,
   cuisinesFailed,
   onRetryCuisines,
+  amenities,
+  amenitiesLoading,
+  amenitiesFailed,
+  onRetryAmenities,
   cities,
   initialPicker,
   onApply,
@@ -116,7 +127,7 @@ export function FilterSheet({
     setFacets((prev) => ({ ...prev, occasionIds: toggleId(prev.occasionIds, id) }));
 
   const toggleAmenity = (id: string) =>
-    setFacets((prev) => ({ ...prev, amenityIds: toggleId(prev.amenityIds, id) }));
+    setDraft((prev) => ({ ...prev, amenityIds: toggleId(prev.amenityIds, id) }));
 
   const toggleCuisine = (id: string) =>
     setDraft((prev) => ({ ...prev, cuisineIds: toggleId(prev.cuisineIds, id) }));
@@ -157,13 +168,14 @@ export function FilterSheet({
     />
   ));
 
-  // Подписи удобств лежат в словаре под теми же id (AMENITY_IDS). Читаем их
-  // как словарь строк: в `UiOnlyFacets` id — обычная строка, и незнакомый id
-  // из старого сохранённого состояния должен показаться собой, а не пропасть.
-  const amenityName = (id: string): string =>
-    (t.search.filters.amenities as Record<string, string>)[id] ?? id;
+  // Подпись удобства — ТОЛЬКО из справочника, пришедшего с сервера: своих
+  // подписей у приложения больше нет, иначе они разойдутся с теми, что
+  // владелец правит в кабинете. Справочник ещё не пришёл (или удобство из
+  // него убрали) — показываем код: спрятанный выбранный фильтр читается как
+  // «ничего не выбрано», ровно как у кухонь.
+  const amenityName = (id: string): string => amenities.find((a) => a.id === id)?.name ?? id;
 
-  const selectedAmenityChips = facets.amenityIds.map((id) => {
+  const selectedAmenityChips = draft.amenityIds.map((id) => {
     const label = amenityName(id);
     return (
       <FilterChip
@@ -290,25 +302,42 @@ export function FilterSheet({
               </CollapsibleSection>
             </View>
 
-            {/* Удобства — мультивыбор чекбоксами.
-                TODO(track-C backend): удобства в поиск не уходят, только UI. */}
+            {/* Удобства — мультивыбор чекбоксами, значения из СПРАВОЧНИКА
+                сервера, выбранное уходит параметром `features` (И). */}
             <View style={styles.section}>
               <CollapsibleSection
                 title={t.search.filters.amenitiesTitle}
-                summary={summary(facets.amenityIds.length)}
-                hasSelection={facets.amenityIds.length > 0}
+                summary={summary(draft.amenityIds.length)}
+                hasSelection={draft.amenityIds.length > 0}
                 expanded={amenitiesOpen}
                 onToggle={() => setAmenitiesOpen((v) => !v)}
                 selectionChips={selectedAmenityChips}
               >
-                {AMENITY_IDS.map((id) => (
-                  <CheckboxRow
-                    key={id}
-                    label={t.search.filters.amenities[id]}
-                    checked={facets.amenityIds.includes(id)}
-                    onToggle={() => toggleAmenity(id)}
+                {/* Четыре состояния справочника, как у любого запроса: ошибка
+                    (чип-повтор, как у кухонь), загрузка, пустой справочник и
+                    список. Разделять их обязательно — пустой список галочек
+                    читается как «удобств не бывает», хотя мы просто ещё не
+                    дождались ответа. */}
+                {amenitiesFailed ? (
+                  <FilterChip
+                    label={t.search.filterAmenitiesFailed}
+                    selected={false}
+                    onPress={onRetryAmenities}
                   />
-                ))}
+                ) : amenitiesLoading ? (
+                  <Text style={styles.sectionNote}>{t.common.loading}</Text>
+                ) : amenities.length === 0 ? (
+                  <Text style={styles.sectionNote}>{t.search.filterAmenitiesEmpty}</Text>
+                ) : (
+                  amenities.map((amenity) => (
+                    <CheckboxRow
+                      key={amenity.id}
+                      label={amenity.name}
+                      checked={draft.amenityIds.includes(amenity.id)}
+                      onToggle={() => toggleAmenity(amenity.id)}
+                    />
+                  ))
+                )}
               </CollapsibleSection>
             </View>
 
@@ -415,6 +444,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.titleSm,
     color: colors.text.primary,
+  },
+  /** Одна строка внутри раздела вместо списка: «Загрузка» или «справочник
+   * пуст». Не `EmptyState` — у него иконка и отступы во весь экран, а здесь
+   * место ровно на строку. */
+  sectionNote: {
+    ...typography.body,
+    color: colors.text.mutedStrong,
   },
   wrap: {
     flexDirection: "row",

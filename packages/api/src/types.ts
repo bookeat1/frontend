@@ -119,6 +119,25 @@ export interface Cuisine {
   imageUrl?: string;
 }
 
+/**
+ * Удобство заведения из справочника платформы (`GET /venue-features`) —
+ * «Терраса», «Wi-Fi», «Намазхана».
+ *
+ * `id` — это ЗНАЧЕНИЕ ФИЛЬТРА, а не первичный ключ: `code` записи справочника
+ * (`terrace`, `prayer_room`), ровно то, что понимает серверный параметр
+ * `?features=`. UUID записи мобильному приложению не нужен — он ничего не
+ * пишет.
+ *
+ * `name` уже переведён СЕРВЕРОМ по `Accept-Language` (проверено на бою
+ * 2026-08-25: ru «Парковка», en «Parking», kk «Тұрақ»); справочник заодно
+ * отдаёт `name_i18n`, и репозиторий берёт из него подпись, когда язык
+ * приложения известен, — чтобы подпись не зависела от того, дошёл ли заголовок.
+ */
+export interface Amenity {
+  id: string;
+  name: string;
+}
+
 export interface RestaurantTable {
   id: string;
   seats: number;
@@ -237,6 +256,17 @@ export interface RestaurantSummary {
 
 export interface SearchFilters {
   cuisineIds: string[];
+  /**
+   * Удобства («Терраса», «Wi-Fi»), значения — коды справочника
+   * `GET /venue-features`. Уходят СЕРВЕРУ параметром `?features=a,b`, и
+   * семантика у него И, а не ИЛИ: выбрал два — заведению нужны оба (проверено
+   * на бою 2026-08-25: terrace 4, wifi 3, terrace,wifi 2). Пустой массив —
+   * фильтра нет.
+   *
+   * Раньше эти значения жили в `UiOnlyFacets` на экране поиска и в запрос не
+   * уходили вовсе — гость фильтровал, а выдача не менялась.
+   */
+  amenityIds: string[];
   minRating?: number;
   /**
    * «Открыто сейчас» — фильтр по СЕРВЕРНОМУ `schedule.open_now`. Заведение без
@@ -297,6 +327,7 @@ export interface SearchResult {
 
 export const EMPTY_FILTERS: SearchFilters = {
   cuisineIds: [],
+  amenityIds: [],
   openNowOnly: false,
   onlineBookableOnly: false,
 };

@@ -8,6 +8,7 @@ import foodGrillSkewers from "../assets/photos/food-grill-skewers.jpg";
 import foodPlateTasting from "../assets/photos/food-plate-tasting.jpg";
 import foodDessertBerry from "../assets/photos/food-dessert-berry.jpg";
 import type {
+  Amenity,
   Cuisine,
   DayOfWeek,
   EventSummary,
@@ -78,6 +79,33 @@ export const cuisines: Cuisine[] = [
   { id: "european", name: "Европейская" },
   { id: "asian", name: "Паназиатская" },
 ];
+
+/**
+ * Справочник удобств для мока — те же коды, что у боевого `GET /venue-features`
+ * (порядок справочника сохранён).
+ */
+export const amenities: Amenity[] = [
+  { id: "terrace", name: "Терраса" },
+  { id: "wifi", name: "Wi-Fi" },
+  { id: "parking", name: "Парковка" },
+  { id: "live_music", name: "Живая музыка" },
+  { id: "hookah", name: "Кальян" },
+];
+
+/**
+ * Какие удобства проставлены заведениям мока: id заведения → коды.
+ *
+ * Отдельной картой, а не полем `Restaurant`: приложение удобства заведения
+ * нигде не показывает — они нужны ровно для того, чтобы мок фильтровал по ним
+ * ЧЕСТНО (и по И, как сервер), а не делал вид. Заведение, которого здесь нет,
+ * под фильтр по удобству не попадает — как и на бою, где у половины
+ * справочника ноль заведений.
+ */
+export const restaurantAmenities: Record<string, string[]> = {
+  r1: ["terrace", "wifi", "live_music"],
+  r2: ["wifi", "hookah"],
+  r3: ["terrace"],
+};
 
 const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
 

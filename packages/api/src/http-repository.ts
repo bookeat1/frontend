@@ -49,9 +49,14 @@ import {
   type ApiUser,
 } from "./http-mapping";
 import { sortCuisines, type CuisineDictionaryEntry } from "./admin/cuisines";
+import {
+  sortVenueFeatures,
+  type VenueFeatureDictionaryEntry,
+} from "./admin/venue-features";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { buildMapPreviewUrl, type MapPreviewOptions } from "./static-map";
 import type {
+  Amenity,
   AuthSession,
   AuthUser,
   Booking,
@@ -143,6 +148,38 @@ type ApiCuisineEntry = Omit<CuisineDictionaryEntry, "display_order" | "is_active
   Partial<Pick<CuisineDictionaryEntry, "display_order" | "is_active">>;
 
 /**
+ * Запись справочника удобств, как её отдаёт публичный `GET /venue-features`.
+ *
+ * Служебные поля объявлены необязательными по той же причине, что и у кухонь:
+ * в Go они не указатели и всегда сериализуются, но читать их как «обязаны
+ * быть» значит уронить весь список удобств на одном отсутствующем ключе.
+ * `name_i18n` необязателен и НА САМОМ ДЕЛЕ: на бою 2026-08-25 его нет у шести
+ * записей из девятнадцати («Без детей», «Кальян», …).
+ */
+type ApiVenueFeatureEntry = Omit<
+  VenueFeatureDictionaryEntry,
+  "display_order" | "is_active" | "venue_count"
+> &
+  Partial<Pick<VenueFeatureDictionaryEntry, "display_order" | "is_active" | "venue_count">>;
+
+/**
+ * Подпись удобства на языке приложения.
+ *
+ * Сервер и так переводит `name` по `Accept-Language`, но справочник отдаёт
+ * ещё и `name_i18n`, и когда язык известен клиенту — берём подпись оттуда:
+ * тогда список не зависит от того, дошёл ли заголовок до бэкенда через
+ * прокси. Нет перевода на нужный язык (у шести записей его нет вовсе, а
+ * ko/hi/ar/zh/tr в справочнике нет ни у одной) — остаётся `name`, то есть то,
+ * что сервер уже выбрал сам. Тег режем до базового языка: `Accept-Language`
+ * может прийти как `ru-RU`, а ключи в `name_i18n` — двухбуквенные.
+ */
+function localizedFeatureName(entry: ApiVenueFeatureEntry, language?: string): string {
+  const base = (language ?? "").trim().toLowerCase().split(/[-_]/)[0];
+  const translated = base ? entry.name_i18n?.[base] : undefined;
+  return translated?.trim() || entry.name;
+}
+
+/**
  * HTTP-backed RestaurantRepository over `/api/v1`. See http-mapping.ts for
  * the DTO -> UI-type conversion and unknown-data.ts for the fields the API
  * doesn't have yet.
@@ -152,9 +189,15 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   /** Kept beside the client because one endpoint (the map preview) is consumed
    * as a URL by an <Image> rather than fetched through HttpClient. */
   private readonly baseUrl: string;
+  /** Тот же поставщик языка, что уходит в `Accept-Language`. Нужен отдельно
+   * от клиента для справочника удобств: у него подпись выбирается из
+   * `name_i18n` (см. localizedFeatureName). Замыкание, а не значение, — язык
+   * меняется, пока приложение работает. */
+  private readonly getLanguage?: LanguageProvider;
 
   constructor(options: HttpRepositoryOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
+    this.getLanguage = options.getLanguage;
     this.client = new HttpClient({
       baseUrl: options.baseUrl,
       timeoutMs: options.timeoutMs,
@@ -235,9 +278,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     // никакого разворачивания «всех написаний» на клиенте больше нет.
     const cuisines = query.filters.cuisineIds.map((id) => id.trim()).filter(Boolean);
 
+    // Удобства уходят так же — одним параметром через запятую, — но семантика
+    // у них ПРОТИВОПОЛОЖНАЯ кухням: сервер требует ВСЕ перечисленные сразу
+    // (проверено на бою 2026-08-25: terrace 4, wifi 3, terrace,wifi 2, то
+    // есть пересечение, а не объединение). Это ровно то, что обещает шторка с
+    // галочками, поэтому клиент ничего не досчитывает.
+    const amenities = query.filters.amenityIds.map((id) => id.trim()).filter(Boolean);
+
     const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/search", {
       q: query.text.trim() || undefined,
       cuisine: cuisines.length > 0 ? cuisines.join(",") : undefined,
+      features: amenities.length > 0 ? amenities.join(",") : undefined,
       city: query.filters.city,
       price: query.filters.priceLevel
         ? priceLevelToPriceCategory(query.filters.priceLevel)
@@ -320,6 +371,38 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return sortCuisines(
       active.map((entry) => ({ ...entry, display_order: entry.display_order ?? 0 })),
     ).map(mapCuisine);
+  }
+
+  /**
+   * `GET /venue-features` — СПРАВОЧНИК удобств (только активные, в порядке
+   * `display_order`), значения фильтра `?features=`.
+   *
+   * Отдаём список ЦЕЛИКОМ, вместе с записями, у которых `venue_count = 0`:
+   * на 2026-08-25 таких шесть из девятнадцати (парковка, халал, намазхана,
+   * детские стульчики, без детей, безглютеновое меню), владелец заполняет их
+   * прямо сейчас, и решение показывать их — его. Выбор такого удобства даёт
+   * обычное пустое состояние выдачи («ничего не нашлось» со ссылкой сбросить
+   * фильтры), а не ошибку.
+   *
+   * Записи без `code` выбрасываются: код — это и есть значение фильтра, и
+   * галочка, которую сервер не сможет применить, обещает несуществующее.
+   */
+  async getAmenities(): Promise<Amenity[]> {
+    const items = await this.client.get<ApiVenueFeatureEntry[]>("/venue-features");
+    const language = this.getLanguage?.();
+    // `is_active === false` публичная ручка не отдаёт, но если отдаст —
+    // скрытое удобство фильтром всё равно не сработает (та же логика, что у
+    // кухонь).
+    const active = (items ?? []).filter(
+      (entry) => entry.is_active !== false && (entry.code ?? "").trim() !== "",
+    );
+    return sortVenueFeatures(
+      active.map((entry) => ({
+        ...entry,
+        display_order: entry.display_order ?? 0,
+        name: localizedFeatureName(entry, language),
+      })),
+    ).map((entry) => ({ id: entry.code.trim(), name: entry.name }));
   }
 
   /** GET /cities returns a bare array of city names (the domain's city enum),

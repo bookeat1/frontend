@@ -1,5 +1,6 @@
 import type { MapPreviewOptions } from "./static-map";
 import type {
+  Amenity,
   AuthSession,
   AuthUser,
   Booking,
@@ -71,6 +72,14 @@ export interface RestaurantRepository {
   getCatalogPreview(perPage?: number): Promise<RestaurantSummary[]>;
 
   getCuisines(): Promise<Cuisine[]>;
+  /**
+   * Справочник удобств («Удобства» в шторке фильтров) — `GET /venue-features`.
+   * Отдаётся ЦЕЛИКОМ, включая записи, у которых сегодня ноль заведений:
+   * владелец заполняет данные сам, и прятать от него собственный справочник
+   * не нам (решение владельца, 2026-08-25). Выбор такого удобства даёт
+   * обычное пустое состояние выдачи, а не ошибку.
+   */
+  getAmenities(): Promise<Amenity[]>;
   /** Cities the catalog actually has venues in, for the city filter. */
   getCities(): Promise<string[]>;
 

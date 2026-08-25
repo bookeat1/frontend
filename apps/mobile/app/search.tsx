@@ -116,6 +116,7 @@ export default function SearchScreen() {
     isTyping,
     searchQueryResult,
     cuisinesQuery,
+    amenitiesQuery,
     citiesQuery,
   } = useSearchScreen({ initialCuisineIds, initialAvailability });
 
@@ -159,8 +160,8 @@ export default function SearchScreen() {
 
   const resetFilters = () => {
     setFilters(EMPTY_FILTERS);
-    // Повод и удобства тоже видны чипами, поэтому «сбросить» обязано убирать и
-    // их: иначе ряд чипов пережил бы сброс и показывал фильтры, которых уже нет.
+    // Повод тоже виден чипом, поэтому «сбросить» обязано убирать и его: иначе
+    // ряд чипов пережил бы сброс и показывал фильтр, которого уже нет.
     setUiFacets(EMPTY_UI_FACETS);
     setText("");
   };
@@ -175,14 +176,22 @@ export default function SearchScreen() {
     return map;
   }, [cuisinesQuery.data]);
 
+  // Названия удобств — из того же справочника, что рисует галочки в шторке.
+  // Своих подписей у приложения нет: они бы разошлись с кабинетом.
+  const amenityNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of amenitiesQuery.data ?? []) map.set(a.id, a.name);
+    return map;
+  }, [amenitiesQuery.data]);
+
   // Подпись выбранного дня — тот же расчёт, что и в капсуле внутри шторки.
   // «Сегодня» пересчитывать в течение сессии не нужно: экран живёт минуты, а
   // не сутки.
   const dateLabelFor = useMemo(() => dateChoices(new Date()).labelFor, []);
 
   const selectedChips = useMemo(
-    () => buildSelectedChips(filters, uiFacets, cuisineNameById, dateLabelFor),
-    [filters, uiFacets, cuisineNameById, dateLabelFor],
+    () => buildSelectedChips(filters, uiFacets, cuisineNameById, amenityNameById, dateLabelFor),
+    [filters, uiFacets, cuisineNameById, amenityNameById, dateLabelFor],
   );
 
   // Снятие чипа применяется СРАЗУ, без открытия шторки: и поддержанные
@@ -368,6 +377,10 @@ export default function SearchScreen() {
         cuisines={cuisinesQuery.data ?? []}
         cuisinesFailed={cuisinesQuery.isError}
         onRetryCuisines={() => cuisinesQuery.refetch()}
+        amenities={amenitiesQuery.data ?? []}
+        amenitiesLoading={amenitiesQuery.isPending}
+        amenitiesFailed={amenitiesQuery.isError}
+        onRetryAmenities={() => void amenitiesQuery.refetch()}
         cities={citiesQuery.data ?? []}
         initialPicker={sheetPicker}
         onApply={(nextFilters, nextFacets) => {
@@ -392,9 +405,9 @@ interface SelectedChip {
   removeFacets?: (prev: UiOnlyFacets) => UiOnlyFacets;
 }
 
-/** Подписи повода и удобств лежат в словаре под теми же id, что и в шторке.
- * Читаем как словарь строк: id в `UiOnlyFacets` — обычная строка, и
- * незнакомый должен показаться собой, а не пропасть из ряда. */
+/** Подписи повода лежат в словаре под теми же id, что и в шторке. Читаем как
+ * словарь строк: id в `UiOnlyFacets` — обычная строка, и незнакомый должен
+ * показаться собой, а не пропасть из ряда. */
 function facetLabel(dict: Record<string, string>, id: string): string {
   return dict[id] ?? id;
 }
@@ -405,10 +418,11 @@ function facetLabel(dict: Record<string, string>, id: string): string {
  * «открыто сейчас», «бронь онлайн», город. Порядок совпадает с порядком
  * разделов шторки, чтобы ряд читался как её краткий пересказ.
  *
- * Повод и удобства попадают сюда, хотя выдачу НЕ сужают (их нет в поисковом
- * запросе бэкенда, track-C): решение владельца — показывать всё выбранное.
- * Пока бэкенд их не поддержит, чип «Свидание» честнее читать как «вы это
- * выбрали», а не как «список сужен».
+ * Повод попадает сюда, хотя выдачу НЕ сужает (серверного поля под него нет):
+ * решение владельца — показывать всё выбранное. Пока бэкенд его не
+ * поддержит, чип «Свидание» честнее читать как «вы это выбрали», а не как
+ * «список сужен». Удобства с 2026-08-25 сужают выдачу по-настоящему и лежат
+ * уже в `filters`, а не в фасетах.
  *
  * Дата и гости — ОДИН чип: сервер принимает их только парой, и два чипа
  * снимались бы наполовину (см. AvailabilityBar).
@@ -417,6 +431,7 @@ function buildSelectedChips(
   filters: SearchFilters,
   facets: UiOnlyFacets,
   cuisineNameById: Map<string, string>,
+  amenityNameById: Map<string, string>,
   dateLabelFor: (dateKey: string) => string,
 ): SelectedChip[] {
   const chips: SelectedChip[] = [];
@@ -457,11 +472,13 @@ function buildSelectedChips(
       }),
     });
   }
-  for (const id of facets.amenityIds) {
+  for (const id of filters.amenityIds) {
     chips.push({
       key: `amenity:${id}`,
-      label: facetLabel(t.search.filters.amenities, id),
-      removeFacets: (prev) => ({
+      // Название из справочника; не пришло — показываем код, но чип не
+      // прячем: невидимый фильтр гость не снимет.
+      label: amenityNameById.get(id) ?? id,
+      removeFilters: (prev) => ({
         ...prev,
         amenityIds: prev.amenityIds.filter((x) => x !== id),
       }),

@@ -4,23 +4,25 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { trackEvent } from "../lib/analytics";
 import { useRepository } from "../lib/repository";
+import { useAmenities } from "./useAmenities";
 import { useCuisines } from "./useCuisines";
 
 const DEBOUNCE_MS = 350;
 
 /**
- * Фасеты фильтра, которых В ПОИСКОВОМ ЗАПРОСЕ БЭКЕНДА ПОКА НЕТ: повод,
- * удобства и число гостей. Шторка «Фильтры» даёт их выбрать и запоминает
- * выбор между открытиями, но в `SearchQuery` они не уходят и результат не
- * сужают — см. комментарии track-C в FilterSheet.tsx. Держим их отдельным
- * типом, а не в `SearchFilters` из @bookeat/api, ровно чтобы нельзя было
- * случайно отправить их на сервер.
+ * Фасеты фильтра, которых В ПОИСКОВОМ ЗАПРОСЕ БЭКЕНДА НЕТ: повод и число
+ * гостей. Шторка «Фильтры» даёт их выбрать и запоминает выбор между
+ * открытиями, но в `SearchQuery` они не уходят и результат не сужают. Держим
+ * их отдельным типом, а не в `SearchFilters` из @bookeat/api, ровно чтобы
+ * нельзя было случайно отправить их на сервер.
+ *
+ * УДОБСТВА ОТСЮДА УШЛИ (2026-08-25): сервер понимает `?features=`, поэтому
+ * они живут в `SearchFilters.amenityIds` и реально сужают выдачу. Повод —
+ * последний оставшийся фасет-декорация: серверного поля под него нет вовсе.
  */
 export interface UiOnlyFacets {
   /** id поводов (см. i18n `search.filters.occasion`). */
   occasionIds: string[];
-  /** id удобств (см. i18n `search.filters.amenities`). */
-  amenityIds: string[];
   /** Число гостей из верхней пилюли. Не фильтр — это намерение брони, поэтому
    * дефолт 2 сохраняется даже при сбросе фильтров. */
   guests: number;
@@ -28,18 +30,19 @@ export interface UiOnlyFacets {
 
 export const EMPTY_UI_FACETS: UiOnlyFacets = {
   occasionIds: [],
-  amenityIds: [],
   guests: 2,
 };
 
 /** Сколько ПОДДЕРЖИВАЕМЫХ бэкендом фильтров сейчас активно — это число и
- * рисует бейдж на кнопке фильтров, и решает, показывать ли ряд чипов. Повод и
- * удобства сюда НЕ входят намеренно: они не сужают выдачу, а показать чип
- * «Свидание» над нефильтрованным списком — то же выдуманное состояние, от
- * которого экран уже избавляли (invented-open-now). */
+ * рисует бейдж на кнопке фильтров, и решает, показывать ли ряд чипов. Повод
+ * сюда НЕ входит намеренно: он не сужает выдачу, а показать чип «Свидание»
+ * над нефильтрованным списком — то же выдуманное состояние, от которого экран
+ * уже избавляли (invented-open-now). Удобства с 2026-08-25 считаются: они
+ * уходят серверу параметром `features` и выдачу сужают. */
 export function countActiveFilters(filters: SearchFilters): number {
   return (
     filters.cuisineIds.length +
+    filters.amenityIds.length +
     (filters.openNowOnly ? 1 : 0) +
     (filters.onlineBookableOnly ? 1 : 0) +
     (filters.city !== undefined ? 1 : 0) +
@@ -80,9 +83,9 @@ export function useSearchScreen(options?: {
     }
     return initial;
   });
-  // Повод/удобства/гости: живут рядом с фильтрами, но отдельным состоянием,
-  // потому что в поиск не уходят (track-C). Шторка читает их как черновик и
-  // возвращает применённые обратно сюда — так выбор переживает закрытие.
+  // Повод и гости: живут рядом с фильтрами, но отдельным состоянием, потому
+  // что в поиск не уходят. Шторка читает их как черновик и возвращает
+  // применённые обратно сюда — так выбор переживает закрытие.
   const [uiFacets, setUiFacets] = useState<UiOnlyFacets>(EMPTY_UI_FACETS);
   const debouncedText = useDebouncedValue(text, DEBOUNCE_MS);
 
@@ -113,6 +116,7 @@ export function useSearchScreen(options?: {
   const hasActiveSearch =
     debouncedText.trim().length > 0 ||
     filters.cuisineIds.length > 0 ||
+    filters.amenityIds.length > 0 ||
     filters.openNowOnly ||
     filters.onlineBookableOnly ||
     filters.city !== undefined ||
@@ -128,6 +132,12 @@ export function useSearchScreen(options?: {
   // приходит сюда именно с него, и второй запрос за тем же списком — лишняя
   // сеть на телефоне (см. useCuisines).
   const cuisinesQuery = useCuisines();
+
+  // Справочник удобств — тот же приём и тот же кэш, что у кухонь. Шторка
+  // строит галочки «Удобства» ИЗ НЕГО, а ряд чипов над выдачей берёт отсюда
+  // же названия: два источника подписей разошлись бы на первой же
+  // переименованной записи.
+  const amenitiesQuery = useAmenities();
 
   const citiesQuery = useQuery({
     queryKey: ["cities"],
@@ -146,6 +156,7 @@ export function useSearchScreen(options?: {
     isTyping: text !== debouncedText,
     searchQueryResult,
     cuisinesQuery,
+    amenitiesQuery,
     citiesQuery,
   };
 }

@@ -1,4 +1,5 @@
 import {
+  amenities,
   cuisines,
   guideCategories,
   guideCollection,
@@ -6,6 +7,7 @@ import {
   guideRoutes,
   guideRoute,
   homePromotions,
+  restaurantAmenities,
   restaurants,
   restaurantStories,
   toSummary,
@@ -14,6 +16,7 @@ import {
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
 import { favoriteEventKey, isCancellableBookingStatus } from "./types";
 import type {
+  Amenity,
   AppNotification,
   AuthSession,
   AuthUser,
@@ -76,6 +79,11 @@ function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
 
   const bookableMatches = !query.filters.onlineBookableOnly || r.acceptsOnlineBookings;
 
+  // Удобства — И, как на сервере: выбрал два, нужны оба. Заведения, которому
+  // удобства не проставили, в карте нет вовсе — под фильтр оно не попадает.
+  const venueAmenities = restaurantAmenities[r.id] ?? [];
+  const amenityMatches = query.filters.amenityIds.every((id) => venueAmenities.includes(id));
+
   const cityMatches = query.filters.city === undefined || r.city === query.filters.city;
 
   const priceMatches =
@@ -84,6 +92,7 @@ function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
   return (
     textMatches &&
     cuisineMatches &&
+    amenityMatches &&
     ratingMatches &&
     openMatches &&
     bookableMatches &&
@@ -156,6 +165,11 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async getCuisines(): Promise<Cuisine[]> {
     await this.simulateNetwork();
     return cuisines;
+  }
+
+  async getAmenities(): Promise<Amenity[]> {
+    await this.simulateNetwork();
+    return amenities;
   }
 
   /** Derived from the fixtures rather than hard-coded, so the mock's city
