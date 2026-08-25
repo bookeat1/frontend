@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogVenue, CuisineDictionaryEntry } from "@bookeat/api/admin";
+import type {
+  CatalogVenue,
+  CityDictionaryEntry,
+  CuisineDictionaryEntry,
+} from "@bookeat/api/admin";
 
 import {
   EMPTY_VENUE_FILTERS,
@@ -175,6 +179,80 @@ describe("списки для выпадающих собираются из д�
 
   it("ключ кухни нормализует пробелы и регистр", () => {
     expect(cuisineKey("  Кафе,   Европейская ")).toBe("кафе, европейская");
+  });
+});
+
+/**
+ * Города: справочник — основной источник, данные каталога — страховка.
+ *
+ * Значение пункта всегда `value` записи (базовое русское название): именно его
+ * сервер сравнивает с колонкой (`r.city = $1`), никаких синонимов на этом пути
+ * не разбирая.
+ */
+function cityEntry(over: Partial<CityDictionaryEntry> = {}): CityDictionaryEntry {
+  return {
+    id: "city-1",
+    code: "almaty",
+    name: "Алматы",
+    value: "Алматы",
+    display_order: 20,
+    is_active: true,
+    ...over,
+  };
+}
+
+const CITY_DICTIONARY: CityDictionaryEntry[] = [
+  cityEntry({ id: "city-2", code: "astana", name: "Астана", value: "Астана", display_order: 10 }),
+  cityEntry(),
+  cityEntry({
+    id: "city-3",
+    code: "shymkent",
+    name: "Шымкент",
+    value: "Шымкент",
+    display_order: 30,
+    is_active: false,
+  }),
+];
+
+describe("города в фильтре каталога", () => {
+  it("берутся из справочника, в его порядке, скрытые не предлагаются", () => {
+    expect(collectCityOptions(venues, CITY_DICTIONARY)).toEqual([
+      { value: "Астана", label: "Астана" },
+      { value: "Алматы", label: "Алматы" },
+    ]);
+  });
+
+  it("подпись берётся с языка интерфейса, а значение — базовое русское", () => {
+    const kazakh = [cityEntry({ name: "Алматы қаласы", value: "Алматы" })];
+    expect(collectCityOptions([], kazakh)).toEqual([
+      { value: "Алматы", label: "Алматы қаласы" },
+    ]);
+  });
+
+  it("справочник не ответил — список собирается из данных, как раньше", () => {
+    expect(collectCityOptions(venues, [])).toEqual([
+      { value: "Алматы", label: "Алматы" },
+      { value: "Астана", label: "Астана" },
+    ]);
+  });
+
+  it("написание из старой системы, которого справочник не знает, остаётся находимым", () => {
+    const options = collectCityOptions(
+      [...venues, venue({ id: "9", city: "Нур-Султан" })],
+      CITY_DICTIONARY,
+    );
+    expect(options).toEqual([
+      { value: "Астана", label: "Астана" },
+      { value: "Алматы", label: "Алматы" },
+      { value: "Нур-Султан", label: "Нур-Султан" },
+    ]);
+  });
+
+  it("тот же город с другим регистром не становится вторым пунктом", () => {
+    expect(collectCityOptions([venue({ id: "9", city: " алматы " })], CITY_DICTIONARY)).toEqual([
+      { value: "Астана", label: "Астана" },
+      { value: "Алматы", label: "Алматы" },
+    ]);
   });
 });
 

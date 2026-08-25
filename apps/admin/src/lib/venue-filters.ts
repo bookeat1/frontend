@@ -1,4 +1,11 @@
-import { sortCuisines, type CatalogVenue, type CuisineDictionaryEntry } from "@bookeat/api/admin";
+import {
+  normalizeCityKey,
+  sortCities,
+  sortCuisines,
+  type CatalogVenue,
+  type CityDictionaryEntry,
+  type CuisineDictionaryEntry,
+} from "@bookeat/api/admin";
 
 /**
  * Отбор заведений в каталоге суперадмина: город, кухня, показывается/скрыто и
@@ -23,6 +30,12 @@ import { sortCuisines, type CatalogVenue, type CuisineDictionaryEntry } from "@b
  *      написаний, включая составные «Кафе, европейская»). Значение фильтра —
  *      нормализованный текст (кириллица), поэтому с кодами справочника оно не
  *      пересекается и перепутать их нельзя.
+ *
+ * ПРО ГОРОД — та же схема: справочник `GET /cities?format=full` (миграция 0081),
+ * значение фильтра — поле `value` записи, и оно же уходит на сервер в `?city=`.
+ * Это БАЗОВОЕ русское название, а не код и не перевод: `r.city = $1` сравнивает
+ * строку точно. Справочник не ответил — города собираются из данных каталога,
+ * как раньше.
  *
  * Пока сервер со справочником не выложен, ручки нет — запрос отвечает ошибкой,
  * в `collectCuisineOptions` приезжает пустой справочник, и фильтр работает
@@ -123,18 +136,52 @@ export function collectCuisineOptions(
   return [...fromDictionary, ...fromText];
 }
 
-/** Города, которые реально встречаются в каталоге. Значение = то, что лежит в
- * колонке: с ним же сервер сравнивает `r.city = $1`. */
-export function collectCityOptions(venues: readonly CatalogVenue[]): FilterOption[] {
+/**
+ * Города для выпадающего списка.
+ *
+ * Источников два, ровно как у кухонь.
+ *   1. СПРАВОЧНИК (`GET /cities?format=full`, миграция 0081). Если он ответил,
+ *      список берётся из него: значение фильтра — поле `value` записи (базовое
+ *      русское название), подпись — `name` (название на языке интерфейса).
+ *      `value`, а не `name` и не `code`: `GET /admin/restaurants` сравнивает
+ *      строку ТОЧНО (`r.city = $1`) и никаких синонимов на этом пути не
+ *      разбирает, поэтому код или перевод не нашли бы ничего.
+ *   2. СТАРЫЙ СПОСОБ — города, которые реально встречаются в каталоге. Он
+ *      работает, когда справочник не ответил, и ДОПОЛНЯЕТ справочник, когда
+ *      тот ответил: заведение, приехавшее из старой системы с написанием,
+ *      которого справочник не знает («Нур-Султан» до того, как его завели
+ *      синонимом), иначе стало бы не найти.
+ *
+ * Дедупликация по нормализованному ключу (`city_key` на сервере): «Алматы» из
+ * справочника и «алматы» из данных — один и тот же пункт, а не два.
+ *
+ * @param venues каталог целиком (не отфильтрованный)
+ * @param dictionary справочник; пустой массив = ручки нет или она не ответила
+ */
+export function collectCityOptions(
+  venues: readonly CatalogVenue[],
+  dictionary: readonly CityDictionaryEntry[] = [],
+): FilterOption[] {
+  const covered = new Set<string>();
+  const fromDictionary: FilterOption[] = [];
+  for (const entry of sortCities(dictionary.filter((item) => item.is_active))) {
+    covered.add(normalizeCityKey(entry.value));
+    fromDictionary.push({ value: entry.value, label: entry.name });
+  }
+
   const seen = new Map<string, string>();
   for (const venue of venues) {
     const city = (venue.city ?? "").trim();
-    if (!city || seen.has(city)) continue;
-    seen.set(city, city);
+    if (!city) continue;
+    const key = normalizeCityKey(city);
+    if (covered.has(key) || seen.has(key)) continue;
+    seen.set(key, city);
   }
-  return [...seen.values()]
+  const fromCatalog = [...seen.values()]
     .sort((a, b) => a.localeCompare(b, "ru"))
     .map((city) => ({ value: city, label: city }));
+
+  return [...fromDictionary, ...fromCatalog];
 }
 
 /** Подходит ли заведение под ВЕСЬ набор фильтров сразу (И, не ИЛИ). */

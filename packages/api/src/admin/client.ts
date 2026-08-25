@@ -1,5 +1,6 @@
 import { RepositoryError } from "../repository";
 import type { SocialLink, SocialLinkInput } from "./social-links";
+import type { CityDictionaryEntry, CitySaveInput } from "./cities";
 import type { CuisineDictionaryEntry, CuisineSaveInput } from "./cuisines";
 import type {
   AdminBooking,
@@ -362,6 +363,84 @@ export class AdminApiClient {
       "PUT",
       `/restaurants/${encodeURIComponent(restaurantId)}/cuisines`,
       { body: { cuisine_ids: [...cuisineIds] } },
+    );
+  }
+
+  // ---- Справочник городов --------------------------------------------------
+  //
+  // Тот же расклад, что у кухонь: читают все, правит только платформа
+  // (`/admin/cities` под RequireRole(RoleAdmin), usecase проверяет роль ещё
+  // раз). Отличий от кухонь два, и оба важны:
+  //   • публичный `GET /cities` БЕЗ параметров отдаёт голый массив названий —
+  //     замороженный контракт старой сборки. Панели нужен `?format=full`;
+  //   • у порядка есть СВОЯ ручка `PUT /admin/cities/order`, принимающая весь
+  //     список id разом, поэтому перестановка тут один запрос, а не пачка
+  //     PATCH-ей, как у кухонь.
+
+  /** GET /cities?format=full — активные города в порядке справочника, полными
+   * записями. Без `format=full` этот же адрес отдаёт массив строк. */
+  listCities(): Promise<CityDictionaryEntry[]> {
+    return this.request<CityDictionaryEntry[]>("GET", "/cities", {
+      params: { format: "full" },
+    });
+  }
+
+  /** GET /admin/cities — справочник глазами владельца: СО скрытыми записями.
+   * Только для суперадмина. */
+  listCitiesForAdmin(): Promise<CityDictionaryEntry[]> {
+    return this.request<CityDictionaryEntry[]>("GET", "/admin/cities");
+  }
+
+  /** POST /admin/cities. `code` — машинный ключ (a-z, 0-9, _): он ездит в
+   * адресной строке и не зависит от языка, поэтому менять его потом не стоит. */
+  createCity(input: CitySaveInput): Promise<CityDictionaryEntry> {
+    return this.request<CityDictionaryEntry>("POST", "/admin/cities", { body: input });
+  }
+
+  /** PATCH /admin/cities/:id — меняет только присланные ключи. Переименование
+   * сервер проводит в одной транзакции с переписыванием строки `city` у всех
+   * заведений этого города. */
+  updateCity(id: string, input: CitySaveInput): Promise<CityDictionaryEntry> {
+    return this.request<CityDictionaryEntry>(
+      "PATCH",
+      `/admin/cities/${encodeURIComponent(id)}`,
+      { body: input },
+    );
+  }
+
+  /**
+   * DELETE /admin/cities/:id — СКРЫВАЕТ запись (`is_active = false`), а не
+   * удаляет: на город ссылаются заведения (FK RESTRICT) и его название лежит
+   * строкой в `restaurants.city`. Вернуть — `updateCity(id, {is_active: true})`.
+   */
+  hideCity(id: string): Promise<CityDictionaryEntry> {
+    return this.request<CityDictionaryEntry>(
+      "DELETE",
+      `/admin/cities/${encodeURIComponent(id)}`,
+    );
+  }
+
+  /** PUT /admin/cities/order — весь порядок разом, последовательностью id.
+   * Отвечает справочником целиком, включая скрытые записи. */
+  reorderCities(cityIds: readonly string[]): Promise<CityDictionaryEntry[]> {
+    return this.request<CityDictionaryEntry[]>("PUT", "/admin/cities/order", {
+      body: { city_ids: [...cityIds] },
+    });
+  }
+
+  /**
+   * POST /admin/cities/:id/aliases — ещё одно написание, означающее этот город.
+   *
+   * Синоним ничего не переименовывает. Он учит базу узнавать город по чужой
+   * строке: заведение, у которого город записан этим написанием, привяжется к
+   * записи справочника при следующей записи строки (триггер
+   * `trg_restaurants_sync_city`), и его написание приведётся к каноническому.
+   */
+  addCityAlias(id: string, alias: string): Promise<CityDictionaryEntry> {
+    return this.request<CityDictionaryEntry>(
+      "POST",
+      `/admin/cities/${encodeURIComponent(id)}/aliases`,
+      { body: { alias } },
     );
   }
 

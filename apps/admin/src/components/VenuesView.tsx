@@ -9,11 +9,13 @@ import {
   saveVenueWithCuisines,
   type CatalogVenue,
   type CatalogVenueInput,
+  type CityDictionaryEntry,
   type CuisineDictionaryEntry,
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useCityDictionary } from "@/lib/use-cities";
 import { useCuisineDictionary } from "@/lib/use-cuisines";
 import { useIsPlatformAdmin, useVenueCatalog, useVenueMutations } from "@/lib/use-venue-catalog";
 import {
@@ -29,6 +31,7 @@ import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { VenueFilterBar } from "./VenueFilterBar";
 import { Button } from "./ui/Button";
 import { Field, TextArea, TextInput } from "./ui/FormControls";
+import { CitySelectField, cityOptionsFor } from "./ui/CitySelectField";
 import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
@@ -74,13 +77,25 @@ export function VenuesView() {
   const cuisineDictionary = useCuisineDictionary();
   const dictionary = useMemo(() => cuisineDictionary.data ?? [], [cuisineDictionary.data]);
 
+  // Справочник городов. Читается тем же публичным роутом (`GET /cities`, но с
+  // `?format=full`) и с той же страховкой: не ответил — фильтр собирает города
+  // из данных каталога, а форма заведения откатывается на ввод текстом.
+  const cityDictionaryQuery = useCityDictionary();
+  const cityDictionary = useMemo(
+    () => cityDictionaryQuery.data ?? [],
+    [cityDictionaryQuery.data],
+  );
+
   // Списки для выпадающих собираются из НЕотфильтрованного каталога: иначе
   // выбор города схлопнул бы список городов до одного выбранного, и снять
   // фильтр было бы нечем. Тот же ключ запроса, что и выше, когда фильтров нет,
   // — react-query отдаёт один и тот же результат, а не второй запрос.
   const optionsQuery = useVenueCatalog("", "");
   const allVenues = useMemo(() => optionsQuery.data?.items ?? [], [optionsQuery.data]);
-  const cityOptions = useMemo(() => collectCityOptions(allVenues), [allVenues]);
+  const cityOptions = useMemo(
+    () => collectCityOptions(allVenues, cityDictionary),
+    [allVenues, cityDictionary],
+  );
   const cuisineOptions = useMemo(
     () => collectCuisineOptions(allVenues, dictionary),
     [allVenues, dictionary],
@@ -204,6 +219,9 @@ export function VenuesView() {
         <VenueFormModal
           title="Новое заведение"
           dictionary={dictionary}
+          cityDictionary={cityDictionary}
+          cityDictionaryLoading={cityDictionaryQuery.isPending}
+          cityDictionaryFailed={cityDictionaryQuery.isError}
           saveVenue={saveVenue}
           saveCuisines={saveCuisines}
           onClose={() => setCreating(false)}
@@ -216,6 +234,9 @@ export function VenuesView() {
           title={editing.name}
           venue={editing}
           dictionary={dictionary}
+          cityDictionary={cityDictionary}
+          cityDictionaryLoading={cityDictionaryQuery.isPending}
+          cityDictionaryFailed={cityDictionaryQuery.isError}
           saveVenue={saveVenue}
           saveCuisines={saveCuisines}
           onClose={() => setEditing(null)}
@@ -249,6 +270,9 @@ function VenueFormModal({
   title,
   venue,
   dictionary,
+  cityDictionary,
+  cityDictionaryLoading = false,
+  cityDictionaryFailed = false,
   saveVenue,
   saveCuisines,
   onClose,
@@ -257,6 +281,9 @@ function VenueFormModal({
   title: string;
   venue?: CatalogVenue;
   dictionary: readonly CuisineDictionaryEntry[];
+  cityDictionary: readonly CityDictionaryEntry[];
+  cityDictionaryLoading?: boolean;
+  cityDictionaryFailed?: boolean;
   saveVenue: (input: CatalogVenueInput, id: string | null) => Promise<CatalogVenue>;
   saveCuisines: (id: string, ids: readonly string[]) => Promise<unknown>;
   onClose: () => void;
@@ -265,7 +292,10 @@ function VenueFormModal({
   const [name, setName] = useState(venue?.name ?? "");
   const [description, setDescription] = useState(venue?.description ?? "");
   const [address, setAddress] = useState(venue?.address ?? "");
-  const [city, setCity] = useState(venue?.city ?? "Алматы");
+  // Пусто у нового заведения — и это намеренно: подставленный по умолчанию
+  // город тем и опасен, что его не замечают и сохраняют не глядя. Первый город
+  // справочника подставляется ниже, только когда справочник уже ответил.
+  const [city, setCity] = useState(venue?.city ?? "");
   const [phone, setPhone] = useState(venue?.phone ?? "");
   const [email, setEmail] = useState(venue?.email ?? "");
   const [priceCategory, setPriceCategory] = useState(venue?.price_category ?? "");
@@ -314,6 +344,19 @@ function VenueFormModal({
     enabled: Boolean(venue?.id),
     retry: false,
   });
+
+  // Город нового заведения: первый активный город справочника, и ТОЛЬКО когда
+  // справочник уже ответил. Раньше здесь была зашитая «Алматы» — ровно та
+  // подстановка, которую не видно и сохраняют не глядя. Условие `!city`
+  // означает, что человек ещё ничего не выбирал: как только выбрал, эффект
+  // больше не срабатывает и выбор не перетирается.
+  useEffect(() => {
+    if (venue || city) return;
+    // Ровно тот же список и тот же порядок, что покажет сам select, — иначе
+    // «по умолчанию» и «первый в списке» разъехались бы.
+    const first = cityOptionsFor(cityDictionary, "")[0];
+    if (first) setCity(first.value);
+  }, [venue, city, cityDictionary]);
 
   useEffect(() => {
     if (socialQuery.data) setSocialRows(draftsFromLinks(socialQuery.data));
@@ -432,9 +475,14 @@ function VenueFormModal({
           <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
         </Field>
 
-        <Field label="Город">
-          <TextInput value={city} onChange={(e) => setCity(e.target.value)} />
-        </Field>
+        <CitySelectField
+          dictionary={cityDictionary}
+          loading={cityDictionaryLoading}
+          failed={cityDictionaryFailed}
+          value={city}
+          onChange={setCity}
+          disabled={busy}
+        />
 
         {venue && cuisineQuery.isPending ? (
           <p className="text-sm text-text-muted" role="status">
