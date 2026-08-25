@@ -76,5 +76,20 @@ export function useVenueMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, update, setActive };
+  /**
+   * Набор кухонь заведения. ОТДЕЛЬНАЯ ручка (PUT /restaurants/:id/cuisines), а
+   * не часть PATCH заведения: сервер замещает набор целиком и в той же
+   * транзакции пересобирает legacy-строку `cuisine_type`, из которой каталог
+   * рисует колонку «Кухня» — поэтому список после записи инвалидируется.
+   */
+  const setCuisines = useMutation({
+    mutationFn: ({ restaurantId, ids }: { restaurantId: string; ids: readonly string[] }) =>
+      apiClient.setRestaurantCuisines(restaurantId, ids),
+    onSuccess: (_data, variables) => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["venue-cuisines", variables.restaurantId] });
+    },
+  });
+
+  return { create, update, setActive, setCuisines };
 }

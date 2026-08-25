@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogVenue } from "@bookeat/api/admin";
+import type { CatalogVenue, CuisineDictionaryEntry } from "@bookeat/api/admin";
 
 import {
   EMPTY_VENUE_FILTERS,
@@ -181,5 +181,82 @@ describe("списки для выпадающих собираются из д�
 describe("matchesVenueFilters", () => {
   it("заведение без города не проходит фильтр по городу", () => {
     expect(matchesVenueFilters(venue({ city: "" }), withFilters({ city: "Алматы" }))).toBe(false);
+  });
+});
+
+/**
+ * Переезд на справочник кухонь. Пока сервер не выложен, ручки `GET /cuisines`
+ * нет, справочник приезжает пустым — и всё выше продолжает работать по текстам.
+ * Здесь проверяется вторая половина: когда справочник ЕСТЬ.
+ */
+describe("кухни из справочника", () => {
+  const dictionary: CuisineDictionaryEntry[] = [
+    {
+      id: "c-1",
+      code: "kazakh",
+      name: "Казахская",
+      display_order: 2,
+      is_active: true,
+    },
+    {
+      id: "c-2",
+      code: "italian",
+      name: "Итальянская",
+      display_order: 1,
+      is_active: true,
+    },
+    {
+      id: "c-3",
+      code: "vegan",
+      name: "Веган",
+      display_order: 3,
+      is_active: false,
+    },
+  ];
+
+  const migrated = venue({
+    id: "m-1",
+    name: "Del Papa",
+    cuisine_type: "Итальянская, Казахская",
+    cuisines: [
+      { id: "c-2", code: "italian", name: "Итальянская" },
+      { id: "c-1", code: "kazakh", name: "Казахская" },
+    ],
+  });
+
+  it("список берётся из справочника в его порядке, скрытые кухни не предлагаются", () => {
+    expect(collectCuisineOptions([migrated], dictionary)).toEqual([
+      { value: "italian", label: "Итальянская" },
+      { value: "kazakh", label: "Казахская" },
+    ]);
+  });
+
+  it("заведение находится по ЛЮБОЙ своей кухне, не только по главной", () => {
+    expect(matchesVenueFilters(migrated, withFilters({ cuisine: "kazakh" }))).toBe(true);
+    expect(matchesVenueFilters(migrated, withFilters({ cuisine: "italian" }))).toBe(true);
+    expect(matchesVenueFilters(migrated, withFilters({ cuisine: "french" }))).toBe(false);
+  });
+
+  it("непереведённое заведение остаётся отбираемым по своему тексту", () => {
+    const legacy = venue({ id: "l-1", cuisine_type: "Кафе, европейская" });
+    expect(collectCuisineOptions([migrated, legacy], dictionary)).toEqual([
+      { value: "italian", label: "Итальянская" },
+      { value: "kazakh", label: "Казахская" },
+      { value: "кафе, европейская", label: "Кафе, европейская" },
+    ]);
+    expect(matchesVenueFilters(legacy, withFilters({ cuisine: "кафе, европейская" }))).toBe(true);
+  });
+
+  it("текст заведения, у которого есть набор, в список не добавляется — иначе одна кухня двумя пунктами", () => {
+    const options = collectCuisineOptions([migrated], dictionary).map((o) => o.value);
+    expect(options).not.toContain("итальянская, казахская");
+  });
+
+  it("справочник не ответил — фильтр работает как раньше", () => {
+    expect(collectCuisineOptions(venues, []).map((o) => o.value)).toEqual([
+      "итальянская",
+      "казахская",
+      "кафе, европейская",
+    ]);
   });
 });

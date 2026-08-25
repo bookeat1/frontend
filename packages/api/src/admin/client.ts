@@ -1,5 +1,6 @@
 import { RepositoryError } from "../repository";
 import type { SocialLink, SocialLinkInput } from "./social-links";
+import type { CuisineDictionaryEntry, CuisineSaveInput } from "./cuisines";
 import type {
   AdminBooking,
   AdminEvent,
@@ -289,6 +290,79 @@ export class AdminApiClient {
    */
   async deactivateVenue(id: string): Promise<void> {
     await this.request<unknown>("DELETE", `/restaurants/${encodeURIComponent(id)}`);
+  }
+
+  // ---- Справочник кухонь ----------------------------------------------------
+  //
+  // Справочник принадлежит ПЛАТФОРМЕ: читать его может кто угодно
+  // (`GET /cuisines` смонтирован публично), а править — только суперадмин
+  // (`/admin/cuisines` под RequireRole(RoleAdmin), и usecase проверяет роль
+  // повторно). Набор кухонь ЗАВЕДЕНИЯ живёт отдельно и пишется целиком.
+
+  /** GET /cuisines — активные кухни в порядке справочника. Публичный роут:
+   * им пользуются и приложение, и выбор кухни в панели, чтобы список был один. */
+  listCuisines(): Promise<CuisineDictionaryEntry[]> {
+    return this.request<CuisineDictionaryEntry[]>("GET", "/cuisines");
+  }
+
+  /** GET /admin/cuisines — справочник глазами владельца: СО скрытыми записями.
+   * Без них скрытую кухню нельзя было бы вернуть. Только суперадмин. */
+  listCuisinesForAdmin(): Promise<CuisineDictionaryEntry[]> {
+    return this.request<CuisineDictionaryEntry[]>("GET", "/admin/cuisines");
+  }
+
+  /** POST /admin/cuisines. `code` — машинный ключ (a-z, 0-9, _): по нему
+   * клиенты подбирают запасную картинку, поэтому кириллица и пробелы сервером
+   * отвергаются. */
+  createCuisine(input: CuisineSaveInput): Promise<CuisineDictionaryEntry> {
+    return this.request<CuisineDictionaryEntry>("POST", "/admin/cuisines", { body: input });
+  }
+
+  /** PATCH /admin/cuisines/:id — меняет только присланные ключи. */
+  updateCuisine(id: string, input: CuisineSaveInput): Promise<CuisineDictionaryEntry> {
+    return this.request<CuisineDictionaryEntry>(
+      "PATCH",
+      `/admin/cuisines/${encodeURIComponent(id)}`,
+      { body: input },
+    );
+  }
+
+  /**
+   * DELETE /admin/cuisines/:id — СКРЫВАЕТ запись (`is_active = false`), а не
+   * удаляет: на кухню ссылаются заведения и предпочтения гостей, и удаление
+   * унесло бы эти данные с собой. Ответ — та же запись с is_active: false.
+   * Вернуть её — `updateCuisine(id, {is_active: true})`.
+   */
+  hideCuisine(id: string): Promise<CuisineDictionaryEntry> {
+    return this.request<CuisineDictionaryEntry>(
+      "DELETE",
+      `/admin/cuisines/${encodeURIComponent(id)}`,
+    );
+  }
+
+  /** GET /restaurants/:id/cuisines — набор кухонь заведения В ЕГО ПОРЯДКЕ:
+   * первая позиция — главная кухня. */
+  getRestaurantCuisines(restaurantId: string): Promise<CuisineDictionaryEntry[]> {
+    return this.request<CuisineDictionaryEntry[]>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}/cuisines`,
+    );
+  }
+
+  /**
+   * PUT /restaurants/:id/cuisines — ЗАМЕЩАЕТ набор целиком (PUT, не PATCH).
+   * Порядок значим, до пяти штук, скрытую кухню сервер не примет. Отправлять
+   * можно только полный набор: `[]` очищает кухни заведения.
+   */
+  setRestaurantCuisines(
+    restaurantId: string,
+    cuisineIds: readonly string[],
+  ): Promise<CuisineDictionaryEntry[]> {
+    return this.request<CuisineDictionaryEntry[]>(
+      "PUT",
+      `/restaurants/${encodeURIComponent(restaurantId)}/cuisines`,
+      { body: { cuisine_ids: [...cuisineIds] } },
+    );
   }
 
   // ---- Platform dashboard (superadmin) -------------------------------------

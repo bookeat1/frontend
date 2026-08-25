@@ -54,6 +54,7 @@ export const NAV: NavGroup[] = [
     items: [
       { href: "/platform", label: t.admin.nav.platform },
       { href: "/venues", label: t.admin.nav.venues },
+      { href: "/cuisines", label: t.admin.nav.cuisines },
       { href: "/platform-guests", label: t.admin.nav.platformGuests },
       { href: "/gastroguide", label: t.admin.nav.gastroguide },
       { href: "/feed-moderation", label: t.admin.nav.feedModeration },

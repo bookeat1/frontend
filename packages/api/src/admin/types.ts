@@ -6,6 +6,7 @@
  * (which imports .jpg assets) or the React-Native peer types.
  */
 import type { SocialLink, SocialLinkInput } from "./social-links";
+import type { VenueCuisine } from "./cuisines";
 
 /** Auth token pair returned by /auth/login, /auth/refresh. */
 export interface TokenPair {
@@ -264,6 +265,12 @@ export interface CatalogVenue {
    * каталога (GET /admin/restaurants → listItemToResponse) их нет вообще, и
    * `undefined` тут значит «не знаем», а не «их нет». */
   social_links?: SocialLink[];
+  /** Набор кухонь заведения из справочника, В ПОРЯДКЕ заведения (первая —
+   * главная). Ключ ОПУЩЕН, когда набора нет (`omitempty`), поэтому `undefined`
+   * значит «кухни не заданы» — а на сборке бэкенда без справочника его нет ни
+   * у кого. `cuisine_type` остаётся строкой и собирается сервером из этого же
+   * набора. */
+  cuisines?: VenueCuisine[];
 }
 
 /** Body of POST /restaurants and PATCH /restaurants/:id. Every field is

@@ -1,4 +1,4 @@
-import type { CatalogVenue } from "@bookeat/api/admin";
+import { sortCuisines, type CatalogVenue, type CuisineDictionaryEntry } from "@bookeat/api/admin";
 
 /**
  * Отбор заведений в каталоге суперадмина: город, кухня, показывается/скрыто и
@@ -14,13 +14,21 @@ import type { CatalogVenue } from "@bookeat/api/admin";
  * `r.city = $1`), чтобы один и тот же набор фильтров давал один и тот же ответ
  * независимо от того, кто его применил.
  *
- * ПРО КУХНЮ. Сегодня `cuisine_type` — свободный текст: в боевой базе 18
- * написаний, включая составные («Кафе, европейская») и разнобой регистра.
- * Список для выпадающего собирается из данных и этот разнобой показывает —
- * честно, потому что именно так заведения и записаны. Всё знание об этом
- * заперто в двух функциях (`cuisineKey` и `collectCuisineOptions`): когда
- * появится справочник кухонь, меняется их содержимое и ничего больше —
- * компонент знает только про `FilterOption[]` и строку-значение.
+ * ПРО КУХНЮ. Источников два, и они сосуществуют.
+ *   1. СПРАВОЧНИК (`GET /cuisines`, миграции 0079/0080). Если он ответил,
+ *      список кухонь берётся из него: значение фильтра — `code` записи
+ *      (латиница), подпись — её название. Заведение матчится по своему набору
+ *      `venue.cuisines[]`.
+ *   2. СТАРЫЙ СПОСОБ — свободный текст `cuisine_type` (в боевой базе 18
+ *      написаний, включая составные «Кафе, европейская»). Значение фильтра —
+ *      нормализованный текст (кириллица), поэтому с кодами справочника оно не
+ *      пересекается и перепутать их нельзя.
+ *
+ * Пока сервер со справочником не выложен, ручки нет — запрос отвечает ошибкой,
+ * в `collectCuisineOptions` приезжает пустой справочник, и фильтр работает
+ * ровно как раньше. Заведения, у которых набор кухонь ещё не проставлен,
+ * остаются отбираемыми по своему тексту даже когда справочник уже есть: их
+ * написания добавляются к списку, иначе такое заведение стало бы не найти.
  */
 
 export type VenueStatusFilter = "all" | "active" | "hidden";
@@ -60,30 +68,59 @@ export function hasActiveVenueFilters(filters: VenueFilters): boolean {
 }
 
 /**
- * Ключ, по которому два написания кухни считаются одной кухней.
+ * Ключ, по которому два написания ТЕКСТОВОЙ кухни считаются одной кухней.
  *
- * Сегодня это нормализованный текст: регистр и лишние пробелы разнобой создают,
- * а разной кухни из них не делают. Составные названия («Кафе, европейская») НЕ
+ * Это нормализованный текст: регистр и лишние пробелы разнобой создают, а
+ * разной кухни из них не делают. Составные названия («Кафе, европейская») НЕ
  * разбираются на части: в базе это одно значение, и разложить его на две кухни
- * — уже догадка, а не факт. Здесь же будет маппинг на справочник, когда он
- * появится.
+ * — уже догадка, а не факт.
  */
 export function cuisineKey(raw: string): string {
   return raw.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-/** Кухни, которые реально встречаются в каталоге, по алфавиту. Подпись —
- * первое встреченное написание: выдумывать «правильное» не из чего. */
-export function collectCuisineOptions(venues: readonly CatalogVenue[]): FilterOption[] {
+/**
+ * Все значения фильтра, под которые подходит заведение.
+ *
+ * Есть набор из справочника — отвечают коды набора (их может быть до пяти, и
+ * заведение обязано находиться по любой своей кухне, а не только по главной).
+ * Набора нет — отвечает нормализованный текст, как раньше.
+ */
+export function venueCuisineKeys(venue: CatalogVenue): string[] {
+  if (venue.cuisines?.length) return venue.cuisines.map((cuisine) => cuisine.code);
+  const key = cuisineKey(venue.cuisine_type ?? "");
+  return key ? [key] : [];
+}
+
+/**
+ * Кухни для выпадающего списка.
+ *
+ * @param venues каталог целиком (не отфильтрованный)
+ * @param dictionary справочник; пустой массив = ручки нет или она не ответила —
+ *   тогда работает прежний способ, по текстам из данных
+ */
+export function collectCuisineOptions(
+  venues: readonly CatalogVenue[],
+  dictionary: readonly CuisineDictionaryEntry[] = [],
+): FilterOption[] {
+  const fromDictionary = sortCuisines(dictionary.filter((entry) => entry.is_active)).map(
+    (entry) => ({ value: entry.code, label: entry.name }),
+  );
+
+  // Тексты остаются нужны, пока не все заведения переведены на справочник:
+  // берём их только у тех, у кого набора кухонь нет вовсе.
   const byKey = new Map<string, string>();
   for (const venue of venues) {
+    if (venue.cuisines?.length) continue;
     const key = cuisineKey(venue.cuisine_type ?? "");
     if (!key || byKey.has(key)) continue;
     byKey.set(key, venue.cuisine_type.trim().replace(/\s+/g, " "));
   }
-  return [...byKey.entries()]
+  const fromText = [...byKey.entries()]
     .map(([value, label]) => ({ value, label }))
     .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+
+  return [...fromDictionary, ...fromText];
 }
 
 /** Города, которые реально встречаются в каталоге. Значение = то, что лежит в
@@ -105,7 +142,7 @@ export function matchesVenueFilters(venue: CatalogVenue, filters: VenueFilters):
   const search = filters.search.trim().toLowerCase();
   if (search && !(venue.name ?? "").toLowerCase().includes(search)) return false;
   if (filters.city && (venue.city ?? "").trim() !== filters.city) return false;
-  if (filters.cuisine && cuisineKey(venue.cuisine_type ?? "") !== filters.cuisine) return false;
+  if (filters.cuisine && !venueCuisineKeys(venue).includes(filters.cuisine)) return false;
   if (filters.status === "active" && !venue.is_active) return false;
   if (filters.status === "hidden" && venue.is_active) return false;
   return true;

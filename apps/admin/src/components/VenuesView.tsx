@@ -2,10 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { parseSocialLinkRows, type CatalogVenue, type CatalogVenueInput } from "@bookeat/api/admin";
+import {
+  cuisineIdsOf,
+  parseSocialLinkRows,
+  sameCuisineSelection,
+  saveVenueWithCuisines,
+  type CatalogVenue,
+  type CatalogVenueInput,
+  type CuisineDictionaryEntry,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { useCuisineDictionary } from "@/lib/use-cuisines";
 import { useIsPlatformAdmin, useVenueCatalog, useVenueMutations } from "@/lib/use-venue-catalog";
 import {
   EMPTY_VENUE_FILTERS,
@@ -20,6 +29,7 @@ import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { VenueFilterBar } from "./VenueFilterBar";
 import { Button } from "./ui/Button";
 import { Field, TextArea, TextInput } from "./ui/FormControls";
+import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import {
@@ -56,7 +66,13 @@ export function VenuesView() {
   // «скрыто» у эндпоинта нет — они отбираются здесь, из уже загруженной
   // страницы каталога (per_page=100 при сегодняшних 45 заведениях).
   const query = useVenueCatalog(filters.search.trim(), filters.city);
-  const { create, update, setActive } = useVenueMutations();
+  const { create, update, setActive, setCuisines } = useVenueMutations();
+
+  // Справочник кухонь. Ручки может ещё не быть (сервер не выложен) — тогда
+  // запрос ответит ошибкой, сюда приедет пустой список, фильтр откатится на
+  // тексты из данных, а форма честно скажет, что справочник пуст.
+  const cuisineDictionary = useCuisineDictionary();
+  const dictionary = useMemo(() => cuisineDictionary.data ?? [], [cuisineDictionary.data]);
 
   // Списки для выпадающих собираются из НЕотфильтрованного каталога: иначе
   // выбор города схлопнул бы список городов до одного выбранного, и снять
@@ -65,7 +81,10 @@ export function VenuesView() {
   const optionsQuery = useVenueCatalog("", "");
   const allVenues = useMemo(() => optionsQuery.data?.items ?? [], [optionsQuery.data]);
   const cityOptions = useMemo(() => collectCityOptions(allVenues), [allVenues]);
-  const cuisineOptions = useMemo(() => collectCuisineOptions(allVenues), [allVenues]);
+  const cuisineOptions = useMemo(
+    () => collectCuisineOptions(allVenues, dictionary),
+    [allVenues, dictionary],
+  );
 
   const loaded = useMemo(() => query.data?.items ?? [], [query.data]);
   // Серверный отбор повторяется здесь один в один (те же правила), поэтому
@@ -73,6 +92,15 @@ export function VenuesView() {
   // зависимости «а точно ли сервер уже отфильтровал».
   const venues = useMemo(() => filterVenues(loaded, filters), [loaded, filters]);
   const filtersActive = hasActiveVenueFilters(filters);
+
+  // Две записи вместо одной: поля заведения уходят обычным PATCH/POST, а набор
+  // кухонь — отдельной ручкой PUT /restaurants/:id/cuisines. Порядок и разбор
+  // «что легло, а что нет» живут в saveVenueWithCuisines, здесь только сами
+  // шаги.
+  const saveVenue = (input: CatalogVenueInput, id: string | null) =>
+    id ? update.mutateAsync({ id, input }) : create.mutateAsync(input);
+  const saveCuisines = (id: string, ids: readonly string[]) =>
+    setCuisines.mutateAsync({ restaurantId: id, ids });
 
   if (!isAdmin) {
     return (
@@ -175,12 +203,11 @@ export function VenuesView() {
       {creating ? (
         <VenueFormModal
           title="Новое заведение"
-          submitting={create.isPending}
-          failed={create.isError}
+          dictionary={dictionary}
+          saveVenue={saveVenue}
+          saveCuisines={saveCuisines}
           onClose={() => setCreating(false)}
-          onSubmit={(input) =>
-            create.mutate(input, { onSuccess: () => setCreating(false) })
-          }
+          onSaved={() => setCreating(false)}
         />
       ) : null}
 
@@ -188,12 +215,11 @@ export function VenuesView() {
         <VenueFormModal
           title={editing.name}
           venue={editing}
-          submitting={update.isPending}
-          failed={update.isError}
+          dictionary={dictionary}
+          saveVenue={saveVenue}
+          saveCuisines={saveCuisines}
           onClose={() => setEditing(null)}
-          onSubmit={(input) =>
-            update.mutate({ id: editing.id, input }, { onSuccess: () => setEditing(null) })
-          }
+          onSaved={() => setEditing(null)}
         />
       ) : null}
     </div>
@@ -205,25 +231,39 @@ export function VenuesView() {
  * сервер при правке: PATCH принимает только присланные ключи, поэтому очистка
  * поля и «не трогал поле» должны различаться. Здесь отправляется то, что
  * реально изменилось.
+ *
+ * ДВЕ ЗАПИСИ ВМЕСТО ОДНОЙ. Кухни сервер пишет отдельной ручкой
+ * (PUT /restaurants/:id/cuisines), поэтому «Сохранить» это две записи подряд, а
+ * не одна. Что из этого следует для человека:
+ *   • сперва заведение, потом кухни — у нового заведения id появляется только
+ *     из ответа на создание, а строку `cuisine_type` для старых клиентов сервер
+ *     пересобирает именно при записи набора, так что набор обязан лечь
+ *     последним;
+ *   • если не легло заведение — кухни даже не пробуем: писать их некуда;
+ *   • если легло заведение, а кухни нет — форма НЕ закрывается и прямо говорит,
+ *     что сохранилось, а что нет, и даёт повторить только кухни;
+ *   • повторное «Сохранить» после уже созданного заведения не создаёт второе —
+ *     оно правит созданное (id запомнен).
  */
 function VenueFormModal({
   title,
   venue,
-  submitting,
-  failed,
+  dictionary,
+  saveVenue,
+  saveCuisines,
   onClose,
-  onSubmit,
+  onSaved,
 }: {
   title: string;
   venue?: CatalogVenue;
-  submitting: boolean;
-  failed: boolean;
+  dictionary: readonly CuisineDictionaryEntry[];
+  saveVenue: (input: CatalogVenueInput, id: string | null) => Promise<CatalogVenue>;
+  saveCuisines: (id: string, ids: readonly string[]) => Promise<unknown>;
   onClose: () => void;
-  onSubmit: (input: CatalogVenueInput) => void;
+  onSaved: () => void;
 }) {
   const [name, setName] = useState(venue?.name ?? "");
   const [description, setDescription] = useState(venue?.description ?? "");
-  const [cuisine, setCuisine] = useState(venue?.cuisine_type ?? "");
   const [address, setAddress] = useState(venue?.address ?? "");
   const [city, setCity] = useState(venue?.city ?? "Алматы");
   const [phone, setPhone] = useState(venue?.phone ?? "");
@@ -239,6 +279,19 @@ function VenueFormModal({
   const [socialRows, setSocialRows] = useState<SocialLinkDraft[]>([]);
   const [socialError, setSocialError] = useState<{ index: number; message: string } | null>(null);
 
+  // Набор кухонь заведения. Как и ссылки на соцсети, он ЗАМЕЩАЕТСЯ целиком,
+  // поэтому отправлять его можно только прочитав текущий: сохранить вслепую =
+  // стереть кухни, которых форма не показывала.
+  const [cuisineIds, setCuisineIds] = useState<string[]>([]);
+  const [loadedCuisineIds, setLoadedCuisineIds] = useState<string[] | null>(venue ? null : []);
+  const [venueCuisines, setVenueCuisines] = useState<CatalogVenue["cuisines"]>(venue?.cuisines);
+
+  // Состояние сохранения. Две записи — три исхода, и «заведение сохранили, а
+  // кухни нет» это отдельный, со своей кнопкой.
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<null | "venue" | "cuisines">(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+
   // Ссылки на соцсети приходят ТОЛЬКО в детальном ответе: листинг каталога
   // (GET /admin/restaurants) их не отдаёт вообще. Поэтому при правке они
   // догружаются отдельным запросом — и пока он не ответил, ключ social_links в
@@ -251,18 +304,42 @@ function VenueFormModal({
   });
   const socialLoaded = venue ? socialQuery.isSuccess : true;
 
+  // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
+  // набор есть (listItemToResponse кладёт `cuisines`), но на сборке без
+  // справочника его нет ни у кого, и отличить «нет кухонь» от «нет ручки» по
+  // листингу нельзя. Отдельный запрос отвечает на это однозначно.
+  const cuisineQuery = useQuery({
+    queryKey: ["venue-cuisines", venue?.id ?? null],
+    queryFn: () => apiClient.getRestaurantCuisines(venue!.id),
+    enabled: Boolean(venue?.id),
+    retry: false,
+  });
+
   useEffect(() => {
     if (socialQuery.data) setSocialRows(draftsFromLinks(socialQuery.data));
   }, [socialQuery.data]);
 
-  const canSubmit = name.trim().length > 0 && !submitting;
+  useEffect(() => {
+    if (!cuisineQuery.data) return;
+    const ids = cuisineIdsOf(cuisineQuery.data);
+    setLoadedCuisineIds(ids);
+    setCuisineIds(ids);
+    setVenueCuisines(cuisineQuery.data);
+  }, [cuisineQuery.data]);
 
-  const submit = () => {
-    if (!canSubmit) return;
+  const cuisineOptions = useMemo(
+    () => mergeCuisineOptions(dictionary, venueCuisines ?? []),
+    [dictionary, venueCuisines],
+  );
+  const cuisinesLoaded = loadedCuisineIds !== null;
+  const cuisinesChanged = cuisinesLoaded && !sameCuisineSelection(cuisineIds, loadedCuisineIds!);
+
+  const canSubmit = name.trim().length > 0 && !busy;
+
+  const buildInput = (): CatalogVenueInput | null => {
     const input: CatalogVenueInput = {
       name: name.trim(),
       description: description.trim(),
-      cuisine_type: cuisine.trim(),
       address: address.trim(),
       city: city.trim(),
       phone: phone.trim(),
@@ -287,13 +364,61 @@ function VenueFormModal({
     const social = parseSocialLinkRows(socialRows);
     if (!social.ok) {
       setSocialError({ index: social.index, message: SOCIAL_LINK_ERROR_COPY[social.error] });
-      return;
+      return null;
     }
     setSocialError(null);
     if (socialLoaded) {
       input.social_links = social.links;
     }
-    onSubmit(input);
+    // `cuisine_type` больше не поле формы: сервер собирает его сам из набора
+    // кухонь, и прислать его отдельно значило бы завести девятнадцатое
+    // написание кухни в каталоге.
+    return input;
+  };
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    const input = buildInput();
+    if (!input) return;
+
+    setBusy(true);
+    setFailure(null);
+    const targetId = venue?.id ?? createdId;
+    const outcome = await saveVenueWithCuisines({
+      saveVenue: () => saveVenue(input, targetId),
+      // null = набор не трогаем: он либо не прочитан, либо не менялся.
+      cuisineIds: cuisinesChanged ? cuisineIds : null,
+      saveCuisines,
+    });
+    setBusy(false);
+
+    if (outcome.status === "venue_failed") {
+      setFailure("venue");
+      return;
+    }
+    if (outcome.status === "cuisines_failed") {
+      setCreatedId(outcome.venue.id);
+      setFailure("cuisines");
+      return;
+    }
+    onSaved();
+  };
+
+  /** Повтор ТОЛЬКО кухонь: заведение уже сохранено, второй раз его писать
+   * незачем. */
+  const retryCuisines = async () => {
+    const targetId = venue?.id ?? createdId;
+    if (!targetId) return;
+    setBusy(true);
+    try {
+      await saveCuisines(targetId, cuisineIds);
+      setFailure(null);
+      setBusy(false);
+      onSaved();
+    } catch {
+      setBusy(false);
+      setFailure("cuisines");
+    }
   };
 
   return (
@@ -307,14 +432,26 @@ function VenueFormModal({
           <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
         </Field>
 
-        <div className="grid gap-md sm:grid-cols-2">
-          <Field label="Кухня" hint="Например: Казахская">
-            <TextInput value={cuisine} onChange={(e) => setCuisine(e.target.value)} />
-          </Field>
-          <Field label="Город">
-            <TextInput value={city} onChange={(e) => setCity(e.target.value)} />
-          </Field>
-        </div>
+        <Field label="Город">
+          <TextInput value={city} onChange={(e) => setCity(e.target.value)} />
+        </Field>
+
+        {venue && cuisineQuery.isPending ? (
+          <p className="text-sm text-text-muted" role="status">
+            {t.admin.venueCuisines.loadingTitle}
+          </p>
+        ) : venue && cuisineQuery.isError ? (
+          <p className="text-sm text-brand" role="alert">
+            {t.admin.venueCuisines.loadFailed}
+          </p>
+        ) : (
+          <CuisinePicker
+            options={cuisineOptions}
+            selected={cuisineIds}
+            onChange={setCuisineIds}
+            disabled={busy}
+          />
+        )}
 
         <Field label="Адрес">
           <TextInput value={address} onChange={(e) => setAddress(e.target.value)} />
@@ -381,22 +518,38 @@ function VenueFormModal({
               setSocialRows(next);
               setSocialError(null);
             }}
-            disabled={submitting}
+            disabled={busy}
             errorIndex={socialError?.index ?? null}
             errorMessage={socialError?.message ?? null}
             idPrefix="venue-social"
           />
         )}
 
-        {failed ? (
-          <p className="text-sm text-brand">Не удалось сохранить. Проверьте поля и попробуйте ещё раз.</p>
+        {failure === "venue" ? (
+          <p className="text-sm text-brand" role="alert">
+            Не удалось сохранить. Проверьте поля и попробуйте ещё раз.
+          </p>
+        ) : null}
+
+        {failure === "cuisines" ? (
+          <div className="flex flex-col gap-xs" role="alert">
+            <p className="text-sm text-brand">
+              Заведение сохранили, а кухни — нет. Всё остальное уже на месте: повторите только
+              кухни или закройте форму и вернитесь к ним позже.
+            </p>
+            <div>
+              <Button variant="secondary" size="sm" loading={busy} onClick={() => void retryCuisines()}>
+                Повторить кухни
+              </Button>
+            </div>
+          </div>
         ) : null}
 
         <div className="flex justify-end gap-xs">
           <Button variant="ghost" onClick={onClose}>
             Отмена
           </Button>
-          <Button onClick={submit} loading={submitting} disabled={!canSubmit}>
+          <Button onClick={() => void submit()} loading={busy} disabled={!canSubmit}>
             Сохранить
           </Button>
         </div>
