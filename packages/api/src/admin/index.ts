@@ -27,24 +27,9 @@ export {
   type GuideFailureKind,
 } from "./guide-failure";
 export {
-  canEditManagerWhatsApp,
-  classifyManagerWhatsAppFailure,
   isWhatsAppPhoneShaped,
   normalizeWhatsAppPhone,
-  parseManagerWhatsAppDraft,
-  staffRoleRank,
-  type ManagerWhatsAppDraft,
-  type ManagerWhatsAppDraftError,
-  type ManagerWhatsAppDraftResult,
-  type ManagerWhatsAppFailureKind,
-  type StaffActor,
-} from "./manager-whatsapp";
-export {
-  resolveWhatsAppRecipients,
-  type WhatsAppRecipients,
-  type WhatsAppRecipientsInput,
-  type WhatsAppStaffRecipient,
-} from "./whatsapp-recipients";
+} from "./whatsapp-phone";
 export {
   parsePriceRangeInput,
   type PriceRangeInput,

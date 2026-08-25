@@ -8,20 +8,18 @@ import { PricingCard } from "./PricingCard";
 import { SocialLinksCard } from "./SocialLinksCard";
 import { VenueFeaturesCard } from "./VenueFeaturesCard";
 import { TelegramNotificationCard } from "./TelegramNotificationCard";
-import { WhatsAppRecipientsCard } from "./WhatsAppRecipientsCard";
+import { WhatsAppNotificationCard } from "./WhatsAppNotificationCard";
 
 /**
  * «Настройки» — the venue's self-service settings: capacity mode, average
  * check, the venue's cuisines, its features («Удобства»), its social links, the
- * Telegram chat its booking alerts go to, and — in a single card («Брони в
- * WhatsApp») — every WhatsApp recipient of those alerts: the venue's own number
- * plus the staff who opted in on their personal phone. Each card
+ * Telegram chat and the WhatsApp number its booking alerts go to. Each card
  * owns its own load/save; the rest of the booking policy (buffers, lead time,
  * auto-confirm) is editable through the same PATCH but has no agreed UI yet, so
  * it is not faked here.
  */
 export function SettingsView() {
-  const { restaurant, user } = useAuth();
+  const { restaurant } = useAuth();
   const restaurantId = restaurant!.id;
 
   return (
@@ -33,13 +31,7 @@ export function SettingsView() {
       <VenueFeaturesCard restaurantId={restaurantId} />
       <SocialLinksCard restaurantId={restaurantId} />
       <TelegramNotificationCard restaurantId={restaurantId} />
-      {user ? (
-        <WhatsAppRecipientsCard
-          restaurantId={restaurantId}
-          actorUserId={user.id}
-          isPlatformAdmin={user.role === "admin"}
-        />
-      ) : null}
+      <WhatsAppNotificationCard restaurantId={restaurantId} />
     </section>
   );
 }
