@@ -33,6 +33,7 @@ import type {
   MyRestaurant,
   Schedule,
   ScheduleOverrideInput,
+  SetManagerWhatsAppInput,
   PromoInput,
   PlatformBookings,
   PlatformOverview,
@@ -41,6 +42,7 @@ import type {
   PlatformGuestQuery,
   PlatformPeriod,
   PushSubscriptionInput,
+  RestaurantManager,
   RestaurantPricePatch,
   RestaurantPricing,
   RestaurantProfile,
@@ -1046,6 +1048,42 @@ export class AdminApiClient {
     await this.request<unknown>(
       "DELETE",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/whatsapp`,
+    );
+  }
+
+  // ---- Staff roster --------------------------------------------------------
+
+  /**
+   * GET /restaurants/:id/managers — персонал заведения.
+   *
+   * Роут смонтирован НЕ под `/admin`, а на обычной authed-группе
+   * (bootstrap/app.go: `restHandler.RegisterStaffRoutes(authed)`): права
+   * считает usecase, а не middleware. Список видит только владелец заведения
+   * (право `staff.manage`) или суперадмин — остальным 403.
+   */
+  listManagers(restaurantId: string): Promise<RestaurantManager[]> {
+    return this.request<RestaurantManager[]>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}/managers`,
+    );
+  }
+
+  /**
+   * PATCH — согласие сотрудника получать брони в WhatsApp и номер для них.
+   *
+   * Тело только с WhatsApp-полями: `role` тем же запросом не трогаем, чтобы
+   * галочка на согласии не могла случайно переписать роль. Сервер приводит
+   * номер сам и отвечает сохранённой строкой — рисовать надо ОТВЕТ.
+   */
+  setManagerWhatsApp(
+    restaurantId: string,
+    managerId: string,
+    input: SetManagerWhatsAppInput,
+  ): Promise<RestaurantManager> {
+    return this.request<RestaurantManager>(
+      "PATCH",
+      `/restaurants/${encodeURIComponent(restaurantId)}/managers/${encodeURIComponent(managerId)}`,
+      { body: input },
     );
   }
 

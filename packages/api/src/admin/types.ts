@@ -182,6 +182,41 @@ export interface WhatsAppSettings {
   enabled: boolean;
 }
 
+/**
+ * Строка персонала заведения (transport `managerResponse`,
+ * GET /restaurants/:id/managers).
+ *
+ * `whatsapp_phone` — ЛИЧНЫЙ номер сотрудника, на который ему приходят брони;
+ * это НЕ номер заведения из `WhatsAppSettings` (тот же канал, но другой
+ * адресат). Номер приходит приведённым к международному виду или `null`,
+ * когда его нет.
+ *
+ * Имени и телефона самого пользователя тут нет: бэкенд отдаёт только
+ * `user_id`, и ручки «показать пользователя по id» для персонала в API сейчас
+ * не существует.
+ */
+export interface RestaurantManager {
+  id: string;
+  restaurant_id: string;
+  user_id: string;
+  /** "owner" | "manager" | "hostess". */
+  role: string;
+  whatsapp_opt_in: boolean;
+  whatsapp_phone: string | null;
+}
+
+/**
+ * Тело PATCH /restaurants/:id/managers/:managerID для WhatsApp-полей.
+ *
+ * ОБА поля необязательны, и отсутствие поля означает «не менять». Пустая
+ * строка в `whatsapp_phone` — это «стереть номер». `whatsapp_opt_in: true`
+ * без номера (ни сохранённого, ни в этом же теле) сервер отвергает 422.
+ */
+export interface SetManagerWhatsAppInput {
+  whatsapp_opt_in?: boolean;
+  whatsapp_phone?: string;
+}
+
 /** The venue's own profile (admin.restaurantProfileResponse). Editorial flags
  * (is_active/is_premium) are read-only display fields. */
 export interface RestaurantProfile {

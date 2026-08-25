@@ -27,6 +27,19 @@ export {
   type GuideFailureKind,
 } from "./guide-failure";
 export {
+  canEditManagerWhatsApp,
+  classifyManagerWhatsAppFailure,
+  isWhatsAppPhoneShaped,
+  normalizeWhatsAppPhone,
+  parseManagerWhatsAppDraft,
+  staffRoleRank,
+  type ManagerWhatsAppDraft,
+  type ManagerWhatsAppDraftError,
+  type ManagerWhatsAppDraftResult,
+  type ManagerWhatsAppFailureKind,
+  type StaffActor,
+} from "./manager-whatsapp";
+export {
   parsePriceRangeInput,
   type PriceRangeInput,
   type PriceRangeParseError,
