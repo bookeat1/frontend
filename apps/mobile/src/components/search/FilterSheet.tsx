@@ -6,7 +6,6 @@ import React, { useEffect, useState } from "react";
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheetAnimation } from "../../lib/sheet-animation";
-import { EMPTY_UI_FACETS, type UiOnlyFacets } from "../../hooks/useSearch";
 import { FilterChip } from "../FilterChip";
 import { IconButton } from "../IconButton";
 import { PrimaryButton } from "../PrimaryButton";
@@ -18,19 +17,19 @@ import { SegmentedControl } from "./SegmentedControl";
 
 const t = getDictionary();
 
-/** Повод — ФИКСИРОВАННЫЕ id UI-состояния (серверного поля под него нет).
- * Порядок = порядок в макете. Подписи берутся из i18n по этим id.
+/* Зашитых списков значений в этом файле БОЛЬШЕ НЕТ (2026-08-25).
  *
- * Удобства раньше были таким же зашитым списком (`AMENITY_IDS` из семи
- * значений). Список удалён: справочник приходит с сервера
- * (`GET /venue-features`, 19 записей) и подписи тоже — см. проп `amenities`. */
+ * Было два: `AMENITY_IDS` (семь удобств) и `OCCASION_IDS` (пять поводов).
+ * Удобства теперь приходят справочником с сервера (`GET /venue-features`,
+ * 19 записей) — см. проп `amenities`. Повод убран целиком, см. комментарий
+ * на месте раздела в разметке. Новый раздел шторки начинается с вопроса
+ * «по какому полю это ищет сервер», а не со списка в коде. */
 // EXTRA_FACETS — «Открыто сейчас»/«Бронь онлайн»/город. Этих трёх в макете
 // шторки НЕТ; добавлены по просьбе Damir (2026-08-05), потому что бэкенд их
 // поддерживает и «бронь онлайн» реально полезен. Чтобы вернуться строго к
 // макету — поставь флаг в false (или удали блок «Ещё» в разметке и этот флаг).
 const SHOW_EXTRA_FACETS = true;
 
-const OCCASION_IDS = ["date", "friends", "kids", "business", "celebration"] as const;
 
 /** Ступени цены, которые понимает каталог (₸/₸₸/₸₸₸ — четвёртой нет), плюс
  * «Все» как отсутствие фильтра. Значение сегмента ложится прямо на
@@ -44,10 +43,9 @@ const PRICE_SEGMENTS: { value: PriceLevel | undefined; label: string }[] = [
 
 interface FilterSheetProps {
   visible: boolean;
-  /** Уже применённые фильтры и UI-фасеты — черновик шторки заводится с них при
-   * каждом открытии, поэтому «поменял и закрыл крестиком» ничего не применяет. */
+  /** Уже применённые фильтры — черновик шторки заводится с них при каждом
+   * открытии, поэтому «поменял и закрыл крестиком» ничего не применяет. */
   initialFilters: SearchFilters;
-  initialUiFacets: UiOnlyFacets;
   /** Кухни грузятся тем же запросом, что и на экране поиска; шторка их только
    * показывает и не знает, откуда они. */
   cuisines: Cuisine[];
@@ -72,7 +70,7 @@ interface FilterSheetProps {
    */
   initialPicker?: AvailabilityPicker;
   /** Применить: коммитим черновик обратно в реальные фильтры и закрываем. */
-  onApply: (filters: SearchFilters, uiFacets: UiOnlyFacets) => void;
+  onApply: (filters: SearchFilters) => void;
   onClose: () => void;
 }
 
@@ -84,16 +82,14 @@ interface FilterSheetProps {
  * только по «Применить»; закрытие крестиком/по фону — отмена. «Сбросить
  * фильтры» очищает черновик до пустого (гостей возвращает к дефолту).
  *
- * Бэкенд ищет по кухне, УДОБСТВАМ (`?features=`), цене, «открыто сейчас»,
- * «бронь онлайн», городу, дате и гостям — всё это лежит в `SearchFilters` и
- * реально сужает выдачу. Фильтром НЕ является только повод: серверного поля
- * под него нет, он живёт в `UiOnlyFacets` и запоминается, но выдачу не
- * сужает.
+ * Всё, что шторка даёт выбрать, УХОДИТ НА СЕРВЕР и реально сужает выдачу:
+ * кухня, удобства (`?features=`), цена, «открыто сейчас», «бронь онлайн»,
+ * город, дата и гости. Фасетов-декораций здесь больше нет — раздел, который
+ * ничего не фильтрует, в шторку не добавляется.
  */
 export function FilterSheet({
   visible,
   initialFilters,
-  initialUiFacets,
   cuisines,
   cuisinesFailed,
   onRetryCuisines,
@@ -109,7 +105,6 @@ export function FilterSheet({
   const insets = useSafeAreaInsets();
   const { mounted, progress, translateY } = useSheetAnimation(visible);
   const [draft, setDraft] = useState<SearchFilters>(initialFilters);
-  const [facets, setFacets] = useState<UiOnlyFacets>(initialUiFacets);
   const [cuisineOpen, setCuisineOpen] = useState(false);
   const [amenitiesOpen, setAmenitiesOpen] = useState(false);
 
@@ -118,13 +113,9 @@ export function FilterSheet({
   useEffect(() => {
     if (!visible) return;
     setDraft(initialFilters);
-    setFacets(initialUiFacets);
     setCuisineOpen(false);
     setAmenitiesOpen(false);
-  }, [visible, initialFilters, initialUiFacets]);
-
-  const toggleOccasion = (id: string) =>
-    setFacets((prev) => ({ ...prev, occasionIds: toggleId(prev.occasionIds, id) }));
+  }, [visible, initialFilters]);
 
   const toggleAmenity = (id: string) =>
     setDraft((prev) => ({ ...prev, amenityIds: toggleId(prev.amenityIds, id) }));
@@ -135,8 +126,8 @@ export function FilterSheet({
   const setPrice = (priceLevel: PriceLevel | undefined) =>
     setDraft((prev) => ({ ...prev, priceLevel }));
 
-  // EXTRA_FACETS: поддержаны бэкендом (уходят в реальные фильтры), поэтому живут
-  // в draft, а не в UiOnlyFacets. Город — одиночный выбор: повторный тап снимает.
+  // EXTRA_FACETS: поддержаны бэкендом и потому лежат в draft, как и всё
+  // остальное. Город — одиночный выбор: повторный тап снимает.
   const toggleOpenNow = () =>
     setDraft((prev) => ({ ...prev, openNowOnly: !prev.openNowOnly }));
   const toggleCity = (city: string) =>
@@ -144,7 +135,6 @@ export function FilterSheet({
 
   const reset = () => {
     setDraft(EMPTY_FILTERS);
-    setFacets(EMPTY_UI_FACETS);
   };
 
   const summary = (count: number) =>
@@ -240,22 +230,16 @@ export function FilterSheet({
               onChange={(availability) => setDraft((prev) => ({ ...prev, availability }))}
             />
 
-            {/* Повод — мультивыбор, красная заливка выбранного.
-                TODO(track-C backend): повод в поиск не уходит, только UI. */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t.search.filters.occasionTitle}</Text>
-              <View style={styles.wrap}>
-                {OCCASION_IDS.map((id) => (
-                  <FilterChip
-                    key={id}
-                    label={t.search.filters.occasion[id]}
-                    selected={facets.occasionIds.includes(id)}
-                    selectedTone="brand"
-                    onPress={() => toggleOccasion(id)}
-                  />
-                ))}
-              </View>
-            </View>
+            {/* Здесь был раздел «Повод» (Свидание / С друзьями / С детьми /
+                Деловая встреча / Праздник). Убран 2026-08-25 по решению
+                владельца: серверного поля под повод нет вовсе — ни фильтра,
+                ни справочника, ни разметки заведений, — и раздел давал
+                выбрать то, что выдачу не меняло.
+
+                НЕ ВОЗВРАЩАТЬ «как было». Вернём вместе со справочником
+                поводов на бэкенде (по образцу удобств: справочник + фильтр +
+                заполненные данные), и тогда значения будут приходить с
+                сервера, а выбор уходить в запрос. Задача заведена. */}
 
             {/* Ценовая категория — одиночный выбор, поддержан бэкендом. */}
             <View style={styles.section}>
@@ -382,7 +366,7 @@ export function FilterSheet({
             <PrimaryButton
               label={t.search.filters.apply}
               size="lg"
-              onPress={() => onApply(draft, facets)}
+              onPress={() => onApply(draft)}
             />
             <PrimaryButton
               label={t.search.filters.reset}

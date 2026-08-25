@@ -15,7 +15,7 @@ import { SearchBar } from "../src/components/SearchBar";
 import type { AvailabilityPicker } from "../src/components/search/AvailabilityBar";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
-import { EMPTY_UI_FACETS, useSearchScreen, type UiOnlyFacets } from "../src/hooks/useSearch";
+import { useSearchScreen } from "../src/hooks/useSearch";
 import { dateChoices } from "../src/lib/availability-label";
 import { MAX_GUESTS } from "../src/lib/availability-options";
 import { toDateKey } from "../src/lib/format";
@@ -109,8 +109,6 @@ export default function SearchScreen() {
     setText,
     filters,
     setFilters,
-    uiFacets,
-    setUiFacets,
     activeFilterCount,
     hasActiveSearch,
     isTyping,
@@ -159,10 +157,10 @@ export default function SearchScreen() {
   const items = searchQueryResult.data?.items ?? [];
 
   const resetFilters = () => {
+    // Один источник — `filters`: всё, что рисует чипы, лежит здесь, поэтому
+    // сброс не может «забыть» половину ряда, как это было, пока часть выбора
+    // жила отдельной сумкой UI-фасетов.
     setFilters(EMPTY_FILTERS);
-    // Повод тоже виден чипом, поэтому «сбросить» обязано убирать и его: иначе
-    // ряд чипов пережил бы сброс и показывал фильтр, которого уже нет.
-    setUiFacets(EMPTY_UI_FACETS);
     setText("");
   };
 
@@ -190,19 +188,15 @@ export default function SearchScreen() {
   const dateLabelFor = useMemo(() => dateChoices(new Date()).labelFor, []);
 
   const selectedChips = useMemo(
-    () => buildSelectedChips(filters, uiFacets, cuisineNameById, amenityNameById, dateLabelFor),
-    [filters, uiFacets, cuisineNameById, amenityNameById, dateLabelFor],
+    () => buildSelectedChips(filters, cuisineNameById, amenityNameById, dateLabelFor),
+    [filters, cuisineNameById, amenityNameById, dateLabelFor],
   );
 
-  // Снятие чипа применяется СРАЗУ, без открытия шторки: и поддержанные
-  // бэкендом фильтры (новый запрос уходит сам, `filters` — часть queryKey), и
-  // UI-фасеты, которые выдачу не сужают, но показаны выбранными.
+  // Снятие чипа применяется СРАЗУ, без открытия шторки: новый запрос уходит
+  // сам, потому что `filters` — часть queryKey.
   const removeChip = useCallback(
-    (chip: SelectedChip) => {
-      if (chip.removeFilters) setFilters(chip.removeFilters);
-      if (chip.removeFacets) setUiFacets(chip.removeFacets);
-    },
-    [setFilters, setUiFacets],
+    (chip: SelectedChip) => setFilters(chip.removeFilters),
+    [setFilters],
   );
 
   // «Часто ищут»: короткий ряд быстрых подсказок из СПРАВОЧНИКА кухонь.
@@ -373,7 +367,6 @@ export default function SearchScreen() {
       <FilterSheet
         visible={sheetVisible}
         initialFilters={filters}
-        initialUiFacets={uiFacets}
         cuisines={cuisinesQuery.data ?? []}
         cuisinesFailed={cuisinesQuery.isError}
         onRetryCuisines={() => cuisinesQuery.refetch()}
@@ -383,9 +376,8 @@ export default function SearchScreen() {
         onRetryAmenities={() => void amenitiesQuery.refetch()}
         cities={citiesQuery.data ?? []}
         initialPicker={sheetPicker}
-        onApply={(nextFilters, nextFacets) => {
+        onApply={(nextFilters) => {
           setFilters(nextFilters);
-          setUiFacets(nextFacets);
           closeSheet();
         }}
         onClose={closeSheet}
@@ -399,37 +391,26 @@ export default function SearchScreen() {
 interface SelectedChip {
   key: string;
   label: string;
-  /** Как выглядят фильтры поиска после снятия чипа. Нет — чип их не трогает. */
-  removeFilters?: (prev: SearchFilters) => SearchFilters;
-  /** То же для UI-фасетов (повод, удобства). */
-  removeFacets?: (prev: UiOnlyFacets) => UiOnlyFacets;
-}
-
-/** Подписи повода лежат в словаре под теми же id, что и в шторке. Читаем как
- * словарь строк: id в `UiOnlyFacets` — обычная строка, и незнакомый должен
- * показаться собой, а не пропасть из ряда. */
-function facetLabel(dict: Record<string, string>, id: string): string {
-  return dict[id] ?? id;
+  /** Как выглядят фильтры поиска после снятия чипа. Обязателен: чип, который
+   * ничего не снимает, — это подпись, притворяющаяся кнопкой. */
+  removeFilters: (prev: SearchFilters) => SearchFilters;
 }
 
 /**
  * Разворачивает ВЕСЬ применённый подбор в чипы «выбранного» — ровно то, что
- * гость собрал в шторке: дата и гости, повод, цена, кухни, удобства,
- * «открыто сейчас», «бронь онлайн», город. Порядок совпадает с порядком
- * разделов шторки, чтобы ряд читался как её краткий пересказ.
+ * гость собрал в шторке: дата и гости, цена, кухни, удобства, «открыто
+ * сейчас», «бронь онлайн», город. Порядок совпадает с порядком разделов
+ * шторки, чтобы ряд читался как её краткий пересказ.
  *
- * Повод попадает сюда, хотя выдачу НЕ сужает (серверного поля под него нет):
- * решение владельца — показывать всё выбранное. Пока бэкенд его не
- * поддержит, чип «Свидание» честнее читать как «вы это выбрали», а не как
- * «список сужен». Удобства с 2026-08-25 сужают выдачу по-настоящему и лежат
- * уже в `filters`, а не в фасетах.
+ * Каждый чип здесь означает «выдача сужена по этому признаку» — иного вида
+ * чипов на экране больше нет. Раздел «Повод» убран из шторки 2026-08-25
+ * вместе со своим чипом: он выдачу не сужал.
  *
  * Дата и гости — ОДИН чип: сервер принимает их только парой, и два чипа
  * снимались бы наполовину (см. AvailabilityBar).
  */
 function buildSelectedChips(
   filters: SearchFilters,
-  facets: UiOnlyFacets,
   cuisineNameById: Map<string, string>,
   amenityNameById: Map<string, string>,
   dateLabelFor: (dateKey: string) => string,
@@ -442,16 +423,6 @@ function buildSelectedChips(
       key: "availability",
       label: t.search.filterAvailability(dateLabelFor(date), t.booking.guestsCount(guests)),
       removeFilters: (prev) => ({ ...prev, availability: undefined }),
-    });
-  }
-  for (const id of facets.occasionIds) {
-    chips.push({
-      key: `occasion:${id}`,
-      label: facetLabel(t.search.filters.occasion, id),
-      removeFacets: (prev) => ({
-        ...prev,
-        occasionIds: prev.occasionIds.filter((x) => x !== id),
-      }),
     });
   }
   if (filters.priceLevel !== undefined) {

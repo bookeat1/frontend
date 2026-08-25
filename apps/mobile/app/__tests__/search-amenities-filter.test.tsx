@@ -266,29 +266,26 @@ describe("удобство, которого нет ни у одного зав�
   });
 });
 
-describe("«Повод» после переезда удобств остался прежним", () => {
-  it("выбирается и показывается чипом, но в запрос НЕ уходит", async () => {
-    // Серверного поля под повод нет вовсе, поэтому он остался в UiOnlyFacets.
-    // Проверка здесь ради того, чтобы переезд удобств его не задел: чип
-    // рисуется, запрос — тот же самый.
+describe("раздела «Повод» в шторке больше нет", () => {
+  it("ни заголовка, ни чипов повода — раздел удалён вместе со своим состоянием", async () => {
+    // Убран 2026-08-25: серверного поля под повод нет, и раздел давал
+    // выбрать то, что выдачу не меняло. Тест держит границу — «вернуть как
+    // было» без серверного справочника поводов уронит его.
     const user = userEvent.setup();
     renderSearch();
     await user.click(await screen.findByRole("button", { name: t.a11y.openFilters }));
-    await user.click(screen.getByText(t.search.filters.occasion.date));
-    await user.click(screen.getByRole("button", { name: t.search.filters.apply }));
 
-    expect(
-      await screen.findByRole("button", {
-        name: t.a11y.removeFilter(t.search.filters.occasion.date),
-      }),
-    ).toBeTruthy();
-    // Ни одного поля запроса повод не трогает — выдача осталась полной.
-    expect(lastQuery().filters).toEqual({
-      cuisineIds: [],
-      amenityIds: [],
-      openNowOnly: false,
-      onlineBookableOnly: false,
-    });
-    expect(await screen.findByText("Social Coffee")).toBeTruthy();
+    // Шторка открыта — заголовок «Фильтры» на месте, а «Повода» в ней нет.
+    expect(screen.getByText(t.search.filters.title)).toBeTruthy();
+    for (const label of [
+      "Повод",
+      "Свидание",
+      "С друзьями",
+      "С детьми",
+      "Деловая встреча",
+      "Праздник",
+    ]) {
+      expect(screen.queryByText(label)).toBeNull();
+    }
   });
 });
