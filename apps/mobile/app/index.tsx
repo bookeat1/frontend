@@ -1,9 +1,8 @@
-import { colors, spacing } from "@bookeat/design-tokens";
+import { colors, exploreLayout, spacing } from "@bookeat/design-tokens";
 import type { AuthUser, Cuisine } from "@bookeat/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
@@ -34,14 +33,9 @@ import { useLocale } from "../src/lib/locale";
  * «Статьи» have no endpoint yet and hide themselves cleanly (their hooks return
  * [] — see use-explore-data.ts), so the screen looks finished on real data.
  */
-/** Высота тёмной шапки главной без учёта полосы статуса. Значение приблизительное
- * и служит одной цели — вовремя перекрасить часы; ошибка в пару пикселей здесь
- * ничего не ломает. */
-const HEADER_HEIGHT = 220;
 
 export default function HomeScreen() {
   const navPad = useNavBarSpacing();
-  const insets = useSafeAreaInsets();
   // true, пока тёмная шапка стоит под статус-баром.
   const [headerBehindStatusBar, setHeaderBehindStatusBar] = useState(true);
   // Dictionary through the context so the greeting/city labels re-render in the
@@ -186,9 +180,13 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={(event) => {
-          // Порог — высота шапки за вычетом самой полосы статуса: ровно тот
-          // момент, когда её нижний край проходит под часами.
-          const passed = event.nativeEvent.contentOffset.y > HEADER_HEIGHT - insets.top;
+          // Порог — содержательная часть шапки (264): её полная высота равна
+          // «вставка + 264», поэтому нижний край проходит под часами ровно
+          // через 264 точки прокрутки, на любом устройстве. Раньше тут стояла
+          // прикидка 220 минус вставка — высота шапки задана правилом, и
+          // прикидка больше не нужна.
+          const passed =
+            event.nativeEvent.contentOffset.y > exploreLayout.headerContentHeight;
           if (passed === headerBehindStatusBar) setHeaderBehindStatusBar(!passed);
         }}
         // No top safe-area inset here on purpose: the header bleeds under the

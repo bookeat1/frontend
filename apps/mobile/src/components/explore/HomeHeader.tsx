@@ -7,6 +7,7 @@ import { useUnreadNotificationsCount } from "../../hooks/useNotifications";
 import { useLocale } from "../../lib/locale";
 import { IconButton } from "../IconButton";
 import { Bell, CalendarBlank, MapPin, User } from "../icons";
+import { homeHeaderHeight } from "./home-header-layout";
 
 /**
  * Rebuilt home header (Figma home design, 2026-08-06). Replaces the old promo
@@ -16,13 +17,17 @@ import { Bell, CalendarBlank, MapPin, User } from "../icons";
  * count to show and a fabricated one would lie), a large personalised
  * greeting, and a date/guests selector row.
  *
- * The design's dark restaurant photo now ships with the app (assets/
- * home-header.jpg, supplied 2026-08-10). It is a bundled asset rather than a
- * remote url because the backend still has no home-header image endpoint; the
- * dark fill (`colors.background.header`) stays underneath as the colour the
- * header falls back to while the image decodes. A scrim over the photo keeps
- * the white greeting, city and bell legible on its lighter areas. The screen
- * flips the status bar to light content while this is on screen.
+ * The design's dark restaurant photo ships with the app (assets/
+ * home-header.jpg — бокал у бархатного занавеса, кадр из макета 3102:11986,
+ * заменён 2026-08-25). It is a bundled asset rather than a remote url because
+ * the backend still has no home-header image endpoint; the dark fill
+ * (`colors.background.header`) stays underneath as the colour the header falls
+ * back to while the image decodes. A scrim over the photo keeps the white
+ * greeting, city and bell legible on its lighter areas. The screen flips the
+ * status bar to light content while this is on screen.
+ *
+ * Высота блока задана правилом «верхняя безопасная зона + 264»
+ * (`homeHeaderHeight`), а не собирается из содержимого, — так в макете.
  *
  * Оба селектора — половинки одной капсулы (макет главной), и оба ведут в
  * `/search`: своего состояния даты и гостей главная не держит, тап просто
@@ -63,7 +68,18 @@ export function HomeHeader({
   const unreadCount = useUnreadNotificationsCount();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + spacing.lg }]}>
+    <View
+      style={[
+        styles.root,
+        // `minHeight`, а не `height`: при нормальном размере шрифта содержимое
+        // (44 + 16 + до двух строк по 32 + 16 + 48 + отступы = 224) в 264
+        // помещается с запасом, и блок ровно такой, как в макете. Но у корня
+        // стоит `overflow: "hidden"` ради скруглённого низа фотографии, и на
+        // системном увеличении шрифта жёсткая высота срезала бы капсулу даты и
+        // гостей. Так блок в этом единственном случае вырастет.
+        { paddingTop: insets.top + spacing.lg, minHeight: homeHeaderHeight(insets.top) },
+      ]}
+    >
       {/* Photo and scrim are decorative layers BEHIND the header's controls —
           hidden from screen readers individually rather than by wrapping the
           block, which would take the city picker, the bell and both pills out
@@ -72,10 +88,15 @@ export function HomeHeader({
         source={require("../../../assets/home-header.jpg")}
         style={styles.photo}
         contentFit="cover"
-        // Выравнивание по ВЕРХУ, а не по центру: композиция кадра — бокал в
-        // верхней трети, и при обрезке от центра он уезжал под вырез экрана.
-        // Теперь он начинается сразу под чёлкой, как в макете 986:8697.
-        contentPosition="top"
+        // Выравнивание по НИЗУ. Кадр почти квадратный (1627x1517), шапка шире,
+        // чем выше, поэтому при `cover` обрезается только верх-низ: на экране
+        // 375 из 350 отрисованных точек высоты видно 308, лишние 42 надо
+        // откуда-то снять. Бокал с рукой занимает нижние две трети кадра и
+        // упирается в самый низ, так что верх (пустой занавес) — единственное,
+        // что можно резать: по центру срезало бы основание бокала, по верху —
+        // и основание, и кисть. На узком 360 обрезка ещё меньше (~28), бокал
+        // цел там тем более.
+        contentPosition="bottom"
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
@@ -238,6 +259,10 @@ const styles = StyleSheet.create({
   selectorRow: {
     flexDirection: "row",
     alignItems: "center",
+    // Капсула прижата к низу блока: высота теперь фиксирована правилом, и
+    // свободное место при коротком приветствии должно оставаться НАД ней, а не
+    // висеть под ней, как было бы при раскладке сверху вниз.
+    marginTop: "auto",
   },
   selector: {
     flex: 1,

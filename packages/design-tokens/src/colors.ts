@@ -187,16 +187,19 @@ export const colors = {
      * because it covers a white screen, not a photo. */
     dialogScrim: "rgba(0, 0, 0, 0.45)",
     /**
-     * Scrim over the home header photo. Heavy enough that the white greeting
-     * and city stay readable over the photo's bright spots, light enough that
-     * the picture still reads as a picture.
+     * Затемнение поверх фотографии в шапке главной. Ровно чёрный с 20 %, как
+     * в макете (3z0f6dgev4HMwBAHPjTjPo, node 3102:11986: поверх заливки-кадра
+     * лежит сплошная чёрная с прозрачностью 0.2). Было 0.45 — под прежний,
+     * более светлый кадр; новый (бокал у бархатного занавеса) сам по себе
+     * тёмный, средняя яркость под приветствием ~60 из 255, и белый текст
+     * читается уже при 20 %.
      */
-    headerScrim: "rgba(0, 0, 0, 0.45)",
+    headerScrim: "rgba(0, 0, 0, 0.2)",
     /**
      * Затемнение поверх фотографии в шапке гастрогида (макет
      * dVjT37j984ErvOmzxlx29p, node 1099:6802 — `rgba(0,0,0,0.3)`). Легче, чем
-     * `headerScrim` (0.45): на этом кадре светлый только верх, и заголовок в
-     * 24 pt читается уже при 30 %.
+     * `headerScrim` (0.2): на этом кадре светлый только верх, и заголовок в
+     * 24 pt требует более плотного затемнения.
      */
     guideHeroScrim: "rgba(0, 0, 0, 0.3)",
     /** Page dots over the Explore hero carousel (design-ref/screen-explore.png):
