@@ -2,6 +2,7 @@ import { RepositoryError } from "../repository";
 import type { SocialLink, SocialLinkInput } from "./social-links";
 import type { CityDictionaryEntry, CitySaveInput } from "./cities";
 import type { CuisineDictionaryEntry, CuisineSaveInput } from "./cuisines";
+import type { VenueFeatureDictionaryEntry, VenueFeatureSaveInput } from "./venue-features";
 import type {
   AdminBooking,
   AdminEvent,
@@ -363,6 +364,86 @@ export class AdminApiClient {
       "PUT",
       `/restaurants/${encodeURIComponent(restaurantId)}/cuisines`,
       { body: { cuisine_ids: [...cuisineIds] } },
+    );
+  }
+
+  // ---- Справочник удобств («Удобства») -------------------------------------
+  //
+  // Тот же расклад, что у кухонь: `GET /venue-features` смонтирован публично,
+  // управление (`/admin/venue-features`) — под RequireRole(RoleAdmin), а набор
+  // удобств ЗАВЕДЕНИЯ пишется своей ручкой на группе restScoped
+  // (RequireRestaurantManager) — то есть управляющий заведения правит свои
+  // удобства сам, без платформы.
+  //
+  // ВАЖНО: свободнотекстовые удобства в теле `PATCH /restaurants/:id` сервер
+  // теперь ОТВЕРГАЕТ с 422, поэтому ключа `features` в CatalogVenueInput нет и
+  // быть не должно.
+
+  /** GET /venue-features — активные удобства в порядке справочника. Публичный
+   * роут: им пользуются и приложение, и панель, чтобы список был один. */
+  listVenueFeatures(): Promise<VenueFeatureDictionaryEntry[]> {
+    return this.request<VenueFeatureDictionaryEntry[]>("GET", "/venue-features");
+  }
+
+  /** GET /admin/venue-features — справочник глазами владельца: СО скрытыми
+   * записями. Без них скрытое удобство нельзя было бы вернуть. */
+  listVenueFeaturesForAdmin(): Promise<VenueFeatureDictionaryEntry[]> {
+    return this.request<VenueFeatureDictionaryEntry[]>("GET", "/admin/venue-features");
+  }
+
+  /** POST /admin/venue-features. `code` — машинный ключ (a-z, 0-9, _): по нему
+   * ездит фильтр каталога и клиенты подбирают иконку. */
+  createVenueFeature(input: VenueFeatureSaveInput): Promise<VenueFeatureDictionaryEntry> {
+    return this.request<VenueFeatureDictionaryEntry>("POST", "/admin/venue-features", {
+      body: input,
+    });
+  }
+
+  /** PATCH /admin/venue-features/:id — меняет только присланные ключи. */
+  updateVenueFeature(
+    id: string,
+    input: VenueFeatureSaveInput,
+  ): Promise<VenueFeatureDictionaryEntry> {
+    return this.request<VenueFeatureDictionaryEntry>(
+      "PATCH",
+      `/admin/venue-features/${encodeURIComponent(id)}`,
+      { body: input },
+    );
+  }
+
+  /**
+   * DELETE /admin/venue-features/:id — СКРЫВАЕТ запись (`is_active = false`),
+   * а не удаляет: на удобство ссылаются заведения. Ответ — та же запись с
+   * is_active: false. Вернуть — `updateVenueFeature(id, {is_active: true})`.
+   */
+  hideVenueFeature(id: string): Promise<VenueFeatureDictionaryEntry> {
+    return this.request<VenueFeatureDictionaryEntry>(
+      "DELETE",
+      `/admin/venue-features/${encodeURIComponent(id)}`,
+    );
+  }
+
+  /** GET /restaurants/:id/features — набор удобств заведения. */
+  getRestaurantFeatures(restaurantId: string): Promise<VenueFeatureDictionaryEntry[]> {
+    return this.request<VenueFeatureDictionaryEntry[]>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}/features`,
+    );
+  }
+
+  /**
+   * PUT /restaurants/:id/features — ЗАМЕЩАЕТ набор целиком (PUT, не PATCH).
+   * До пятнадцати штук, скрытое удобство сервер не примет. Отправлять можно
+   * только полный набор: `[]` очищает удобства заведения.
+   */
+  setRestaurantFeatures(
+    restaurantId: string,
+    featureIds: readonly string[],
+  ): Promise<VenueFeatureDictionaryEntry[]> {
+    return this.request<VenueFeatureDictionaryEntry[]>(
+      "PUT",
+      `/restaurants/${encodeURIComponent(restaurantId)}/features`,
+      { body: { feature_ids: [...featureIds] } },
     );
   }
 

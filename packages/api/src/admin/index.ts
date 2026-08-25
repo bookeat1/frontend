@@ -64,6 +64,28 @@ export {
   type VenueSaveOutcome,
 } from "./cuisines";
 export {
+  MAX_VENUE_FEATURES,
+  activeVenueFeatures,
+  mergeVenueFeatureOptions,
+  reorderVenueFeatures,
+  sameVenueFeatureSelection,
+  sortVenueFeatures,
+  splitIntoColumns,
+  toggleVenueFeature,
+  venueFeatureCodes,
+  venueFeatureIdsOf,
+  type VenueFeature,
+  type VenueFeatureDictionaryEntry,
+  type VenueFeatureOrderPatch,
+  type VenueFeatureSaveInput,
+  type VenueFeatureSelectError,
+  type VenueFeatureSelectResult,
+} from "./venue-features";
+export {
+  saveVenueWithDictionaries,
+  type VenueSaveSteps,
+} from "./venue-save";
+export {
   activeCities,
   normalizeCityKey,
   reorderCityIds,

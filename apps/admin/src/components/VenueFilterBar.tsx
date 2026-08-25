@@ -13,8 +13,8 @@ import { Button } from "./ui/Button";
 import { Field, Select, TextInput } from "./ui/FormControls";
 
 /**
- * Панель фильтров каталога заведений: название, город, кухня, показывается или
- * скрыто. Работают вместе (И), сбрасываются одной кнопкой.
+ * Панель фильтров каталога заведений: название, город, кухня, удобство,
+ * показывается или скрыто. Работают вместе (И), сбрасываются одной кнопкой.
  *
  * Компонент НИЧЕГО не знает ни про запросы, ни про то, откуда взялись списки
  * города и кухни: ему передают готовые `FilterOption[]`. Это не украшение —
@@ -38,6 +38,7 @@ export function VenueFilterBar({
   onChange,
   cityOptions,
   cuisineOptions,
+  featureOptions = [],
   shown,
   total,
 }: {
@@ -45,6 +46,10 @@ export function VenueFilterBar({
   onChange: (next: VenueFilters) => void;
   cityOptions: FilterOption[];
   cuisineOptions: FilterOption[];
+  /** Удобства из справочника. Пусто = справочник не ответил — поле тогда не
+   * показывается вовсе: выпадающий список без вариантов ничего не отбирает и
+   * читается как поломка. */
+  featureOptions?: FilterOption[];
   /** Сколько строк осталось после фильтров и сколько было всего. */
   shown: number;
   total: number;
@@ -71,6 +76,14 @@ export function VenueFilterBar({
       clear: { cuisine: "" },
     });
   }
+  if (filters.feature) {
+    const option = featureOptions.find((item) => item.value === filters.feature);
+    chips.push({
+      key: "feature",
+      label: option?.label ?? filters.feature,
+      clear: { feature: "" },
+    });
+  }
   if (filters.status !== "all") {
     chips.push({
       key: "status",
@@ -81,7 +94,7 @@ export function VenueFilterBar({
 
   return (
     <div className="mt-md flex flex-col gap-md">
-      <div className="grid gap-md sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-md sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Field label={copy.searchLabel} htmlFor="venue-filter-search">
           <TextInput
             id="venue-filter-search"
@@ -121,6 +134,23 @@ export function VenueFilterBar({
             ))}
           </Select>
         </Field>
+
+        {featureOptions.length > 0 ? (
+          <Field label={copy.featureLabel} htmlFor="venue-filter-feature">
+            <Select
+              id="venue-filter-feature"
+              value={filters.feature}
+              onChange={(e) => patch({ feature: e.target.value })}
+            >
+              <option value="">{copy.featureAny}</option>
+              {featureOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
 
         <Field label={copy.statusLabel} htmlFor="venue-filter-status">
           <Select

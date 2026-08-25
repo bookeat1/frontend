@@ -3,12 +3,14 @@ import type {
   CatalogVenue,
   CityDictionaryEntry,
   CuisineDictionaryEntry,
+  VenueFeatureDictionaryEntry,
 } from "@bookeat/api/admin";
 
 import {
   EMPTY_VENUE_FILTERS,
   collectCityOptions,
   collectCuisineOptions,
+  collectFeatureOptions,
   cuisineKey,
   filterVenues,
   hasActiveVenueFilters,
@@ -336,5 +338,84 @@ describe("кухни из справочника", () => {
       "казахская",
       "кафе, европейская",
     ]);
+  });
+});
+
+/**
+ * Удобства. Здесь проще, чем с кухнями: свободного текста уже нет (сервер
+ * отвергает его с 422), источник ровно один — справочник, и значение фильтра
+ * это `code`.
+ */
+describe("фильтр по удобствам", () => {
+  const featureDictionary: VenueFeatureDictionaryEntry[] = [
+    {
+      id: "f-1",
+      code: "wifi",
+      name: "Wi-Fi",
+      display_order: 20,
+      is_active: true,
+      venue_count: 3,
+    },
+    {
+      id: "f-2",
+      code: "terrace",
+      name: "Терраса",
+      display_order: 10,
+      is_active: true,
+      venue_count: 4,
+    },
+    {
+      id: "f-3",
+      code: "hookah",
+      name: "Кальян",
+      display_order: 30,
+      is_active: false,
+      venue_count: 1,
+    },
+  ];
+
+  const withFeatures = venue({
+    id: "f-venue",
+    features: [
+      { id: "f-1", code: "wifi", name: "Wi-Fi" },
+      { id: "f-2", code: "terrace", name: "Терраса" },
+    ],
+  });
+
+  it("список для выпадающего берётся из справочника в его порядке, скрытых в нём нет", () => {
+    expect(collectFeatureOptions(featureDictionary)).toEqual([
+      { value: "terrace", label: "Терраса" },
+      { value: "wifi", label: "Wi-Fi" },
+    ]);
+  });
+
+  it("справочник не ответил — вариантов нет, и панель фильтров не показывает поле", () => {
+    expect(collectFeatureOptions([])).toEqual([]);
+  });
+
+  it("заведение находится по ЛЮБОМУ своему удобству", () => {
+    expect(matchesVenueFilters(withFeatures, withFilters({ feature: "wifi" }))).toBe(true);
+    expect(matchesVenueFilters(withFeatures, withFilters({ feature: "terrace" }))).toBe(true);
+    expect(matchesVenueFilters(withFeatures, withFilters({ feature: "parking" }))).toBe(false);
+  });
+
+  it("заведение без удобств не подходит ни под одно из них", () => {
+    expect(matchesVenueFilters(venue({ id: "no-f" }), withFilters({ feature: "wifi" }))).toBe(
+      false,
+    );
+  });
+
+  it("удобство складывается с остальными фильтрами через И", () => {
+    expect(
+      matchesVenueFilters(withFeatures, withFilters({ feature: "wifi", city: "Астана" })),
+    ).toBe(false);
+    expect(
+      matchesVenueFilters(withFeatures, withFilters({ feature: "wifi", city: "Алматы" })),
+    ).toBe(true);
+  });
+
+  it("выбранное удобство считается действующим фильтром — иначе «Сбросить» не появится", () => {
+    expect(hasActiveVenueFilters(withFilters({ feature: "wifi" }))).toBe(true);
+    expect(hasActiveVenueFilters(EMPTY_VENUE_FILTERS)).toBe(false);
   });
 });

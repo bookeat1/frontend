@@ -20,9 +20,20 @@ const CUISINE_OPTIONS = [
   { value: "кафе, европейская", label: "Кафе, европейская" },
 ];
 
+const FEATURE_OPTIONS = [
+  { value: "terrace", label: "Терраса" },
+  { value: "wifi", label: "Wi-Fi" },
+];
+
 /** Обёртка с настоящим состоянием: панель управляемая, и проверять её в
  * отрыве от владельца состояния значит проверять не то. */
-function Harness({ onState }: { onState: (f: VenueFilters) => void }) {
+function Harness({
+  onState,
+  featureOptions = FEATURE_OPTIONS,
+}: {
+  onState: (f: VenueFilters) => void;
+  featureOptions?: { value: string; label: string }[];
+}) {
   const [filters, setFilters] = useState<VenueFilters>(EMPTY_VENUE_FILTERS);
   onState(filters);
   return (
@@ -31,15 +42,16 @@ function Harness({ onState }: { onState: (f: VenueFilters) => void }) {
       onChange={setFilters}
       cityOptions={CITY_OPTIONS}
       cuisineOptions={CUISINE_OPTIONS}
+      featureOptions={featureOptions}
       shown={2}
       total={4}
     />
   );
 }
 
-function renderBar() {
+function renderBar(featureOptions?: { value: string; label: string }[]) {
   let latest: VenueFilters = EMPTY_VENUE_FILTERS;
-  render(<Harness onState={(f) => (latest = f)} />);
+  render(<Harness onState={(f) => (latest = f)} featureOptions={featureOptions} />);
   return { filters: () => latest };
 }
 
@@ -90,5 +102,23 @@ describe("VenueFilterBar", () => {
     renderBar();
     expect(screen.queryByRole("button", { name: /сбросить фильтры/i })).toBeNull();
     expect(screen.getByRole("status").textContent).toContain("Показано 2 из 4");
+  });
+});
+
+describe("фильтр по удобству в панели", () => {
+  it("выбранное удобство видно пилюлей ПОДПИСЬЮ, а в состояние уходит код", () => {
+    const { filters } = renderBar();
+
+    fireEvent.change(screen.getByLabelText(/^удобство$/i), { target: { value: "terrace" } });
+    expect(filters()).toMatchObject({ feature: "terrace" });
+    expect(screen.getByRole("button", { name: /убрать фильтр: Терраса/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /убрать фильтр: Терраса/i }));
+    expect(filters()).toMatchObject({ feature: "" });
+  });
+
+  it("справочник не ответил — поля нет вовсе: список без вариантов читается как поломка", () => {
+    renderBar([]);
+    expect(screen.queryByLabelText(/^удобство$/i)).toBeNull();
   });
 });

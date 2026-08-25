@@ -3,25 +3,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  activeVenueFeatures,
   cuisineIdsOf,
+  mergeVenueFeatureOptions,
   parseSocialLinkRows,
   sameCuisineSelection,
-  saveVenueWithCuisines,
+  sameVenueFeatureSelection,
+  saveVenueWithDictionaries,
+  venueFeatureIdsOf,
   type CatalogVenue,
   type CatalogVenueInput,
   type CityDictionaryEntry,
   type CuisineDictionaryEntry,
+  type VenueFeatureDictionaryEntry,
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useCityDictionary } from "@/lib/use-cities";
 import { useCuisineDictionary } from "@/lib/use-cuisines";
+import { useVenueFeatureDictionary } from "@/lib/use-venue-features";
 import { useIsPlatformAdmin, useVenueCatalog, useVenueMutations } from "@/lib/use-venue-catalog";
 import {
   EMPTY_VENUE_FILTERS,
   collectCityOptions,
   collectCuisineOptions,
+  collectFeatureOptions,
   filterVenues,
   hasActiveVenueFilters,
   type VenueFilters,
@@ -33,6 +40,7 @@ import { Button } from "./ui/Button";
 import { Field, TextArea, TextInput } from "./ui/FormControls";
 import { CitySelectField, cityOptionsFor } from "./ui/CitySelectField";
 import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
+import { VenueFeaturePicker } from "./ui/VenueFeaturePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import {
@@ -69,13 +77,22 @@ export function VenuesView() {
   // «скрыто» у эндпоинта нет — они отбираются здесь, из уже загруженной
   // страницы каталога (per_page=100 при сегодняшних 45 заведениях).
   const query = useVenueCatalog(filters.search.trim(), filters.city);
-  const { create, update, setActive, setCuisines } = useVenueMutations();
+  const { create, update, setActive, setCuisines, setFeatures } = useVenueMutations();
 
   // Справочник кухонь. Ручки может ещё не быть (сервер не выложен) — тогда
   // запрос ответит ошибкой, сюда приедет пустой список, фильтр откатится на
   // тексты из данных, а форма честно скажет, что справочник пуст.
   const cuisineDictionary = useCuisineDictionary();
   const dictionary = useMemo(() => cuisineDictionary.data ?? [], [cuisineDictionary.data]);
+
+  // Справочник удобств. Тот же публичный роут и та же страховка: не ответил —
+  // фильтру просто нечего показывать, а форма честно говорит, что справочник
+  // пуст. Свободного ввода удобств больше нет вовсе — сервер отвергает его 422.
+  const featureDictionaryQuery = useVenueFeatureDictionary();
+  const featureDictionary = useMemo(
+    () => featureDictionaryQuery.data ?? [],
+    [featureDictionaryQuery.data],
+  );
 
   // Справочник городов. Читается тем же публичным роутом (`GET /cities`, но с
   // `?format=full`) и с той же страховкой: не ответил — фильтр собирает города
@@ -100,6 +117,10 @@ export function VenuesView() {
     () => collectCuisineOptions(allVenues, dictionary),
     [allVenues, dictionary],
   );
+  const featureOptions = useMemo(
+    () => collectFeatureOptions(featureDictionary),
+    [featureDictionary],
+  );
 
   const loaded = useMemo(() => query.data?.items ?? [], [query.data]);
   // Серверный отбор повторяется здесь один в один (те же правила), поэтому
@@ -116,6 +137,8 @@ export function VenuesView() {
     id ? update.mutateAsync({ id, input }) : create.mutateAsync(input);
   const saveCuisines = (id: string, ids: readonly string[]) =>
     setCuisines.mutateAsync({ restaurantId: id, ids });
+  const saveFeatures = (id: string, ids: readonly string[]) =>
+    setFeatures.mutateAsync({ restaurantId: id, ids });
 
   if (!isAdmin) {
     return (
@@ -138,6 +161,7 @@ export function VenuesView() {
         onChange={setFilters}
         cityOptions={cityOptions}
         cuisineOptions={cuisineOptions}
+        featureOptions={featureOptions}
         shown={venues.length}
         total={allVenues.length || loaded.length}
       />
@@ -219,11 +243,13 @@ export function VenuesView() {
         <VenueFormModal
           title="Новое заведение"
           dictionary={dictionary}
+          featureDictionary={featureDictionary}
           cityDictionary={cityDictionary}
           cityDictionaryLoading={cityDictionaryQuery.isPending}
           cityDictionaryFailed={cityDictionaryQuery.isError}
           saveVenue={saveVenue}
           saveCuisines={saveCuisines}
+          saveFeatures={saveFeatures}
           onClose={() => setCreating(false)}
           onSaved={() => setCreating(false)}
         />
@@ -234,11 +260,13 @@ export function VenuesView() {
           title={editing.name}
           venue={editing}
           dictionary={dictionary}
+          featureDictionary={featureDictionary}
           cityDictionary={cityDictionary}
           cityDictionaryLoading={cityDictionaryQuery.isPending}
           cityDictionaryFailed={cityDictionaryQuery.isError}
           saveVenue={saveVenue}
           saveCuisines={saveCuisines}
+          saveFeatures={saveFeatures}
           onClose={() => setEditing(null)}
           onSaved={() => setEditing(null)}
         />
@@ -270,22 +298,26 @@ function VenueFormModal({
   title,
   venue,
   dictionary,
+  featureDictionary,
   cityDictionary,
   cityDictionaryLoading = false,
   cityDictionaryFailed = false,
   saveVenue,
   saveCuisines,
+  saveFeatures,
   onClose,
   onSaved,
 }: {
   title: string;
   venue?: CatalogVenue;
   dictionary: readonly CuisineDictionaryEntry[];
+  featureDictionary: readonly VenueFeatureDictionaryEntry[];
   cityDictionary: readonly CityDictionaryEntry[];
   cityDictionaryLoading?: boolean;
   cityDictionaryFailed?: boolean;
   saveVenue: (input: CatalogVenueInput, id: string | null) => Promise<CatalogVenue>;
   saveCuisines: (id: string, ids: readonly string[]) => Promise<unknown>;
+  saveFeatures: (id: string, ids: readonly string[]) => Promise<unknown>;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -316,10 +348,18 @@ function VenueFormModal({
   const [loadedCuisineIds, setLoadedCuisineIds] = useState<string[] | null>(venue ? null : []);
   const [venueCuisines, setVenueCuisines] = useState<CatalogVenue["cuisines"]>(venue?.cuisines);
 
+  // Набор удобств — ровно та же история: PUT /restaurants/:id/features
+  // замещает его целиком, поэтому отправлять его можно только прочитав
+  // текущий. Свободнотекстовая запись удобств в теле PATCH заведения теперь
+  // отвергается сервером с 422, так что другого пути и нет.
+  const [featureIds, setFeatureIds] = useState<string[]>([]);
+  const [loadedFeatureIds, setLoadedFeatureIds] = useState<string[] | null>(venue ? null : []);
+  const [venueFeatures, setVenueFeatures] = useState<CatalogVenue["features"]>(venue?.features);
+
   // Состояние сохранения. Две записи — три исхода, и «заведение сохранили, а
   // кухни нет» это отдельный, со своей кнопкой.
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<null | "venue" | "cuisines">(null);
+  const [failure, setFailure] = useState<null | "venue" | "cuisines" | "features">(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   // Ссылки на соцсети приходят ТОЛЬКО в детальном ответе: листинг каталога
@@ -341,6 +381,16 @@ function VenueFormModal({
   const cuisineQuery = useQuery({
     queryKey: ["venue-cuisines", venue?.id ?? null],
     queryFn: () => apiClient.getRestaurantCuisines(venue!.id),
+    enabled: Boolean(venue?.id),
+    retry: false,
+  });
+
+  // Удобства заведения читаются своей ручкой по той же причине, что и кухни:
+  // в листинге набор есть, но отличить «удобств нет» от «ручка не ответила» по
+  // нему нельзя, а PUT замещает набор целиком.
+  const featureQuery = useQuery({
+    queryKey: ["venue-feature-set", venue?.id ?? null],
+    queryFn: () => apiClient.getRestaurantFeatures(venue!.id),
     enabled: Boolean(venue?.id),
     retry: false,
   });
@@ -370,12 +420,27 @@ function VenueFormModal({
     setVenueCuisines(cuisineQuery.data);
   }, [cuisineQuery.data]);
 
+  useEffect(() => {
+    if (!featureQuery.data) return;
+    const ids = venueFeatureIdsOf(featureQuery.data);
+    setLoadedFeatureIds(ids);
+    setFeatureIds(ids);
+    setVenueFeatures(featureQuery.data);
+  }, [featureQuery.data]);
+
   const cuisineOptions = useMemo(
     () => mergeCuisineOptions(dictionary, venueCuisines ?? []),
     [dictionary, venueCuisines],
   );
+  const featureOptions = useMemo(
+    () => mergeVenueFeatureOptions(activeVenueFeatures(featureDictionary), venueFeatures ?? []),
+    [featureDictionary, venueFeatures],
+  );
   const cuisinesLoaded = loadedCuisineIds !== null;
   const cuisinesChanged = cuisinesLoaded && !sameCuisineSelection(cuisineIds, loadedCuisineIds!);
+  const featuresLoaded = loadedFeatureIds !== null;
+  const featuresChanged =
+    featuresLoaded && !sameVenueFeatureSelection(featureIds, loadedFeatureIds!);
 
   const canSubmit = name.trim().length > 0 && !busy;
 
@@ -427,11 +492,13 @@ function VenueFormModal({
     setBusy(true);
     setFailure(null);
     const targetId = venue?.id ?? createdId;
-    const outcome = await saveVenueWithCuisines({
+    const outcome = await saveVenueWithDictionaries({
       saveVenue: () => saveVenue(input, targetId),
       // null = набор не трогаем: он либо не прочитан, либо не менялся.
       cuisineIds: cuisinesChanged ? cuisineIds : null,
       saveCuisines,
+      featureIds: featuresChanged ? featureIds : null,
+      saveFeatures,
     });
     setBusy(false);
 
@@ -444,23 +511,55 @@ function VenueFormModal({
       setFailure("cuisines");
       return;
     }
+    if (outcome.status === "features_failed") {
+      setCreatedId(outcome.venue.id);
+      setFailure("features");
+      return;
+    }
     onSaved();
   };
 
   /** Повтор ТОЛЬКО кухонь: заведение уже сохранено, второй раз его писать
-   * незачем. */
+   * незачем. Удобства после удавшихся кухонь всё-таки дописываются — иначе
+   * повтор оставил бы вторую половину набора несохранённой и молча. */
   const retryCuisines = async () => {
     const targetId = venue?.id ?? createdId;
     if (!targetId) return;
     setBusy(true);
     try {
       await saveCuisines(targetId, cuisineIds);
+    } catch {
+      setBusy(false);
+      setFailure("cuisines");
+      return;
+    }
+    if (featuresChanged) {
+      try {
+        await saveFeatures(targetId, featureIds);
+      } catch {
+        setBusy(false);
+        setFailure("features");
+        return;
+      }
+    }
+    setFailure(null);
+    setBusy(false);
+    onSaved();
+  };
+
+  /** Повтор ТОЛЬКО удобств: и заведение, и кухни уже легли. */
+  const retryFeatures = async () => {
+    const targetId = venue?.id ?? createdId;
+    if (!targetId) return;
+    setBusy(true);
+    try {
+      await saveFeatures(targetId, featureIds);
       setFailure(null);
       setBusy(false);
       onSaved();
     } catch {
       setBusy(false);
-      setFailure("cuisines");
+      setFailure("features");
     }
   };
 
@@ -498,6 +597,24 @@ function VenueFormModal({
             selected={cuisineIds}
             onChange={setCuisineIds}
             disabled={busy}
+          />
+        )}
+
+        {venue && featureQuery.isPending ? (
+          <p className="text-sm text-text-muted" role="status">
+            {t.admin.venueFeatures.loadingTitle}
+          </p>
+        ) : venue && featureQuery.isError ? (
+          <p className="text-sm text-brand" role="alert">
+            {t.admin.venueFeatures.loadFailed}
+          </p>
+        ) : (
+          <VenueFeaturePicker
+            options={featureOptions}
+            selected={featureIds}
+            onChange={setFeatureIds}
+            disabled={busy}
+            idPrefix="venue-form-feature"
           />
         )}
 
@@ -588,6 +705,25 @@ function VenueFormModal({
             <div>
               <Button variant="secondary" size="sm" loading={busy} onClick={() => void retryCuisines()}>
                 Повторить кухни
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {failure === "features" ? (
+          <div className="flex flex-col gap-xs" role="alert">
+            <p className="text-sm text-brand">
+              Заведение сохранили, а удобства — нет. Всё остальное уже на месте: повторите
+              только удобства или закройте форму и вернитесь к ним позже.
+            </p>
+            <div>
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={busy}
+                onClick={() => void retryFeatures()}
+              >
+                Повторить удобства
               </Button>
             </div>
           </div>

@@ -18,6 +18,8 @@
  *     только активные.
  */
 
+import { saveVenueWithDictionaries, type VenueSaveOutcome } from "./venue-save";
+
 /** Потолок набора кухонь у заведения — MaxCuisinesPerVenue на сервере. */
 export const MAX_VENUE_CUISINES = 5;
 
@@ -144,46 +146,29 @@ export function reorderCuisines<T extends { id: string; display_order: number; n
  * Чем кончилось сохранение заведения, у которого кухни пишутся ОТДЕЛЬНОЙ
  * ручкой.
  *
- * Две записи подряд не бывают атомарными, поэтому важно не «получилось/не
- * получилось», а КАКАЯ половина легла: «сохранили заведение, кухни — нет» это
- * другое сообщение и другая кнопка (повторить только кухни), чем «не сохранили
- * ничего».
+ * Тип переехал в `venue-save.ts`, когда таких наборов стало два (к кухням
+ * добавились удобства): разбор «какая половина легла» у них общий, и держать
+ * две копии одной развилки — это гарантированно разъехавшиеся сообщения.
+ * Реэкспорт оставлен, чтобы не переписывать импорты.
  */
-export type VenueSaveOutcome<V> =
-  | { status: "saved"; venue: V }
-  | { status: "venue_failed"; error: unknown }
-  | { status: "cuisines_failed"; venue: V; error: unknown };
+export type { VenueSaveOutcome } from "./venue-save";
 
 /**
  * Сохраняет заведение, затем — его кухни.
  *
- * Порядок именно такой и он не произволен:
- *   • у нового заведения id появляется только из ответа на создание, писать
- *     кухни раньше просто некуда;
- *   • сервер пересобирает legacy-строку `cuisine_type` при записи набора
- *     кухонь, а PATCH заведения её не трогает — значит набор должен лечь
- *     ПОСЛЕДНИМ, иначе PATCH поверх оставил бы строку от прошлого набора.
+ * Частный случай `saveVenueWithDictionaries` (см. там же, почему порядок
+ * именно такой): у нового заведения id появляется только из ответа на
+ * создание, а legacy-строку `cuisine_type` сервер пересобирает именно записью
+ * набора кухонь, поэтому набор обязан лечь последним.
  *
  * `cuisineIds === null` значит «набор не трогаем» (не прочитан или не менялся):
  * PUT замещает набор целиком, и отправить его вслепую — стереть заведению
  * кухни, которых форма не показывала.
  */
-export async function saveVenueWithCuisines<V extends { id: string }>(steps: {
+export function saveVenueWithCuisines<V extends { id: string }>(steps: {
   saveVenue: () => Promise<V>;
   cuisineIds: readonly string[] | null;
   saveCuisines: (venueId: string, ids: readonly string[]) => Promise<unknown>;
 }): Promise<VenueSaveOutcome<V>> {
-  let venue: V;
-  try {
-    venue = await steps.saveVenue();
-  } catch (error) {
-    return { status: "venue_failed", error };
-  }
-  if (steps.cuisineIds === null) return { status: "saved", venue };
-  try {
-    await steps.saveCuisines(venue.id, steps.cuisineIds);
-  } catch (error) {
-    return { status: "cuisines_failed", venue, error };
-  }
-  return { status: "saved", venue };
+  return saveVenueWithDictionaries(steps);
 }

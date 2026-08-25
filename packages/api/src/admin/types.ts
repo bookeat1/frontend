@@ -7,6 +7,7 @@
  */
 import type { SocialLink, SocialLinkInput } from "./social-links";
 import type { VenueCuisine } from "./cuisines";
+import type { VenueFeature } from "./venue-features";
 
 /** Auth token pair returned by /auth/login, /auth/refresh. */
 export interface TokenPair {
@@ -271,6 +272,16 @@ export interface CatalogVenue {
    * у кого. `cuisine_type` остаётся строкой и собирается сервером из этого же
    * набора. */
   cuisines?: VenueCuisine[];
+  /** Набор удобств заведения из справочника. Ключ ОПУЩЕН, когда набора нет
+   * (`omitempty`), поэтому `undefined` значит «удобства не заданы». Приходит и
+   * в листинге каталога, и в детальном ответе (`listItemToResponse` и
+   * `aggregateToResponse` зовут один и тот же `featuresToResponse`), поэтому
+   * фильтр каталога в панели считается по уже загруженной странице.
+   *
+   * ЗАПИСЫВАЕТСЯ ТОЛЬКО отдельной ручкой `PUT /restaurants/:id/features`:
+   * свободнотекстовый ключ `features` в теле PATCH заведения сервер отвергает
+   * с 422 — поэтому его нет в CatalogVenueInput. */
+  features?: VenueFeature[];
 }
 
 /** Body of POST /restaurants and PATCH /restaurants/:id. Every field is

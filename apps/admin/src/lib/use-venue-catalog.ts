@@ -91,5 +91,22 @@ export function useVenueMutations() {
     },
   });
 
-  return { create, update, setActive, setCuisines };
+  /**
+   * Набор удобств заведения. Тоже ОТДЕЛЬНАЯ ручка
+   * (PUT /restaurants/:id/features) и тоже замещение целиком. Каталог после
+   * записи инвалидируется, потому что `features` приезжают и в листинге
+   * (`listItemToResponse`), а по ним в панели отбирается фильтр.
+   */
+  const setFeatures = useMutation({
+    mutationFn: ({ restaurantId, ids }: { restaurantId: string; ids: readonly string[] }) =>
+      apiClient.setRestaurantFeatures(restaurantId, ids),
+    onSuccess: (_data, variables) => {
+      invalidate();
+      void queryClient.invalidateQueries({
+        queryKey: ["venue-feature-set", variables.restaurantId],
+      });
+    },
+  });
+
+  return { create, update, setActive, setCuisines, setFeatures };
 }

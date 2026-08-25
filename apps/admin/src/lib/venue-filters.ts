@@ -1,10 +1,13 @@
 import {
   normalizeCityKey,
+  sortVenueFeatures,
+  venueFeatureCodes,
   sortCities,
   sortCuisines,
   type CatalogVenue,
   type CityDictionaryEntry,
   type CuisineDictionaryEntry,
+  type VenueFeatureDictionaryEntry,
 } from "@bookeat/api/admin";
 
 /**
@@ -31,6 +34,14 @@ import {
  *      нормализованный текст (кириллица), поэтому с кодами справочника оно не
  *      пересекается и перепутать их нельзя.
  *
+ * ПРО УДОБСТВА. Здесь проще, чем с кухнями: свободного текста уже нет (сервер
+ * отвергает его с 422), поэтому источник ровно один — справочник
+ * `GET /venue-features`, значение фильтра — `code` записи. Заведение матчится
+ * по своему набору `venue.features[]`, который приходит и в листинге каталога
+ * (`listItemToResponse` зовёт тот же `featuresToResponse`, что и детальный
+ * ответ). Справочник не ответил — пункта «Удобство» в панели фильтров просто
+ * нет, отбирать всё равно нечем.
+ *
  * ПРО ГОРОД — та же схема: справочник `GET /cities?format=full` (миграция 0081),
  * значение фильтра — поле `value` записи, и оно же уходит на сервер в `?city=`.
  * Это БАЗОВОЕ русское название, а не код и не перевод: `r.city = $1` сравнивает
@@ -53,6 +64,15 @@ export interface VenueFilters {
   city: string;
   /** Ключ кухни (см. cuisineKey); "" — любая. */
   cuisine: string;
+  /** Код удобства из справочника; "" — любое.
+   *
+   * ОДНО, а не набор. Сервер умеет несколько (`?features=wifi,parking`) и
+   * понимает их как «нужны ВСЕ выбранные», но в панели отбор идёт по уже
+   * загруженной странице каталога, и девятнадцать галочек в полосе фильтров —
+   * это другой по размеру элемент, чем четыре выпадающих списка. Если
+   * понадобится «И» из нескольких, поле станет массивом, а `matchesVenueFilters`
+   * — проверкой вхождения набора; серверную семантику это не нарушит. */
+  feature: string;
   status: VenueStatusFilter;
 }
 
@@ -60,6 +80,7 @@ export const EMPTY_VENUE_FILTERS: VenueFilters = {
   search: "",
   city: "",
   cuisine: "",
+  feature: "",
   status: "all",
 };
 
@@ -76,6 +97,7 @@ export function hasActiveVenueFilters(filters: VenueFilters): boolean {
     filters.search.trim() !== "" ||
     filters.city !== "" ||
     filters.cuisine !== "" ||
+    filters.feature !== "" ||
     filters.status !== "all"
   );
 }
@@ -184,12 +206,31 @@ export function collectCityOptions(
   return [...fromDictionary, ...fromCatalog];
 }
 
+/**
+ * Удобства для выпадающего списка.
+ *
+ * Источник ровно один — справочник: значение пункта `code`, подпись `name`.
+ * Скрытые записи в отбор не попадают (в приложении их всё равно нет), а
+ * справочник, который не ответил, даёт пустой список — и панель фильтров тогда
+ * не показывает это поле вовсе. Собирать удобства «из данных каталога», как
+ * города и кухни, тут нечего: они и в данных приезжают из этого же справочника.
+ */
+export function collectFeatureOptions(
+  dictionary: readonly VenueFeatureDictionaryEntry[] = [],
+): FilterOption[] {
+  return sortVenueFeatures(dictionary.filter((entry) => entry.is_active)).map((entry) => ({
+    value: entry.code,
+    label: entry.name,
+  }));
+}
+
 /** Подходит ли заведение под ВЕСЬ набор фильтров сразу (И, не ИЛИ). */
 export function matchesVenueFilters(venue: CatalogVenue, filters: VenueFilters): boolean {
   const search = filters.search.trim().toLowerCase();
   if (search && !(venue.name ?? "").toLowerCase().includes(search)) return false;
   if (filters.city && (venue.city ?? "").trim() !== filters.city) return false;
   if (filters.cuisine && !venueCuisineKeys(venue).includes(filters.cuisine)) return false;
+  if (filters.feature && !venueFeatureCodes(venue).includes(filters.feature)) return false;
   if (filters.status === "active" && !venue.is_active) return false;
   if (filters.status === "hidden" && venue.is_active) return false;
   return true;
