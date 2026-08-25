@@ -165,9 +165,9 @@ export function VenuesView() {
                   <td className="px-4 py-3 text-neutral-700">{venue.city || "—"}</td>
                   <td className="px-4 py-3">
                     {venue.is_active ? (
-                      <span className="text-neutral-700">Показывается</span>
+                      <span className="text-neutral-700">Активный</span>
                     ) : (
-                      <span className="text-neutral-400">Скрыто</span>
+                      <span className="text-neutral-400">Скрытый</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
