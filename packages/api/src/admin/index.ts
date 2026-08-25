@@ -40,6 +40,12 @@ export {
   type StaffActor,
 } from "./manager-whatsapp";
 export {
+  resolveWhatsAppRecipients,
+  type WhatsAppRecipients,
+  type WhatsAppRecipientsInput,
+  type WhatsAppStaffRecipient,
+} from "./whatsapp-recipients";
+export {
   parsePriceRangeInput,
   type PriceRangeInput,
   type PriceRangeParseError,
