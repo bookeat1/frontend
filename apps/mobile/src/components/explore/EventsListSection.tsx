@@ -3,8 +3,6 @@ import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { DataErrorState } from "../DataErrorState";
-import { CalendarBlank } from "../icons";
-import { EmptyState } from "../StateViews";
 import { EventRow } from "./EventRow";
 import { SectionCard, SectionHeader } from "./SectionCard";
 import { useExploreEvents } from "./use-explore-data";
@@ -18,11 +16,13 @@ const HOME_EVENTS_PREVIEW = 3;
  * «Афиша» — cross-venue upcoming events on real data (GET /events), rendered as
  * a VERTICAL list (the old EventsSection was a horizontal strip).
  *
- * All four states matter, and EMPTY most of all: the endpoint returns only
- * published, not-yet-finished events of active venues, and today that set is
- * genuinely empty on the test backend — so an empty answer reads as "nothing is
- * scheduled yet", never as a failed section. Loading is a skeleton, not a
- * spinner, so nothing below jumps when the data lands.
+ * ПУСТО — блока НЕТ. Афиша это витрина, а не раздел с обязательным
+ * содержимым: когда ближайших событий нет, заголовок «Афиша» с подписью «пока
+ * ничего не запланировано» занимает экран ровно ничем. Так же ведут себя
+ * соседи по главной («Акции», «Статьи», «Выберите кухню»). Ошибка и загрузка
+ * при этом остаются видимыми: «не смогли загрузить» — это не «ничего нет».
+ * Загрузка — скелет, а не крутилка, чтобы блок ниже не прыгал при появлении
+ * данных.
  *
  * The rows are mapped, not put in a nested FlatList: the whole screen is
  * already a ScrollView, and a VirtualizedList inside one both warns and scrolls
@@ -44,9 +44,15 @@ export function EventsListSection({
   // the full list (/events), which reads the same query.
   const events = (query.data?.items ?? []).slice(0, HOME_EVENTS_PREVIEW);
 
+  // Нечего показать — блока нет вовсе, вместе с заголовком и стрелкой.
+  if (!query.isLoading && !query.isError && events.length === 0) {
+    return null;
+  }
+
   return (
     <SectionCard>
-      <SectionHeader title={t.explore.afishaTitle} onSeeAll={onSeeAll} />
+      {/* Кегль заголовка `large` (20/28) — как в макете 3228:9821. */}
+      <SectionHeader title={t.explore.afishaTitle} onSeeAll={onSeeAll} size="large" />
 
       {query.isLoading ? (
         <SkeletonList />
@@ -54,25 +60,10 @@ export function EventsListSection({
         <View style={styles.state}>
           <DataErrorState compact error={query.error} onRetry={() => void query.refetch()} />
         </View>
-      ) : events.length === 0 ? (
-        <View style={styles.state}>
-          {/* No action button on purpose: there is nowhere to send the guest
-              that would produce events, and a button that only reloads an empty
-              list turns a calm state into a dead end. */}
-          <EmptyState
-            compact
-            icon={CalendarBlank}
-            title={t.explore.eventsEmptyTitle}
-            description={t.explore.eventsEmptyDescription}
-          />
-        </View>
       ) : (
         <View style={styles.list}>
-          {events.map((event, index) => (
-            <React.Fragment key={event.id}>
-              {index > 0 ? <View style={styles.separator} /> : null}
-              <EventRow event={event} onOpenEvent={onOpenEvent} />
-            </React.Fragment>
+          {events.map((event) => (
+            <EventRow key={event.id} event={event} onOpenEvent={onOpenEvent} />
           ))}
         </View>
       )}
@@ -80,7 +71,7 @@ export function EventsListSection({
   );
 }
 
-/** Three row-shaped skeletons with the real rows' geometry. */
+/** Три заглушки строк с геометрией настоящих: дата слева, текст, фото справа. */
 function SkeletonList() {
   return (
     <View
@@ -106,23 +97,20 @@ const styles = StyleSheet.create({
   state: {
     paddingHorizontal: spacing.lg,
   },
+  // Расстояние между строками — 16 из макета (node 3228:9889), разделителей
+  // между ними нет.
   list: {
     gap: spacing.lg,
-  },
-  separator: {
-    height: 1,
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.border.subtle,
   },
   skeletonRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: spacing.lg,
     paddingHorizontal: spacing.lg,
   },
   skeletonDate: {
     width: 40,
-    height: 40,
+    height: 52,
     borderRadius: radius.media,
     backgroundColor: colors.background.chip,
   },
@@ -143,9 +131,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.chip,
   },
   skeletonThumb: {
-    width: exploreLayout.eventThumb,
-    height: exploreLayout.eventThumb,
-    borderRadius: radius.media,
+    width: exploreLayout.eventThumbWidth,
+    height: exploreLayout.eventThumbHeight,
+    borderRadius: radius.card,
     backgroundColor: colors.background.chip,
   },
 });

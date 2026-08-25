@@ -1,5 +1,5 @@
 import type { EventSummary } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -10,26 +10,29 @@ import { TagChips } from "../TagChips";
 const t = getDictionary();
 
 /**
- * Карточка афиши в листинге на главной — РЕАЛЬНЫЕ ДАННЫЕ (GET /events).
+ * Строка «Афиши» на главной — РЕАЛЬНЫЕ ДАННЫЕ (GET /events).
  *
- * Перерисована по макету 3z0f6dgev4HMwBAHPjTjPo, node 3053:8813 (правка
- * владельца 2026-08-20). Было: маленькое число слева, текст, крохотная
- * фотография справа. Стало: слева кадр 139x116 с фотографией, поверх неё
- * затемнение и дата, справа название, строка «заведение · время» и метки.
+ * Свёрстана по макету 3z0f6dgev4HMwBAHPjTjPo, node 3228:9823 (правка
+ * владельца 25.08.2026): слева дата ТЕКСТОМ (крупное число и приглушённый
+ * месяц под ним), в середине название с подписью «заведение · время» и
+ * меткой, справа фотография 110x104.
  *
- * ДАТА ЛЕЖИТ НА ФОТОГРАФИИ, а не рядом с ней: карточка отвечает на вопрос
- * «когда и где», и в новом макете число читается первым, укрупнившись с 24 до
- * 32. Затемнение под ним обязательно — без него белая цифра тонет на светлом
- * блюде.
+ * Прежний вариант (node 3053:8813) клал дату НА фотографию слева — именно его
+ * владелец опознал как «снова выглядит как раньше». Дату вернули в текст:
+ * белая цифра на чужом снимке читается ровно настолько, насколько повезло с
+ * фотографией, а тут она всегда одинаково контрастна.
  *
- * Метки — собственные теги заведения («Бранч», «Живая музыка»), они приходят
- * в событии. Ряд меток прячется сам, когда их нет (см. TagChips): выдуманных
- * подписей здесь не появляется.
+ * Высоту строки задаёт фотография (104), текст слева ниже и центрируется по
+ * ней. Длинное название занимает вторую строку и делает карточку на пару
+ * точек выше — это допустимо, обрезать название до одной строки хуже.
  */
 
-/** Кадр с датой — 139x116 из макета (node 3053:8885). */
-const DATE_FRAME_WIDTH = 139;
-const DATE_FRAME_HEIGHT = 116;
+/**
+ * Сколько меток показывает строка на главной. Ровно одна, как в макете: ряд
+ * меток здесь переносится по словам, и вторая метка утащила бы карточку вниз,
+ * разорвав ряд из трёх одинаковых строк.
+ */
+const HOME_ROW_TAGS = 1;
 
 export function EventRow({
   event,
@@ -44,19 +47,12 @@ export function EventRow({
 
   const body = (
     <>
-      <View style={styles.cover}>
-        <PhotoView uri={event.coverImageUrl} style={styles.coverPhoto} decorative placeholderIconSize={24} />
-        {/* Затемнение и дата — отдельными слоями поверх снимка. Слой
-            затемнения не перехватывает касания: нажатие принадлежит всей
-            карточке. */}
-        <View style={styles.coverScrim} pointerEvents="none" />
-        {dateBlock ? (
-          <View style={styles.dateBlock} pointerEvents="none">
-            <Text style={styles.dateDay}>{dateBlock.day}</Text>
-            <Text style={styles.dateMonth}>{dateBlock.month}</Text>
-          </View>
-        ) : null}
-      </View>
+      {dateBlock ? (
+        <View style={styles.dateBlock}>
+          <Text style={styles.dateDay}>{dateBlock.day}</Text>
+          <Text style={styles.dateMonth}>{dateBlock.month}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.text}>
         <View style={styles.headline}>
@@ -79,8 +75,14 @@ export function EventRow({
             </View>
           ) : null}
         </View>
-        <TagChips tags={event.tags} size="compact" />
+        {/* Метки — собственные теги заведения («Бранч», «Живая музыка»), они
+            приходят в событии. Ряд прячется сам, когда их нет (см. TagChips):
+            выдуманных подписей здесь не появляется. `flush` — потому что зазор
+            над метками уже задан колонкой (8 из макета). */}
+        <TagChips tags={event.tags.slice(0, HOME_ROW_TAGS)} flush />
       </View>
+
+      <PhotoView uri={event.coverImageUrl} style={styles.thumb} decorative placeholderIconSize={28} />
     </>
   );
 
@@ -115,48 +117,20 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  cover: {
-    width: DATE_FRAME_WIDTH,
-    height: DATE_FRAME_HEIGHT,
-    borderRadius: radius.card,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background.bannerPlaceholder,
-  },
-  coverPhoto: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  coverScrim: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: colors.overlay.photoDate,
-  },
+  // Ширина колонки даты в макете «по содержимому» (35–40 у разных чисел), а не
+  // фиксированная: число всегда прижато к левому краю блока.
   dateBlock: {
     alignItems: "center",
     gap: spacing.xs,
   },
-  // Число даты — 32/34 из макета: самый крупный элемент карточки.
   dateDay: {
-    ...typography.titleLg,
-    fontSize: 32,
-    lineHeight: 34,
-    color: colors.text.onDark,
+    ...typography.dateNumber,
+    color: colors.text.primary,
   },
   dateMonth: {
-    ...typography.caption,
-    fontSize: 10,
-    lineHeight: 14,
-    letterSpacing: 1,
+    ...typography.dateMonth,
     textTransform: "uppercase",
-    color: colors.text.onPhotoMuted,
+    color: colors.text.muted,
   },
   text: {
     flex: 1,
@@ -182,5 +156,10 @@ const styles = StyleSheet.create({
   metaDot: {
     ...typography.caption,
     color: colors.text.primary,
+  },
+  thumb: {
+    width: exploreLayout.eventThumbWidth,
+    height: exploreLayout.eventThumbHeight,
+    borderRadius: radius.card,
   },
 });

@@ -22,6 +22,7 @@ import { StyleSheet, Text, View } from "react-native";
 export function TagChips({
   tags,
   size = "default",
+  flush = false,
 }: {
   tags: string[];
   /**
@@ -31,15 +32,30 @@ export function TagChips({
    * афиши, и чип там ровно такой же, как кухня/чек у карточки заведения.
    */
   size?: "default" | "compact";
+  /**
+   * Убирает собственный отступ ряда сверху. Нужен там, где расстояние над
+   * метками задаёт колонка вокруг (строка «Афиши» на главной, макет
+   * 3228:9828 — зазор 8 у самой колонки): иначе к нему прибавлялись бы ещё 2
+   * и метки уезжали ниже макета.
+   */
+  flush?: boolean;
 }) {
   if (tags.length === 0) return null;
 
   const compact = size === "compact";
   return (
-    <View style={[styles.row, compact && styles.rowCompact]}>
+    <View style={[styles.row, compact && styles.rowCompact, flush && styles.rowFlush]}>
       {tags.map((tag, index) => (
         <View key={`${tag}-${index}`} style={[styles.chip, compact && styles.chipCompact]}>
-          <Text style={[styles.chipText, compact && styles.chipTextCompact]}>{tag}</Text>
+          {/* Подпись метки всегда в одну строку: перенос делает чип вдвое выше
+              и ломает высоту карточки вокруг. Длинная метка обрезается. */}
+          <Text
+            style={[styles.chipText, compact && styles.chipTextCompact]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {tag}
+          </Text>
         </View>
       ))}
     </View>
@@ -65,6 +81,9 @@ const styles = StyleSheet.create({
   // собран из существующего токена, а не написан числом.
   rowCompact: {
     gap: spacing.xs + 2,
+  },
+  rowFlush: {
+    marginTop: 0,
   },
   chipCompact: {
     paddingHorizontal: spacing.sm,

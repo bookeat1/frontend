@@ -93,6 +93,26 @@ export const typography = {
     fontSize: 12,
     lineHeight: 16,
   },
+  /**
+   * Число даты в строке «Афиши» на главной — 32/34 Bold (Figma
+   * 3z0f6dgev4HMwBAHPjTjPo, node 3228:9826). Самый крупный элемент карточки:
+   * гость сначала спрашивает «когда», и в макете число читается первым.
+   */
+  dateNumber: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 32,
+    lineHeight: 34,
+  },
+  /**
+   * Месяц под числом — 10/14 SemiBold заглавными с разрядкой 1 (node
+   * 3228:9827). Разрядка обязательна: без неё заглавные в 10 pt слипаются.
+   */
+  dateMonth: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 10,
+    lineHeight: 14,
+    letterSpacing: 1,
+  },
   /** Bottom-nav labels. */
   navLabel: {
     fontFamily: fontFamilies.notoSansRegular,

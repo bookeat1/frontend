@@ -9,7 +9,7 @@ const t = getDictionary();
 /**
  * One white block of the Explore screen. The reference
  * (`design-ref/screen-explore.png`) is a stack of full-width white cards,
- * radius 20 on every corner, separated by 8 of the grey screen background —
+ * radius 24 on every corner (Figma 3102:12006 и соседи), separated by 8 of the grey screen background —
  * the same "full-bleed cards on grey" language the booking flow already uses.
  *
  * Horizontal padding lives on the section's own text (16), NOT on the block,
@@ -81,7 +81,7 @@ export function SectionHeader({
 const styles = StyleSheet.create({
   section: {
     backgroundColor: colors.background.surface,
-    borderRadius: radius.card,
+    borderRadius: radius.homeSection,
     paddingVertical: spacing.lg,
     gap: spacing.xxl,
   },
