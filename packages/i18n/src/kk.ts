@@ -244,7 +244,7 @@ export const kk: LocaleOverride<Dictionary> = {
     photoAllFilter: "Барлығы",
     photoTabFood: "Тағам",
     photoTabInterior: "Интерьер",
-    menuHighlights: "Мәзірдегі танымал",
+    menuHighlights: "Үздік таңдау",
     menuEmpty: "Мейрамхана әзірге мәзір қоспаған",
     menuTitle: "Мәзір",
     menuLoading: "Мәзірді жүктеп жатырмыз…",

@@ -239,7 +239,7 @@ export const en: LocaleOverride<Dictionary> = {
     photoAllFilter: "All",
     photoTabFood: "Food",
     photoTabInterior: "Interior",
-    menuHighlights: "Popular on the menu",
+    menuHighlights: "Top picks",
     menuEmpty: "This restaurant hasn't added a menu yet",
     menuTitle: "Menu",
     menuLoading: "Loading menu…",
