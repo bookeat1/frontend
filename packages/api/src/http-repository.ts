@@ -5,6 +5,7 @@ import {
   type TokenProvider,
   type UnauthorizedHandler,
 } from "./http-client";
+import { timeOfDayWindow } from "./time-of-day";
 import {
   mapCuisine,
   mapAvailability,
@@ -285,6 +286,9 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     // галочками, поэтому клиент ничего не досчитывает.
     const amenities = query.filters.amenityIds.map((id) => id.trim()).filter(Boolean);
 
+    const period = query.filters.availability?.timeOfDay;
+    const timeWindow = period ? timeOfDayWindow(period) : undefined;
+
     const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/search", {
       q: query.text.trim() || undefined,
       cuisine: cuisines.length > 0 ? cuisines.join(",") : undefined,
@@ -299,8 +303,13 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       // не применён.
       date: query.filters.availability?.date,
       guests: query.filters.availability?.guests,
-      time_from: query.filters.availability?.timeFrom,
-      time_to: query.filters.availability?.timeTo,
+      // Окно времени. Чип «Утро/Обед/Ужин» — это тот же `time_from`/`time_to`,
+      // только словами, поэтому он раскрывается в окно ЗДЕСЬ, в одном месте,
+      // а не в каждом экране, который его показывает. Выбранное время суток
+      // перекрывает явные часы: иначе выдача зависела бы от того, какое из
+      // двух полей записали последним.
+      time_from: timeWindow?.timeFrom ?? query.filters.availability?.timeFrom,
+      time_to: timeWindow?.timeTo ?? query.filters.availability?.timeTo,
       page: 1,
       per_page: SEARCH_PAGE_SIZE,
     });

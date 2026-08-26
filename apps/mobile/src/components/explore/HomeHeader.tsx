@@ -1,4 +1,4 @@
-import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,8 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnreadNotificationsCount } from "../../hooks/useNotifications";
 import { useLocale } from "../../lib/locale";
 import { IconButton } from "../IconButton";
-import { Bell, CalendarBlank, MapPin, User } from "../icons";
+import { Bell, MapPin } from "../icons";
 import { homeHeaderHeight } from "./home-header-layout";
+import { PartySelector } from "./PartySelector";
 
 /**
  * Rebuilt home header (Figma home design, 2026-08-06). Replaces the old promo
@@ -29,11 +30,10 @@ import { homeHeaderHeight } from "./home-header-layout";
  * Высота блока задана правилом «верхняя безопасная зона + 264»
  * (`homeHeaderHeight`), а не собирается из содержимого, — так в макете.
  *
- * Оба селектора — половинки одной капсулы (макет главной), и оба ведут в
- * `/search`: своего состояния даты и гостей главная не держит, тап просто
- * открывает каталог, где живёт настоящий выбор. Половины при этом РАЗНЫЕ:
- * каждая открывает в каталоге своё колесо (правка владельца 2026-08-24), —
- * поэтому два колбэка, а не один общий «открыть поиск».
+ * Капсула «дата · гости» внизу блока живёт отдельным компонентом
+ * (`PartySelector`): тап по половине поднимает нижнюю шторку с колесом прямо
+ * поверх главной и никуда не уводит. Шапка только передаёт подписи и получает
+ * готовый выбор.
  *
  * The bell opens the «Уведомления» screen (`/notifications`) and carries an
  * unread badge fed by the real feed's `unread_count` (B5 Part 2), read from the
@@ -46,8 +46,7 @@ export function HomeHeader({
   city,
   dateValue,
   guestsValue,
-  onOpenDate,
-  onOpenGuests,
+  onSearchParty,
   onOpenNotifications,
   onOpenCity,
 }: {
@@ -55,10 +54,11 @@ export function HomeHeader({
   city: string;
   dateValue: string;
   guestsValue: string;
-  /** Открыть каталог с раскрытым выбором ДАТЫ. */
-  onOpenDate: () => void;
-  /** Открыть каталог с раскрытым выбором ЧИСЛА ГОСТЕЙ. */
-  onOpenGuests: () => void;
+  /**
+   * Человек закончил выбор в шторке. Дальше — каталог с этим подбором; никаких
+   * «сначала дата, потом гости» не будет, поэтому приходит готовая пара.
+   */
+  onSearchParty: (party: { date: string; guests: number }) => void;
   onOpenNotifications: () => void;
   /** Opens the city picker (same screen the profile uses). */
   onOpenCity: () => void;
@@ -141,40 +141,19 @@ export function HomeHeader({
         </View>
       </View>
 
-      {/* Long RU first names wrap to a second line instead of pushing the
-          header taller in one unreadable line. */}
+      {/* Ровно две строки: «Доброе утро,» и имя под ним. Перенос приходит из
+          самой строки (`withName` в словаре ставит `\n` после запятой, как
+          U+2028 в макете 3102:11996), а `numberOfLines={2}` держит потолок —
+          очень длинное имя обрежется многоточием, но шапку не растянет. */}
       <Text style={styles.greeting} numberOfLines={2}>
         {greeting}
       </Text>
 
-      {/* Дата и гости — ОДНА белая капсула, разделённая тонкой линией
-          (node 986:8721), а не два отдельных пилла: так в макете главной.
-          Пилл со стрелкой (PillSelect) остаётся на экране брони, где он и
-          нарисован. */}
-      <View style={styles.selectorRow}>
-        <Pressable
-          style={({ pressed }) => [styles.selector, styles.selectorLeft, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel={`${t.explore.dateSelectorLabel}: ${dateValue}`}
-          onPress={onOpenDate}
-        >
-          <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
-          <Text style={styles.selectorValue} numberOfLines={1}>
-            {dateValue}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.selector, styles.selectorRight, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel={`${t.explore.guestsSelectorLabel}: ${guestsValue}`}
-          onPress={onOpenGuests}
-        >
-          <User size={24} color={colors.text.primary} weight="regular" />
-          <Text style={styles.selectorValue} numberOfLines={1}>
-            {guestsValue}
-          </Text>
-        </Pressable>
-      </View>
+      <PartySelector
+        dateValue={dateValue}
+        guestsValue={guestsValue}
+        onSearchParty={onSearchParty}
+      />
     </View>
   );
 }
@@ -255,41 +234,5 @@ const styles = StyleSheet.create({
   greeting: {
     ...typography.titleXxl,
     color: colors.text.onDark,
-  },
-  selectorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    // Капсула прижата к низу блока: высота теперь фиксирована правилом, и
-    // свободное место при коротком приветствии должно оставаться НАД ней, а не
-    // висеть под ней, как было бы при раскладке сверху вниз.
-    marginTop: "auto",
-  },
-  selector: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    height: controlHeight.pill,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.background.surface,
-  },
-  selectorLeft: {
-    borderTopLeftRadius: radius.pill,
-    borderBottomLeftRadius: radius.pill,
-    // Волосяная линия между половинками — в макете это граница, а не зазор.
-    borderRightWidth: 1,
-    borderRightColor: colors.background.screen,
-  },
-  selectorRight: {
-    borderTopRightRadius: radius.pill,
-    borderBottomRightRadius: radius.pill,
-  },
-  selectorValue: {
-    ...typography.labelMedium,
-    color: colors.text.primary,
-    flexShrink: 1,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

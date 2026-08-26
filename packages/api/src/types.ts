@@ -1,3 +1,5 @@
+import type { TimeOfDay } from "./time-of-day";
+
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 /**
@@ -305,6 +307,18 @@ export interface AvailabilityFilter {
   /** Окно времени "HH:MM". Оба поля необязательны: без них — весь день. */
   timeFrom?: string;
   timeTo?: string;
+  /**
+   * Время суток («Утро»/«Обед»/«Ужин») — то, что человек выбирает чипом, а не
+   * набирает часами. Разворачивается в то же серверное окно
+   * `time_from`/`time_to` (`timeOfDayWindow` в time-of-day.ts), поэтому фильтр
+   * СЕРВЕРНЫЙ и реально сужает выдачу — но, как и вся доступность, только
+   * вместе с датой и числом гостей: без пары `date`+`guests` сервер окно
+   * игнорирует.
+   *
+   * Когда задан, он ПЕРЕКРЫВАЕТ `timeFrom`/`timeTo`: два способа сказать одно
+   * и то же не должны спорить между собой.
+   */
+  timeOfDay?: TimeOfDay;
 }
 
 /** Что можно поменять в существующей брони (`PATCH /bookings/:id`). Оба поля
@@ -473,6 +487,33 @@ export function isTerminalBookingStatus(status: BookingStatus): boolean {
   return (TERMINAL_BOOKING_STATUSES as readonly BookingStatus[]).includes(status);
 }
 
+/**
+ * Бронь, из которой стоит предложить «Забронировать снова» (правка владельца
+ * 2026-08-26): визита не будет и уже не было.
+ *
+ * Три случая владельца — «истекла», «отменена», «не пришёл»:
+ *   • `cancelled` и `no_show` — статусы, они есть у бэкенда;
+ *   • «ИСТЕКЛА» статуса НЕ ИМЕЕТ. В `BookingStatus` его нет вовсе (список
+ *     переписан с domain.BookingStatus), и придумывать его клиенту нельзя.
+ *     Истёкшая бронь здесь — это бронь, которая так и осталась `pending`,
+ *     `waitlist` или `confirmed`, а время визита уже прошло: заведение не
+ *     ответило либо гость просто не пришёл, и статус никто не перевёл.
+ *
+ * `completed` СЮДА НЕ ВХОДИТ: визит состоялся, и предлагать «снова» поверх
+ * удачного ужина — не то же самое, что предлагать замену несостоявшемуся.
+ * `arrived` не входит по той же причине — гость был за столом.
+ *
+ * Граница по `endsAt`, а не по `startsAt`, — та же, что делит «Мои брони» на
+ * активные и историю: идущий прямо сейчас ужин ещё не истёк.
+ */
+export function isRebookableBooking(booking: Booking, now: Date = new Date()): boolean {
+  if (booking.status === "cancelled" || booking.status === "no_show") return true;
+  if (booking.status === "completed" || booking.status === "arrived") return false;
+  const endsAt = Date.parse(booking.endsAt);
+  // Нечитаемая дата — не повод объявлять бронь истёкшей.
+  return Number.isFinite(endsAt) && endsAt < now.getTime();
+}
+
 /** За сколько до начала визита гость ещё может отменить бронь сам. */
 export const CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
 
@@ -614,6 +655,23 @@ export interface AuthSession {
   refreshToken: string;
   /** RFC3339 expiry of the access token. */
   expiresAt: string;
+  /**
+   * ЭТОТ вход создал аккаунт (`true`) или открыл существующий (`false`) —
+   * поле `is_new_user` ответа `POST /auth/otp/verify`.
+   *
+   * `null` — «сервер не сказал», и это СЕГОДНЯШНЕЕ состояние боевого бэкенда:
+   * `tokenPairResponse` (internal/transport/rest/auth/response.go) отдаёт
+   * только три поля с токенами, хотя внутри `completeLogin`
+   * (internal/usecase/auth/otp.go) ветка «создали» и ветка «нашли» различаются
+   * явно. Поэтому здесь три значения, а не два: `null` означает незнание, и
+   * экраны обязаны трактовать его как «не новый» — лишний шаг регистрации,
+   * показанный давнему гостю, хуже, чем не показанный новому.
+   *
+   * ЧЕГО ЗДЕСЬ НЕТ НАМЕРЕННО: догадки по пустому профилю. «Имя не заполнено»
+   * или «дата рождения не заполнена» — это НЕ признак нового аккаунта, а
+   * признак незаполненного поля, и у давнего гостя оно тоже может быть пустым.
+   */
+  isNewUser: boolean | null;
 }
 
 /**

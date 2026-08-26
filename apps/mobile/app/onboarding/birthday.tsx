@@ -2,8 +2,9 @@ import type { AuthUser } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,6 +18,7 @@ import { FlowHeader } from "../../src/components/FlowHeader";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
+import { BIRTH_DATE_STEP_SKIPPABLE } from "../../src/lib/onboarding";
 import { birthDateBounds, classifyProfileSaveFailure } from "../../src/lib/profile-edit";
 
 /**
@@ -36,9 +38,16 @@ import { birthDateBounds, classifyProfileSaveFailure } from "../../src/lib/profi
  * прошлом, не старше 120 лет). Своей копии правила здесь нет намеренно: две
  * копии разъезжаются, и человек получает 422 вместо подсказки.
  *
- * В отличие от шага с именем, этот шаг НЕ стена: дата рождения не нужна ни
- * одной брони, и держать гостя на ней нельзя. Стрелка «назад» уводит на
- * главную без сохранения.
+ * ПОКАЗЫВАЕТСЯ ТОЛЬКО НОВОМУ АККАУНТУ. Кто новый — решает `postSignInStep`
+ * (src/lib/onboarding.ts) по ответу сервера, а не по пустой дате рождения:
+ * у давнего гостя она тоже бывает пустой, и ловить его здесь нельзя. Давний
+ * гость правит дату в «Персональных данных», календарём.
+ *
+ * МОЖНО ЛИ ПРОПУСТИТЬ — один переключатель `BIRTH_DATE_STEP_SKIPPABLE` в
+ * src/lib/onboarding.ts, и там же написано, почему сейчас он `true`. Пока он
+ * `true`, отсюда есть два выхода без сохранения: стрелка «назад» и кнопка
+ * «Пропустить». Поставленный в `false` он превращает шаг в стену — как шаг
+ * имени: ни стрелки, ни кнопки, ни аппаратной кнопки Android.
  */
 export default function OnboardingBirthdayScreen() {
   const { dictionary: t } = useLocale();
@@ -55,6 +64,22 @@ export default function OnboardingBirthdayScreen() {
 
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
+
+  /** Уйти без сохранения. Существует ровно пока шаг необязательный. */
+  const skip = useCallback(() => router.replace("/"), [router]);
+
+  // Аппаратная кнопка «назад» на Android: пока шаг можно пропустить, она его и
+  // пропускает; когда нельзя — гасится, иначе «стена» обходится одним нажатием
+  // системной кнопки. Обработчик один и там же, где переключатель, — чтобы
+  // «непропускаемый» шаг не оказался пропускаемым через Android.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!BIRTH_DATE_STEP_SKIPPABLE) return true;
+      skip();
+      return true;
+    });
+    return () => sub.remove();
+  }, [skip]);
 
   // "YYYY-MM-DD" — тот же вид, что принимает сервер и хранит профиль.
   const birthDate = useMemo(() => {
@@ -109,7 +134,7 @@ export default function OnboardingBirthdayScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        <FlowHeader title="" onBack={() => router.replace("/")} />
+        <FlowHeader title="" onBack={BIRTH_DATE_STEP_SKIPPABLE ? skip : undefined} />
       </SafeAreaView>
 
       <KeyboardAvoidingView
@@ -182,12 +207,26 @@ export default function OnboardingBirthdayScreen() {
             ) : null}
           </View>
 
-          <PrimaryButton
-            label={saving ? t.onboarding.birthday.saving : t.onboarding.birthday.save}
-            size="lg"
-            onPress={() => void save()}
-            disabled={!valid || saving}
-          />
+          <View style={styles.actions}>
+            <PrimaryButton
+              label={saving ? t.onboarding.birthday.saving : t.onboarding.birthday.save}
+              size="lg"
+              onPress={() => void save()}
+              disabled={!valid || saving}
+            />
+            {BIRTH_DATE_STEP_SKIPPABLE ? (
+              <>
+                <PrimaryButton
+                  label={t.onboarding.birthday.skip}
+                  size="lg"
+                  variant="secondary"
+                  onPress={skip}
+                  disabled={saving}
+                />
+                <Text style={styles.skipHint}>{t.onboarding.birthday.skipHint}</Text>
+              </>
+            ) : null}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -236,5 +275,13 @@ const styles = StyleSheet.create({
   error: {
     ...typography.caption,
     color: colors.status.negativeTextOnSurface,
+  },
+  actions: {
+    gap: spacing.md,
+  },
+  skipHint: {
+    ...typography.caption,
+    color: colors.text.muted,
+    textAlign: "center",
   },
 });

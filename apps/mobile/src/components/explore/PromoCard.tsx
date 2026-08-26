@@ -72,14 +72,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.primary,
   },
   badgeText: {
-    ...typography.captionMedium,
+    // Плашка скидки в макете 14/20 Medium (node 3102:12047), а не 12/16:
+    // это единственная надпись поверх фотографии, и в 12 она терялась.
+    ...typography.labelMedium,
     color: colors.text.onBrand,
   },
   text: {
     gap: spacing.xxs,
   },
   title: {
-    ...typography.titleSm,
+    ...typography.itemName,
     color: colors.text.primary,
   },
   subtitle: {

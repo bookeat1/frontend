@@ -1,7 +1,7 @@
 import type { Restaurant } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
-import { VenueAddressRow, VenuePhoneRow, VenueSocialLinks } from "../contacts/VenueContactLinks";
+import { VenueAddressRow, VenueContactIcons } from "../contacts/VenueContactLinks";
 import { BookingCard } from "./BookingCard";
 import { MapPreview } from "./MapPreview";
 
@@ -9,8 +9,9 @@ const t = getDictionary();
 
 /**
  * "Контакты" on the Reservation detail screen (Figma node 488:9876): a row of
- * circular icon buttons, then the address row, the phone row and the map
- * preview.
+ * circular icon buttons (звонок, сайт, WhatsApp, Instagram), then the address
+ * row and the map preview. Отдельной строки телефона больше нет — номер
+ * свёрнут в первую иконку ряда (правка владельца 2026-08-26).
  *
  * The rows themselves live in `contacts/VenueContactLinks` — the same
  * implementation the event and promo cards use, so a venue's phone behaves
@@ -34,9 +35,8 @@ export function hasAnyContact(restaurant: Restaurant): boolean {
 export function ContactsCard({ restaurant }: { restaurant: Restaurant }) {
   return (
     <BookingCard title={t.booking.contactsTitle}>
-      <VenueSocialLinks social={restaurant.social} />
+      <VenueContactIcons phone={restaurant.phone} social={restaurant.social} />
       <VenueAddressRow restaurant={restaurant} />
-      <VenuePhoneRow restaurant={restaurant} />
       <MapPreview restaurant={restaurant} />
     </BookingCard>
   );

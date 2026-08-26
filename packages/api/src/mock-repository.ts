@@ -833,6 +833,9 @@ export class MockAuthRepository implements AuthRepository {
       accessToken: "mock-access-token",
       refreshToken: "mock-refresh-token",
       expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      // Мок не заводит аккаунты и не различает первый вход от второго —
+      // честнее сказать «не знаю», чем выдумать false.
+      isNewUser: null,
     };
   }
 

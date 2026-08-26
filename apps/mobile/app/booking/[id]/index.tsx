@@ -1,6 +1,7 @@
 import {
   canGuestCancel,
   isCancellableBookingStatus,
+  isRebookableBooking,
   isTerminalBookingStatus,
   RepositoryError,
 } from "@bookeat/api";
@@ -183,6 +184,11 @@ export default function ReservationScreen() {
   const terminal = isTerminalBookingStatus(data.status);
   // «Меню» показываем только живой брони с меню у заведения.
   const showMenuAction = hasMenu && !terminal;
+  // Бронь, которой уже не будет (отменена, «не пришёл», или время визита
+  // прошло, а подтверждения так и не случилось): вместо «На главную» —
+  // «Забронировать снова» в то же заведение. Отправлять человека на главную
+  // из несостоявшейся брони значит заставить его искать ресторан заново.
+  const rebookable = isRebookableBooking(data);
 
   const onConfirmCancel = () => {
     setCancelError(null);
@@ -211,12 +217,25 @@ export default function ReservationScreen() {
             // нажать его случайно.
             <View style={styles.actionsRow}>
               <View style={styles.actionCell}>
-                <PrimaryButton
-                  label={t.booking.backToHome}
-                  variant="secondary"
-                  size="lg"
-                  onPress={() => router.replace("/")}
-                />
+                {rebookable ? (
+                  <PrimaryButton
+                    label={t.booking.bookAgain}
+                    size="lg"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/restaurant/[id]/book",
+                        params: { id: data.restaurantId },
+                      })
+                    }
+                  />
+                ) : (
+                  <PrimaryButton
+                    label={t.booking.backToHome}
+                    variant="secondary"
+                    size="lg"
+                    onPress={() => router.replace("/")}
+                  />
+                )}
               </View>
               {/* «Меню» ведёт туда же, куда «Выбрать блюда» в блоке предзаказа
                   (правка владельца 2026-08-24: обе кнопки должны делать одно и

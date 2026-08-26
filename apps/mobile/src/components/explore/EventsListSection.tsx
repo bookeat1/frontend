@@ -52,7 +52,7 @@ export function EventsListSection({
   return (
     <SectionCard>
       {/* Кегль заголовка `large` (20/28) — как в макете 3228:9821. */}
-      <SectionHeader title={t.explore.afishaTitle} onSeeAll={onSeeAll} size="large" />
+      <SectionHeader title={t.explore.afishaTitle} onSeeAll={onSeeAll} />
 
       {query.isLoading ? (
         <SkeletonList />

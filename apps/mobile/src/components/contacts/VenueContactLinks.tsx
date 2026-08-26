@@ -1,5 +1,12 @@
 import type { Restaurant } from "@bookeat/api";
-import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import {
+  colors,
+  controlHeight,
+  hitSlop,
+  radius,
+  spacing,
+  typography,
+} from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -10,7 +17,14 @@ import {
   openWebsite,
   openWhatsApp,
 } from "../../lib/external-links";
-import { GlobeSimple, InstagramLogo, MapPin, Phone, WhatsappLogo, type IconProps } from "../icons";
+import {
+  GlobeSimple,
+  InstagramLogo,
+  MapPin,
+  Phone,
+  WhatsappLogo,
+  type IconProps,
+} from "../icons";
 
 const t = getDictionary();
 
@@ -32,23 +46,48 @@ const t = getDictionary();
  *  - у каждого нажимаемого контакта роль и метка, которая говорит ДЕЙСТВИЕ
  *    («Позвонить в заведение»), а не просто называет поле.
  *
- * Отличается между экранами только просвет между иконками соцсетей: у брони 12,
+ * Отличается между экранами только просвет между иконками: у брони 12,
  * на карточке контента 8 (макет 986:8940). Поэтому `gap` — проп, а не константа.
  */
 
-/** Ряд круглых кнопок соцсетей. `null`, если у заведения нет ни одной. */
-export function VenueSocialLinks({
+/**
+ * Ряд круглых кнопок-контактов: ТЕЛЕФОН, сайт, WhatsApp, Instagram.
+ * `null`, если у заведения нет ни одного.
+ *
+ * Телефон стоит ПЕРВЫМ и не подписан номером (правка владельца 2026-08-26):
+ * раньше он был отдельной строкой под адресом и печатал сам номер текстом.
+ * Номер на карточке гость не переписывает и не запоминает — он по нему
+ * звонит, и для этого достаточно значка. Освободившаяся строка — это ещё и
+ * ~44 pt высоты на каждой из трёх карточек, где блок контактов показан.
+ *
+ * `VenuePhoneRow` здесь больше НЕТ. Если номер снова понадобится текстом
+ * (например, чтобы скопировать), это отдельное решение и отдельный контрол —
+ * не возвращать строку молча.
+ */
+export function VenueContactIcons({
+  phone,
   social,
   gap = spacing.md,
 }: {
+  /** Телефон заведения. Нет номера — нет и кнопки звонка. */
+  phone?: string;
   social: Restaurant["social"];
   gap?: number;
 }) {
   const { website, whatsapp, instagram } = social ?? {};
-  if (!website && !whatsapp && !instagram) return null;
+  if (!phone && !website && !whatsapp && !instagram) return null;
 
   return (
     <View style={[styles.socialRow, { gap }]}>
+      {phone ? (
+        <CircleLink
+          icon={Phone}
+          // Роль именно «кнопка»: это не переход по ссылке, а звонок.
+          role="button"
+          label={t.booking.contactPhone}
+          onPress={() => void openPhone(phone)}
+        />
+      ) : null}
       {website ? (
         <CircleLink
           icon={GlobeSimple}
@@ -105,34 +144,21 @@ export function VenueAddressRow({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
-/** Телефон заведения: нажатие открывает звонилку с этим номером. */
-export function VenuePhoneRow({ restaurant }: { restaurant: Restaurant }) {
-  const phone = restaurant.phone;
-  if (!phone) return null;
-
-  return (
-    <ContactRow
-      icon={Phone}
-      primary={phone}
-      secondary={t.restaurant.phoneLabel}
-      accessibilityLabel={`${t.booking.contactPhone}: ${phone}`}
-      onPress={() => void openPhone(phone)}
-    />
-  );
-}
-
 function CircleLink({
   icon: Icon,
   label,
+  role = "link",
   onPress,
 }: {
   icon: React.ComponentType<IconProps>;
   label: string;
+  /** «Позвонить» — это действие на устройстве, а не переход по ссылке. */
+  role?: "link" | "button";
   onPress: () => void;
 }) {
   return (
     <Pressable
-      accessibilityRole="link"
+      accessibilityRole={role}
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [styles.circle, pressed && styles.pressed]}
@@ -164,7 +190,9 @@ function ContactRow({
           а не уезжает за край экрана 360pt. */}
       <View style={styles.rowText}>
         <Text style={styles.rowPrimary}>{primary}</Text>
-        {secondary ? <Text style={styles.rowSecondary}>{secondary}</Text> : null}
+        {secondary ? (
+          <Text style={styles.rowSecondary}>{secondary}</Text>
+        ) : null}
       </View>
     </>
   );
@@ -178,7 +206,11 @@ function ContactRow({
       accessibilityLabel={accessibilityLabel ?? primary}
       accessibilityHint={accessibilityHint}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, styles.rowTappable, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.row,
+        styles.rowTappable,
+        pressed && styles.pressed,
+      ]}
     >
       {body}
     </Pressable>

@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { X } from "./icons";
@@ -19,10 +19,6 @@ interface FilterChipBaseProps {
    * `roomy` — 16 отступа по бокам вместо 12 (чипы «Все / Рестораны / События /
    * Акции» на экране «Избранное», макет 602:3630). Одно число, как и
    * `selectedTone`, — не второй компонент-чип.
-   *
-   * Высота при этом остаётся 44, хотя в макете чип 40: минимальная цель
-   * касания в этом репозитории — жёсткое правило доступности, и это уже
-   * ловилось на ревью (чипы были 36).
    */
   size?: "default" | "roomy";
 }
@@ -40,10 +36,21 @@ type FilterChipRemoveProps =
 type FilterChipProps = FilterChipBaseProps & FilterChipRemoveProps;
 
 /**
- * Matches the search-screen filter chip: unselected chips sit on the light
- * `chipAlt` fill, the selected chip inverts to a solid pill with white text.
- * On the search-results row that pill is black (Figma nodes 347:5773–347:5778);
- * inside the Filters sheet it is brand-red (`selectedTone="brand"`).
+ * Чип-фильтр. Размеры сняты с узла 347:5942 (экран «Поиск», ряд под строкой
+ * поиска): высота 40, скругление 999, боковой отступ 12, подложка `chipAlt`
+ * (#F3F2F2), подпись Noto Sans Medium 14/20 цветом `text.primary` (#1B1B1B),
+ * зазор между подписью и иконкой 8.
+ *
+ * Высота 40 при жёстком правиле «цель касания ≥ 44» — не послабление:
+ * недостающие 4 добираются вертикальным hitSlop'ом, и палец попадает в 48.
+ * Уменьшать зону касания было бы регрессом, а рисовать 44 там, где в макете
+ * 40, — рассинхроном с дизайном; hitSlop закрывает оба требования разом.
+ *
+ * `selected` инвертирует чип в сплошную пилюлю с белым текстом — этим живёт
+ * шторка «Фильтры» (`selectedTone="brand"`, бордовая) и ряды-переключатели.
+ * Ряд ПРИМЕНЁННЫХ фильтров над выдачей выбранным тоном не пользуется: там все
+ * чипы по определению активны, и по узлу 347:5942 они серые с тёмной
+ * подписью — сплошная заливка отличала бы их не от чего.
  */
 export function FilterChip({
   label,
@@ -66,6 +73,8 @@ export function FilterChip({
       accessibilityState={removable ? undefined : { selected }}
       accessibilityLabel={removable ? undefined : label}
       onPress={onPress}
+      // Чип рисуется на 40, а нажимается на 48 — см. комментарий к компоненту.
+      hitSlop={CHIP_TOUCH_SLOP}
       style={({ pressed }) => [
         styles.chip,
         size === "roomy" && styles.chipRoomy,
@@ -93,12 +102,24 @@ export function FilterChip({
   );
 }
 
+/**
+ * Сколько не хватает нарисованным 40 до минимальной цели касания. По вертикали
+ * — по 4 сверху и снизу; по горизонтали чипы стоят в 8 друг от друга, и
+ * растягивать их зоны навстречу нельзя: соседние перекрылись бы.
+ */
+const CHIP_TOUCH_SLOP = {
+  top: (hitSlop.minTouchTarget - controlHeight.chip) / 2,
+  bottom: (hitSlop.minTouchTarget - controlHeight.chip) / 2,
+  left: 0,
+  right: 0,
+} as const;
+
 const styles = StyleSheet.create({
   chip: {
-    minHeight: hitSlop.minTouchTarget,
+    minHeight: controlHeight.chip,
     flexDirection: "row",
-    gap: spacing.xs,
-    paddingHorizontal: 12,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.background.chipAlt,
     alignItems: "center",

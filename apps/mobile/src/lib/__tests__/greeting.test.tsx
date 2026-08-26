@@ -78,15 +78,36 @@ describe("homeGreeting", () => {
     }
   });
 
-  it("вошедший видит приветствие по времени суток с именем", () => {
-    expect(signedIn(localDate(4, 59))).toBe("Доброй ночи, Дамир");
-    expect(signedIn(localDate(5, 0))).toBe("Доброе утро, Дамир");
-    expect(signedIn(localDate(11, 59))).toBe("Доброе утро, Дамир");
-    expect(signedIn(localDate(12, 0))).toBe("Добрый день, Дамир");
-    expect(signedIn(localDate(17, 59))).toBe("Добрый день, Дамир");
-    expect(signedIn(localDate(18, 0))).toBe("Добрый вечер, Дамир");
-    expect(signedIn(localDate(22, 59))).toBe("Добрый вечер, Дамир");
-    expect(signedIn(localDate(23, 0))).toBe("Доброй ночи, Дамир");
+  it("вошедший видит приветствие по времени суток, имя — на ВТОРОЙ строке", () => {
+    expect(signedIn(localDate(4, 59))).toBe("Доброй ночи,\nДамир");
+    expect(signedIn(localDate(5, 0))).toBe("Доброе утро,\nДамир");
+    expect(signedIn(localDate(11, 59))).toBe("Доброе утро,\nДамир");
+    expect(signedIn(localDate(12, 0))).toBe("Добрый день,\nДамир");
+    expect(signedIn(localDate(17, 59))).toBe("Добрый день,\nДамир");
+    expect(signedIn(localDate(18, 0))).toBe("Добрый вечер,\nДамир");
+    expect(signedIn(localDate(22, 59))).toBe("Добрый вечер,\nДамир");
+    expect(signedIn(localDate(23, 0))).toBe("Доброй ночи,\nДамир");
+  });
+
+  /**
+   * Форма строки (макет 3102:11996, правка владельца 2026-08-26). Проверяется
+   * отдельно от текста: запятая и перенос — это НЕ украшение, а две строки
+   * шапки, под которые сверстана её высота.
+   */
+  it("между приветствием и именем ровно «запятая + перенос», и перенос один", () => {
+    const text = signedIn(localDate(9, 0), "Камила");
+    const [first, second, ...rest] = text.split("\n");
+    expect(first).toBe("Доброе утро,");
+    expect(second).toBe("Камила");
+    // Третьей строки быть не может: `numberOfLines={2}` в шапке обрезал бы её.
+    expect(rest).toEqual([]);
+    // Пробела перед именем нет — перенос его заменяет, иначе вторая строка
+    // начиналась бы с отступа.
+    expect(text).not.toContain(", ");
+  });
+
+  it("имя из нескольких слов остаётся на своей строке целиком", () => {
+    expect(signedIn(localDate(9, 0), "Камила-Айгерим")).toBe("Доброе утро,\nКамила-Айгерим");
   });
 
   it("вошедший без загруженного имени — приветствие без запятой и хвоста", () => {
@@ -150,7 +171,7 @@ describe("homeGreeting", () => {
         part: "evening",
         strings: en.explore.greetings,
       }),
-    ).toBe("Good evening, Damir");
+    ).toBe("Good evening,\nDamir");
   });
 });
 

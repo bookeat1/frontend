@@ -87,14 +87,18 @@ export function CuisineChip({
           Раньше здесь стояло numberOfLines={1} и «Средиземноморская»
           превращалась в обрезок (правка владельца 2026-08-24). Две строки
           спасают составные названия, а одно длинное слово переносить не по
-          чему — поэтому шрифт ужимается до 0.75 (12 → 9) в пределах
+          чему — поэтому шрифт ужимается до 0.75 (14 → 10.5) в пределах
           ширины ячейки. Обрезка — последнее, чего мы хотим: сокращённое
           название кухни гость не узнаёт. */}
       <Text
         style={styles.label}
         numberOfLines={2}
         adjustsFontSizeToFit
-        minimumFontScale={0.75}
+        // 0.65 от 14 — это те же ~9 pt, на которых «Средиземноморская»
+        // проверенно помещалась целиком при прежнем кегле 12. Пол абсолютной
+        // величины важнее коэффициента: подпись не должна стать мельче того,
+        // что уже читали глазами.
+        minimumFontScale={0.65}
       >
         {cuisine.name}
       </Text>
@@ -119,12 +123,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.bannerPlaceholder,
   },
   label: {
-    ...typography.caption,
+    // 14/20 Medium — так в макете (node 3106:12351 и девять соседей). До
+    // 2026-08-26 здесь стоял `caption` (12/16 Regular): подпись была на два
+    // шага мельче нарисованной.
+    ...typography.labelMedium,
     color: colors.text.primary,
     textAlign: "center",
     width: "100%",
     // Две строки резервируются всегда, чтобы круги соседних кухонь стояли на
     // одной высоте независимо от длины названия.
-    minHeight: typography.caption.lineHeight * 2,
+    minHeight: typography.labelMedium.lineHeight * 2,
   },
 });

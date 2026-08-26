@@ -1,7 +1,7 @@
 import type { AuthUser } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { useQueryClient } from "@tanstack/react-query";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { TextField } from "../../src/components/TextField";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
+import { birthdayStepFor, parseNewUserParam } from "../../src/lib/onboarding";
 import { classifyProfileSaveFailure } from "../../src/lib/profile-edit";
 
 /**
@@ -33,6 +34,11 @@ export default function OnboardingNameScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { repository } = useAuth();
+  // Признак новизны разбирается ОДИН раз и наверху: булево значение стабильно
+  // между перерисовками, в отличие от объекта параметров, поэтому его можно
+  // честно указать в зависимостях `save`, а не прятать от линтера.
+  const params = useLocalSearchParams<{ new?: string }>();
+  const isNewUser = parseNewUserParam(params.new);
 
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -63,9 +69,13 @@ export default function OnboardingNameScreen() {
       // Feed the same cache the rest of the app reads, so Home/Profile show the
       // name immediately without a refetch.
       queryClient.setQueryData(["me"], updated);
-      // Дальше — шаг с датой рождения (правка владельца 2026-08-20). replace,
-      // а не push: имя уже сохранено, и возвращаться к этому шагу незачем.
-      router.replace("/onboarding/birthday");
+      // Дальше — шаг с датой рождения, но ТОЛЬКО новому аккаунту (правка
+      // владельца 2026-08-26): «существующему клиенту не показываем ничего».
+      // Новизна приехала сюда параметром `new` из экрана входа — это ответ
+      // сервера, а не догадка по пустой дате: у давнего гостя она тоже бывает
+      // пустой. replace, а не push: имя уже сохранено, возвращаться незачем.
+      const next = birthdayStepFor({ isNewUser, account: updated });
+      router.replace(next === "birthday" ? "/onboarding/birthday" : "/");
     } catch (err) {
       const reason = classifyProfileSaveFailure(err);
       const f = t.profile.edit.failure;
@@ -82,7 +92,7 @@ export default function OnboardingNameScreen() {
       inFlight.current = false;
       setSaving(false);
     }
-  }, [trimmed, repository, queryClient, router, t]);
+  }, [trimmed, isNewUser, repository, queryClient, router, t]);
 
   return (
     <View style={styles.root}>

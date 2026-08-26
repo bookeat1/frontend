@@ -93,7 +93,7 @@ export default function ArticlesScreen() {
         <GuideHero title={t.nav.gastroguide} headline={t.articles.guideHeadline} />
 
         <View style={styles.section}>
-          <SectionHeader title={t.articles.collectionsTitle} size="large" />
+          <SectionHeader title={t.articles.collectionsTitle} />
 
           {rubrics.length > 0 ? (
             <View style={styles.gridWrap}>
@@ -130,7 +130,7 @@ export default function ArticlesScreen() {
 
         {routes.length > 0 ? (
           <View style={styles.section}>
-            <SectionHeader title={t.articles.routesTitle} size="large" />
+            <SectionHeader title={t.articles.routesTitle} />
             <View style={styles.list}>
               {routes.map((route) => (
                 <GuideRouteCard key={route.slug} route={route} onPress={openRoute} />

@@ -71,7 +71,14 @@ export const en: LocaleOverride<Dictionary> = {
       afternoon: "Good afternoon",
       evening: "Good evening",
       night: "Good night",
-      withName: (greeting: string, name: string) => `${greeting}, ${name}`,
+      /**
+       * Имя ВСЕГДА на второй строке, после запятой (макет 3102:11996 — там
+       * стоит разделитель строк U+2028 ровно в этом месте; правка владельца
+       * 2026-08-26). Перенос жёсткий, а не «если не влезло»: короткое имя
+       * иначе поднималось бы к приветствию, и шапка прыгала бы по высоте
+       * между «Ли» и «Александрой».
+       */
+      withName: (greeting: string, name: string) => `${greeting},\n${name}`,
     },
     cityFallback: "Almaty",
     cityLabel: (city: string) => `City: ${city}`,
@@ -184,6 +191,11 @@ export const en: LocaleOverride<Dictionary> = {
       datePillToday: "Today",
       guestsPill: (count: number) => `${count} ${guestsWord(count)}`,
       priceTitle: "Price range",
+      timeOfDayTitle: "Time",
+      timeOfDayMorning: "Morning",
+      timeOfDayLunch: "Lunch",
+      timeOfDayDinner: "Dinner",
+      timeOfDayNote: "Works together with the date and party size",
       priceAll: "All",
       cuisineTitle: "Cuisine",
       amenitiesTitle: "Amenities",
@@ -255,6 +267,9 @@ export const en: LocaleOverride<Dictionary> = {
       /** No "(midnight)" suffix (owner, 2026-08-24) — hours only. */
       untilMidnight: (from: string) => `${from} – 00:00`,
       openTimeUnknown: "Open, time not listed",
+      byDayTitle: "Opening hours by day",
+      byDayExpand: "Show hours by day",
+      byDayCollapse: "Hide hours by day",
       dayOff: "Closed",
       unknownDay: "Not listed",
       everyDay: (from: string, to: string) => `Daily from ${from} to ${to}`,
@@ -766,6 +781,7 @@ export const en: LocaleOverride<Dictionary> = {
       "Your booking is placed and the table is yours. But we couldn't save the pre-order — you can order the dishes on the spot",
     dishAdd: "Add",
     dishRemove: "Remove",
+    morning: "Morning",
     lunch: "Lunch",
     dinner: "Dinner",
     slotsNoneInPeriod: "No open slots for this time — check another period",
@@ -864,6 +880,7 @@ export const en: LocaleOverride<Dictionary> = {
 
     chat: "Chat",
     backToHome: "Back to home",
+    bookAgain: "Book again",
     openMenu: "Menu",
     cancelWindowClosed:
       "Less than two hours before the visit — cancelling in the app is no longer possible. Call the venue if your plans changed.",
@@ -1051,6 +1068,8 @@ export const en: LocaleOverride<Dictionary> = {
       year: "YYYY",
       save: "Continue",
       saving: "Saving…",
+      skip: "Skip",
+      skipHint: "You can add the date later in your profile",
     },
     name: {
       title: "What's your name?",

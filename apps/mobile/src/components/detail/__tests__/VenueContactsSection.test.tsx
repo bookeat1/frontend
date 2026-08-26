@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 describe("VenueContactsSection", () => {
-  it("показывает адрес и телефон заведения", () => {
+  it("показывает адрес текстом, а телефон — ТОЛЬКО значком", () => {
     const { container } = mount({
       ...base,
       address: "Проспект Аль-Фараби, 77/8, 1 этаж",
@@ -69,7 +69,11 @@ describe("VenueContactsSection", () => {
 
     expect(section(container)).not.toBeNull();
     expect(container.textContent).toContain("Проспект Аль-Фараби, 77/8, 1 этаж");
-    expect(container.textContent).toContain("+7 727 000 00 00");
+    // Правка владельца 2026-08-26: номер на карточке не печатается. Ни сам
+    // номер, ни подпись «Телефон» — остаётся кнопка со значком трубки.
+    expect(container.textContent).not.toContain("+7 727 000 00 00");
+    expect(container.textContent).not.toContain(t.restaurant.phoneLabel);
+    expect(byLabel(container, t.booking.contactPhone)).not.toBeNull();
   });
 
   it("не рисует ничего, пока заведение не загрузилось", () => {
@@ -92,7 +96,9 @@ describe("VenueContactsSection", () => {
   it("нажатие на телефон открывает звонилку с номером заведения", () => {
     const { container } = mount({ ...base, phone: "+7 727 000 00 00" });
 
-    const row = byLabel(container, `${t.booking.contactPhone}: +7 727 000 00 00`);
+    // Метка — ДЕЙСТВИЕ без номера: номер больше нигде не произносится, и
+    // читать его скринридеру перед звонком незачем.
+    const row = byLabel(container, t.booking.contactPhone);
     expect(row).not.toBeNull();
     fireEvent.click(row as Element);
 
@@ -113,7 +119,7 @@ describe("VenueContactsSection", () => {
     expect(openWebsite).toHaveBeenCalledWith("bookeat.kz");
   });
 
-  it("у заведения без телефона строки телефона нет и звонить нечему", () => {
+  it("у заведения без телефона кнопки звонка нет и звонить нечему", () => {
     const { container } = mount({
       ...base,
       address: "Проспект Аль-Фараби, 77/8",

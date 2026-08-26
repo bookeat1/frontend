@@ -4,7 +4,7 @@ import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Text, View } from "react-native";
 import { MapPreview } from "../booking/MapPreview";
-import { VenueAddressRow, VenuePhoneRow, VenueSocialLinks } from "../contacts/VenueContactLinks";
+import { VenueAddressRow, VenueContactIcons } from "../contacts/VenueContactLinks";
 import { detailStyles } from "./DetailBlocks";
 
 const t = getDictionary();
@@ -50,9 +50,8 @@ export function VenueContactsSection({ restaurant }: { restaurant: Restaurant | 
 
       {/* Просвет между иконками здесь 8, а не 12 как в брони, — так выверено по
           макету 986:8940; поведение при этом общее. */}
-      <VenueSocialLinks social={restaurant.social} gap={spacing.sm} />
+      <VenueContactIcons phone={restaurant.phone} social={restaurant.social} gap={spacing.sm} />
       <VenueAddressRow restaurant={restaurant} />
-      <VenuePhoneRow restaurant={restaurant} />
 
       <MapPreview restaurant={restaurant} />
     </View>

@@ -4,21 +4,22 @@ import userEvent from "@testing-library/user-event";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import HomeScreen from "../index";
-import { EXPLORE_DEFAULT_GUESTS } from "../../src/components/explore/use-explore-data";
-import { toDateKey } from "../../src/lib/format";
 
 /**
- * Главная: половины капсулы «сегодня · 2 гостя» ведут в каталог ПО-РАЗНОМУ.
+ * Главная: что она делает с ГОТОВЫМ выбором из шторки.
  *
- * Обе по-прежнему открывают `/search` и приносят туда выбор (дата + гости —
- * только парой, сервер игнорирует одно без другого), но теперь ещё и говорят,
- * какой фильтр там раскрыть: `focus=date` или `focus=guests`. Экран поиска на
- * этот параметр отвечает в `search-filter-focus.test.tsx`.
+ * Сам выбор (тап по половине капсулы → нижняя шторка с колесом → «Готово»)
+ * проверяется на живом компоненте в
+ * `src/components/__tests__/home-party-selector.test.tsx`; шапку здесь
+ * приходится подменять, потому что она тянет вшитый jpg через `require`, а
+ * Node в тесте пытается РАЗОБРАТЬ его как модуль.
  *
- * Шапку приходится подменять: она тянет локальный jpg через `require`, а Node
- * в тесте пытается РАЗОБРАТЬ его как модуль (та же причина, по которой шапку
- * не рендерит ни один другой тест). Подмена оставляет ровно то, что здесь
- * проверяется, — какие колбэки главная вешает на какую половину.
+ * Здесь проверяется остаток цепочки: экран уносит пару «дата + гости» в
+ * каталог И НЕ ПРОСИТ раскрыть там шторку фильтров. Параметр `focus`, который
+ * это делал (24.08), убран 26.08 по правке владельца: панель фильтров
+ * нагружена, и встречать ею человека, который назвал всего лишь день, — значит
+ * пугать его на первом же шаге. Ответ экрана поиска на такие параметры —
+ * `search-filter-panel-closed.test.tsx`.
  */
 
 const push = vi.fn();
@@ -37,18 +38,16 @@ vi.mock("react-native-safe-area-context", () => ({
 
 vi.mock("../../src/components/explore/HomeHeader", () => ({
   HomeHeader: ({
-    onOpenDate,
-    onOpenGuests,
+    onSearchParty,
   }: {
-    onOpenDate: () => void;
-    onOpenGuests: () => void;
+    onSearchParty: (party: { date: string; guests: number }) => void;
   }) => (
     <div>
-      <button type="button" onClick={onOpenDate}>
-        половина «дата»
-      </button>
-      <button type="button" onClick={onOpenGuests}>
-        половина «гости»
+      <button
+        type="button"
+        onClick={() => onSearchParty({ date: "2026-09-04", guests: 5 })}
+      >
+        выбор сделан
       </button>
     </div>
   ),
@@ -86,36 +85,26 @@ function renderHome() {
   );
 }
 
-describe("капсула главной говорит поиску, какой фильтр раскрыть", () => {
-  it("тап по дате несёт focus=date и сам выбор", async () => {
+describe("главная уносит готовый выбор в каталог", () => {
+  it("несёт в /search именно то, что выбрали в шторке", async () => {
     renderHome();
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "половина «дата»" }));
+    await user.click(screen.getByRole("button", { name: "выбор сделан" }));
 
     expect(push).toHaveBeenCalledWith({
       pathname: "/search",
-      params: {
-        guests: String(EXPLORE_DEFAULT_GUESTS),
-        date: toDateKey(new Date()),
-        focus: "date",
-      },
+      params: { guests: "5", date: "2026-09-04" },
     });
   });
 
-  it("тап по гостям несёт focus=guests", async () => {
+  it("не просит каталог раскрывать шторку фильтров", async () => {
     renderHome();
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "половина «гости»" }));
+    await user.click(screen.getByRole("button", { name: "выбор сделан" }));
 
-    expect(push).toHaveBeenCalledWith({
-      pathname: "/search",
-      params: {
-        guests: String(EXPLORE_DEFAULT_GUESTS),
-        date: toDateKey(new Date()),
-        focus: "guests",
-      },
-    });
+    const [target] = push.mock.calls[0] as [{ params: Record<string, string> }];
+    expect(Object.keys(target.params)).not.toContain("focus");
   });
 });

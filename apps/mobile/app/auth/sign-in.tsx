@@ -1,4 +1,4 @@
-import { RepositoryError } from "@bookeat/api";
+import { RepositoryError, type AuthUser } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -13,6 +13,7 @@ import { useToggleEntityFavorite, useToggleFavorite } from "../../src/hooks/useF
 import { useAuth } from "../../src/lib/auth";
 import { DEFAULT_COUNTRY, nationalLength } from "../../src/lib/countries";
 import { classifyOtpRequestFailure } from "../../src/lib/otp-error-copy";
+import { newUserParam, postSignInStep } from "../../src/lib/onboarding";
 import { formatStoredPhoneForDisplay, phoneFromE164 } from "../../src/lib/phone";
 
 const t = getDictionary();
@@ -307,27 +308,31 @@ export default function SignInScreen() {
 
     setSubmitting(true);
     try {
-      await signInWithCode({ phone: sentToPhone, code: value });
+      const { isNewUser } = await signInWithCode({ phone: sentToPhone, code: value });
       // Finish the interrupted action first (the favorite), then leave. The
       // button stays in its "Проверяем код…" state for the extra request
       // rather than flashing back to Explore with a heart that is still empty.
       await completeIntent();
-      // A first-time guest is created by /auth/otp/verify with no name, and a
-      // name is mandatory (it is stamped onto every booking). Read the account
-      // and, if it has none, send the guest to the required name step instead
-      // of releasing them into the app — from there Home is a `replace`, so the
-      // gate is not on the back stack. If /users/me can't be read we do NOT
-      // trap the guest on a blank wall: we leave as usual and the name can be
-      // filled later from «Профиль».
-      let needsName = false;
+      // Что показать после входа, решает ОДНА функция — `postSignInStep`
+      // (src/lib/onboarding.ts), а не набор условий здесь. Два входа в неё:
+      // профиль (имя обязательно — оно печатается на брони) и ответ сервера о
+      // новизне аккаунта (только новому показываем дату рождения). Если
+      // /users/me не прочитался, она честно отвечает «none»: на пустой стене
+      // гостя не держим, всё это заполняется потом из «Профиля».
+      let account: AuthUser | null = null;
       try {
-        const account = await repository.getMe();
-        needsName = account.fullName.trim().length === 0;
+        account = await repository.getMe();
       } catch {
         // Fall through to the normal exit.
       }
-      if (needsName) {
-        router.replace("/onboarding/name");
+      const step = postSignInStep({ isNewUser, account });
+      if (step === "name") {
+        // Признак новизны едет с гостем дальше: после имени шаг даты рождения
+        // нужен ровно тому же новому аккаунту, а второй раз спрашивать сервер
+        // не о чем — ответ уже на руках.
+        router.replace(`/onboarding/name?new=${newUserParam(isNewUser)}`);
+      } else if (step === "birthday") {
+        router.replace("/onboarding/birthday");
       } else {
         leave();
       }

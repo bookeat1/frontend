@@ -1,4 +1,5 @@
-import type { AvailabilitySlot, DayOfWeek } from "@bookeat/api";
+import { TIME_OF_DAY_ORDER, timeOfDayOfSlot } from "@bookeat/api";
+import type { AvailabilitySlot, DayOfWeek, TimeOfDay } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -35,17 +36,16 @@ import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
 const t = getDictionary();
 
 /**
- * The hour that splits the day's slots into the «Обед» and «Ужин» tabs (node
- * 918:11747). A threshold, not the venue's real schedule: every venue keeps
- * its own hours, and this only decides which of two tabs a slot lands under so
- * a long day of times reads as two short lists instead of one tall one.
+ * Вкладки времени суток. Границы и порядок НЕ живут в этом экране: они лежат
+ * в `@bookeat/api/time-of-day` и те же самые, что у чипа «Утро/Обед/Ужин» в
+ * поиске. Раньше здесь была своя константа `LUNCH_ENDS_HOUR = 18` и своя
+ * функция `isLunchSlot` — с ними «Утро» пришлось бы завести дважды.
  */
-const LUNCH_ENDS_HOUR = 18;
-
-/** Which tab a slot belongs to, by its LOCAL start hour. */
-function isLunchSlot(startsAt: string): boolean {
-  return new Date(startsAt).getHours() < LUNCH_ENDS_HOUR;
-}
+const TAB_LABELS: Record<TimeOfDay, string> = {
+  morning: t.booking.morning,
+  lunch: t.booking.lunch,
+  dinner: t.booking.dinner,
+};
 
 export default function ReservationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,9 +69,10 @@ export default function ReservationScreen() {
     acceptsOnlineBookings: restaurant?.acceptsOnlineBookings,
   });
 
-  // Обед / Ужин. Держим индекс здесь, а не в списке слотов, чтобы он пережил
-  // перерисовку грида при смене выбранного времени.
-  const [activeTab, setActiveTab] = useState(0);
+  // Утро / Обед / Ужин. Держим ЗНАЧЕНИЕ, а не индекс, и здесь, а не в списке
+  // слотов: значение переживает и перерисовку грида при смене выбранного
+  // времени, и добавление четвёртой вкладки, от которого индексы разъезжаются.
+  const [activeTab, setActiveTab] = useState<TimeOfDay>("lunch");
 
   // Prefill name/phone from the account once it is known, so the Confirmation
   // screen has a contact to show and the create-booking body matches the draft
@@ -105,9 +106,13 @@ export default function ReservationScreen() {
   useEffect(() => {
     if (didInitTab.current || !availabilitySlots || availabilitySlots.length === 0) return;
     didInitTab.current = true;
-    const lunchFree = availabilitySlots.some((s) => s.available && isLunchSlot(s.startsAt));
-    const dinnerFree = availabilitySlots.some((s) => s.available && !isLunchSlot(s.startsAt));
-    if (!lunchFree && dinnerFree) setActiveTab(1);
+    // Первая по ходу дня вкладка, где вообще есть свободное время. Без утра
+    // это была пара «нет обеда → открой ужин»; с тремя вкладками правило то же
+    // самое, просто записано для всего порядка сразу.
+    const firstFree = TIME_OF_DAY_ORDER.find((period) =>
+      availabilitySlots.some((s) => s.available && timeOfDayOfSlot(s.startsAt) === period),
+    );
+    if (firstFree) setActiveTab(firstFree);
   }, [availabilitySlots]);
 
   const selectedDate = useMemo(() => fromDateKey(draft.date), [draft.date]);
@@ -395,8 +400,8 @@ function SlotsSection({
    * про этот день ничего не сказал. */
   dayHint: string | null;
   phone?: string;
-  activeTab: number;
-  onTabChange: (index: number) => void;
+  activeTab: TimeOfDay;
+  onTabChange: (period: TimeOfDay) => void;
 }) {
   if (query.isPending) {
     return <LoadingState title={t.booking.slotsLoading} compact />;
@@ -471,15 +476,13 @@ function SlotsSection({
   // Both tabs are always shown once the day has any time at all: the split is a
   // grouping, not a claim about the venue, so an empty tab reads "не в этот
   // период" — it never means the venue is closed (that state is handled above).
-  const tabSlots = slots.filter((slot) =>
-    activeTab === 0 ? isLunchSlot(slot.startsAt) : !isLunchSlot(slot.startsAt),
-  );
+  const tabSlots = slots.filter((slot) => timeOfDayOfSlot(slot.startsAt) === activeTab);
   return (
     <View style={styles.slotsBlock}>
       <SegmentedTabs
-        labels={[t.booking.lunch, t.booking.dinner]}
-        activeIndex={activeTab}
-        onChange={onTabChange}
+        labels={TIME_OF_DAY_ORDER.map((period) => TAB_LABELS[period])}
+        activeIndex={TIME_OF_DAY_ORDER.indexOf(activeTab)}
+        onChange={(index) => onTabChange(TIME_OF_DAY_ORDER[index])}
       />
       {tabSlots.length > 0 ? (
         <TimeSlotGrid slots={tabSlots} selected={selected} onSelect={onSelect} />

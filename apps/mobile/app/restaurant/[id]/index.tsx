@@ -10,7 +10,7 @@ import { IconButton } from "../../../src/components/IconButton";
 import { useRestaurantFavorite } from "../../../src/hooks/useFavorites";
 import { MapPreview } from "../../../src/components/booking/MapPreview";
 import { MenuItemCard } from "../../../src/components/MenuItemCard";
-import { VenueAddressRow, VenuePhoneRow, VenueSocialLinks } from "../../../src/components/contacts/VenueContactLinks";
+import { VenueAddressRow, VenueContactIcons } from "../../../src/components/contacts/VenueContactLinks";
 import { DETAIL_FOOTER_CLEARANCE } from "../../../src/components/detail/DetailBlocks";
 import { PhotoView } from "../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
@@ -258,10 +258,12 @@ export default function RestaurantDetailScreen() {
               {/* Те же компоненты контактов, что на экране брони и на
                   карточках афиши и акции. Раньше здесь лежала ЧЕТВЁРТАЯ копия
                   этого блока, и в ней телефон был просто текстом: копию
-                  починили в трёх местах, а про эту забыли. */}
-              <VenueSocialLinks social={restaurant.social} />
+                  починили в трёх местах, а про эту забыли.
+
+                  С 2026-08-26 телефон вообще не печатается номером — он
+                  первый значок в ряду контактов и по нажатию звонит. */}
+              <VenueContactIcons phone={restaurant.phone} social={restaurant.social} />
               <VenueAddressRow restaurant={restaurant} />
-              <VenuePhoneRow restaurant={restaurant} />
 
               <MapPreview restaurant={restaurant} />
             </View>

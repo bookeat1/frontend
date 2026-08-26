@@ -1,10 +1,16 @@
 import type { VenueSchedule } from "@bookeat/api";
 import { WEEKDAY_BY_DAY_OF_WEEK, WEEK_ORDER_MONDAY_FIRST } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import {
+  colors,
+  hitSlop,
+  radius,
+  spacing,
+  typography,
+} from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { Clock } from "./icons";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { CaretDown, CaretUp, Clock } from "./icons";
 import {
   dayHoursLabel,
   hasKnownDays,
@@ -50,7 +56,9 @@ export function VenueScheduleCard({
     return (
       <View style={styles.card}>
         <Header statusLabel={openStateLabel(schedule)} />
-        <Text style={styles.unknownTitle}>{t.restaurant.schedule.unknownTitle}</Text>
+        <Text style={styles.unknownTitle}>
+          {t.restaurant.schedule.unknownTitle}
+        </Text>
         <Text style={styles.unknownDescription}>
           {t.restaurant.schedule.unknownDescription}
         </Text>
@@ -77,7 +85,10 @@ export function VenueScheduleCard({
       <View style={styles.card}>
         <Header
           statusLabel={openUntilTodayLabel(schedule)}
-          hoursLabel={t.restaurant.schedule.everyDay(uniform.opensAt, uniform.closesAt)}
+          hoursLabel={t.restaurant.schedule.everyDay(
+            uniform.opensAt,
+            uniform.closesAt,
+          )}
         />
         {isForeignTimezone(schedule.timezone) ? (
           <Text style={styles.timezoneNote}>
@@ -88,49 +99,80 @@ export function VenueScheduleCard({
     );
   }
 
+  return <WeekByDay schedule={schedule} today={today} />;
+}
+
+/**
+ * Разбивка по дням — СВЁРНУТАЯ (правка владельца 2026-08-26).
+ *
+ * Раньше семь строк раскрывались всегда, и у заведения с плавающими часами
+ * блок контактов уезжал за экран. Теперь это дропдаун: строка «Часы работы по
+ * дням» с шевроном, а неделя под ней появляется по нажатию. Свёрнутое
+ * состояние ничего не прячет из главного — «Открыто до 23:00» на месте, оно и
+ * отвечает на вопрос «сейчас-то работают?».
+ *
+ * Одинаковые дни сюда не попадают вовсе: они сводятся в одну строку
+ * «Ежедневно с 10:00 до 23:00» выше по коду, и сворачивать там нечего.
+ */
+function WeekByDay({
+  schedule,
+  today,
+}: {
+  schedule: VenueSchedule;
+  today: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <View style={styles.card}>
-      <Header statusLabel={openUntilTodayLabel(schedule)} />
-      <View style={styles.week}>
-        {WEEK_ORDER_MONDAY_FIRST.map((dayOfWeek) => {
-          const day = scheduleDayFor(schedule, dayOfWeek);
-          const isToday = dayOfWeek === today;
-          const unknown = !day;
-          const closed = day?.isOpen === false;
-          return (
-            <View
-              key={dayOfWeek}
-              style={[styles.row, isToday && styles.rowToday]}
-              // Одной строкой для скринридера: «Понедельник, сегодня,
-              // 12:00 – 01:00».
-              accessible
-              accessibilityLabel={[
-                t.weekdays[WEEKDAY_BY_DAY_OF_WEEK[dayOfWeek]],
-                isToday ? t.restaurant.schedule.today : null,
-                dayHoursLabel(day),
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            >
-              <Text
-                style={[styles.dayName, isToday && styles.textToday]}
-                numberOfLines={1}
+      <Header
+        statusLabel={openUntilTodayLabel(schedule)}
+        hoursLabel={t.restaurant.schedule.byDayTitle}
+        expanded={expanded}
+        onToggle={() => setExpanded((value) => !value)}
+      />
+      {expanded ? (
+        <View style={styles.week}>
+          {WEEK_ORDER_MONDAY_FIRST.map((dayOfWeek) => {
+            const day = scheduleDayFor(schedule, dayOfWeek);
+            const isToday = dayOfWeek === today;
+            const unknown = !day;
+            const closed = day?.isOpen === false;
+            return (
+              <View
+                key={dayOfWeek}
+                style={[styles.row, isToday && styles.rowToday]}
+                // Одной строкой для скринридера: «Понедельник, сегодня,
+                // 12:00 – 01:00».
+                accessible
+                accessibilityLabel={[
+                  t.weekdays[WEEKDAY_BY_DAY_OF_WEEK[dayOfWeek]],
+                  isToday ? t.restaurant.schedule.today : null,
+                  dayHoursLabel(day),
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
               >
-                {t.weekdays[WEEKDAY_BY_DAY_OF_WEEK[dayOfWeek]]}
-              </Text>
-              <Text
-                style={[
-                  styles.dayHours,
-                  isToday && styles.textToday,
-                  (closed || unknown) && styles.dayHoursMuted,
-                ]}
-              >
-                {dayHoursLabel(day)}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
+                <Text
+                  style={[styles.dayName, isToday && styles.textToday]}
+                  numberOfLines={1}
+                >
+                  {t.weekdays[WEEKDAY_BY_DAY_OF_WEEK[dayOfWeek]]}
+                </Text>
+                <Text
+                  style={[
+                    styles.dayHours,
+                    isToday && styles.textToday,
+                    (closed || unknown) && styles.dayHoursMuted,
+                  ]}
+                >
+                  {dayHoursLabel(day)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
       {isForeignTimezone(schedule.timezone) ? (
         <Text style={styles.timezoneNote}>
           {t.restaurant.schedule.timezoneNote(schedule.timezone)}
@@ -148,15 +190,65 @@ export function VenueScheduleCard({
  * Заголовка «Часы работы» в макете нет: статус сам себя объясняет, а лишняя
  * строка отодвигала главное — до скольких сегодня открыто — на второй план.
  */
-function Header({ statusLabel, hoursLabel }: { statusLabel: string; hoursLabel?: string }) {
-  return (
-    <View style={styles.header}>
+function Header({
+  statusLabel,
+  hoursLabel,
+  expanded,
+  onToggle,
+}: {
+  statusLabel: string;
+  hoursLabel?: string;
+  /** Задаётся только у разбивки по дням — она одна сворачивается. */
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
+  const body = (
+    <>
       <Clock size={24} color={colors.text.primary} weight="regular" />
       <View style={styles.headerText}>
         <Text style={styles.status}>{statusLabel}</Text>
         {hoursLabel ? <Text style={styles.hours}>{hoursLabel}</Text> : null}
       </View>
-    </View>
+      {onToggle ? (
+        // Шеврон декоративен: состояние и действие уже сказаны ролью и
+        // `accessibilityState` самой строки.
+        expanded ? (
+          <CaretUp size={20} color={colors.text.mutedStrong} weight="regular" />
+        ) : (
+          <CaretDown
+            size={20}
+            color={colors.text.mutedStrong}
+            weight="regular"
+          />
+        )
+      ) : null}
+    </>
+  );
+
+  if (!onToggle) return <View style={styles.header}>{body}</View>;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      // `aria-expanded`, а не `accessibilityState={{ expanded }}`: RN 0.86
+      // понимает ARIA-пропы и отдаёт их обеим платформам, а
+      // react-native-web из `accessibilityState` атрибут не выводит вовсе —
+      // на вебе состояние просто пропадало бы, и проверить его было бы нечем.
+      aria-expanded={expanded}
+      accessibilityLabel={
+        expanded
+          ? t.restaurant.schedule.byDayCollapse
+          : t.restaurant.schedule.byDayExpand
+      }
+      onPress={onToggle}
+      style={({ pressed }) => [
+        styles.header,
+        styles.headerTappable,
+        pressed && styles.pressed,
+      ]}
+    >
+      {body}
+    </Pressable>
   );
 }
 
@@ -171,6 +263,13 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+  },
+  headerTappable: {
+    // 44 pt — пол для любого касания в проекте (hitSlop.minTouchTarget).
+    minHeight: hitSlop.minTouchTarget,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   status: {
     ...typography.labelMedium,

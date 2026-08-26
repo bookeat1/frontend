@@ -141,15 +141,22 @@ describe("несколько кухонь в фильтре", () => {
     );
   });
 
-  it("focus продолжает раскрывать своё колесо, когда кухни тоже пришли", async () => {
-    params = { cuisine: "greek,italian", guests: "2", date: "2026-08-24", focus: "guests" };
+  it("кухни не теряются, когда в ссылке ещё и дата с гостями", async () => {
+    params = { cuisine: "greek,italian", guests: "2", date: "2026-08-24" };
     renderSearch();
 
-    // Шторка открыта на колесе гостей...
-    expect(await screen.findByText(t.booking.pickGuestsTitle)).toBeTruthy();
-    // ...и кухни при этом никуда не делись.
-    await waitFor(() =>
-      expect(lastQuery().filters.cuisineIds).toEqual(["greek", "italian"]),
-    );
+    await waitFor(() => {
+      expect(lastQuery().filters.cuisineIds).toEqual(["greek", "italian"]);
+      expect(lastQuery().filters.availability).toEqual({
+        date: "2026-08-24",
+        guests: 2,
+      });
+    });
+    // Раньше этот же случай проверял ещё и параметр `focus`, раскрывавший
+    // колесо гостей прямо при открытии каталога. Его больше нет (правка
+    // владельца 2026-08-26): дату и гостей называют шторкой на главной, а
+    // панель фильтров здесь остаётся закрытой — см.
+    // `search-filter-panel-closed.test.tsx`.
+    expect(screen.queryByText(t.booking.pickGuestsTitle)).toBeNull();
   });
 });

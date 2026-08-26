@@ -62,7 +62,14 @@ interface AuthContextValue {
   requestCode(phone: string): Promise<OtpRequest>;
   /** Exchanges phone + code for a session. Creates the account server-side on
    * the first successful code for a new number. */
-  signInWithCode(input: { phone: string; code: string }): Promise<void>;
+  /**
+   * Обменивает телефон + код на сессию и возвращает то, что сервер сказал про
+   * НОВИЗНУ аккаунта: `true` — этот вход его создал, `false` — открыл
+   * существующий, `null` — сервер не сказал (сегодняшний бэкенд именно такой,
+   * см. AuthSession.isNewUser). Экран входа решает по этому значению, вести ли
+   * человека в онбординг, и `null` для него означает «не новый».
+   */
+  signInWithCode(input: { phone: string; code: string }): Promise<{ isNewUser: boolean | null }>;
   signOut(): Promise<void>;
   /**
    * Returns a token that is valid for at least the next minute, refreshing if
@@ -320,12 +327,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithCode = useCallback(
     async (input: { phone: string; code: string }) => {
-      await applySession(await repository.verifyOtp(input));
+      const session = await repository.verifyOtp(input);
+      await applySession(session);
       // Explicit `login` event on a real OTP verify only. Fired here rather than
       // from the AnalyticsProvider so a cold-start rehydrate (which also reaches
       // "signed-in") is never counted as a login. Best-effort and non-throwing.
       trackEvent("login");
       void loadUser();
+      return { isNewUser: session.isNewUser };
     },
     [applySession, loadUser, repository],
   );

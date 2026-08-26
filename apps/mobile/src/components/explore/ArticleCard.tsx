@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   title: {
-    ...typography.titleSm,
+    ...typography.itemName,
     color: colors.text.primary,
   },
   author: {

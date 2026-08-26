@@ -12,7 +12,6 @@ import { FilterChip } from "../src/components/FilterChip";
 import { FavoriteRestaurantCard } from "../src/components/FavoriteRestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
-import type { AvailabilityPicker } from "../src/components/search/AvailabilityBar";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
@@ -45,18 +44,6 @@ function availabilityFromParams(
   return { date: day, guests: n };
 }
 
-/**
- * Какое колесо подбора раскрыть сразу после перехода с главной. На главной
- * дата и гости — две ОТДЕЛЬНЫЕ половины капсулы, и переход должен продолжать
- * начатое: нажал дату — открыт выбор даты, нажал гостей — выбор гостей.
- * Всё остальное (параметра нет, чужое значение, массив) — «фильтр не
- * раскрывать»: экран открывается обычным списком, а не пустым/сломанным.
- */
-function focusFromParams(focus: string | string[] | undefined): AvailabilityPicker | undefined {
-  const raw = Array.isArray(focus) ? focus[0] : focus;
-  return raw === "date" || raw === "guests" ? raw : undefined;
-}
-
 const FREQUENT_CUISINE_LIMIT = 8;
 
 /**
@@ -81,11 +68,10 @@ export default function SearchScreen() {
   // hands a string (or string[]), so narrow it to a single id.
   // Капсула на главной ведёт сюда и приносит свой выбор: /search?guests=2.
   // Дата необязательна — с главной приходит «сегодня», если её не выбирали.
-  const { cuisine, guests, date, focus } = useLocalSearchParams<{
+  const { cuisine, guests, date } = useLocalSearchParams<{
     cuisine?: string;
     guests?: string;
     date?: string;
-    focus?: string;
   }>();
   // Кухонь в ссылке может быть несколько — через запятую, теми же кодами, что
   // уходят серверу (`/search?cuisine=european,kazakh`). Разбираем и список, и
@@ -118,24 +104,18 @@ export default function SearchScreen() {
     citiesQuery,
   } = useSearchScreen({ initialCuisineIds, initialAvailability });
 
-  // Шторка фильтров: открыта сразу, если с главной пришёл `focus`. Оба
-  // состояния читают параметр ОДИН раз (инициализатор), поэтому закрыть
-  // шторку можно, и она не откроется обратно сама.
-  const initialPicker = useMemo(() => focusFromParams(focus), [focus]);
-  const [sheetVisible, setSheetVisible] = useState(() => initialPicker !== undefined);
-  // Раскрытое колесо — одноразовое: гость закрыл шторку и открыл её сам
-  // кнопкой-ползунками — он ждёт список фильтров, а не снова колесо даты.
-  const [sheetPicker, setSheetPicker] = useState<AvailabilityPicker | undefined>(
-    () => initialPicker,
-  );
-  const openSheet = useCallback(() => {
-    setSheetPicker(undefined);
-    setSheetVisible(true);
-  }, []);
-  const closeSheet = useCallback(() => {
-    setSheetVisible(false);
-    setSheetPicker(undefined);
-  }, []);
+  // Шторка фильтров ВСЕГДА открывается только по кнопке-ползункам.
+  //
+  // Раньше переход с главной мог раскрыть её сразу (параметр маршрута `focus`,
+  // 24.08). Убрано 26.08 по правке владельца: панель фильтров нагружена, и
+  // встречать ею человека, который всего лишь назвал день и компанию, — значит
+  // пугать его на первом же шаге. День и компанию он теперь выбирает шторкой с
+  // колесом ПРЯМО НА ГЛАВНОЙ и приходит сюда к готовой выдаче: параметры
+  // `date`/`guests` уже применены (см. `availabilityFromParams`), панель
+  // закрыта.
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const openSheet = useCallback(() => setSheetVisible(true), []);
+  const closeSheet = useCallback(() => setSheetVisible(false), []);
   // Подсказки «Часто ищут» живут по фокусу поля, а не по пустой строке: гость
   // видит их в тот момент, когда собирается искать, а не всё время, пока просто
   // листает каталог.
@@ -262,8 +242,11 @@ export default function SearchScreen() {
                   <FilterChip
                     key={chip.key}
                     label={chip.label}
-                    selected
-                    selectedTone="brand"
+                    // Без `selected`: в узле 347:5942 чипы этого ряда серые с
+                    // тёмной подписью. Сплошная заливка тут ничего не
+                    // различала — в ряду по определению только применённые
+                    // фильтры, и «выделять» их не от чего; активность
+                    // показывает крестик «снять».
                     // Тап по чипу и тап по крестику — одно и то же действие:
                     // снять именно этот фильтр и сразу переспросить сервер.
                     onPress={() => removeChip(chip)}
@@ -375,7 +358,6 @@ export default function SearchScreen() {
         amenitiesFailed={amenitiesQuery.isError}
         onRetryAmenities={() => void amenitiesQuery.refetch()}
         cities={citiesQuery.data ?? []}
-        initialPicker={sheetPicker}
         onApply={(nextFilters) => {
           setFilters(nextFilters);
           closeSheet();
@@ -494,11 +476,15 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    // 12 между кнопкой-ползунками и рядом чипов — `itemSpacing` кадра
+    // «Frame 36» в узле 347:5942.
+    gap: spacing.md,
   },
   chipsRow: {
     flexDirection: "row",
-    gap: spacing.xs,
+    // 8 между чипами — измерено по тому же узлу (правые края «Сегодня»,
+    // «Гости», «Казахская кухня» стоят в 8 от следующего чипа).
+    gap: spacing.sm,
     alignItems: "center",
   },
   listContent: {

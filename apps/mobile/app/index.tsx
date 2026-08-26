@@ -16,7 +16,6 @@ import {
   EXPLORE_DEFAULT_GUESTS,
   useGuestCity,
 } from "../src/components/explore/use-explore-data";
-import { toDateKey } from "../src/lib/format";
 import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
@@ -91,30 +90,21 @@ export default function HomeScreen() {
   const [citySyncFailed, setCitySyncFailed] = useState(false);
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
-  // Тап по капсуле «сегодня · 2 гостя» ведёт в поиск С ЭТИМ ЖЕ выбором, а не
-  // просто в каталог: человек уже назвал день и компанию, и заставлять его
-  // повторить это на следующем экране — терять то, что он только что сказал.
-  // Дальше выбор становится настоящим фильтром по свободным столам.
-  // ...и открывает в каталоге ИМЕННО ТУ половину, по которой нажали: `focus`
-  // говорит экрану поиска, какое колесо раскрыть. Без него человек, нажавший
-  // «2 гостя», попадал в каталог, где число гостей спрятано за кнопкой
-  // фильтров, и должен был искать его заново.
+  // Тап по капсуле «сегодня · 2 гостя» больше НИКУДА не уводит: день и компанию
+  // человек называет нижней шторкой с колесом прямо здесь (`HomeHeader`), —
+  // отдельного экрана выбора в дизайне нет (правка владельца 2026-08-26).
+  //
+  // Сюда приходит уже ГОТОВАЯ пара, и это обычный переход в каталог с этим
+  // выбором: он становится настоящим фильтром по свободным столам. Параметра
+  // `focus` больше нет — шторка фильтров в каталоге остаётся закрытой, чтобы
+  // не встречать нагруженной панелью того, кто всего лишь назвал день.
   const openSearchWithParty = useCallback(
-    (focus: "date" | "guests") =>
+    (party: { date: string; guests: number }) =>
       router.push({
         pathname: "/search",
-        params: {
-          guests: String(EXPLORE_DEFAULT_GUESTS),
-          date: toDateKey(new Date()),
-          focus,
-        },
+        params: { guests: String(party.guests), date: party.date },
       }),
     [router],
-  );
-  const openSearchDate = useCallback(() => openSearchWithParty("date"), [openSearchWithParty]);
-  const openSearchGuests = useCallback(
-    () => openSearchWithParty("guests"),
-    [openSearchWithParty],
   );
   const openNotifications = useCallback(() => router.push("/notifications"), [router]);
 
@@ -222,8 +212,7 @@ export default function HomeScreen() {
           city={city}
           dateValue={t.booking.today}
           guestsValue={t.booking.guestsCount(EXPLORE_DEFAULT_GUESTS)}
-          onOpenDate={openSearchDate}
-          onOpenGuests={openSearchGuests}
+          onSearchParty={openSearchWithParty}
           onOpenNotifications={openNotifications}
           onOpenCity={openCity}
         />

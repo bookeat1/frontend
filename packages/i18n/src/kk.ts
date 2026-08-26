@@ -75,7 +75,14 @@ export const kk: LocaleOverride<Dictionary> = {
       afternoon: "Қайырлы күн",
       evening: "Қайырлы кеш",
       night: "Қайырлы түн",
-      withName: (greeting: string, name: string) => `${greeting}, ${name}`,
+      /**
+       * Имя ВСЕГДА на второй строке, после запятой (макет 3102:11996 — там
+       * стоит разделитель строк U+2028 ровно в этом месте; правка владельца
+       * 2026-08-26). Перенос жёсткий, а не «если не влезло»: короткое имя
+       * иначе поднималось бы к приветствию, и шапка прыгала бы по высоте
+       * между «Ли» и «Александрой».
+       */
+      withName: (greeting: string, name: string) => `${greeting},\n${name}`,
     },
     cityFallback: "Алматы",
     cityLabel: (city: string) => `Қала: ${city}`,
@@ -189,6 +196,11 @@ export const kk: LocaleOverride<Dictionary> = {
       datePillToday: "Бүгін",
       guestsPill: (count: number) => `${count} қонақ`,
       priceTitle: "Баға санаты",
+      timeOfDayTitle: "Уақыт",
+      timeOfDayMorning: "Таң",
+      timeOfDayLunch: "Түскі ас",
+      timeOfDayDinner: "Кешкі ас",
+      timeOfDayNote: "Күн мен қонақ санымен бірге жұмыс істейді",
       priceAll: "Барлығы",
       cuisineTitle: "Асхана",
       amenitiesTitle: "Ыңғайлылықтар",
@@ -263,6 +275,9 @@ export const kk: LocaleOverride<Dictionary> = {
       /** «(түн ортасы)» алынып тасталды (2026-08-24) — тек уақыт. */
       untilMidnight: (from: string) => `${from} – 00:00`,
       openTimeUnknown: "Ашық, уақыты көрсетілмеген",
+      byDayTitle: "Күн бойынша жұмыс уақыты",
+      byDayExpand: "Күн бойынша уақытты көрсету",
+      byDayCollapse: "Күн бойынша уақытты жасыру",
       dayOff: "Демалыс",
       unknownDay: "Көрсетілмеген",
       everyDay: (from: string, to: string) => `Күн сайын ${from}-ден ${to}-ге дейін`,
@@ -773,6 +788,7 @@ export const kk: LocaleOverride<Dictionary> = {
       "Бронь жасалды, үстел сіздікі. Ал алдын ала тапсырысты сақтау мүмкін болмады — тағамдарға жерде тапсырыс беруге болады",
     dishAdd: "Қосу",
     dishRemove: "Алып тастау",
+    morning: "Таң",
     lunch: "Түскі ас",
     dinner: "Кешкі ас",
     slotsNoneInPeriod: "Бұл уақытқа бос слот жоқ — басқа кезеңді қараңыз",
@@ -871,6 +887,7 @@ export const kk: LocaleOverride<Dictionary> = {
 
     chat: "Чат",
     backToHome: "Басты бетке",
+    bookAgain: "Қайта брондау",
     openMenu: "Мәзір",
     cancelWindowClosed:
       "Келуге екі сағаттан аз қалды — қолданбада болдырмау мүмкін емес. Жоспарыңыз өзгерсе, мейрамханаға қоңырау шалыңыз.",
@@ -1059,6 +1076,8 @@ export const kk: LocaleOverride<Dictionary> = {
       year: "ЖЖЖЖ",
       save: "Жалғастыру",
       saving: "Сақталуда…",
+      skip: "Өткізіп жіберу",
+      skipHint: "Күнді кейінірек профильде көрсетуге болады",
     },
     name: {
       title: "Атыңыз кім?",

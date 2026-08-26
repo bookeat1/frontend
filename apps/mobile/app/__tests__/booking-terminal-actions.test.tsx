@@ -87,10 +87,12 @@ const RESTAURANT: Restaurant = {
   acceptsOnlineBookings: true,
 };
 
-function bookingWith(status: BookingStatus): Booking {
-  // Визит в будущем: у живых статусов кнопка точно должна быть, и разницу
-  // делает именно статус, а не прошедшее время.
-  const startsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+function bookingWith(status: BookingStatus, when: "future" | "past" = "future"): Booking {
+  // По умолчанию визит в будущем: у живых статусов кнопка точно должна быть, и
+  // разницу делает именно статус, а не прошедшее время. `past` нужен «истёкшей»
+  // брони — у неё живой статус, но время визита уже позади.
+  const offset = when === "future" ? 3 : -3;
+  const startsAt = new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString();
   return {
     id: "b-1",
     restaurantId: "r-1",
@@ -110,8 +112,8 @@ beforeEach(() => {
   replace.mockClear();
 });
 
-function renderScreen(status: BookingStatus) {
-  booking = bookingWith(status);
+function renderScreen(status: BookingStatus, when: "future" | "past" = "future") {
+  booking = bookingWith(status, when);
   return render(<ReservationScreen />);
 }
 
@@ -121,7 +123,13 @@ describe("экран брони: кнопка «Меню»", () => {
     async (status) => {
       renderScreen(status);
 
-      await waitFor(() => expect(screen.getByText(t.booking.backToHome)).toBeTruthy());
+      // У «Завершена» остаётся «На главную», у «Отменена»/«Не пришли» —
+      // «Забронировать снова»; проверяем, что ряд отрисовался, любой из двух.
+      await waitFor(() =>
+        expect(
+          screen.queryByText(t.booking.backToHome) ?? screen.queryByText(t.booking.bookAgain),
+        ).toBeTruthy(),
+      );
       expect(screen.queryByRole("button", { name: t.booking.openMenu })).toBeNull();
     },
   );
@@ -137,14 +145,79 @@ describe("экран брони: кнопка «Меню»", () => {
     },
   );
 
-  it("«На главную» остаётся единственной кнопкой ряда и занимает его целиком", async () => {
+  it("единственная кнопка ряда занимает его целиком", async () => {
     renderScreen("no_show");
 
-    const home = await screen.findByRole("button", { name: t.booking.backToHome });
+    const home = await screen.findByRole("button", { name: t.booking.bookAgain });
     // Ячейка кнопки (`flex: 1`) в ряду одна — значит, ряд она забирает весь,
     // а не половину, прижатую к краю.
     const row = home.parentElement?.parentElement;
     expect(row).toBeTruthy();
     expect(row?.children.length).toBe(1);
+  });
+});
+
+/**
+ * «Забронировать снова» вместо «На главную» (правка владельца 2026-08-26).
+ *
+ * Условие — бронь, которой уже не будет: отменена, гость не пришёл, либо время
+ * визита прошло, а бронь так и осталась неподтверждённой («истекла»).
+ * Отдельного статуса `expired` у бэкенда НЕТ — см. `isRebookableBooking` в
+ * packages/api/src/types.ts, — поэтому «истекла» проверяется временем.
+ *
+ * Если это сломать, экран не упадёт: человек из несостоявшейся брони просто
+ * уедет на главную и будет искать тот же ресторан заново.
+ */
+describe("экран брони: «Забронировать снова»", () => {
+  it.each<BookingStatus>(["cancelled", "no_show"])(
+    "заменяет «На главную» у брони со статусом %s",
+    async (status) => {
+      renderScreen(status);
+
+      expect(await screen.findByRole("button", { name: t.booking.bookAgain })).toBeTruthy();
+      expect(screen.queryByText(t.booking.backToHome)).toBeNull();
+    },
+  );
+
+  it.each<BookingStatus>(["pending", "waitlist", "confirmed"])(
+    "заменяет «На главную» у ИСТЁКШЕЙ брони со статусом %s (время визита прошло)",
+    async (status) => {
+      renderScreen(status, "past");
+
+      expect(await screen.findByRole("button", { name: t.booking.bookAgain })).toBeTruthy();
+      expect(screen.queryByText(t.booking.backToHome)).toBeNull();
+    },
+  );
+
+  it.each<BookingStatus>(["pending", "waitlist", "confirmed", "arrived"])(
+    "не трогает «На главную» у живой брони со статусом %s",
+    async (status) => {
+      renderScreen(status);
+
+      expect(await screen.findByRole("button", { name: t.booking.backToHome })).toBeTruthy();
+      expect(screen.queryByText(t.booking.bookAgain)).toBeNull();
+    },
+  );
+
+  it("состоявшийся визит («Завершена») остаётся с «На главную»", async () => {
+    // Удачный ужин — не несостоявшаяся бронь: «снова» здесь предлагает не
+    // замену, а повтор, и это другое решение владельца.
+    renderScreen("completed", "past");
+
+    expect(await screen.findByRole("button", { name: t.booking.backToHome })).toBeTruthy();
+    expect(screen.queryByText(t.booking.bookAgain)).toBeNull();
+  });
+
+  it("ведёт в бронирование ТОГО ЖЕ заведения, а не на главную", async () => {
+    renderScreen("cancelled");
+
+    const button = await screen.findByRole("button", { name: t.booking.bookAgain });
+    button.click();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith({
+      pathname: "/restaurant/[id]/book",
+      params: { id: "r-1" },
+    });
   });
 });

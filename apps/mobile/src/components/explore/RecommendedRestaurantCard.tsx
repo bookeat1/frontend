@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   name: {
-    ...typography.titleSm,
+    ...typography.itemName,
     color: colors.text.primary,
   },
   cuisine: {

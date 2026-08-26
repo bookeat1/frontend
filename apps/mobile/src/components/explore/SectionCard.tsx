@@ -1,4 +1,10 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import {
+  colors,
+  hitSlop,
+  radius,
+  spacing,
+  typography,
+} from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -25,30 +31,27 @@ export function SectionCard({ children }: { children: React.ReactNode }) {
  * button when there is somewhere to go: `onSeeAll` is optional, and without it
  * the caret renders as plain decoration instead of a control that does nothing
  * when tapped.
+ *
+ * Кегль у ВСЕХ заголовков один — `typography.titleSection` (20/28). Пропа
+ * `size` больше нет (2026-08-26): она разводила главную (17) и гастрогид (20),
+ * а в макете и там и там стоит 20/28, и «Афиша» уже была переведена на него
+ * поштучно — из-за чего пять заголовков одной главной были разного размера.
  */
 export function SectionHeader({
   title,
   onSeeAll,
   showChevron = true,
-  size = "compact",
 }: {
   title: string;
   onSeeAll?: () => void;
   /** «Выберите кухню» carries no chevron in the design; pass false to drop it.
    * Ignored when `onSeeAll` is set — a navigable header always shows its caret. */
   showChevron?: boolean;
-  /**
-   * Кегль заголовка. `compact` (17) — главная, где таких заголовков пять
-   * подряд и крупные забирали больше места, чем карточки под ними. `large`
-   * (20/28) — экран гастрогида, где секция на экране одна и макет
-   * (dVjT37j984ErvOmzxlx29p, node 1099:6835) рисует именно 20. Проп добавлен,
-   * а не сделан второй компонент: строка «заголовок + шеврон» одна и та же,
-   * различие ровно в одном значении.
-   */
-  size?: "compact" | "large";
 }) {
-  const caret = <CaretRight size={24} color={colors.text.mutedStrong} weight="regular" />;
-  const titleStyle = [styles.title, size === "large" && styles.titleLarge];
+  const caret = (
+    <CaretRight size={24} color={colors.text.mutedStrong} weight="regular" />
+  );
+  const titleStyle = styles.title;
 
   if (!onSeeAll) {
     return (
@@ -102,9 +105,6 @@ const styles = StyleSheet.create({
     ...typography.titleSection,
     color: colors.text.primary,
     flexShrink: 1,
-  },
-  titleLarge: {
-    ...typography.titleLg,
   },
   pressed: {
     opacity: 0.7,

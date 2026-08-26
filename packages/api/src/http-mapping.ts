@@ -591,6 +591,8 @@ export interface ApiTokenPair {
   access_token: string;
   refresh_token: string;
   expires_at: string;
+  /** Необязательное: сегодняшний бэкенд его не присылает. См. AuthSession.isNewUser. */
+  is_new_user?: boolean;
 }
 
 export interface ApiUser {
@@ -696,6 +698,10 @@ export function mapSession(api: ApiTokenPair): AuthSession {
     accessToken: text(api.access_token),
     refreshToken: text(api.refresh_token),
     expiresAt: text(api.expires_at),
+    // Строго булево или null. Любое другое значение (строка "true", число,
+    // отсутствие ключа) — это «сервер не сказал», а не «да»: молчание не
+    // должно превращаться в лишний экран у давнего гостя.
+    isNewUser: typeof api.is_new_user === "boolean" ? api.is_new_user : null,
   };
 }
 
