@@ -838,12 +838,34 @@ export interface ApiStory {
   image_url: string;
   caption?: string | null;
   sort_order: number;
+  /** Where the story sends the guest. Nullable, and omitted entirely by
+   * builds of the backend older than 2026-08-26. NOT the image's address —
+   * `image_url` is where the picture lives, this is where the tap goes. */
+  action_url?: string | null;
+}
+
+/**
+ * A link the app may hand to `Linking.openURL`, or `null`.
+ *
+ * Only `http://` and `https://` survive. The field is free text typed into the
+ * admin panel, so a row can carry "book-eat.com" (no scheme), "javascript:…",
+ * a `tel:` or plain prose; opening any of those is at best a dead end and at
+ * worst a scheme the OS hands to another app. A missing scheme is NOT repaired
+ * here on purpose: guessing `https://` for an arbitrary string is how a typo
+ * becomes a stranger's website. Same spirit as dropping a blank `image_url` —
+ * a bad value becomes "no link", never a broken action.
+ */
+function httpLink(value: string | null | undefined): string | null {
+  const raw = text(value);
+  return /^https?:\/\//i.test(raw) ? raw : null;
 }
 
 /**
  * Sorted by `sort_order` ascending here so no screen has to re-sort the rail.
  * A story whose `image_url` is missing is dropped rather than rendered as an
  * empty red-bordered tile — the card is nothing but the image plus a caption.
+ * A story whose `action_url` is not an http(s) address keeps its image and
+ * loses only the link (see httpLink) — the picture is still worth showing.
  */
 export function mapRestaurantStories(items: ApiStory[] | null | undefined): RestaurantStory[] {
   return [...(items ?? [])]
@@ -853,6 +875,7 @@ export function mapRestaurantStories(items: ApiStory[] | null | undefined): Rest
       imageUrl: text(item.image_url),
       caption: text(item.caption) || null,
       sortOrder: typeof item.sort_order === "number" ? item.sort_order : 0,
+      actionUrl: httpLink(item.action_url),
     }))
     .filter((story) => story.imageUrl !== "");
 }

@@ -256,6 +256,8 @@ export const en: LocaleOverride<Dictionary> = {
     storyCardGeneric: "Story",
     storyPrevious: "Previous story",
     storyNext: "Next story",
+    storyLinkHint: "Learn more",
+    storyLinkAction: "Learn more, opens a link",
     contacts: "Contacts",
     phoneLabel: "Phone",
     schedule: {

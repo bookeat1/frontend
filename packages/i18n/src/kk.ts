@@ -264,6 +264,8 @@ export const kk: LocaleOverride<Dictionary> = {
     storyCardGeneric: "Оқиға",
     storyPrevious: "Алдыңғы оқиға",
     storyNext: "Келесі оқиға",
+    storyLinkHint: "Қарау",
+    storyLinkAction: "Қарау, сілтеме ашылады",
     contacts: "Байланыстар",
     phoneLabel: "Телефон",
     schedule: {

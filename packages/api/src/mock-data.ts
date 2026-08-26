@@ -182,9 +182,11 @@ function menuHighlights(restaurantId: string): MenuHighlight[] {
 /**
  * The mock's promo stories for one venue — a small, ordered set that mirrors
  * the live shape: a couple of captioned cards and one WITHOUT a caption, so the
- * rail's "image-only card" path is exercised offline too. The last card is a
- * remote URL rather than a bundled asset so the fullscreen viewer's network
- * image load is exercised as well.
+ * rail's "image-only card" path is exercised offline too. The FIRST card
+ * carries an `actionUrl`, so the swipe-up hint and its gesture are visible
+ * offline as well; the others have none, which is the common case. The last
+ * card is a remote URL rather than a bundled asset so the fullscreen viewer's
+ * network image load is exercised as well.
  */
 export function restaurantStories(restaurantId: string): RestaurantStory[] {
   return [
@@ -193,12 +195,16 @@ export function restaurantStories(restaurantId: string): RestaurantStory[] {
       imageUrl: photo("foodDessertBerry", `${restaurantId}-story-1`, "Десерт дня").uri,
       caption: "Сладкий четверг — десерт в подарок",
       sortOrder: 0,
+      // История со ссылкой — офлайн-режим тоже показывает подсказку «Смотреть»
+      // и свайп вверх.
+      actionUrl: "https://book-eat.com/",
     },
     {
       id: `${restaurantId}-story-2`,
       imageUrl: photo("interiorCheers", `${restaurantId}-story-2`, "Вечер в ресторане").uri,
       caption: "Живая музыка каждую пятницу",
       sortOrder: 1,
+      actionUrl: null,
     },
     {
       id: `${restaurantId}-story-3`,
@@ -206,6 +212,7 @@ export function restaurantStories(restaurantId: string): RestaurantStory[] {
       // История без подписи — карточка показывает только фото.
       caption: null,
       sortOrder: 2,
+      actionUrl: null,
     },
   ];
 }

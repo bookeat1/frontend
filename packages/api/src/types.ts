@@ -434,6 +434,16 @@ export interface RestaurantStory {
   caption: string | null;
   /** The venue's own ordering. Ties keep the server's array order. */
   sortOrder: number;
+  /**
+   * Where a swipe up on this story takes the guest (`action_url`), or `null`
+   * when the venue left it blank — most stories have no link.
+   *
+   * ALWAYS an `http(s)` address by the time it gets here: the mapper drops
+   * anything else, because this value is handed straight to `Linking.openURL`
+   * and a `tel:`/`javascript:`/bare-word value from a bad row must never reach
+   * it. A screen may treat `null` as "this story is not tappable".
+   */
+  actionUrl: string | null;
 }
 
 export type BookingStatus =
