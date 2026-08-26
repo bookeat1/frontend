@@ -1,5 +1,5 @@
 import type { GuideCollection } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -25,8 +25,11 @@ const t = getDictionary();
  * выдуманной подписи («От BookEat» и прочего) тут нет.
  */
 
-/** Высота обложки (node 1100:7103). */
-const COVER_HEIGHT = 148;
+/**
+ * Высота обложки — `listCard.coverHeight` (206, node 3192:6246). Было 148 из
+ * старого узла 1100:7103.
+ */
+const COVER_HEIGHT = listCard.coverHeight;
 
 export function ArticleListCard({
   collection,

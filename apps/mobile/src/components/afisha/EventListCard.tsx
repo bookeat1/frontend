@@ -1,5 +1,5 @@
 import type { EventSummary } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   cover: {
     width: "100%",
-    height: 148,
+    height: listCard.coverHeight,
     borderRadius: radius.photoHero,
     backgroundColor: colors.background.chip,
   },

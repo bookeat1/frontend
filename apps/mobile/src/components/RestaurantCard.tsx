@@ -1,5 +1,5 @@
 import type { RestaurantSummary } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { cuisineLine, splitCuisines } from "../lib/cuisine-display";
@@ -21,7 +21,11 @@ interface RestaurantCardProps {
   photoOverlay?: React.ReactNode;
 }
 
-const IMAGE_HEIGHT = 148;
+/**
+ * Высота снимка — общая для всех вертикальных списков (`listCard.coverHeight`,
+ * 206 из макета гастрогида). Раньше здесь стояло собственное 148.
+ */
+const IMAGE_HEIGHT = listCard.coverHeight;
 
 /**
  * Search-result card — matches Figma nodes 347:5716–347:5730. The design has

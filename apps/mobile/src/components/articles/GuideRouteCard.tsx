@@ -1,5 +1,5 @@
 import type { GuideRoute } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -26,8 +26,9 @@ const t = getDictionary();
  * вариантом на случай, когда редактор строку не заполнил.
  */
 
-/** Высота обложки — та же, что у карточки подборки. */
-const COVER_HEIGHT = 148;
+/** Высота обложки — та же, что у карточки подборки (`listCard.coverHeight`,
+ * 206 из макета 3192:6275; было 148). */
+const COVER_HEIGHT = listCard.coverHeight;
 
 export function GuideRouteCard({
   route,

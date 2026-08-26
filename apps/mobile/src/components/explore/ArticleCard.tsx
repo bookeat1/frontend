@@ -1,4 +1,4 @@
-import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, exploreLayout, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   // видит их подряд, переходя по «Смотреть все».
   photoFull: {
     width: "100%",
-    height: 148,
+    height: listCard.coverHeight,
     borderRadius: radius.photoHero,
   },
   // Ниже ростом, чем первая: в половину ширины кадр той же высоты выглядел бы
