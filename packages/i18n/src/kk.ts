@@ -725,8 +725,6 @@ export const kk: LocaleOverride<Dictionary> = {
     guestsCount: (count: number) => `${count} ${guestsWord(count)}`,
     guestsHint: (max: number) =>
       `${max} қонақтан көбі — бұл банкет, орынмен тікелей байланысыңыз`,
-    guestsDecrease: "Қонақты азайту",
-    guestsIncrease: "Қонақты көбейту",
     timeSectionTitle: "Уақыты",
     prefillTakenTitle: "Бұл уақытты жаңа ғана алып қойды",
     prefillTakenDescription:

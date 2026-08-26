@@ -1594,8 +1594,6 @@ export const ru = {
     guestsCount: (count: number) => `${count} ${guestsWord(count)}`,
     guestsHint: (max: number) =>
       `Больше ${max} гостей — это уже банкет, свяжитесь с заведением напрямую`,
-    guestsDecrease: "Меньше гостей",
-    guestsIncrease: "Больше гостей",
     timeSectionTitle: "Время",
     // --- время, подставленное с главного экрана ---
     /** Слот из карточки Explore оказался занят, пока гость шёл в форму.

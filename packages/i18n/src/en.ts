@@ -717,8 +717,6 @@ export const en: LocaleOverride<Dictionary> = {
     guestsCount: (count: number) => `${count} ${guestsWord(count)}`,
     guestsHint: (max: number) =>
       `More than ${max} guests is a banquet — please contact the restaurant directly`,
-    guestsDecrease: "Fewer guests",
-    guestsIncrease: "More guests",
     timeSectionTitle: "Time",
     prefillTakenTitle: "This time was just taken",
     prefillTakenDescription:

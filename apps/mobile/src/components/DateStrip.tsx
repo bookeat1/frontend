@@ -65,6 +65,12 @@ export function DateStrip({
             key={item.key}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
+            // Дубль ARIA-пропом — не декорация: react-native-web НЕ выводит
+            // `aria-selected` из `accessibilityState` (та же грабля, что с
+            // `aria-expanded` у графика заведения), и на вебе выбранный день
+            // не объявлялся вовсе. RN 0.86 понимает ARIA-пропы напрямую,
+            // поэтому нативу вторая запись не мешает.
+            aria-selected={active}
             accessibilityLabel={`${caption}, ${item.day}`}
             onPress={() => onSelect(item.key)}
             style={({ pressed }) => [

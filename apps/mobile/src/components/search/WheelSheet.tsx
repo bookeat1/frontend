@@ -14,6 +14,12 @@ import { WheelPicker, type WheelOption } from "./WheelPicker";
  * только по «Готово». Иначе каждый проворот колеса перезапускал бы поиск, и
  * гость, пролистывающий даты, отправил бы десяток запросов по дороге к нужной.
  * Крестик и тап по затемнению закрывают шторку, ничего не применив.
+ *
+ * `hint` — необязательная строка под колесом. Она есть ради одной конкретной
+ * вещи: у числа гостей есть ПОТОЛОК (20), и про то, что выше него начинается
+ * банкет и звонить надо заведению, гость раньше читал на отдельном экране
+ * «Сколько гостей». Экран удалён — предупреждение переехало сюда, потому что
+ * молча обрезанный список без объяснения читается как поломка.
  */
 export function WheelSheet({
   visible,
@@ -22,6 +28,7 @@ export function WheelSheet({
   value,
   submitLabel,
   closeLabel,
+  hint,
   onSubmit,
   onClose,
 }: {
@@ -31,6 +38,8 @@ export function WheelSheet({
   value: string;
   submitLabel: string;
   closeLabel: string;
+  /** Пояснение под колесом — например, про потолок числа гостей. */
+  hint?: string;
   onSubmit: (value: string) => void;
   onClose: () => void;
 }) {
@@ -84,6 +93,8 @@ export function WheelSheet({
             accessibilityLabel={title}
           />
 
+          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+
           <Pressable
             accessibilityRole="button"
             onPress={() => onSubmit(draft)}
@@ -123,6 +134,10 @@ const styles = StyleSheet.create({
     ...typography.titleMd,
     color: colors.text.primary,
     flexShrink: 1,
+  },
+  hint: {
+    ...typography.caption,
+    color: colors.text.muted,
   },
   submit: {
     minHeight: controlHeight.pill,

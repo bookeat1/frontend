@@ -22,12 +22,15 @@ import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../../src/components/SegmentedTabs";
 import { SelectRow } from "../../../../src/components/SelectRow";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
+import { WheelSheet } from "../../../../src/components/search/WheelSheet";
 import { TextField } from "../../../../src/components/TextField";
 import { TimeSlotGrid } from "../../../../src/components/TimeSlotGrid";
 import { useAvailability } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
+import { dateChoices } from "../../../../src/lib/availability-label";
+import { guestOptions } from "../../../../src/lib/availability-options";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
 import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
@@ -73,6 +76,26 @@ export default function ReservationScreen() {
   // слотов: значение переживает и перерисовку грида при смене выбранного
   // времени, и добавление четвёртой вкладки, от которого индексы разъезжаются.
   const [activeTab, setActiveTab] = useState<TimeOfDay>("lunch");
+
+  /**
+   * Какая нижняя шторка поднята, `null` — ни одной.
+   *
+   * Дата и число гостей выбираются ЗДЕСЬ, колесом в шторке (`WheelSheet`,
+   * макеты 918:12317 и 918:12428) — ровно так же, как на главной. До правки
+   * владельца (26.08.2026) тап по пиллу уводил на отдельные экраны
+   * `book/date` (календарь на месяц) и `book/guests` (степпер с кружками);
+   * их в дизайне нет, и они удалены вместе с маршрутами.
+   */
+  const [picker, setPicker] = useState<"date" | "guests" | null>(null);
+
+  // Список дат — один раз на монтирование: 61 объект (сегодня + горизонт
+  // брони), пересчитывать его на каждый рендер экрана незачем.
+  const dateWheel = useMemo(() => dateChoices(new Date()).options, []);
+  // Значения колеса гостей — те же 1..MAX_GUESTS, что предлагал удалённый
+  // экран. Предупреждение про банкет считается ОТ ДЛИНЫ ЭТОГО СПИСКА, а не от
+  // отдельной константы: иначе колесо и подпись под ним могут разъехаться и
+  // экран пообещает 20, предупреждая про 25.
+  const guestWheel = useMemo(() => guestOptions((n) => t.booking.guestsCount(n)), []);
 
   // Prefill name/phone from the account once it is known, so the Confirmation
   // screen has a contact to show and the create-booking body matches the draft
@@ -236,13 +259,13 @@ export default function ReservationScreen() {
                 icon={CalendarBlank}
                 accessibilityLabel={t.booking.dateSectionTitle}
                 value={dateLabel}
-                onPress={() => router.push(`/restaurant/${id}/book/date`)}
+                onPress={() => setPicker("date")}
               />
               <PillSelect
                 icon={User}
                 accessibilityLabel={t.booking.guestsSectionTitle}
                 value={t.booking.guestsCount(draft.guests)}
-                onPress={() => router.push(`/restaurant/${id}/book/guests`)}
+                onPress={() => setPicker("guests")}
               />
             </View>
           </View>
@@ -270,7 +293,7 @@ export default function ReservationScreen() {
                 query={availability}
                 selected={draft.slot?.startsAt ?? null}
                 onSelect={handleSelectSlot}
-                onPickAnotherDate={() => router.push(`/restaurant/${id}/book/date`)}
+                onPickAnotherDate={() => setPicker("date")}
                 dayHint={selectedDayHint}
                 phone={restaurant?.phone}
                 activeTab={activeTab}
@@ -357,6 +380,44 @@ export default function ReservationScreen() {
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
+
+      {/* Обе шторки — ТОТ ЖЕ `WheelSheet`, что стоит на главной и в фильтрах
+          каталога: второго колеса в приложении быть не должно. Выбор внутри
+          черновой и применяется только по «Готово».
+
+          Применяется он через `draft.setDate` / `draft.setGuests` — ровно те
+          же вызовы, что делает ряд плиток дней выше. Поэтому плитки и шторка
+          не могут разойтись: у них одно состояние, и оба пути одинаково
+          сбрасывают выбранное время (слот принадлежал старому дню и старой
+          компании). */}
+      <WheelSheet
+        visible={picker === "date"}
+        title={t.booking.pickDateTitle}
+        options={dateWheel}
+        value={draft.date}
+        submitLabel={t.search.availabilityDone}
+        closeLabel={t.search.availabilityClose}
+        onClose={() => setPicker(null)}
+        onSubmit={(date) => {
+          setPicker(null);
+          draft.setDate(date);
+        }}
+      />
+
+      <WheelSheet
+        visible={picker === "guests"}
+        title={t.booking.pickGuestsTitle}
+        options={guestWheel}
+        value={String(draft.guests)}
+        submitLabel={t.search.availabilityDone}
+        closeLabel={t.search.availabilityClose}
+        hint={t.booking.guestsHint(guestWheel.length)}
+        onClose={() => setPicker(null)}
+        onSubmit={(picked) => {
+          setPicker(null);
+          draft.setGuests(Number(picked));
+        }}
+      />
     </View>
   );
 }

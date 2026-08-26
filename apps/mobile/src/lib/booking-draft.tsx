@@ -108,7 +108,6 @@ interface BookingDraftValue extends BookingDraft {
    * booking instead of creating a second one.
    */
   idempotencyKey: string;
-  maxDate: Date;
   /** See PrefillOutcome. */
   prefillOutcome: PrefillOutcome;
   /**
@@ -343,8 +342,6 @@ export function BookingDraftProvider({
     if (input.phone) setPhone((current) => (current.trim() ? current : input.phone!));
   }, []);
 
-  const maxDate = useMemo(() => addDays(new Date(), HORIZON_DAYS), []);
-
   // Wrapped setters: the raw state setters are kept private so nothing can
   // change the body without the key following it.
   const setNameKeyed = useCallback(
@@ -382,7 +379,6 @@ export function BookingDraftProvider({
       notes,
       preorder,
       idempotencyKey,
-      maxDate,
       prefillOutcome,
       resolvePrefill,
       setDate,
@@ -405,7 +401,6 @@ export function BookingDraftProvider({
       notes,
       preorder,
       idempotencyKey,
-      maxDate,
       prefillOutcome,
       resolvePrefill,
       setDate,
