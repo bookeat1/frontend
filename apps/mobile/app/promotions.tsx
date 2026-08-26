@@ -2,11 +2,12 @@ import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { useExplorePromotionsQuery } from "../src/components/explore/use-explore-data";
 import { FlowHeader } from "../src/components/FlowHeader";
+import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { PromotionListCard } from "../src/components/promotions/PromotionListCard";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { trackEvent } from "../src/lib/analytics";
@@ -28,6 +29,10 @@ export default function PromotionsScreen() {
   const router = useRouter();
   const query = useExplorePromotionsQuery();
   const promotions = query.data ?? [];
+  // Один запрос — но состояние индикатора всё равно своё (см.
+  // usePullToRefresh): `isRefetching` гаснет и на фоновых перезапросах, к
+  // которым гость руки не прикладывал.
+  const { refreshing, onRefresh } = usePullToRefresh(() => query.refetch());
 
   const openPromotion = useCallback(
     (id: string) => {
@@ -52,14 +57,26 @@ export default function PromotionsScreen() {
           action={{ label: t.common.retry, onPress: () => query.refetch(), variant: "button" }}
         />
       ) : promotions.length === 0 ? (
-        <EmptyState
-          title={t.promotions.emptyTitle}
-          description={t.promotions.emptyDescription}
-        />
+        // Пустой список ТОЖЕ тянется: кнопки «обновить» здесь нет нарочно
+        // (она бы только перезапросила ту же пустую ленту), а «вдруг уже
+        // появилось» — это ровно тот случай, ради которого жест и живёт.
+        // Отсюда обёртка-лента с `flexGrow: 1`: содержимое короче экрана без
+        // неё не оттягивается вовсе.
+        <ScrollView
+          contentContainerStyle={styles.stateContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <EmptyState
+            title={t.promotions.emptyTitle}
+            description={t.promotions.emptyDescription}
+          />
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {promotions.map((promo) => (
             <PromotionListCard key={promo.id} promo={promo} onPress={openPromotion} />
@@ -80,8 +97,16 @@ const styles = StyleSheet.create({
   headerSafeArea: {
     backgroundColor: colors.background.surface,
   },
+  stateContent: {
+    // Пустое состояние занимает ленту целиком — иначе его нечем тянуть.
+    flexGrow: 1,
+  },
   listContent: {
-    padding: spacing.lg,
+    // БЕЗ бокового отступа намеренно: `PromotionListCard` держит его сама и
+    // по-разному для фотографии (8) и для подписи (16). Здесь стоял общий
+    // `padding: 16`, он складывался с внутренними — ровно та же ошибка, что
+    // чинили на экране поиска и потом в «Афише».
+    paddingTop: spacing.lg,
     gap: spacing.xl,
     paddingBottom: spacing.xxxl,
   },

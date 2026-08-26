@@ -3,7 +3,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GuideVenueBlock } from "../../src/components/articles/GuideVenueBlock";
 import { detailStyles } from "../../src/components/detail/DetailBlocks";
@@ -12,6 +12,7 @@ import { ArrowLeft, Export } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
 import { PhotoView } from "../../src/components/PhotoView";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
+import { usePullToRefresh } from "../../src/hooks/usePullToRefresh";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 
 const t = getDictionary();
@@ -43,6 +44,8 @@ export default function ArticleDetailScreen() {
   const insets = useSafeAreaInsets();
   const query = useGuideCollection(slug);
   const collection = query.data;
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => query.refetch());
 
   const openRestaurant = useCallback(
     (restaurantId: string) => router.push(`/restaurant/${restaurantId}`),
@@ -115,6 +118,10 @@ export default function ArticleDetailScreen() {
         style={detailStyles.scrollFloor}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={detailStyles.scrollContent}
+        // Ветки «загружаем», «не найдено» и «ошибка» жестом не обновляются:
+        // у ошибки своя кнопка «Повторить», а 404 по слагу перезапросом не
+        // лечится — там нечего появиться.
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.summaryBlock}>
           <View style={styles.coverContainer}>

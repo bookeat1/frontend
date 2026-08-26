@@ -1,5 +1,5 @@
 import type { HomePromo } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -16,6 +16,12 @@ const t = getDictionary();
  * What differs is what a promo actually has: no tags, and a «−N%» badge over
  * the cover when the feed carried a discount. The whole card is one button and
  * opens the promo's detail screen.
+ *
+ * КАРТОЧКА ДЕРЖИТ БОКОВЫЕ ОТСТУПЫ САМА, и по-разному: фотография отступает от
+ * края экрана на 8, подпись под ней — на 16. Ровно как `EventListCard`, и по
+ * той же причине — общий `paddingHorizontal` у контейнера списка сложился бы с
+ * внутренними отступами и отжал фотографию от края дальше макетных 8 (правка
+ * владельца 2026-08-24, см. bugs/bookeat-frontend-search-card-double-padding).
  */
 export function PromotionListCard({
   promo,
@@ -37,20 +43,25 @@ export function PromotionListCard({
       onPress={() => onPress(promo.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <View>
-        <PhotoView
-          uri={promo.coverImageUrl ?? undefined}
-          style={styles.cover}
-          decorative
-          placeholderIconSize={40}
-        />
-        {promo.discountPercent !== null ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {t.explore.promoDiscount(promo.discountPercent)}
-            </Text>
-          </View>
-        ) : null}
+      <View style={styles.coverWrap}>
+        {/* Плашка скидки лежит НА фотографии, поэтому её обёртка отдельная от
+            той, что держит боковой отступ: иначе «−20%» отсчитывалось бы от
+            края экрана, а не от угла кадра. */}
+        <View>
+          <PhotoView
+            uri={promo.coverImageUrl ?? undefined}
+            style={styles.cover}
+            decorative
+            placeholderIconSize={40}
+          />
+          {promo.discountPercent !== null ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {t.explore.promoDiscount(promo.discountPercent)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -74,9 +85,16 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
+  coverWrap: {
+    paddingHorizontal: spacing.sm,
+  },
   cover: {
     width: "100%",
-    height: 148,
+    // Одна высота на все вертикальные списки приложения (206, узел 3192:6246).
+    // Здесь стояло 148 из старого файла макетов — карточка акции осталась
+    // единственной, кого не задел общий переход на токен, и «Акции» рисовались
+    // ниже, чем «Афиша», хотя это намеренно один и тот же вид карточки.
+    height: listCard.coverHeight,
     borderRadius: radius.photoHero,
     backgroundColor: colors.background.chip,
   },
@@ -94,6 +112,7 @@ const styles = StyleSheet.create({
     color: colors.text.onBrand,
   },
   body: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.xxs,
   },
   title: {

@@ -3,7 +3,7 @@ import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
@@ -20,6 +20,7 @@ import {
   usePromoFavorite,
   useRestaurantFavorite,
 } from "../src/hooks/useFavorites";
+import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { useAuth } from "../src/lib/auth";
 import {
   favoriteItemKey,
@@ -56,6 +57,15 @@ export default function FavoritesScreen() {
   const { status } = useAuth();
   const query = useFavoriteItems();
   const [tab, setTab] = useState<FavoriteTab>("all");
+  // Экран живёт на ОДНОМ запросе (`GET /favorites/items` без `type=`), поэтому
+  // обновлять надо ровно его — вкладка это фильтр в памяти, а не свой запрос.
+  //
+  // Гостю без сессии жест выключен, а не спрятан: запрашивать нечего (список
+  // привязан к сессии), и молчаливое `enabled: false` оставляет вёрстку той
+  // же, вместо того чтобы крутить кружок вхолостую.
+  const { refreshing, onRefresh } = usePullToRefresh(() => query.refetch(), {
+    enabled: status === "signed-in",
+  });
 
   const items = useMemo(
     () => filterFavoriteItems(query.data?.items ?? [], tab),
@@ -105,7 +115,17 @@ export default function FavoritesScreen() {
         {items.length === 0 ? (
           // Пустая вкладка говорит именно про свой вид: гость без сохранённых
           // событий не должен читать текст про рестораны.
-          <EmptyState icon={Heart} title={emptyTitle(tab)} description={emptyDescription(tab)} />
+          //
+          // И её ТОЖЕ можно потянуть: избранное меняется с другого устройства
+          // и на других экранах приложения, а кнопки «обновить» здесь нет.
+          // `flexGrow: 1` — иначе содержимое короче экрана не оттягивается.
+          <ScrollView
+            contentContainerStyle={styles.stateContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          >
+            <EmptyState icon={Heart} title={emptyTitle(tab)} description={emptyDescription(tab)} />
+          </ScrollView>
         ) : (
           <FlatList
             // Список — второй ребёнок колонки (над ним ряд чипов), поэтому ему
@@ -118,8 +138,7 @@ export default function FavoritesScreen() {
             ItemSeparatorComponent={Separator}
             contentContainerStyle={[styles.list, { paddingBottom: navPad }]}
             showsVerticalScrollIndicator={false}
-            refreshing={query.isRefetching}
-            onRefresh={() => void query.refetch()}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           />
         )}
       </>
@@ -299,6 +318,9 @@ const styles = StyleSheet.create({
   },
   listFlex: {
     flex: 1,
+  },
+  stateContent: {
+    flexGrow: 1,
   },
   list: {
     // Карточки сами отступают от краёв (фото 8, текст 16), поэтому у списка

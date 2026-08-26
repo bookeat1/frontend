@@ -3,7 +3,7 @@ import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { BookingListCard } from "../src/components/booking/BookingListCard";
@@ -13,6 +13,7 @@ import { CalendarBlank, Clock } from "../src/components/icons";
 import { PillTabs } from "../src/components/PillTabs";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 import { useMyBookings } from "../src/hooks/useBooking";
+import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { useAuth } from "../src/lib/auth";
 
 const t = getDictionary();
@@ -65,6 +66,18 @@ export default function MyBookingsScreen() {
   const { status } = useAuth();
   const query = useMyBookings();
   const [activeTab, setActiveTab] = useState<number>(TAB_ACTIVE);
+  // Обновляется ОДИН постраничный запрос — тот, из которого собраны обе
+  // вкладки. `refetch()` у бесконечного запроса переспрашивает все УЖЕ
+  // загруженные страницы, поэтому долистанная история после жеста не
+  // схлопывается обратно к первой странице.
+  //
+  // Гостю без сессии жест выключен: список привязан к сессии, спрашивать
+  // нечего. Индикатор при этом свой, а не `isRefetching`: у бесконечного
+  // запроса `isRefetching` истинно и при подгрузке следующей страницы, и
+  // кружок «потянуть вниз» зажигался бы от обычной прокрутки вниз.
+  const { refreshing, onRefresh } = usePullToRefresh(() => query.refetch(), {
+    enabled: status === "signed-in",
+  });
 
   const openBooking = useCallback(
     (bookingId: string) => router.push({ pathname: "/booking/[id]", params: { id: bookingId } }),
@@ -144,8 +157,7 @@ export default function MyBookingsScreen() {
       // sits at the scroll end and onEndReached can fire to page in more.
       contentContainerStyle={[styles.list, isEmpty && styles.listEmpty, { paddingBottom: navPad }]}
       showsVerticalScrollIndicator={false}
-      refreshing={query.isRefetching && !query.isFetchingNextPage}
-      onRefresh={() => void query.refetch()}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       onEndReachedThreshold={0.5}
       onEndReached={() => {
         if (query.hasNextPage && !query.isFetchingNextPage) {

@@ -3,7 +3,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { ArticleListCard } from "../src/components/articles/ArticleListCard";
 import { GuideCollectionGrid } from "../src/components/articles/GuideCollectionGrid";
 import { GuideRouteCard } from "../src/components/articles/GuideRouteCard";
@@ -13,6 +13,7 @@ import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { SectionHeader } from "../src/components/explore/SectionCard";
 import { useGuideCollections, useGuideRoutes } from "../src/components/explore/use-explore-data";
+import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 
 const t = getDictionary();
@@ -60,6 +61,17 @@ export default function ArticlesScreen() {
   const routesQuery = useGuideRoutes();
   const [heroBehindStatusBar, setHeroBehindStatusBar] = useState(true);
 
+  // ДВА запроса, и оба принадлежат этому экрану, поэтому предикат по кэшу
+  // (как на главной) здесь лишний: обе ручки уже в руках, а `Promise.all`
+  // завершается ровно тогда, когда ответил ПОСЛЕДНИЙ из них — кружок не
+  // гаснет на первом ответе, пока второй блок ещё едет.
+  //
+  // Отказ одного не отменяет другой: `refetch()` у react-query не бросает,
+  // ошибку рассказывает состояние своего блока.
+  const { refreshing, onRefresh } = usePullToRefresh(() =>
+    Promise.all([collectionsQuery.refetch(), routesQuery.refetch()]),
+  );
+
   const collections = useMemo(() => collectionsQuery.data ?? [], [collectionsQuery.data]);
   const { rubrics, articles } = useMemo(() => splitGuideCollections(collections), [collections]);
 
@@ -77,6 +89,11 @@ export default function ArticlesScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: navPad }]}
         showsVerticalScrollIndicator={false}
+        // Экран — одна лента, и тянется он целиком: и когда подборок нет
+        // (пустое состояние живёт ВНУТРИ белого блока, лента остаётся), и
+        // когда загрузка сорвалась. Отдельной обёртки под пустое состояние
+        // здесь не нужно — фотография шапки сама длиннее экрана.
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         scrollEventThrottle={16}
         onScroll={(event) => {
           const passed = event.nativeEvent.contentOffset.y > GUIDE_HERO_CONTENT_HEIGHT;

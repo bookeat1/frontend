@@ -3,7 +3,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GuideRouteStopBlock } from "../../src/components/articles/GuideRouteStopBlock";
 import { detailStyles } from "../../src/components/detail/DetailBlocks";
@@ -11,6 +11,7 @@ import { useGuideRoute } from "../../src/components/explore/use-explore-data";
 import { ArrowLeft, Export } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
 import { PhotoView } from "../../src/components/PhotoView";
+import { usePullToRefresh } from "../../src/hooks/usePullToRefresh";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 
 const t = getDictionary();
@@ -39,6 +40,8 @@ export default function GuideRouteScreen() {
   const insets = useSafeAreaInsets();
   const query = useGuideRoute(slug);
   const route = query.data;
+
+  const { refreshing, onRefresh } = usePullToRefresh(() => query.refetch());
 
   const openRestaurant = useCallback(
     (restaurantId: string) => router.push(`/restaurant/${restaurantId}`),
@@ -119,6 +122,10 @@ export default function GuideRouteScreen() {
         style={detailStyles.scrollFloor}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={detailStyles.scrollContent}
+        // Ветки «загружаем», «не найдено» и «ошибка» жестом не обновляются:
+        // у ошибки своя кнопка «Повторить», а 404 по слагу перезапросом не
+        // лечится — там нечего появиться.
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.summaryBlock}>
           <View style={styles.coverContainer}>
