@@ -10,11 +10,12 @@ import type {
   HomePromo,
   RestaurantSummary,
 } from "@bookeat/api";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import { useAuth } from "../../lib/auth";
 import { useLocale } from "../../lib/locale";
 import { useCuisines } from "../../hooks/useCuisines";
+import { usePullToRefresh } from "../../hooks/usePullToRefresh";
 import { usePreferredCity } from "../../lib/preferred-city";
 import { useRepository } from "../../lib/repository";
 import {
@@ -451,3 +452,82 @@ export function useExploreArticles(): readonly ArticleCardData[] {
 }
 
 export type { ArticleCardData, PromoStripItem };
+
+/* --------------------------------------------------------------------------
+ * ОБНОВЛЕНИЕ ГЛАВНОЙ ЖЕСТОМ
+ * ----------------------------------------------------------------------- */
+
+/**
+ * Корни ключей запросов, из которых сложена ГЛАВНАЯ.
+ *
+ * Это список того, что гость ВИДИТ на этом экране, и он нужен буквально:
+ * `refetchQueries` без фильтра перезапросил бы весь кэш приложения — брони,
+ * профиль заведения, справочник городов, — то есть жест на главной незаметно
+ * тратил бы сеть на чужие экраны.
+ *
+ * Города в ключах нет намеренно: `["explore-events", 12, "Астана"]` и
+ * `["home-feed","promos","Астана"]` различаются хвостом, а какой именно город
+ * сейчас показан — знает не этот список, а активность самого запроса (см.
+ * `refetchHomeQueries`). Так обновление не промахивается мимо ключа после
+ * смены города.
+ */
+const HOME_QUERY_ROOTS: ReadonlySet<string> = new Set([
+  "popular-restaurants", // «Выбрали для вас»
+  "catalog-preview", // фотографии кругов «Выберите кухню»
+  "cuisines", // справочник кухонь (CUISINES_QUERY_KEY)
+  "explore-events", // «Афиша»
+  "home-feed", // «Акции»
+  "me", // имя и город в шапке
+]);
+
+/** Ключ этого запроса рисует что-то на главной? */
+export function isHomeQueryKey(key: readonly unknown[]): boolean {
+  const root = key[0];
+  if (typeof root !== "string") return false;
+  // Гастрогид — общий корень у СПИСКА подборок («Статьи» на главной), деталки
+  // подборки и маршрутов гастропрогулок. На главной есть только список,
+  // поэтому совпадение по одному корню `guide` тянуло бы за собой чужие
+  // экраны.
+  if (root === "guide") return key[1] === "collections";
+  return HOME_QUERY_ROOTS.has(root);
+}
+
+/**
+ * Обновление главной жестом.
+ *
+ * ПОЧЕМУ `refetchQueries`, А НЕ СПИСОК `refetch()`. Блоки главной ходят за
+ * данными сами — экран не держит их запросов в руках и, чтобы собрать шесть
+ * `refetch`, ему пришлось бы смонтировать те же шесть хуков ВТОРОЙ раз ради
+ * одного жеста. `refetchQueries` спрашивает у кэша ровно то, что сейчас
+ * смонтировано, и возвращает ОДИН промис, который завершается, когда улеглись
+ * все ответы, — именно то, что должно гасить кружок.
+ *
+ * ПОЧЕМУ НЕ `invalidateQueries`. Пометка «устарело» перезапрашивает то же
+ * самое, но её промис говорит про пометку, а не про ответы; кружок гас бы
+ * сразу. Плюс инвалидация оставляет мину замедленного действия на запросах,
+ * которых на экране нет.
+ *
+ * ФИЛЬТР `type: "active"` — вторая половина точности: перезапрашивается только
+ * то, у чего есть живой наблюдатель, то есть буквально видимые блоки. Кэш
+ * главной, оставшийся от прошлого города или от прошлого визита, не трогается,
+ * и выключенный запрос профиля у гостя без сессии — тоже.
+ *
+ * ЖЕСТ МОЛЧИТ, ПОКА НЕ ИЗВЕСТЕН ГОРОД (`isResolving`): городские запросы в это
+ * время ещё не стартовали, и обновление либо не сделало бы ничего, либо
+ * успело бы сходить за откатным городом.
+ */
+export function useHomeRefresh(): { refreshing: boolean; onRefresh: () => void } {
+  const queryClient = useQueryClient();
+  const { isResolving } = useGuestCity();
+
+  const refresh = useCallback(
+    () =>
+      queryClient.refetchQueries({
+        type: "active",
+        predicate: (query) => isHomeQueryKey(query.queryKey),
+      }),
+    [queryClient],
+  );
+
+  return usePullToRefresh(refresh, { enabled: !isResolving });
+}

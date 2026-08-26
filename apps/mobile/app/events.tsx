@@ -2,12 +2,13 @@ import { colors, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { EventListCard } from "../src/components/afisha/EventListCard";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { FlowHeader } from "../src/components/FlowHeader";
 import { useExploreEvents } from "../src/components/explore/use-explore-data";
+import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
 import { trackEvent } from "../src/lib/analytics";
 
@@ -28,6 +29,10 @@ export default function EventsScreen() {
   const router = useRouter();
   const query = useExploreEvents();
   const events = query.data?.items ?? [];
+  // Один запрос — один индикатор, но состояние всё равно своё (см.
+  // usePullToRefresh): `isRefetching` гаснет и на фоновых перезапросах, к
+  // которым гость руки не прикладывал.
+  const { refreshing, onRefresh } = usePullToRefresh(() => query.refetch());
 
   const openEvent = useCallback(
     (id: string) => {
@@ -55,14 +60,26 @@ export default function EventsScreen() {
         // No action button: there is nowhere to send the guest that would
         // produce events, and a button that only reloads an empty list turns a
         // calm state into a dead end (same call the Home section makes).
-        <EmptyState
-          title={t.explore.eventsEmptyTitle}
-          description={t.explore.eventsEmptyDescription}
-        />
+        //
+        // Зато ПОТЯНУТЬ пустой список можно: именно на пустом экране жест и
+        // просится («вдруг уже появилось»), а кнопки «обновить» здесь нет
+        // нарочно. Отсюда обёртка-лента с `flexGrow: 1` — без неё содержимое
+        // короче экрана не тянется вовсе.
+        <ScrollView
+          contentContainerStyle={styles.stateContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <EmptyState
+            title={t.explore.eventsEmptyTitle}
+            description={t.explore.eventsEmptyDescription}
+          />
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
           {events.map((event) => (
             <EventListCard key={event.id} event={event} onPress={openEvent} />
@@ -82,6 +99,10 @@ const styles = StyleSheet.create({
   },
   headerSafeArea: {
     backgroundColor: colors.background.surface,
+  },
+  stateContent: {
+    // Пустое состояние занимает ленту целиком — иначе его нечем тянуть.
+    flexGrow: 1,
   },
   listContent: {
     // БЕЗ бокового отступа намеренно: `EventListCard` держит его сама и

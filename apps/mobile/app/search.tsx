@@ -3,7 +3,16 @@ import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Keyboard,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
 import { MagnifyingGlass } from "../src/components/icons";
@@ -18,6 +27,7 @@ import {
 } from "../src/components/search/AvailabilityWheels";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
+import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { useSearchScreen } from "../src/hooks/useSearch";
 import { dateChoices } from "../src/lib/availability-label";
 import { MAX_GUESTS } from "../src/lib/availability-options";
@@ -144,6 +154,17 @@ export default function SearchScreen() {
   );
 
   const items = searchQueryResult.data?.items ?? [];
+
+  // Потянуть выдачу = переспросить ЕЁ, с теми же строкой и фильтрами.
+  // Справочники (кухни, удобства, города) при этом не трогаем: они питают
+  // шторку, живут одним кэшем на всё приложение и меняются раз в месяц —
+  // жест здесь про свежесть ВЫДАЧИ.
+  //
+  // Со сплошным экраном загрузки кружок не встречается: пока данные уже есть,
+  // `isPending` ложно, и перезапрос не возвращает экран в состояние
+  // «Загружаем» — ветка остаётся списком, а состояние жеста показывает
+  // именно кружок.
+  const { refreshing, onRefresh } = usePullToRefresh(() => searchQueryResult.refetch());
 
   const resetFilters = () => {
     // Один источник — `filters`: всё, что рисует чипы, лежит здесь, поэтому
@@ -321,37 +342,45 @@ export default function SearchScreen() {
             onRetry={() => void searchQueryResult.refetch()}
           />
         ) : items.length === 0 ? (
+          // Пустую выдачу тоже можно потянуть: «может, уже появилось» — это
+          // тот же жест, и лента с `flexGrow: 1` даёт его короткому
+          // содержимому.
           // Три разных пустых состояния (Figma «Состояния»): текстовый ЗАПРОС
           // без результатов, активный ФИЛЬТР без результатов (со ссылкой
           // «Сбросить фильтры»), и просто пустой каталог — сбрасывать в нём
           // нечего. Запрос приоритетнее фильтра: если гость печатал, показываем
           // «По запросу «…»».
-          text.trim().length > 0 ? (
-            <EmptyState
-              icon={MagnifyingGlass}
-              title={t.search.emptyTitle}
-              description={t.search.emptyQueryDescription(text.trim())}
-            />
-          ) : hasActiveSearch ? (
-            <EmptyState
-              icon={MagnifyingGlass}
-              title={t.search.emptyTitle}
-              description={t.search.emptyFilterDescription(
-                selectedChips[0]?.label ?? "",
-              )}
-              action={{
-                label: t.search.emptyResetFilters,
-                onPress: resetFilters,
-                variant: "link",
-              }}
-            />
-          ) : (
-            <EmptyState
-              icon={MagnifyingGlass}
-              title={t.search.catalogEmptyTitle}
-              description={t.search.catalogEmptyDescription}
-            />
-          )
+          <ScrollView
+            contentContainerStyle={[styles.stateContent, { paddingBottom: navPad }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          >
+            {text.trim().length > 0 ? (
+              <EmptyState
+                icon={MagnifyingGlass}
+                title={t.search.emptyTitle}
+                description={t.search.emptyQueryDescription(text.trim())}
+              />
+            ) : hasActiveSearch ? (
+              <EmptyState
+                icon={MagnifyingGlass}
+                title={t.search.emptyTitle}
+                description={t.search.emptyFilterDescription(selectedChips[0]?.label ?? "")}
+                action={{
+                  label: t.search.emptyResetFilters,
+                  onPress: resetFilters,
+                  variant: "link",
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={MagnifyingGlass}
+                title={t.search.catalogEmptyTitle}
+                description={t.search.catalogEmptyDescription}
+              />
+            )}
+          </ScrollView>
         ) : (
           <FlatList
             data={items}
@@ -363,6 +392,7 @@ export default function SearchScreen() {
             contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             // Гость потянул список — он уже смотрит выдачу, а не собирается
             // искать: убираем клавиатуру и подсказки, чтобы они не занимали
             // три строки над результатами, которые он листает.
@@ -568,6 +598,10 @@ const styles = StyleSheet.create({
     // «Гости», «Казахская кухня» стоят в 8 от следующего чипа).
     gap: spacing.sm,
     alignItems: "center",
+  },
+  stateContent: {
+    // Пустое состояние занимает ленту целиком — иначе тянуть нечего.
+    flexGrow: 1,
   },
   listContent: {
     // БЕЗ бокового отступа намеренно: карточка уже держит его сама и делает

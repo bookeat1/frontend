@@ -3,7 +3,7 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect } from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Export, Heart, ArrowLeft } from "../../../src/components/icons";
 import { IconButton } from "../../../src/components/IconButton";
@@ -19,7 +19,7 @@ import { StoriesRail } from "../../../src/components/restaurant/StoriesRail";
 import { splitCuisines } from "../../../src/lib/cuisine-display";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
-import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { useRestaurant, useRestaurantRefresh } from "../../../src/hooks/useRestaurant";
 import { formatPriceRange } from "../../../src/lib/format";
 import { trackEvent } from "../../../src/lib/analytics";
 
@@ -33,6 +33,9 @@ export default function RestaurantDetailScreen() {
   // на весь экран, гость без сессии уезжает на вход, состояние приходит с
   // сервера. Раньше здесь стоял onPress={() => {}}.
   const favorite = useRestaurantFavorite(id ?? "");
+  // Потянуть карточку = переспросить и профиль заведения, и ленту сторис;
+  // кружок гаснет, когда ответили оба (см. useRestaurantRefresh).
+  const { refreshing, onRefresh } = useRestaurantRefresh(id);
 
   // `restaurant_open` once per venue id: keyed on the route param, not the
   // fetched payload, so it fires as soon as the screen has an id (a re-render
@@ -103,8 +106,12 @@ export default function RestaurantDetailScreen() {
             </View>
           </SafeAreaView>
 
-          <ScrollView style={styles.scrollFloor}
-            showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <ScrollView
+            style={styles.scrollFloor}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          >
             {/* Фотография, название, адрес и чипы — ОДИН блок (макет
                 340:2535). Раньше фото было отдельным элементом списка, и
                 просвет между блоками разрезал этот ответ надвое. */}

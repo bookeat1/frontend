@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { useRepository } from "../lib/repository";
+import { usePullToRefresh } from "./usePullToRefresh";
 
 export function useRestaurant(id: string | undefined) {
   const repository = useRepository();
@@ -56,4 +58,39 @@ export function useRestaurantStories(id: string | undefined) {
     enabled: Boolean(id),
     staleTime: 5 * 60_000,
   });
+}
+
+/**
+ * Обновление экрана заведения жестом.
+ *
+ * Экран показывает ДВА независимых запроса: сам профиль заведения
+ * (`useRestaurant` — меню, расписание, контакты) и ленту сторис
+ * (`useRestaurantStories`). Обновить надо оба, а кружок обязан гореть до
+ * последнего ответа — поэтому здесь `refetchQueries` с одним промисом, а не
+ * два отдельных `refetch` (первый вернувшийся погасил бы индикатор).
+ *
+ * ФИЛЬТР — по id, а не по корню ключа: в кэше лежат и другие заведения
+ * (гость листал каталог), и обновлять их, стоя на этом экране, значит тратить
+ * сеть на то, чего на экране нет. `type: "active"` добавляет второе условие —
+ * запрос смонтирован прямо сейчас.
+ *
+ * Избранное (`["favorites"]`) сюда НЕ входит: сердечко меняется только руками
+ * этого же гостя, и его список перечитывается собственной мутацией. Тянуть
+ * его жестом — обновлять то, что и так не могло разойтись.
+ */
+export function useRestaurantRefresh(id: string | undefined) {
+  const queryClient = useQueryClient();
+  const refresh = useCallback(
+    () =>
+      queryClient.refetchQueries({
+        type: "active",
+        predicate: (query) => {
+          const [root, key] = query.queryKey;
+          if (key !== id) return false;
+          return root === "restaurant" || root === "restaurant-stories";
+        },
+      }),
+    [queryClient, id],
+  );
+  return usePullToRefresh(refresh, { enabled: Boolean(id) });
 }

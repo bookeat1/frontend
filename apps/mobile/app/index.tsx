@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ArticlesSection } from "../src/components/explore/ArticlesSection";
 import { CuisineSection } from "../src/components/explore/CuisineSection";
@@ -15,6 +15,7 @@ import { RecommendedSection } from "../src/components/explore/RecommendedSection
 import {
   EXPLORE_DEFAULT_GUESTS,
   useGuestCity,
+  useHomeRefresh,
 } from "../src/components/explore/use-explore-data";
 import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
@@ -83,6 +84,10 @@ export default function HomeScreen() {
   // словаря. Своего расчёта у шапки быть не должно — именно из-за него гость
   // без сессии видел «Алматы» после того, как выбрал Астану.
   const { city } = useGuestCity();
+  // Потянуть ленту вниз = переспросить ВСЕ блоки этого экрана и держать кружок,
+  // пока не ответил последний. Список того, что обновляется, и причины выбора —
+  // в `useHomeRefresh` (use-explore-data.ts).
+  const { refreshing, onRefresh } = useHomeRefresh();
   const setPreferredCity = useSetPreferredCity();
   // Правка города не прошла НА СЕРВЕР (только для вошедшего): на устройстве
   // город уже сменился и контент уже городской, но профиль остался прежним —
@@ -193,6 +198,12 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: navPad }]}
         showsVerticalScrollIndicator={false}
+        // Кружок обновления. Он не спорит ни со шторкой выбора даты/гостей
+        // (она поверх экрана и своих жестов вниз не имеет), ни с рядом кухонь:
+        // горизонтальная прокрутка внутри ленты забирает жест себе, а
+        // вертикальное оттягивание достаётся ленте — так же, как в
+        // «Уведомлениях».
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         scrollEventThrottle={16}
         onScroll={(event) => {
           // Порог — содержательная часть шапки (264): её полная высота равна
