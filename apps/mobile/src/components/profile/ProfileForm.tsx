@@ -62,8 +62,12 @@ export function ProfileForm({
 }: {
   user: AuthUser;
   onSave: (patch: ProfileUpdate) => Promise<AuthUser>;
-  /** Called with the server's answer, which is the new truth. */
-  onSaved?: (updated: AuthUser) => void;
+  /** Called with the server's answer, which is the new truth, and with the
+   * PATCH that produced it. The patch matters to the caller: it carries only
+   * the fields the guest actually changed, so «город изменён этим сохранением»
+   * is `patch.city !== undefined` — the answer alone cannot tell the two
+   * apart. */
+  onSaved?: (updated: AuthUser, patch: ProfileUpdate) => void;
   /** The session died mid-edit and could not be refreshed. The screen uses this
    * to keep this form mounted instead of swapping in «Вы не вошли», which
    * would take the guest's unsaved text with it. */
@@ -141,7 +145,7 @@ export function ProfileForm({
       setOriginal(updated);
       setDraft(draftFromUser(updated));
       setSaved(true);
-      onSaved?.(updated);
+      onSaved?.(updated, patch);
     } catch (error) {
       // Note what does NOT happen here: the draft is not touched. Whatever the
       // guest typed is still on screen, whichever way this failed.

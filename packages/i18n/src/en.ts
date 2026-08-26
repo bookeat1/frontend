@@ -75,6 +75,7 @@ export const en: LocaleOverride<Dictionary> = {
     },
     cityFallback: "Almaty",
     cityLabel: (city: string) => `City: ${city}`,
+    citySyncFailed: "The city changed on this device, but we could not save it to your profile.",
     notifications: "Notifications",
     dateSelectorLabel: "Date",
     guestsSelectorLabel: "Guests",

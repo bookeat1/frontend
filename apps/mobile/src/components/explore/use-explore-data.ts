@@ -15,6 +15,7 @@ import { useMemo } from "react";
 import { useAuth } from "../../lib/auth";
 import { useLocale } from "../../lib/locale";
 import { useCuisines } from "../../hooks/useCuisines";
+import { usePreferredCity } from "../../lib/preferred-city";
 import { useRepository } from "../../lib/repository";
 import {
   PLACEHOLDER_ARTICLES,
@@ -113,25 +114,50 @@ export function useExploreCuisines(): UseQueryResult<Cuisine[]> {
 }
 
 /**
- * The city every city-scoped Home query asks for, resolved in ONE place.
+ * The city every city-scoped surface asks for, resolved in ONE place — the
+ * Home header included (app/index.tsx displays exactly this value).
  *
- * WHERE IT COMES FROM: the same `["me"]` query the Home header reads
- * (GET /users/me), falling back to the locale's default city
- * (`t.explore.cityFallback` — «Алматы») exactly as app/index.tsx does. The
- * header's city picker writes the chosen city straight into that cache, so a
- * switch changes this value — and therefore every query key built on it —
- * without an extra request.
+ * PRECEDENCE — THE DEVICE WINS, and this is the rule to reason from:
+ *
+ *   1. the city chosen ON THIS DEVICE (`usePreferredCity`, expo-secure-store);
+ *   2. otherwise the ACCOUNT's city from the shared `["me"]` cache;
+ *   3. otherwise the locale's default (`t.explore.cityFallback` — «Алматы»).
+ *
+ * WHY THE DEVICE FIRST. The stored value is always the result of an explicit
+ * tap on this phone, and it is available before any network answer. That makes
+ * the choice instant for a signed-out guest (who has no profile to write to at
+ * all — this is the bug that made the picker do nothing) and it means the
+ * profile landing a second later can never flip the content under someone who
+ * has just chosen.
+ *
+ * WHAT IF THE TWO DISAGREE. They can, in two ways, and neither is allowed to
+ * change the city silently:
+ *
+ *   • picked a city as a guest, then signed in to a profile that says another
+ *     city → the picked city stays, on screen and in the queries. The profile
+ *     is NOT copied down. It follows the next explicit pick instead.
+ *   • signed in on a second device / a fresh install → nothing is stored
+ *     locally, so rule 2 applies and the account's city is used. That IS the
+ *     cross-device sync, and there is nothing on this device to flip.
+ *
+ * So: nothing ever copies the profile into the device, and nothing ever copies
+ * the device into the profile behind the guest's back. Both are written only by
+ * an explicit pick (the header picker and the profile screens both call
+ * `useSetPreferredCity` alongside their `PATCH /users/me`).
  *
  * `isResolving` is the part that is easy to miss: a disabled query is
- * `isPending` too, so "we don't know the city yet" is NOT `me.isPending`. It
- * is "auth is still booting" or "we are signed in and the profile request is
- * in flight". Firing a city-scoped query during that window would fetch the
- * fallback city first and the guest's real city a moment later — a visible
- * flash of another city's content on every cold start in Astana.
+ * `isPending` too, so "we don't know the city yet" is NOT `me.isPending` —
+ * that would gate a signed-out guest forever. It is: the device read has not
+ * come back yet, OR auth is still booting, OR we are signed in, the profile
+ * request is in flight AND this device has no stored city to answer with.
+ * Firing a city-scoped query during that window would fetch the fallback city
+ * first and the real one a moment later — a visible flash of another city's
+ * content on every cold start in Astana.
  */
-function useGuestCity(): { city: string; isResolving: boolean } {
+export function useGuestCity(): { city: string; isResolving: boolean } {
   const { status, repository: authRepository } = useAuth();
   const { dictionary: t } = useLocale();
+  const stored = usePreferredCity();
 
   // Same query key + fetcher + gate as app/index.tsx, so this shares that
   // cache entry rather than issuing a second GET /users/me.
@@ -142,9 +168,13 @@ function useGuestCity(): { city: string; isResolving: boolean } {
     staleTime: 5 * 60_000,
   });
 
+  const deviceCity = stored.city?.trim();
+
   return {
-    city: me.data?.city?.trim() || t.explore.cityFallback,
-    isResolving: status === "loading" || (status === "signed-in" && me.isLoading),
+    city: deviceCity || me.data?.city?.trim() || t.explore.cityFallback,
+    isResolving:
+      stored.isHydrating ||
+      (!deviceCity && (status === "loading" || (status === "signed-in" && me.isLoading))),
   };
 }
 
@@ -308,6 +338,11 @@ export function useGuideRoutes(): UseQueryResult<GuideRoute[]> {
   const repository = useRepository();
   const { dictionary: t } = useLocale();
 
+  // Тот же порядок старшинства, что и в useGuestCity: сначала выбор НА ЭТОМ
+  // УСТРОЙСТВЕ, потом город профиля, потом откат словаря. Хранилище устройства
+  // не требует сессии, поэтому здесь оно доступно так же, как на главной.
+  const stored = usePreferredCity();
+
   // Наблюдатель за тем же ключом `["me"]`, что заполняет главная, но БЕЗ
   // собственного запроса (`enabled: false`) и без useAuth: гастрогид открыт и
   // гостю, и требовать здесь AuthProvider значило бы привязать редакционный
@@ -319,12 +354,14 @@ export function useGuideRoutes(): UseQueryResult<GuideRoute[]> {
     queryFn: () => Promise.reject(new Error("profile is fetched elsewhere")),
     enabled: false,
   });
-  const city = me.data?.city?.trim() || t.explore.cityFallback;
+  const city = stored.city?.trim() || me.data?.city?.trim() || t.explore.cityFallback;
 
   return useQuery<GuideRoute[]>({
     queryKey: ["guide", "routes", city],
     queryFn: () => repository.getGuideRoutes(city),
-    enabled: city.length > 0,
+    // Пока читается город устройства, спрашивать маршруты рано — иначе на
+    // холодном старте мелькнут маршруты чужого города.
+    enabled: city.length > 0 && !stored.isHydrating,
     staleTime: 5 * 60_000,
   });
 }

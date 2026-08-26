@@ -11,6 +11,7 @@ import { ProfileForm } from "../../src/components/profile/ProfileForm";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { useAuth } from "../../src/lib/auth";
 import { requestCitySelection } from "../../src/lib/city-select";
+import { useSetPreferredCity } from "../../src/lib/preferred-city";
 import { useLocale } from "../../src/lib/locale";
 
 /**
@@ -29,6 +30,7 @@ export default function ProfileEditScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status, repository } = useAuth();
+  const setPreferredCity = useSetPreferredCity();
 
   const [keepEditor, setKeepEditor] = useState(false);
 
@@ -93,7 +95,20 @@ export default function ProfileEditScreen() {
               <ProfileForm
                 user={account}
                 onSave={(patch) => repository.updateMe(patch)}
-                onSaved={(updated) => queryClient.setQueryData(["me"], updated)}
+                // Изменение города формой — это ЯВНЫЙ выбор, поэтому вместе с
+                // профилем обновляется и город устройства (он старше по правилу
+                // разрешения, см. useGuestCity: без этой строки форма сохранила
+                // бы город на сервер, а главная продолжила бы показывать
+                // прежний, выбранный на этом телефоне). Пустой город очищает
+                // выбор устройства — решение снова за профилем.
+                //
+                // Условие обязательно: сохранение ИМЕНИ не должно молча
+                // подменять город устройства городом профиля — ровно тот
+                // «незаметный переворот контента», которого правило запрещает.
+                onSaved={(updated, patch) => {
+                  queryClient.setQueryData(["me"], updated);
+                  if (patch.city !== undefined) setPreferredCity(updated.city ?? null);
+                }}
                 onSessionExpired={() => setKeepEditor(true)}
                 onSignIn={() => router.push("/auth/sign-in")}
                 // Opening the city picker lives here (the form is router-free so

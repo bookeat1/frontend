@@ -18,6 +18,7 @@ import { useAuth } from "../src/lib/auth";
 import { pickAndUploadAvatar } from "../src/lib/avatar-upload";
 import { membershipDuration } from "../src/lib/format";
 import { requestCitySelection } from "../src/lib/city-select";
+import { useSetPreferredCity } from "../src/lib/preferred-city";
 import { useLocale } from "../src/lib/locale";
 
 /**
@@ -45,6 +46,10 @@ export default function ProfileScreen() {
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const setPreferredCity = useSetPreferredCity();
+  // Город сменился на устройстве, но не доехал до профиля — говорим об этом
+  // строкой под рядом «Город», как и об упавшей загрузке аватара.
+  const [citySyncFailed, setCitySyncFailed] = useState(false);
 
   const me = useQuery<AuthUser>({
     queryKey: ["me"],
@@ -110,19 +115,27 @@ export default function ProfileScreen() {
     }
   };
 
-  // Opening the city picker straight from the vitrina: persist the choice with
-  // the same PATCH /users/me the edit form uses, writing the server's answer
-  // back into the ["me"] cache so the row updates without a refetch. The cache
-  // is touched only on success, so a failed save simply leaves the stored city
-  // in place — no invented value on screen.
+  // Opening the city picker straight from the vitrina. Two writes, the same
+  // pair (and the same order) as the Home header — see app/index.tsx and the
+  // precedence note on useGuestCity:
+  //   1. the DEVICE city, so the city-scoped screens (Home, «Афиша», «Акции»)
+  //      follow the pick immediately. Without it the device would keep winning
+  //      with its older value and this row would disagree with the Home header.
+  //   2. PATCH /users/me, writing the server's answer back into the ["me"]
+  //      cache so this row updates without a refetch. A failure is SURFACED
+  //      («…в профиль сохранить не удалось») instead of being swallowed: the
+  //      pick already applies on this phone, but it will not reach the account.
+  //
+  // The row itself keeps showing `account.city` — this screen is the ACCOUNT's
+  // view, and it must not claim a value the server does not hold.
   const editCity = () => {
-    requestCitySelection((city) => {
+    requestCitySelection((picked) => {
+      setCitySyncFailed(false);
+      setPreferredCity(picked);
       void repository
-        .updateMe({ city: city ?? "" })
+        .updateMe({ city: picked ?? "" })
         .then((updated) => queryClient.setQueryData(["me"], updated))
-        .catch(() => {
-          // Keep the last stored city; the row already shows the real value.
-        });
+        .catch(() => setCitySyncFailed(true));
     });
     router.push({ pathname: "/city", params: { selected: account?.city ?? "", purpose: "profile" } });
   };
@@ -181,7 +194,7 @@ export default function ProfileScreen() {
               />
 
               {avatarError ? (
-                <Text style={styles.avatarError} accessibilityRole="alert">
+                <Text style={styles.inlineError} accessibilityRole="alert">
                   {avatarError}
                 </Text>
               ) : null}
@@ -234,6 +247,11 @@ export default function ProfileScreen() {
                 onPress={editCity}
                 comingSoonLabel={t.profile.comingSoon}
               />
+              {citySyncFailed ? (
+                <Text style={[styles.inlineError, styles.cityError]} accessibilityRole="alert">
+                  {t.explore.citySyncFailed}
+                </Text>
+              ) : null}
               <ProfileMenuRow
                 icon={GlobeSimple}
                 label={t.profile.menu.language}
@@ -282,7 +300,13 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  avatarError: {
+  /** Ошибка города стоит ПОД своим рядом, а не по центру экрана. */
+  cityError: {
+    textAlign: "left",
+  },
+  /** Негромкий отказ строкой: загрузка аватара, сохранение города. Тостов в
+   * приложении нет — сообщение стоит рядом с тем, что не получилось. */
+  inlineError: {
     ...typography.body,
     color: colors.brand.primary,
     textAlign: "center",

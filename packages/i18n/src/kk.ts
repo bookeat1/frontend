@@ -79,6 +79,7 @@ export const kk: LocaleOverride<Dictionary> = {
     },
     cityFallback: "Алматы",
     cityLabel: (city: string) => `Қала: ${city}`,
+    citySyncFailed: "Қала осы құрылғыда өзгерді, бірақ оны профильге сақтау мүмкін болмады.",
     notifications: "Хабарламалар",
     dateSelectorLabel: "Күні",
     guestsSelectorLabel: "Қонақтар",

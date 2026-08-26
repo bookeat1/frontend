@@ -1,10 +1,10 @@
-import { colors, exploreLayout, spacing } from "@bookeat/design-tokens";
+import { colors, exploreLayout, spacing, typography } from "@bookeat/design-tokens";
 import type { AuthUser, Cuisine } from "@bookeat/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ArticlesSection } from "../src/components/explore/ArticlesSection";
 import { CuisineSection } from "../src/components/explore/CuisineSection";
@@ -12,13 +12,17 @@ import { EventsListSection } from "../src/components/explore/EventsListSection";
 import { HomeHeader } from "../src/components/explore/HomeHeader";
 import { PromotionsSection } from "../src/components/explore/PromotionsSection";
 import { RecommendedSection } from "../src/components/explore/RecommendedSection";
-import { EXPLORE_DEFAULT_GUESTS } from "../src/components/explore/use-explore-data";
+import {
+  EXPLORE_DEFAULT_GUESTS,
+  useGuestCity,
+} from "../src/components/explore/use-explore-data";
 import { toDateKey } from "../src/lib/format";
 import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
 import { homeGreeting, usePartOfDay } from "../src/lib/greeting";
 import { useLocale } from "../src/lib/locale";
+import { useSetPreferredCity } from "../src/lib/preferred-city";
 
 /**
  * Home — the first screen (rebuilt to the Figma home design, 2026-08-06),
@@ -75,7 +79,16 @@ export default function HomeScreen() {
     part,
     strings: t.explore.greetings,
   });
-  const city = account?.city?.trim() || t.explore.cityFallback;
+  // Город в шапке — ТОТ ЖЕ резолвер, что питает «Афишу» и «Акции»
+  // (`useGuestCity`): выбор на устройстве, иначе город профиля, иначе откат
+  // словаря. Своего расчёта у шапки быть не должно — именно из-за него гость
+  // без сессии видел «Алматы» после того, как выбрал Астану.
+  const { city } = useGuestCity();
+  const setPreferredCity = useSetPreferredCity();
+  // Правка города не прошла НА СЕРВЕР (только для вошедшего): на устройстве
+  // город уже сменился и контент уже городской, но профиль остался прежним —
+  // молчать об этом нельзя, иначе на другом телефоне окажется старый город.
+  const [citySyncFailed, setCitySyncFailed] = useState(false);
 
   const openSearch = useCallback(() => router.push("/search"), [router]);
   // Тап по капсуле «сегодня · 2 гостя» ведёт в поиск С ЭТИМ ЖЕ выбором, а не
@@ -105,21 +118,32 @@ export default function HomeScreen() {
   );
   const openNotifications = useCallback(() => router.push("/notifications"), [router]);
 
-  // Tapping the city in the header opens the same picker the profile uses and
-  // persists the choice to the account, writing the server's answer back into
-  // the ["me"] cache so the greeting/city update everywhere without a refetch —
-  // exactly the flow profile.tsx runs. Cache is touched only on success.
+  // Tapping the city in the header opens the same picker the profile uses.
+  //
+  // TWO WRITES, IN THIS ORDER, and the order is the fix:
+  //   1. the DEVICE (expo-secure-store, synchronous cache write) — this is what
+  //      makes the tap take effect at all. It used to be missing: the choice
+  //      went to `PATCH /users/me` only, so a signed-out guest — who has no
+  //      profile — got a rejected request, a swallowed `catch`, and a header
+  //      that never changed.
+  //   2. the PROFILE, only when signed in, so the city follows the account to
+  //      another device. A failure here is NOT swallowed any more: the local
+  //      choice stands (the content the guest asked for is already on screen)
+  //      and the screen says plainly that the profile was not updated.
+  // See useGuestCity for the full precedence rule and what happens when the
+  // two disagree.
   const openCity = useCallback(() => {
-    requestCitySelection((city) => {
+    requestCitySelection((picked) => {
+      setCitySyncFailed(false);
+      setPreferredCity(picked);
+      if (status !== "signed-in") return;
       void repository
-        .updateMe({ city: city ?? "" })
+        .updateMe({ city: picked ?? "" })
         .then((updated) => queryClient.setQueryData(["me"], updated))
-        .catch(() => {
-          // Keep the last stored city; the header already shows the real value.
-        });
+        .catch(() => setCitySyncFailed(true));
     });
-    router.push({ pathname: "/city", params: { selected: account?.city ?? "", purpose: "profile" } });
-  }, [account?.city, queryClient, repository, router]);
+    router.push({ pathname: "/city", params: { selected: city, purpose: "profile" } });
+  }, [city, queryClient, repository, router, setPreferredCity, status]);
 
   // The «Афиша» section chevron opens the dedicated events list screen.
   const openEvents = useCallback(() => router.push("/events"), [router]);
@@ -204,6 +228,16 @@ export default function HomeScreen() {
           onOpenCity={openCity}
         />
 
+        {/* Не всплывашка: тостов в приложении нет, и негромкие отказы здесь
+            показываются строкой рядом с тем, что не сохранилось (так же
+            устроена ошибка загрузки аватара на «Профиле»). Строка живёт до
+            следующего выбора города. */}
+        {citySyncFailed ? (
+          <Text style={styles.citySyncError} accessibilityRole="alert">
+            {t.explore.citySyncFailed}
+          </Text>
+        ) : null}
+
         <View style={styles.sheet}>
           <RecommendedSection onSeeAll={openSearch} onOpenRestaurant={openRestaurant} />
           <CuisineSection onPickCuisine={pickCuisine} />
@@ -245,6 +279,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.background.screen,
     zIndex: -1,
+  },
+  citySyncError: {
+    ...typography.body,
+    color: colors.brand.primary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   sheet: {
     // 8 серого между шапкой и первым блоком и между блоками — ровно то, что
