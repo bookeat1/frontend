@@ -113,8 +113,51 @@ export function useExploreCuisines(): UseQueryResult<Cuisine[]> {
 }
 
 /**
+ * The city every city-scoped Home query asks for, resolved in ONE place.
+ *
+ * WHERE IT COMES FROM: the same `["me"]` query the Home header reads
+ * (GET /users/me), falling back to the locale's default city
+ * (`t.explore.cityFallback` — «Алматы») exactly as app/index.tsx does. The
+ * header's city picker writes the chosen city straight into that cache, so a
+ * switch changes this value — and therefore every query key built on it —
+ * without an extra request.
+ *
+ * `isResolving` is the part that is easy to miss: a disabled query is
+ * `isPending` too, so "we don't know the city yet" is NOT `me.isPending`. It
+ * is "auth is still booting" or "we are signed in and the profile request is
+ * in flight". Firing a city-scoped query during that window would fetch the
+ * fallback city first and the guest's real city a moment later — a visible
+ * flash of another city's content on every cold start in Astana.
+ */
+function useGuestCity(): { city: string; isResolving: boolean } {
+  const { status, repository: authRepository } = useAuth();
+  const { dictionary: t } = useLocale();
+
+  // Same query key + fetcher + gate as app/index.tsx, so this shares that
+  // cache entry rather than issuing a second GET /users/me.
+  const me = useQuery<AuthUser>({
+    queryKey: ["me"],
+    queryFn: () => authRepository.getMe(),
+    enabled: status === "signed-in",
+    staleTime: 5 * 60_000,
+  });
+
+  return {
+    city: me.data?.city?.trim() || t.explore.cityFallback,
+    isResolving: status === "loading" || (status === "signed-in" && me.isLoading),
+  };
+}
+
+/**
  * REAL DATA — «Афиша».
- * GET /events (RestaurantRepository.listUpcomingEvents).
+ * GET /events?city=<city> (RestaurantRepository.listUpcomingEvents).
+ *
+ * CITY: without it the list showed every city's events on every phone. The
+ * server filters by the HOST VENUE's city (`PublicEventFilter.City` — events
+ * carry no city of their own), and an unknown value simply matches nothing,
+ * so the value sent must be the same city string the rest of Home uses. The
+ * city is therefore part of the QUERY KEY as well as the request: without
+ * that, switching the city would keep serving the previous city's cached page.
  *
  * `from` is deliberately NOT sent: the server already excludes finished
  * events, and pinning a client clock into the filter would drop events that
@@ -125,9 +168,11 @@ export function useExploreCuisines(): UseQueryResult<Cuisine[]> {
  */
 export function useExploreEvents() {
   const repository = useRepository();
+  const { city, isResolving } = useGuestCity();
   return useQuery<EventPage>({
-    queryKey: ["explore-events", EXPLORE_EVENTS_LIMIT],
-    queryFn: () => repository.listUpcomingEvents({ perPage: EXPLORE_EVENTS_LIMIT }),
+    queryKey: ["explore-events", EXPLORE_EVENTS_LIMIT, city],
+    queryFn: () => repository.listUpcomingEvents({ perPage: EXPLORE_EVENTS_LIMIT, city }),
+    enabled: !isResolving,
     // Events are announced days ahead, not minute by minute.
     staleTime: 5 * 60_000,
   });
@@ -192,11 +237,9 @@ function toPromoStripItem(promo: HomePromo): PromoStripItem {
  * `kind: "promo"` in the mapper.
  *
  * CITY: the feed's `city` param is required (422 `city_required` without it),
- * so the query is gated on a resolved city. The city is read from the SAME
- * `["me"]` query the Home header uses (GET /users/me), falling back to the
- * locale's default city (`t.explore.cityFallback` — «Алматы») exactly as
- * app/index.tsx resolves it, so both views agree on one city with no extra
- * request (the two `["me"]` queries share a cache key).
+ * so the query is gated on a resolved city — see useGuestCity, which is the
+ * single place the Home queries resolve it (the `["me"]` cache the header
+ * reads, falling back to the locale's default city).
  *
  * EMPTY/LOADING/ERROR: returns the stable empty array (PLACEHOLDER_PROMOTIONS)
  * until real promos arrive, so «Акции» stays hidden while loading, on error,
@@ -205,23 +248,12 @@ function toPromoStripItem(promo: HomePromo): PromoStripItem {
  */
 export function useExplorePromotionsQuery(): UseQueryResult<HomePromo[]> {
   const repository = useRepository();
-  const { status, repository: authRepository } = useAuth();
-  const { dictionary: t } = useLocale();
-
-  // Same query key + fetcher + gate as app/index.tsx, so this shares that
-  // cache entry rather than issuing a second GET /users/me.
-  const me = useQuery<AuthUser>({
-    queryKey: ["me"],
-    queryFn: () => authRepository.getMe(),
-    enabled: status === "signed-in",
-    staleTime: 5 * 60_000,
-  });
-  const city = me.data?.city?.trim() || t.explore.cityFallback;
+  const { city, isResolving } = useGuestCity();
 
   return useQuery<HomePromo[]>({
     queryKey: ["home-feed", "promos", city],
     queryFn: () => repository.getPromotions(city),
-    enabled: city.length > 0,
+    enabled: city.length > 0 && !isResolving,
     // Promos change on an editorial timescale, like the rest of the home feed.
     staleTime: 5 * 60_000,
   });

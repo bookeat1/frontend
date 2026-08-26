@@ -1,25 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { GuideCollection, GuideCollectionInput } from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
+import { useCityDictionary } from "@/lib/use-cities";
 import { Button } from "../ui/Button";
-import { Field, Select, TextArea, TextInput } from "../ui/FormControls";
+import { CitySelectField } from "../ui/CitySelectField";
+import { Field, TextArea, TextInput } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
 import { guideErrorMessage } from "./guide-copy";
 
 const copy = t.admin.gastroguide;
-
-/** Cities the platform knows. This list must match domain.Cities() on the
- * backend exactly: the editor's create and update both refuse anything else
- * with 422, and the panel has no message for that failure, so a city offered
- * here but unknown there is a dead end for the editor.
- *
- * "Шымкент" used to be in this list and is not a known city: picking it made
- * saving impossible. When a city is added on the backend, add it here too. */
-const CITIES = ["Астана", "Алматы"];
 
 /** Same rule the server applies (usecase/gastroguide slugPattern): lowercase
  * latin, digits, single hyphens. Checked here for the message, never trusted —
@@ -58,6 +51,17 @@ export function GuideCollectionFormModal({
   const [city, setCity] = useState(collection?.city ?? "");
   const [position, setPosition] = useState(String(collection?.position ?? 0));
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Города — из справочника платформы, а не из списка в коде: пока он был
+  // зашит здесь, добавленный на бэкенде город редактор увидеть не мог, а
+  // лишний (когда-то «Шымкент») делал сохранение невозможным — 422 на
+  // неизвестный город, без сообщения в панели. Справочник не ответил —
+  // CitySelectField сам откатывается на ввод текстом, форма не запирается.
+  const cityDictionaryQuery = useCityDictionary();
+  const cityDictionary = useMemo(
+    () => cityDictionaryQuery.data ?? [],
+    [cityDictionaryQuery.data],
+  );
 
   const mutation = useMutation({
     mutationFn: (input: GuideCollectionInput) =>
@@ -147,16 +151,16 @@ export function GuideCollectionFormModal({
           />
         </Field>
         <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
-          <Field label={copy.fieldCity} htmlFor="guide-form-city">
-            <Select id="guide-form-city" value={city} onChange={(e) => setCity(e.target.value)}>
-              <option value="">{copy.cityAll}</option>
-              {CITIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <CitySelectField
+            id="guide-form-city"
+            label={copy.fieldCity}
+            dictionary={cityDictionary}
+            loading={cityDictionaryQuery.isPending}
+            failed={cityDictionaryQuery.isError}
+            value={city}
+            onChange={setCity}
+            emptyOptionLabel={copy.cityAll}
+          />
           <Field
             label={copy.fieldPosition}
             hint={copy.fieldPositionHint}

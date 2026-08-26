@@ -9,7 +9,13 @@ import { Field, Select, TextInput } from "./FormControls";
 const copy = t.admin.venueCity;
 
 /**
- * Выбор города у заведения.
+ * Выбор города — одно поле на всю панель.
+ *
+ * Два потребителя: карточка заведения (город обязателен) и форма подборки
+ * гастрогида (пустой город = «во всех городах», см. `emptyOptionLabel`).
+ * Второго такого select быть не должно: список городов, зашитый в код,
+ * ровно один раз уже развалился — редактор гастрогида не видел добавленный
+ * на бэкенде город и мог выбрать несуществующий.
  *
  * ЧТО ИМЕННО ПИШЕТСЯ ЗАВЕДЕНИЮ — строка `city`, значение поля `value` записи
  * справочника, а НЕ ссылка `city_id`. Два независимых основания:
@@ -39,6 +45,9 @@ export function CitySelectField({
   value,
   onChange,
   disabled = false,
+  id = "venue-city",
+  label = copy.label,
+  emptyOptionLabel,
 }: {
   dictionary: readonly CityDictionaryEntry[];
   loading?: boolean;
@@ -46,6 +55,16 @@ export function CitySelectField({
   value: string;
   onChange: (next: string) => void;
   disabled?: boolean;
+  /** DOM id: два таких поля на одной странице обязаны различаться, иначе
+   * подпись `<label for>` укажет на чужое поле. */
+  id?: string;
+  label?: string;
+  /** Подпись пункта «город не выбран», когда пустое значение — это ОСМЫСЛЕННЫЙ
+   * выбор, а не «ещё не заполнено» (у подборки гастрогида пустой город значит
+   * «во всех городах»). Без неё пустой пункт — это заглушка «—», и она
+   * исчезает, как только город выбран, чтобы поле заведения нельзя было
+   * случайно очистить. */
+  emptyOptionLabel?: string;
 }) {
   const options = cityOptionsFor(dictionary, value);
 
@@ -53,9 +72,9 @@ export function CitySelectField({
   // но «нельзя завести заведение, пока справочник лежит» — хуже обоих.
   if (failed || options.length === 0) {
     return (
-      <Field label={copy.label} hint={copy.fallbackHint} htmlFor="venue-city">
+      <Field label={label} hint={copy.fallbackHint} htmlFor={id}>
         <TextInput
-          id="venue-city"
+          id={id}
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
@@ -65,14 +84,18 @@ export function CitySelectField({
   }
 
   return (
-    <Field label={copy.label} hint={loading ? copy.loading : copy.hint} htmlFor="venue-city">
+    <Field label={label} hint={loading ? copy.loading : copy.hint} htmlFor={id}>
       <Select
-        id="venue-city"
+        id={id}
         value={value}
         disabled={disabled || loading}
         onChange={(e) => onChange(e.target.value)}
       >
-        {value === "" ? <option value="">—</option> : null}
+        {emptyOptionLabel !== undefined ? (
+          <option value="">{emptyOptionLabel}</option>
+        ) : value === "" ? (
+          <option value="">—</option>
+        ) : null}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
