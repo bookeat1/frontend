@@ -26,7 +26,12 @@ import { PublishBadge } from "./ui/PublishBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 
 /** Map an existing event to the create/update payload (used for publish/hide,
- * which are just a status flip on the full PUT body). */
+ * which are just a status flip on the full PUT body).
+ *
+ * EVERY field the record has must be listed here. The PUT is a FULL REPLACE:
+ * a field left out is not "unchanged", it is erased. `images`, `city` and
+ * `action` are carried for exactly that reason — this screen does not edit
+ * them, and pressing «Опубликовать» used to wipe them. */
 function eventToInput(e: AdminEvent, status = e.status): EventInput {
   return {
     title: e.title,
@@ -40,6 +45,9 @@ function eventToInput(e: AdminEvent, status = e.status): EventInput {
     ticket_price_minor: e.ticket_price_minor ?? null,
     capacity: e.capacity ?? null,
     tags: e.tags ?? [],
+    images: e.images ?? [],
+    city: e.city ?? null,
+    action: e.action ? { label: e.action.label, url: e.action.url ?? null } : null,
   };
 }
 
@@ -301,6 +309,12 @@ function EventFormModal({
       ticket_price_minor: ticketed && price.trim() && !Number.isNaN(priceNum) ? tengeToMinor(priceNum) : null,
       capacity: ticketed && capacity.trim() && !Number.isNaN(capNum) ? Math.round(capNum) : null,
       tags: parseTags(tags),
+      // Поля, которых в этой форме нет, но которые есть у записи. PUT
+      // заменяет запись целиком, поэтому «не редактируем» и «не отправляем» —
+      // разные вещи: второе стёрло бы город и кнопку. Правятся они на экране
+      // «Афиша платформы» и в API.
+      city: event?.city ?? null,
+      action: event?.action ? { label: event.action.label, url: event.action.url ?? null } : null,
     });
   }
 

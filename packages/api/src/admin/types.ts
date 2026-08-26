@@ -360,7 +360,10 @@ export type EventStatus = "draft" | "published" | "hidden";
  * by the backend when empty. */
 export interface AdminEvent {
   id: string;
-  restaurant_id: string;
+  /** Заведение-хозяин. ОТСУТСТВУЕТ у события платформы (events.eventResponse,
+   * `restaurant_id,omitempty`): у него заведения нет вовсе. Читая это поле,
+   * различайте «нет ключа» и «пустая строка» — второго backend не присылает. */
+  restaurant_id?: string;
   title: string;
   title_i18n?: Record<string, string>;
   description: string;
@@ -374,6 +377,11 @@ export interface AdminEvent {
   ticket_price_minor?: number | null;
   capacity?: number | null;
   tags?: string[];
+  /** Переопределение города показа. Отсутствует — событие живёт в городе своего
+   * заведения, а у события платформы это значит «во всех городах». */
+  city?: string | null;
+  /** Кнопка на карточке. Отсутствует — кнопки нет. */
+  action?: AdminEventAction;
   /** Галерея БЕЗ обложки, в порядке редактора (migration 0070). Контракт всегда
    * присылает массив; поле опционально здесь на случай старой сборки сервера. */
   images?: string[];
@@ -398,6 +406,36 @@ export interface EventInput {
   /** Полная замена галереи: пустой список её очищает, как и всё остальное в
    * этой структуре. */
   images?: string[];
+  /** Город показа. Полная замена, как и всё здесь: `null` снимает
+   * переопределение. Неизвестный или скрытый город сервер отвергает 422. */
+  city?: string | null;
+  /** Кнопка карточки. `null` или отсутствие — КНОПКИ НЕТ; на обновлении это
+   * значит «убрать кнопку», потому что запись целиком заменяет запись. */
+  action?: EventActionInput | null;
+}
+
+/** Куда ведёт кнопка события. Поле ВЫВОДНОЕ: сервер считает его из наличия
+ * `url` и никогда не хранит отдельно, поэтому в запрос его слать нельзя —
+ * иначе payload смог бы сказать target=event с внешней ссылкой. */
+export type EventActionTarget = "event" | "external";
+
+/** Кнопка события в ответе сервера (events.eventActionResponse). */
+export interface AdminEventAction {
+  label: string;
+  target: EventActionTarget;
+  /** Внешний адрес. Отсутствует, когда кнопка ведёт на страницу самого
+   * события. */
+  url?: string;
+}
+
+/** Кнопка события в запросе (events.eventActionRequest). `target` здесь НЕТ
+ * намеренно — он выводится из `url`. */
+export interface EventActionInput {
+  label: string;
+  /** `null` или отсутствие → кнопка открывает страницу самого события.
+   * Строка → внешняя ссылка; сервер проверяет её строго (только http/https,
+   * с хостом, без учётных данных, до 2048 символов). */
+  url?: string | null;
 }
 
 // ---- Promos ----------------------------------------------------------------
@@ -408,7 +446,9 @@ export type PromoStatus = "draft" | "published" | "hidden";
 /** One promo as returned by the admin endpoints (promos.promoResponse). */
 export interface AdminPromo {
   id: string;
-  restaurant_id: string;
+  /** Заведение. ОТСУТСТВУЕТ у акции платформы (promos.promoResponse,
+   * `restaurant_id,omitempty`). */
+  restaurant_id?: string;
   title: string;
   title_i18n?: Record<string, string>;
   description: string;
@@ -421,6 +461,9 @@ export interface AdminPromo {
   status: PromoStatus;
   /** Галерея БЕЗ обложки, в порядке редактора (migration 0070). */
   images?: string[];
+  /** Переопределение города. Отсутствует — акция живёт в городе своего
+   * заведения, а у акции платформы это значит «во всех городах». */
+  city?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -437,6 +480,8 @@ export interface PromoInput {
   status: PromoStatus;
   /** Полная замена галереи: пустой список её очищает. */
   images?: string[];
+  /** Город показа. Полная замена: `null` снимает переопределение. */
+  city?: string | null;
 }
 
 // ---- Stories (restaurant rail) ---------------------------------------------

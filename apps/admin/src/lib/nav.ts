@@ -59,6 +59,11 @@ export const NAV: NavGroup[] = [
       { href: "/cities", label: t.admin.nav.cities },
       { href: "/platform-guests", label: t.admin.nav.platformGuests },
       { href: "/gastroguide", label: t.admin.nav.gastroguide },
+      // Контент, у которого нет заведения (backend PR #103). Живёт в
+      // платформенной группе, а значит: видит его только суперадмин и работает
+      // он без выбранного заведения — выбирать нечего.
+      { href: "/platform-promos", label: t.admin.nav.platformPromos },
+      { href: "/platform-events", label: t.admin.nav.platformEvents },
       { href: "/feed-moderation", label: t.admin.nav.feedModeration },
     ],
   },

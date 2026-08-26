@@ -22,6 +22,14 @@ export {
   type BookingActionFailureKind,
 } from "./booking-action";
 export {
+  MAX_ACTION_URL_LENGTH,
+  classifyPlatformContentFailure,
+  validateActionUrl,
+  type ActionUrlProblem,
+  type PlatformContentFailure,
+  type PlatformContentFailureKind,
+} from "./platform-content";
+export {
   classifyGuideFailure,
   type GuideFailure,
   type GuideFailureKind,

@@ -69,22 +69,34 @@ export function CheckboxRow({
   checked,
   onChange,
   disabled,
+  hint,
 }: {
   label: string;
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
+  /** Пояснение под строкой. Существует прежде всего ради ВЫКЛЮЧЕННОГО флажка:
+   * запертый переключатель без причины читается как поломка, а причина,
+   * сказанная вслух, — как решение. */
+  hint?: string;
 }) {
   return (
-    <label className="flex min-h-[44px] cursor-pointer items-center gap-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-5 w-5 shrink-0 accent-brand"
-      />
-      <span className="text-sm text-text">{label}</span>
+    <label
+      className={`flex min-h-[44px] flex-col justify-center gap-xxs ${
+        disabled ? "cursor-not-allowed" : "cursor-pointer"
+      }`}
+    >
+      <span className="flex items-center gap-sm">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-5 w-5 shrink-0 accent-brand"
+        />
+        <span className={`text-sm ${disabled ? "text-text-muted" : "text-text"}`}>{label}</span>
+      </span>
+      {hint ? <span className="text-[12px] text-text-muted">{hint}</span> : null}
     </label>
   );
 }

@@ -18,6 +18,9 @@ import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 
+/** Полный payload из записи. PUT заменяет акцию ЦЕЛИКОМ, поэтому здесь обязаны
+ * быть все её поля: пропущенное не «останется как было», а очистится —
+ * `images` и `city` перечислены ровно поэтому. */
 function promoToInput(p: AdminPromo, status = p.status): PromoInput {
   return {
     title: p.title,
@@ -28,6 +31,8 @@ function promoToInput(p: AdminPromo, status = p.status): PromoInput {
     cover_image_url: p.cover_image_url ?? null,
     discount_percent: p.discount_percent ?? null,
     status,
+    images: p.images ?? [],
+    city: p.city ?? null,
   };
 }
 
@@ -287,6 +292,9 @@ function PromoFormModal({
       images: gallery,
       discount_percent: discount,
       status,
+      // Города в этой форме нет, но у записи он может быть: не отправить его
+      // значит стереть (полная замена).
+      city: promo?.city ?? null,
     });
   }
 

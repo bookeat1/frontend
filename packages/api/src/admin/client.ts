@@ -661,6 +661,43 @@ export class AdminApiClient {
     await this.request<unknown>("DELETE", `/admin/events/${encodeURIComponent(eventId)}`);
   }
 
+  // ---- Платформенные события и акции ---------------------------------------
+  //
+  // Контент, у которого НЕТ заведения (backend PR #103, migration 0085). Свои
+  // только СОЗДАНИЕ и СПИСОК: правка, чтение и удаление идут теми же
+  // `/admin/events/:id` и `/admin/promos/:id`, что и у заведения — они сначала
+  // находят запись и авторизуют по её владельцу, так что второй ручки для
+  // платформы там не нужно. Доступ — только суперадмину
+  // (domain.PlatformContentRoles); всем остальным сервер отвечает 403.
+
+  listPlatformEvents(params: AdminListParams = {}): Promise<ApiPage<AdminEvent>> {
+    return this.request<ApiPage<AdminEvent>>("GET", "/admin/platform/events", {
+      params: {
+        status: params.statuses?.length ? params.statuses.join(",") : undefined,
+        page: params.page,
+        per_page: params.per_page,
+      },
+    });
+  }
+
+  createPlatformEvent(input: EventInput): Promise<AdminEvent> {
+    return this.request<AdminEvent>("POST", "/admin/platform/events", { body: input });
+  }
+
+  listPlatformPromos(params: AdminListParams = {}): Promise<ApiPage<AdminPromo>> {
+    return this.request<ApiPage<AdminPromo>>("GET", "/admin/platform/promos", {
+      params: {
+        status: params.statuses?.length ? params.statuses.join(",") : undefined,
+        page: params.page,
+        per_page: params.per_page,
+      },
+    });
+  }
+
+  createPlatformPromo(input: PromoInput): Promise<AdminPromo> {
+    return this.request<AdminPromo>("POST", "/admin/platform/promos", { body: input });
+  }
+
   // ---- Promos --------------------------------------------------------------
 
   listPromos(restaurantId: string, params: AdminListParams = {}): Promise<ApiPage<AdminPromo>> {
