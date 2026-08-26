@@ -62,6 +62,15 @@ export default defineConfig({
       // и падал импорт до появления заглушки Phosphor). Web-сборка того же
       // пакета — обычный JS и настоящий <svg>, поэтому иконки в тестах
       // рисуются по-настоящему, а не подменяются заглушкой.
+      // `react-native-safe-area-context` объявляет поле `react-native`:
+      // `src/index.tsx`, и Vite берёт именно исходный TSX — Node роняет его на
+      // `SyntaxError: Unexpected token 'typeof'`, и с ним не импортируется ни
+      // одна нижняя шторка. Тот же приём, что и с react-native-svg: указываем
+      // на собранный ESM того же пакета.
+      {
+        find: /^react-native-safe-area-context$/,
+        replacement: `${rootCopyOf("react-native-safe-area-context")}/lib/module/index.js`,
+      },
       {
         find: /^react-native-svg$/,
         replacement: `${rootCopyOf("react-native-svg")}/lib/module/ReactNativeSVG.web.js`,

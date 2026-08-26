@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, ForkKnife, User } from "../../../../src/components/icons";
-import { MenuItemCard } from "../../../../src/components/MenuItemCard";
+import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../../src/components/SegmentedTabs";
@@ -348,23 +348,20 @@ export default function ReservationScreen() {
           </View>
 
           {/* "Top Picks" (node 471:3950). Rendered from the venue payload this
-              screen already has — no extra request — and read-only: the design
-              gives its cards no visible affordance, and wiring a tap would be a
-              behaviour decision, not a visual one. */}
+              screen already has — no extra request. Тап по карточке открывает
+              карточку блюда поверх экрана: до 2026-08-26 лента здесь выглядела
+              нажимаемой и не делала НИЧЕГО (`MenuItemCard` без `onPress` — не
+              кнопка). Уводить на экран меню нельзя — это бросило бы черновик
+              брони, поэтому шторка. */}
           {restaurant && restaurant.menuHighlights.length > 0 ? (
             <View style={[styles.section, styles.sectionLast]}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
+              <MenuHighlightsStrip
+                items={restaurant.menuHighlights}
                 contentContainerStyle={styles.topPicksRow}
-              >
-                {restaurant.menuHighlights.map((item) => (
-                  <MenuItemCard key={item.id} item={item} />
-                ))}
-              </ScrollView>
+              />
             </View>
           ) : null}
         </ScrollView>

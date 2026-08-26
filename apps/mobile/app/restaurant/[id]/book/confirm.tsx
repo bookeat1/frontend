@@ -8,7 +8,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, Minus, Plus, User } from "../../../../src/components/icons";
-import { MenuItemCard } from "../../../../src/components/MenuItemCard";
+import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCreateBooking } from "../../../../src/hooks/useBooking";
@@ -317,19 +317,18 @@ export default function ConfirmBookingScreen() {
           </View>
         </View>
 
-        {/* Top Picks (node 918:12160) — read-only, from the venue payload. */}
+        {/* Top Picks (node 918:12160) — из того же ответа о заведении. Тап
+            открывает карточку блюда поверх экрана: раньше лента и здесь была
+            мёртвой. Добавить блюдо отсюда нельзя — на этом шаге предзаказ
+            меняют выше по флоу, а после подтверждения его правку закрывает
+            сервер; кнопка, которая иногда невозможна, хуже её отсутствия. */}
         {restaurant && restaurant.menuHighlights.length > 0 ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t.restaurant.menuHighlights}</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+            <MenuHighlightsStrip
+              items={restaurant.menuHighlights}
               contentContainerStyle={styles.topPicksRow}
-            >
-              {restaurant.menuHighlights.map((item) => (
-                <MenuItemCard key={item.id} item={item} />
-              ))}
-            </ScrollView>
+            />
           </View>
         ) : null}
 

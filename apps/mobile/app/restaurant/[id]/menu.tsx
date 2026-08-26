@@ -10,6 +10,7 @@ import { FlowHeader } from "../../../src/components/FlowHeader";
 import { Plus } from "../../../src/components/icons";
 import { PhotoView } from "../../../src/components/PhotoView";
 import { DishDetailSheet } from "../../../src/components/restaurant/DishDetailSheet";
+import { dishCardFromMenuDish } from "../../../src/lib/dish-card";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useMenuSections } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
@@ -287,7 +288,7 @@ export default function RestaurantMenuScreen() {
           {/* Детали блюда по тапу на строку — фото, описание, цена и, если блюдо
               можно заказать, счётчик количества + «Добавить». */}
           <DishDetailSheet
-            dish={openedDish}
+            dish={openedDish ? dishCardFromMenuDish(openedDish) : null}
             canAdd={openedDish ? canAddDish(openedDish) : false}
             onAdd={(quantity) => {
               const dish = openedDish;
