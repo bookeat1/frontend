@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 import { moveItem } from "@/lib/reorder";
 import { Button } from "./ui/Button";
-import { CheckboxRow, Field, TextArea } from "./ui/FormControls";
+import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
@@ -139,6 +139,11 @@ export function StoriesView() {
                           {s.caption}
                         </p>
                       ) : null}
+                      {s.action_url ? (
+                        <p className="mt-xxs break-all text-[12px] text-text-muted">
+                          {t.admin.stories.linkBadge}: {s.action_url}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -237,6 +242,8 @@ function StoryFormModal({
   const isEdit = !!story;
   const [imageUrl, setImageUrl] = useState(story?.image_url ?? "");
   const [caption, setCaption] = useState(story?.caption ?? "");
+  // Ссылка ПЕРЕХОДА — отдельное состояние от imageUrl (адрес картинки).
+  const [actionUrl, setActionUrl] = useState(story?.action_url ?? "");
   const [isActive, setIsActive] = useState(story?.is_active ?? true);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -263,10 +270,22 @@ function StoryFormModal({
       return;
     }
 
+    // Схему проверяем и здесь, и на сервере. Серверная проверка — источник
+    // истины (она же режет javascript:, учётные данные в адресе и прочее), а
+    // эта нужна ради понятной русской подсказки вместо голого 422.
+    const link = actionUrl.trim();
+    if (link && !/^https?:\/\//i.test(link)) {
+      setFormError(t.admin.stories.linkInvalid);
+      return;
+    }
+
     const trimmedCaption = caption.trim();
     mutation.mutate({
       image_url: image,
       caption: trimmedCaption || null,
+      // Пустое поле снимает ссылку, а не оставляет прежнюю: правка формы
+      // отправляет полный набор полей.
+      action_url: link || null,
       is_active: isActive,
     });
   }
@@ -285,6 +304,19 @@ function StoryFormModal({
         />
         <Field label={t.admin.stories.fieldCaption} hint={t.admin.stories.fieldCaptionHint}>
           <TextArea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={200} />
+        </Field>
+        {/* Ссылка перехода стоит ОТДЕЛЬНЫМ полем ниже блока «Изображение»: внутри
+            того блока есть своя строка «Или вставьте ссылку» — адрес картинки.
+            Разные подписи + разъясняющая подсказка — чтобы их не путали. */}
+        <Field label={t.admin.stories.fieldLink} hint={t.admin.stories.fieldLinkHint}>
+          <TextInput
+            type="url"
+            inputMode="url"
+            value={actionUrl}
+            placeholder={t.admin.stories.fieldLinkPlaceholder}
+            maxLength={2048}
+            onChange={(e) => setActionUrl(e.target.value)}
+          />
         </Field>
         <CheckboxRow
           label={t.admin.stories.fieldActive}

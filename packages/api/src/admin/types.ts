@@ -490,8 +490,15 @@ export interface PromoInput {
  * returns ALL of them, active and inactive, ordered by `sort_order`. */
 export interface Story {
   id: string;
+  /** Адрес САМОЙ КАРТИНКИ сторис. */
   image_url: string;
   caption: string | null;
+  /**
+   * ВНЕШНЯЯ ссылка, куда уходит гость по тапу на сторис. Это НЕ `image_url`:
+   * `image_url` — где лежит картинка, `action_url` — куда ведёт тап. `null` =
+   * сторис никуда не ведёт; сервер отдаёт поле только когда ссылка задана.
+   */
+  action_url: string | null;
   sort_order: number;
   is_active: boolean;
   created_at: string;
@@ -508,6 +515,12 @@ export interface Story {
 export interface StoryInput {
   image_url: string;
   caption?: string | null;
+  /**
+   * Внешняя ссылка перехода (http/https), НЕ адрес картинки. Пустая строка или
+   * `null` снимает ссылку; сервер проверяет схему и отвечает 422 на всё, что не
+   * является открываемой http(s)-ссылкой.
+   */
+  action_url?: string | null;
   sort_order?: number;
   is_active?: boolean;
 }
