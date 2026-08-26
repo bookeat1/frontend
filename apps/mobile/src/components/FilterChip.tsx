@@ -1,10 +1,16 @@
 import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { X } from "./icons";
+import { CaretDown, X } from "./icons";
 
 interface FilterChipBaseProps {
   label: string;
+  /**
+   * Чем чип называется скринридеру, когда подпись сама по себе неполна.
+   * «Сегодня» в ряду подбора — это «Дата: Сегодня»: без названия половины
+   * два соседних чипа звучат как обрывки. По умолчанию — сама подпись.
+   */
+  accessibilityLabel?: string;
   selected?: boolean;
   onPress: () => void;
   /**
@@ -24,16 +30,24 @@ interface FilterChipBaseProps {
 }
 
 /**
- * Крестик «снять этот фильтр» внутри чипа. Пара, а не два независимых пропа:
+ * Что стоит СПРАВА от подписи — и это выбор из двух, а не два независимых
+ * пропа.
+ *
+ * Крестик «снять этот фильтр»: `onRemove` и метка идут парой, потому что
  * крестик без метки — немая кнопка, а метка без обработчика — обещание
  * действия, которого нет. Метка обязана называть фильтр («Убрать фильтр
  * Греческая»), иначе подряд идущие чипы озвучиваются одинаково.
+ *
+ * Шеврон `chevron` — чип, который ОТКРЫВАЕТ выбор, а не снимает фильтр
+ * («Сегодня ⌄», «2 гостя ⌄» в узле 347:5942). Совмещать его с крестиком
+ * запрещено типом: это два разных обещания в одном чипе, и палец не различил
+ * бы, какое из них он сейчас выполнит.
  */
-type FilterChipRemoveProps =
-  | { onRemove: () => void; removeAccessibilityLabel: string }
-  | { onRemove?: undefined; removeAccessibilityLabel?: undefined };
+type FilterChipTrailingProps =
+  | { onRemove: () => void; removeAccessibilityLabel: string; chevron?: false }
+  | { onRemove?: undefined; removeAccessibilityLabel?: undefined; chevron?: boolean };
 
-type FilterChipProps = FilterChipBaseProps & FilterChipRemoveProps;
+type FilterChipProps = FilterChipBaseProps & FilterChipTrailingProps;
 
 /**
  * Чип-фильтр. Размеры сняты с узла 347:5942 (экран «Поиск», ряд под строкой
@@ -46,6 +60,10 @@ type FilterChipProps = FilterChipBaseProps & FilterChipRemoveProps;
  * Уменьшать зону касания было бы регрессом, а рисовать 44 там, где в макете
  * 40, — рассинхроном с дизайном; hitSlop закрывает оба требования разом.
  *
+ * Шеврон-вариант (`chevron`) — те же 40 и та же подложка, но правый отступ 8
+ * вместо 12 и глиф `CaretDown` 24 (узел 347:5942, «Frame 46»/«Frame 47»):
+ * иконка шире подписи и без поджатого края смотрелась бы утопленной.
+ *
  * `selected` инвертирует чип в сплошную пилюлю с белым текстом — этим живёт
  * шторка «Фильтры» (`selectedTone="brand"`, бордовая) и ряды-переключатели.
  * Ряд ПРИМЕНЁННЫХ фильтров над выдачей выбранным тоном не пользуется: там все
@@ -54,12 +72,14 @@ type FilterChipProps = FilterChipBaseProps & FilterChipRemoveProps;
  */
 export function FilterChip({
   label,
+  accessibilityLabel,
   selected = false,
   onPress,
   selectedTone = "dark",
   size = "default",
   onRemove,
   removeAccessibilityLabel,
+  chevron = false,
 }: FilterChipProps) {
   const removable = onRemove !== undefined;
   return (
@@ -71,13 +91,14 @@ export function FilterChip({
       accessible={!removable}
       accessibilityRole={removable ? undefined : "button"}
       accessibilityState={removable ? undefined : { selected }}
-      accessibilityLabel={removable ? undefined : label}
+      accessibilityLabel={removable ? undefined : (accessibilityLabel ?? label)}
       onPress={onPress}
       // Чип рисуется на 40, а нажимается на 48 — см. комментарий к компоненту.
       hitSlop={CHIP_TOUCH_SLOP}
       style={({ pressed }) => [
         styles.chip,
         size === "roomy" && styles.chipRoomy,
+        chevron && styles.chipChevron,
         selected && (selectedTone === "brand" ? styles.chipSelectedBrand : styles.chipSelected),
         pressed && styles.pressed,
       ]}
@@ -97,6 +118,13 @@ export function FilterChip({
             weight="bold"
           />
         </Pressable>
+      ) : null}
+      {chevron ? (
+        <CaretDown
+          size={24}
+          color={selected ? colors.text.onDark : colors.text.primary}
+          weight="regular"
+        />
       ) : null}
     </Pressable>
   );
@@ -127,6 +155,10 @@ const styles = StyleSheet.create({
   },
   chipRoomy: {
     paddingHorizontal: spacing.lg,
+  },
+  chipChevron: {
+    // 12 слева, 8 справа — так в макете у чипов со стрелкой.
+    paddingRight: spacing.sm,
   },
   chipSelected: {
     backgroundColor: colors.background.chipActive,

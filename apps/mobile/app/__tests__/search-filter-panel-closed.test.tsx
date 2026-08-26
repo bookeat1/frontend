@@ -85,12 +85,9 @@ describe("панель фильтров при переходе с главно�
         }),
       ),
     );
-    // ...и виден чипом над выдачей.
-    expect(
-      screen.getByText(
-        t.search.filterAvailability("пт, 4 сентября", t.booking.guestsCount(4)),
-      ),
-    ).toBeTruthy();
+    // ...и виден над выдачей ДВУМЯ чипами — датой и гостями (макет 347:5942).
+    expect(screen.getByText("пт, 4 сентября")).toBeTruthy();
+    expect(screen.getByText(t.booking.guestsCount(4))).toBeTruthy();
     expectPanelClosed();
   });
 
@@ -114,7 +111,9 @@ describe("панель фильтров при переходе с главно�
     renderSearch();
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: t.a11y.openFilters }));
+    // Имя кнопки меняется, когда что-то выбрано («…, выбрано: N»), поэтому
+    // ищем по началу подписи: тесту важна сама кнопка, а не счётчик.
+    await user.click(screen.getByRole("button", { name: /^Открыть фильтры/ }));
 
     expect(await screen.findByText(t.search.filters.title)).toBeTruthy();
     // И это СПИСОК фильтров, а не сразу колесо даты.

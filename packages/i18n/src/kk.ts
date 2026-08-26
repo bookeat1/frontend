@@ -169,7 +169,6 @@ export const kk: LocaleOverride<Dictionary> = {
     availabilityUnavailable: "Бос үстелдерді тексеру мүмкін болмады. Қайталап көріңіз.",
     availabilityEmpty: (guests: number, date: string) =>
       `${date} күні ${guests} қонаққа бос үстел табылмады`,
-    filterAvailability: (date: string, guests: string) => `${date} · ${guests}`,
     resultsCount: (count: number) => `${count} мейрамхана`,
     filterOpenNow: "Қазір ашық",
     filterOnlineBookable: "Онлайн бронь",

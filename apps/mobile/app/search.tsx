@@ -12,6 +12,10 @@ import { FilterChip } from "../src/components/FilterChip";
 import { FavoriteRestaurantCard } from "../src/components/FavoriteRestaurantCard";
 import { ScreenContainer } from "../src/components/ScreenContainer";
 import { SearchBar } from "../src/components/SearchBar";
+import {
+  AvailabilityWheels,
+  type AvailabilityHalf,
+} from "../src/components/search/AvailabilityWheels";
 import { FilterButton } from "../src/components/search/FilterButton";
 import { FilterSheet } from "../src/components/search/FilterSheet";
 import { useSearchScreen } from "../src/hooks/useSearch";
@@ -121,6 +125,11 @@ export default function SearchScreen() {
   // листает каталог.
   const [searchFocused, setSearchFocused] = useState(false);
 
+  // Какая половина подбора раскрыта колесом ПРЯМО ИЗ РЯДА чипов, без шторки
+  // фильтров. Колёса те же (`AvailabilityWheels`), что внутри шторки, и
+  // правило «наружу только парой» лежит в них, а не здесь.
+  const [availabilityPicker, setAvailabilityPicker] = useState<AvailabilityHalf | null>(null);
+
   // Прячет подсказки вместе с клавиатурой. `Keyboard.dismiss` нужен потому,
   // что onBlur сам по себе не сработает: поле остаётся сфокусированным, пока
   // клавиатуру не убрали.
@@ -175,7 +184,14 @@ export default function SearchScreen() {
   // Снятие чипа применяется СРАЗУ, без открытия шторки: новый запрос уходит
   // сам, потому что `filters` — часть queryKey.
   const removeChip = useCallback(
-    (chip: SelectedChip) => setFilters(chip.removeFilters),
+    (chip: RemovableChip) => setFilters(chip.removeFilters),
+    [setFilters],
+  );
+
+  // Колесо, поднятое чипом подбора, применяется целиком: `AvailabilityWheels`
+  // отдаёт готовую пару, и «дата без гостей» тут физически не собирается.
+  const changeAvailability = useCallback(
+    (next: SearchFilters["availability"]) => setFilters((prev) => ({ ...prev, availability: next })),
     [setFilters],
   );
 
@@ -238,22 +254,36 @@ export default function SearchScreen() {
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.chipsRow}
               >
-                {selectedChips.map((chip) => (
-                  <FilterChip
-                    key={chip.key}
-                    label={chip.label}
-                    // Без `selected`: в узле 347:5942 чипы этого ряда серые с
-                    // тёмной подписью. Сплошная заливка тут ничего не
-                    // различала — в ряду по определению только применённые
-                    // фильтры, и «выделять» их не от чего; активность
-                    // показывает крестик «снять».
-                    // Тап по чипу и тап по крестику — одно и то же действие:
-                    // снять именно этот фильтр и сразу переспросить сервер.
-                    onPress={() => removeChip(chip)}
-                    onRemove={() => removeChip(chip)}
-                    removeAccessibilityLabel={t.a11y.removeFilter(chip.label)}
-                  />
-                ))}
+                {selectedChips.map((chip) =>
+                  // Два вида чипов, и вид виден по стрелке справа. Со стрелкой
+                  // — дата и гости: тап МЕНЯЕТ выбор, поднимая то же колесо,
+                  // что на главной и в шторке. С крестиком — все остальные:
+                  // тап СНИМАЕТ фильтр.
+                  chip.kind === "availability" ? (
+                    <FilterChip
+                      key={chip.key}
+                      label={chip.label}
+                      chevron
+                      accessibilityLabel={`${chip.sectionTitle}: ${chip.label}`}
+                      onPress={() => setAvailabilityPicker(chip.half)}
+                    />
+                  ) : (
+                    <FilterChip
+                      key={chip.key}
+                      label={chip.label}
+                      // Без `selected`: в узле 347:5942 чипы этого ряда серые с
+                      // тёмной подписью. Сплошная заливка тут ничего не
+                      // различала — в ряду по определению только применённые
+                      // фильтры, и «выделять» их не от чего; активность
+                      // показывает крестик «снять».
+                      // Тап по чипу и тап по крестику — одно и то же действие:
+                      // снять именно этот фильтр и сразу переспросить сервер.
+                      onPress={() => removeChip(chip)}
+                      onRemove={() => removeChip(chip)}
+                      removeAccessibilityLabel={t.a11y.removeFilter(chip.label)}
+                    />
+                  ),
+                )}
               </ScrollView>
             ) : null}
           </View>
@@ -347,6 +377,16 @@ export default function SearchScreen() {
         )}
       </ScreenContainer>
 
+      {/* Колёса подбора, поднятые чипом. Ровно те же, что внутри шторки
+          фильтров: второе колесо дат в одном экране означало бы два разных
+          списка дней. */}
+      <AvailabilityWheels
+        open={availabilityPicker}
+        value={filters.availability}
+        onClose={() => setAvailabilityPicker(null)}
+        onChange={changeAvailability}
+      />
+
       <FilterSheet
         visible={sheetVisible}
         initialFilters={filters}
@@ -370,13 +410,34 @@ export default function SearchScreen() {
   );
 }
 
-interface SelectedChip {
+/**
+ * Чип, который СНИМАЕТ свой фильтр: кухня, удобство, цена, город, флаги.
+ */
+interface RemovableChip {
+  kind: "remove";
   key: string;
   label: string;
   /** Как выглядят фильтры поиска после снятия чипа. Обязателен: чип, который
    * ничего не снимает, — это подпись, притворяющаяся кнопкой. */
   removeFilters: (prev: SearchFilters) => SearchFilters;
 }
+
+/**
+ * Чип половины подбора «дата + гости»: он не снимает ничего, он МЕНЯЕТ выбор.
+ * Крестика у него нет намеренно — снятая половина оставила бы серверу
+ * бессмысленный запрос (см. `buildSelectedChips`).
+ */
+interface AvailabilityChip {
+  kind: "availability";
+  key: string;
+  label: string;
+  /** Какое колесо поднимать. */
+  half: AvailabilityHalf;
+  /** Название половины для скринридера — «Дата» / «Гости». */
+  sectionTitle: string;
+}
+
+type SelectedChip = RemovableChip | AvailabilityChip;
 
 /**
  * Разворачивает ВЕСЬ применённый подбор в чипы «выбранного» — ровно то, что
@@ -388,8 +449,12 @@ interface SelectedChip {
  * чипов на экране больше нет. Раздел «Повод» убран из шторки 2026-08-25
  * вместе со своим чипом: он выдачу не сужал.
  *
- * Дата и гости — ОДИН чип: сервер принимает их только парой, и два чипа
- * снимались бы наполовину (см. AvailabilityBar).
+ * Дата и гости — ДВА чипа (макет 347:5942), но пара под ними неделима: у них
+ * нет крестика, тап МЕНЯЕТ половину колесом и досылает вторую
+ * (`AvailabilityWheels`). Снять подбор можно там, где это делается целиком, —
+ * крестиком капсулы в шторке фильтров и «Сбросить». Крестик на половине
+ * оставил бы серверу «дату без гостей», которую он молча игнорирует: чип
+ * висит, выдача не сужена.
  */
 function buildSelectedChips(
   filters: SearchFilters,
@@ -401,15 +466,27 @@ function buildSelectedChips(
 
   if (filters.availability !== undefined) {
     const { date, guests } = filters.availability;
-    chips.push({
-      key: "availability",
-      label: t.search.filterAvailability(dateLabelFor(date), t.booking.guestsCount(guests)),
-      removeFilters: (prev) => ({ ...prev, availability: undefined }),
-    });
+    chips.push(
+      {
+        kind: "availability",
+        key: "availability:date",
+        label: dateLabelFor(date),
+        half: "date",
+        sectionTitle: t.booking.dateSectionTitle,
+      },
+      {
+        kind: "availability",
+        key: "availability:guests",
+        label: t.booking.guestsCount(guests),
+        half: "guests",
+        sectionTitle: t.booking.guestsSectionTitle,
+      },
+    );
   }
   if (filters.priceLevel !== undefined) {
     const priceLevel: PriceLevel = filters.priceLevel;
     chips.push({
+      kind: "remove",
       key: "price",
       label: priceLevel,
       removeFilters: (prev) => ({ ...prev, priceLevel: undefined }),
@@ -417,6 +494,7 @@ function buildSelectedChips(
   }
   for (const id of filters.cuisineIds) {
     chips.push({
+      kind: "remove",
       key: `cuisine:${id}`,
       label: cuisineNameById.get(id) ?? id,
       removeFilters: (prev) => ({
@@ -427,6 +505,7 @@ function buildSelectedChips(
   }
   for (const id of filters.amenityIds) {
     chips.push({
+      kind: "remove",
       key: `amenity:${id}`,
       // Название из справочника; не пришло — показываем код, но чип не
       // прячем: невидимый фильтр гость не снимет.
@@ -439,6 +518,7 @@ function buildSelectedChips(
   }
   if (filters.openNowOnly) {
     chips.push({
+      kind: "remove",
       key: "openNow",
       label: t.search.filterOpenNow,
       removeFilters: (prev) => ({ ...prev, openNowOnly: false }),
@@ -446,6 +526,7 @@ function buildSelectedChips(
   }
   if (filters.onlineBookableOnly) {
     chips.push({
+      kind: "remove",
       key: "onlineBookable",
       label: t.search.filterOnlineBookable,
       removeFilters: (prev) => ({ ...prev, onlineBookableOnly: false }),
@@ -454,6 +535,7 @@ function buildSelectedChips(
   if (filters.city !== undefined) {
     const city = filters.city;
     chips.push({
+      kind: "remove",
       key: "city",
       label: city,
       removeFilters: (prev) => ({ ...prev, city: undefined }),

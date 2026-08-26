@@ -125,20 +125,29 @@ describe("ряд чипов применённых фильтров", () => {
     );
   });
 
-  it("дата и гости — один чип, снимается парой", async () => {
+  it("дата и гости — два чипа, и крестика у них нет", async () => {
     params = { guests: "3", date: "2026-12-31" };
     renderSearch();
-    const user = userEvent.setup();
 
-    const label = t.search.filterAvailability("31 декабря", t.booking.guestsCount(3));
-    const remove = await screen.findByRole("button", { name: t.a11y.removeFilter(label) });
     await waitFor(() =>
       expect(lastQuery().filters.availability).toEqual({ date: "2026-12-31", guests: 3 }),
     );
 
-    await user.click(remove);
-
-    await waitFor(() => expect(lastQuery().filters.availability).toBeUndefined());
+    // Две половины подбора — два чипа, каждый подписан своим разделом.
+    expect(
+      await screen.findByRole("button", {
+        name: `${t.booking.dateSectionTitle}: 31 декабря`,
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: `${t.booking.guestsSectionTitle}: ${t.booking.guestsCount(3)}`,
+      }),
+    ).toBeTruthy();
+    // Крестика ни у одной половины: сервер принимает дату и гостей только
+    // парой, и снять половину было бы «фильтр висит, выдача не сужена».
+    // Подробнее — в search-availability-chips.test.tsx.
+    expect(screen.queryAllByRole("button", { name: /Убрать фильтр/ })).toHaveLength(0);
   });
 });
 

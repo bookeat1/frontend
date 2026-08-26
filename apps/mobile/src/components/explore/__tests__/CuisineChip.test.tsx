@@ -51,8 +51,14 @@ describe("подпись под кружком кухни", () => {
     expect(getComputedStyle(label).getPropertyValue("-webkit-line-clamp")).toBe("2");
   });
 
-  it("держит ячейку шире круга — иначе длинному слову негде поместиться", () => {
-    expect(exploreLayout.cuisineChipLabel).toBeGreaterThan(exploreLayout.cuisineChip);
+  it("держит подпись не уже ячейки макета — иначе длинному слову негде поместиться", () => {
+    // Раньше здесь стояло «подпись шире круга»: круг был 72, снятые с
+    // отрендеренного экрана, а подпись 96. С 2026-08-26 круг тоже 96 — размер
+    // из макета, — поэтому «шире» перестало выполняться, хотя места под
+    // подпись ровно столько же. Проверяем то, что и защищали: 96 точек под
+    // «Средиземноморская».
+    expect(exploreLayout.cuisineChipLabel).toBe(96);
+    expect(exploreLayout.cuisineChipLabel).toBeGreaterThanOrEqual(exploreLayout.cuisineChip);
   });
 
   it("остаётся кнопкой с названием кухни для скринридера", () => {

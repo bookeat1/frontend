@@ -3,10 +3,10 @@ import type { AvailabilityFilter } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { DEFAULT_GUESTS, guestOptions } from "../../lib/availability-options";
+import { DEFAULT_GUESTS } from "../../lib/availability-options";
 import { dateChoices } from "../../lib/availability-label";
 import { CalendarBlank, User, X } from "../icons";
-import { WheelSheet } from "./WheelSheet";
+import { AvailabilityWheels, type AvailabilityHalf } from "./AvailabilityWheels";
 
 const t = getDictionary();
 
@@ -23,9 +23,6 @@ const t = getDictionary();
  * прежней — вид работающего фильтра без фильтра.
  */
 
-/** Какая половина капсулы раскрыта колесом. */
-type AvailabilityPicker = "date" | "guests";
-
 export function AvailabilityBar({
   value,
   onChange,
@@ -37,12 +34,13 @@ export function AvailabilityBar({
   /** Точка отсчёта дат. Параметр — ради тестов, в приложении всегда «сегодня». */
   today?: Date;
 }) {
-  const [picker, setPicker] = useState<AvailabilityPicker | null>(null);
+  const [picker, setPicker] = useState<AvailabilityHalf | null>(null);
 
-  // Подпись дня считает общий `dateChoices` — тот же, что рисует чип подбора
-  // над выдачей. Два расчёта разъехались бы на «Сегодня»/«12 августа».
-  const { options: dates, labelFor } = useMemo(() => dateChoices(today), [today]);
-  const guests = useMemo(() => guestOptions((n) => t.booking.guestsCount(n)), []);
+  // Подпись дня считает общий `dateChoices` — тот же, что рисует чипы подбора
+  // над выдачей. Два расчёта разъехались бы на «Сегодня»/«12 августа». Сами
+  // КОЛЁСА живут в `AvailabilityWheels` — там же лежит правило «наружу только
+  // парой», общее с чипами на экране поиска.
+  const { labelFor } = useMemo(() => dateChoices(today), [today]);
 
   // Пока дату не выбрали, показываем «Сегодня», а не «Любой день» (решение
   // владельца 18.08.2026): человек чаще всего ищет на сегодня, и подпись
@@ -93,32 +91,14 @@ export function AvailabilityBar({
         </Pressable>
       ) : null}
 
-      <WheelSheet
-        visible={picker === "date"}
-        title={t.booking.pickDateTitle}
-        options={dates}
-        value={value?.date ?? dates[0].value}
-        submitLabel={t.search.availabilityDone}
-        closeLabel={t.search.availabilityClose}
+      {/* Колёса — общий `AvailabilityWheels`: и здесь, и у чипов над выдачей
+          выбор половины досылает вторую половину сам. */}
+      <AvailabilityWheels
+        open={picker}
+        value={value}
+        today={today}
         onClose={() => setPicker(null)}
-        onSubmit={(date) => {
-          setPicker(null);
-          onChange({ date, guests: value?.guests ?? DEFAULT_GUESTS });
-        }}
-      />
-
-      <WheelSheet
-        visible={picker === "guests"}
-        title={t.booking.pickGuestsTitle}
-        options={guests}
-        value={String(value?.guests ?? DEFAULT_GUESTS)}
-        submitLabel={t.search.availabilityDone}
-        closeLabel={t.search.availabilityClose}
-        onClose={() => setPicker(null)}
-        onSubmit={(picked) => {
-          setPicker(null);
-          onChange({ date: value?.date ?? dates[0].value, guests: Number(picked) });
-        }}
+        onChange={onChange}
       />
     </View>
   );

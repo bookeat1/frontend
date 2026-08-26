@@ -381,7 +381,6 @@ export const ru = {
     /** Чип применённого подбора над выдачей. Дата и гости уходят в поиск
      * ТОЛЬКО парой (сервер игнорирует одно без другого), поэтому и чип один —
      * два отдельных снимались бы наполовину. */
-    filterAvailability: (date: string, guests: string) => `${date} · ${guests}`,
     resultsCount: (count: number) => {
       const mod10 = count % 10;
       const mod100 = count % 100;

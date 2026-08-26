@@ -36,7 +36,12 @@ export function countActiveFilters(filters: SearchFilters): number {
     (filters.openNowOnly ? 1 : 0) +
     (filters.onlineBookableOnly ? 1 : 0) +
     (filters.city !== undefined ? 1 : 0) +
-    (filters.priceLevel !== undefined ? 1 : 0)
+    (filters.priceLevel !== undefined ? 1 : 0) +
+    // Дата и гости — ОДИН фильтр, хотя рисуются двумя чипами: сервер
+    // принимает их только парой. Без этой строки счётчик показывал 0 при
+    // выбранном подборе, то есть кнопка фильтров утверждала, что ничего не
+    // выбрано, пока рядом висели два чипа.
+    (filters.availability !== undefined ? 1 : 0)
   );
 }
 
