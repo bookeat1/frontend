@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { formatPrice } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
+import { ImageThumb } from "./ui/ImageThumb";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 
 export function MenuView() {
@@ -101,6 +102,15 @@ export function MenuView() {
                       onChange={() => toggleSelect(item.id)}
                       aria-label={`${t.admin.menu.selected(0)} — ${item.name}`}
                       className="h-5 w-5 shrink-0 accent-[#B33036]"
+                    />
+                    {/* Фото блюда. Пунктирная плашка «Нет фото» занимает ровно
+                        то же место, что и картинка, — по ней управляющий
+                        глазами находит блюда без фотографии. */}
+                    <ImageThumb
+                      url={item.image_url}
+                      alt={item.name}
+                      emptyLabel={t.admin.menu.noPhoto}
+                      className="h-12 w-12"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-text">{item.name}</p>
