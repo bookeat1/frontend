@@ -6,19 +6,25 @@ import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
+import { BirthDatePickerDialog } from "../../src/components/profile/BirthDatePickerDialog";
 import { FieldEditorSheet } from "../../src/components/profile/FieldEditorSheet";
 import { PersonalDataRow } from "../../src/components/profile/PersonalDataRow";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { useAuth } from "../../src/lib/auth";
+import { formatDateKeyDayFirst } from "../../src/lib/format";
 import { useLocale } from "../../src/lib/locale";
 import { formatStoredPhoneForDisplay } from "../../src/lib/phone";
-import { classifyProfileSaveFailure } from "../../src/lib/profile-edit";
+import { birthDateBounds, classifyProfileSaveFailure } from "../../src/lib/profile-edit";
 
 /**
  * «Персональные данные» — the list half of the account edit flow (Figma
- * render): two rows, «Имя» and «Номер телефона», each showing the current
- * value. «Имя» opens a bottom-sheet editor and saves through the SAME PATCH
- * /users/me the profile edit form uses (repository.updateMe).
+ * node 977-7001): three rows — «Имя», «Номер телефона» and «День рождения» —
+ * each showing the current value. «Имя» opens a bottom-sheet editor and
+ * «День рождения» the calendar dialog; both save through the SAME PATCH
+ * /users/me the profile edit form uses (repository.updateMe), so this screen
+ * and «О себе» cannot end up holding two different birth dates: there is one
+ * field (`AuthUser.birthDate` → `birth_date`), one endpoint and one cache
+ * entry (["me"]).
  *
  * «Номер телефона» is NOT a `PATCH /users/me` field — `updateMeRequest` has no
  * phone, and OTP sign-in finds-or-creates the account BY the number, so moving
@@ -38,7 +44,7 @@ export default function PersonalDataScreen() {
   const { status, repository } = useAuth();
 
   const [keepEditor, setKeepEditor] = useState(false);
-  const [editing, setEditing] = useState<"name" | null>(null);
+  const [editing, setEditing] = useState<"name" | "birthDate" | null>(null);
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | undefined>(undefined);
   // Guards a double tap in the window before `saving` has re-rendered — a
@@ -62,9 +68,9 @@ export default function PersonalDataScreen() {
   }, [me.data]);
   const account = me.data ?? (keepEditor ? lastUser.current : null);
 
-  const openNameEditor = () => {
+  const openEditor = (field: "name" | "birthDate") => {
     setServerError(undefined);
-    setEditing("name");
+    setEditing(field);
   };
 
   const closeEditor = () => {
@@ -109,6 +115,54 @@ export default function PersonalDataScreen() {
     }
   };
 
+  /**
+   * Дата рождения сохраняется ТЕМ ЖЕ вызовом, что и форма «О себе»:
+   * `updateMe({ birthDate })` → `birth_date` в теле PATCH. Никакого второго
+   * пути хранения у этого экрана нет.
+   *
+   * Границы календаря — `birthDateBounds`, та же функция, что проверяет дату
+   * в форме: календарь не должен предлагать день, который сервер откажется
+   * принять.
+   *
+   * В патче ровно одно поле. Город сюда не попадает даже пустым — иначе
+   * сохранение дня рождения молча переписало бы город профиля (а на экране
+   * «О себе» — ещё и город устройства).
+   */
+  const submitBirthDate = async (dateKey: string) => {
+    if (inFlight.current) return;
+    if (account && dateKey === (account.birthDate ?? "")) {
+      setEditing(null);
+      return;
+    }
+    inFlight.current = true;
+    setSaving(true);
+    setServerError(undefined);
+    try {
+      const updated = await repository.updateMe({ birthDate: dateKey });
+      queryClient.setQueryData(["me"], updated);
+      setEditing(null);
+    } catch (error) {
+      // Диалог остаётся открытым на выбранной дате — выбор не теряется.
+      const reason = classifyProfileSaveFailure(error);
+      const f = t.profile.edit.failure;
+      setServerError(
+        reason === "session_expired"
+          ? f.sessionExpired
+          : reason === "rejected"
+            ? f.rejected
+            : reason === "offline"
+              ? f.offline
+              : f.unknown,
+      );
+      if (reason === "session_expired") setKeepEditor(true);
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
+  };
+
+  const bounds = birthDateBounds(new Date());
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
@@ -149,7 +203,7 @@ export default function PersonalDataScreen() {
                 label={t.profile.personalData.nameRow}
                 value={account.fullName}
                 placeholder={t.profile.personalData.nameEmpty}
-                onPress={openNameEditor}
+                onPress={() => openEditor("name")}
                 editA11y={t.profile.personalData.editNameA11y}
               />
               <PersonalDataRow
@@ -158,6 +212,13 @@ export default function PersonalDataScreen() {
                 placeholder={t.profile.personalData.phoneEmpty}
                 onPress={() => router.push("/profile/change-phone")}
                 editA11y={t.profile.personalData.editPhoneA11y}
+              />
+              <PersonalDataRow
+                label={t.profile.personalData.birthDateRow}
+                value={account.birthDate ? formatDateKeyDayFirst(account.birthDate) : ""}
+                placeholder={t.profile.personalData.birthDateEmpty}
+                onPress={() => openEditor("birthDate")}
+                editA11y={t.profile.personalData.editBirthDateA11y}
               />
             </View>
           </ScrollView>
@@ -179,6 +240,19 @@ export default function PersonalDataScreen() {
         saveLabel={t.profile.edit.save}
         savingLabel={t.profile.edit.saving}
         onSubmit={(value) => void submitName(value)}
+        onCancel={closeEditor}
+      />
+
+      {/* Тот же календарь, что и в форме «О себе» — один компонент на два
+          экрана, а не вторая реализация выбора даты. */}
+      <BirthDatePickerDialog
+        visible={editing === "birthDate"}
+        value={account?.birthDate ?? ""}
+        earliest={bounds.earliest}
+        latest={bounds.latest}
+        saving={saving}
+        error={serverError}
+        onApply={(dateKey) => void submitBirthDate(dateKey)}
         onCancel={closeEditor}
       />
     </View>

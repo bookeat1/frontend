@@ -115,7 +115,7 @@ describe("сессия закончилась посреди правки", () =
  * формат, ни несуществующий день, ни будущее.
  *
  * Разделение форматов — то, ради чего этот describe написан: на экране
- * ДД-ММ-ГГГГ, в теле PATCH — «YYYY-MM-DD», потому что сервер разбирает
+ * ДД.ММ.ГГГГ, в теле PATCH — «YYYY-MM-DD», потому что сервер разбирает
  * `birth_date` через time.Parse("2006-01-02") и ничего другого не принимает.
  * Тест, который проверил бы только экран, пропустил бы поломку контракта.
  */
@@ -145,10 +145,10 @@ describe("дата рождения — календарь, а не поле в�
     expect(control.getAttribute("role")).toBe("button");
   });
 
-  it("сохранённая дата читается как ДД-ММ-ГГГГ, а не как её формат на проводе", () => {
+  it("сохранённая дата читается как ДД.ММ.ГГГГ, а не как её формат на проводе", () => {
     render(<ProfileForm user={user({ birthDate: "1990-05-04" })} onSave={vi.fn()} />);
 
-    expect(screen.getByText("04-05-1990")).toBeTruthy();
+    expect(screen.getByText("04.05.1990")).toBeTruthy();
     expect(screen.queryByText("1990-05-04")).toBeNull();
   });
 
@@ -167,7 +167,7 @@ describe("дата рождения — календарь, а не поле в�
     fireEvent.click(screen.getByRole("button", { name: "Готово" }));
 
     // На экране — по-человечески.
-    expect(screen.getByText("04-05-1990")).toBeTruthy();
+    expect(screen.getByText("04.05.1990")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(screen.getByText("Сохранено")).toBeTruthy());
@@ -181,7 +181,7 @@ describe("дата рождения — календарь, а не поле в�
     fireEvent.click(screen.getByLabelText(/^Дата рождения/));
     fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
 
-    expect(screen.getByText("04-05-1990")).toBeTruthy();
+    expect(screen.getByText("04.05.1990")).toBeTruthy();
   });
 });
 

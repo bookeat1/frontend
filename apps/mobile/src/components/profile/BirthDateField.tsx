@@ -1,11 +1,10 @@
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React, { useId, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { formatDateKeyDayFirst, fromDateKey } from "../../lib/format";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { formatDateKeyDayFirst } from "../../lib/format";
 import { CalendarBlank } from "../icons";
-import { MonthCalendar } from "../MonthCalendar";
-import { PrimaryButton } from "../PrimaryButton";
+import { BirthDatePickerDialog } from "./BirthDatePickerDialog";
 
 const t = getDictionary();
 const copy = t.profile.edit;
@@ -21,7 +20,7 @@ const copy = t.profile.edit;
  * instead of as an error message about the control.
  *
  * TWO FORMATS, AND THEY ARE NOT THE SAME ONE:
- *   - what the guest reads is ДД-ММ-ГГГГ ("04-05-1990");
+ *   - what the guest reads is ДД.ММ.ГГГГ ("04.05.1990");
  *   - what is held in the draft and sent to the API is the date key
  *     "YYYY-MM-DD", because `birth_date` is parsed server-side with
  *     time.Parse("2006-01-02") and nothing else is accepted.
@@ -32,10 +31,9 @@ const copy = t.profile.edit;
  * function the validator uses — so the calendar cannot offer a day that the
  * form would then reject.
  *
- * Confirm-then-close, unlike the booking date picker which applies on tap:
- * there the guest is choosing among a fortnight and a wrong tap costs one more
- * tap, here they may have crossed 40 years of calendar to get to the day and a
- * mistap would throw that away.
+ * The calendar itself lives in `BirthDatePickerDialog`: «Персональные данные»
+ * opens the very same dialog from its «День рождения» row, and two copies of
+ * one calendar would be free to disagree about bounds and behaviour.
  */
 export function BirthDateField({
   label,
@@ -60,17 +58,9 @@ export function BirthDateField({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  // What the calendar currently highlights. Separate from `value` so closing
-  // with «Отмена» leaves the stored date exactly as it was.
-  const [pending, setPending] = useState(value);
   const errorId = useId();
 
   const shown = value ? formatDateKeyDayFirst(value) : "";
-
-  const openPicker = () => {
-    setPending(value);
-    setOpen(true);
-  };
 
   return (
     <View style={styles.root}>
@@ -84,7 +74,7 @@ export function BirthDateField({
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : undefined}
         disabled={disabled}
-        onPress={openPicker}
+        onPress={() => setOpen(true)}
         style={({ pressed }) => [
           styles.field,
           Boolean(error) && styles.fieldError,
@@ -106,57 +96,17 @@ export function BirthDateField({
         <Text style={styles.hint}>{hint}</Text>
       ) : null}
 
-      <Modal
+      <BirthDatePickerDialog
         visible={open}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setOpen(false)}
-      >
-        <View style={styles.modalRoot}>
-          {/* Tap target only — hidden from the accessibility tree so a screen
-              reader lands on the dialog and not on a nameless full-screen
-              button (same treatment as CancelBookingDialog). */}
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setOpen(false)}
-            importantForAccessibility="no"
-            accessibilityElementsHidden
-          />
-          <View style={styles.card} accessibilityViewIsModal>
-            <Text style={styles.cardTitle} accessibilityRole="header">
-              {copy.birthDateDialogTitle}
-            </Text>
-            <MonthCalendar
-              selected={pending}
-              onSelect={setPending}
-              minDate={fromDateKey(earliest)}
-              maxDate={fromDateKey(latest)}
-              yearPicker
-              // With no date yet the year is the decision that matters; with
-              // one, the guest is almost always correcting a day or a month.
-              initialView={pending ? "days" : "years"}
-            />
-            <View style={styles.actions}>
-              <PrimaryButton
-                label={copy.birthDateApply}
-                size="lg"
-                disabled={!pending}
-                onPress={() => {
-                  onChange(pending);
-                  setOpen(false);
-                }}
-              />
-              <PrimaryButton
-                label={copy.birthDateCancel}
-                variant="secondary"
-                size="lg"
-                onPress={() => setOpen(false)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+        value={value}
+        earliest={earliest}
+        latest={latest}
+        onApply={(dateKey) => {
+          onChange(dateKey);
+          setOpen(false);
+        }}
+        onCancel={() => setOpen(false)}
+      />
     </View>
   );
 }
@@ -206,24 +156,5 @@ const styles = StyleSheet.create({
   hint: {
     ...typography.caption,
     color: colors.text.muted,
-  },
-  modalRoot: {
-    flex: 1,
-    backgroundColor: colors.overlay.dialogScrim,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.background.surface,
-    borderRadius: radius.dialog,
-    padding: spacing.lg,
-    gap: spacing.lg,
-  },
-  cardTitle: {
-    ...typography.titleCard,
-    color: colors.text.primary,
-  },
-  actions: {
-    gap: spacing.sm,
   },
 });

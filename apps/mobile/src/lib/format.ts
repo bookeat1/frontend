@@ -79,7 +79,11 @@ export function fromDateKey(key: string): Date {
 }
 
 /**
- * "1990-05-04" → "04-05-1990".
+ * "1990-05-04" → "04.05.1990".
+ *
+ * Точки, а не дефисы: так дата рождения набрана в макете «Персональные
+ * данные» (node 977-7001), и раз её показывают два экрана — «Персональные
+ * данные» и «О себе» — формат у них обязан быть один.
  *
  * The WIRE format of a date and the format a guest reads are two different
  * things and must not be confused: everything that leaves the device stays
@@ -93,7 +97,7 @@ export function fromDateKey(key: string): Date {
 export function formatDateKeyDayFirst(key: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
   if (!match) return key;
-  return `${match[3]}-${match[2]}-${match[1]}`;
+  return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
 export function isSameDay(a: Date, b: Date): boolean {
