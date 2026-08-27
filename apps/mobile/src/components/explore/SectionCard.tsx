@@ -32,10 +32,12 @@ export function SectionCard({ children }: { children: React.ReactNode }) {
  * the caret renders as plain decoration instead of a control that does nothing
  * when tapped.
  *
- * Кегль у ВСЕХ заголовков один — `typography.titleSection` (20/28). Пропа
- * `size` больше нет (2026-08-26): она разводила главную (17) и гастрогид (20),
- * а в макете и там и там стоит 20/28, и «Афиша» уже была переведена на него
- * поштучно — из-за чего пять заголовков одной главной были разного размера.
+ * Кегль у ВСЕХ заголовков один — `typography.titleSection` (17/24 с
+ * 2026-08-27, см. комментарий у токена: намеренно мельче макета, решение по
+ * бете). Пропа `size` больше нет (2026-08-26) и возвращать её не надо: она
+ * разводила главную (17) и гастрогид (20), из-за чего пять заголовков одной
+ * главной были разного размера. Размер меняем в токене — тогда все пять и обе
+ * секции гастрогида едут вместе.
  */
 export function SectionHeader({
   title,
@@ -93,9 +95,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
-    // 44pt tall for the touch target, but the title's own line box is 28 — the
-    // 8pt of slack on each side is cancelled with negative margins so the
-    // block still sits exactly where the reference puts it (title top 16 below
+    // 44pt tall for the touch target, while the title's own line box is 24 —
+    // the slack on each side is cancelled with 8pt negative margins so the
+    // block still sits about where the reference puts it (title top 16 below
     // the section edge, 24 above the card strip).
     minHeight: hitSlop.minTouchTarget,
     marginVertical: -spacing.sm,
