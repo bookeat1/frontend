@@ -20,12 +20,13 @@ const ICON_CONTAINER_SIZE = 64;
  * accessibility role (`ErrorState` announces as an alert) so a screen reader
  * treats a failure differently from an ordinary "nothing here yet".
  *
- * NOTE: Figma's exact icon-container fill and icon tint could not be pulled
- * live (the Figma MCP design-context tool was not reachable from this run), so
- * the container maps to the existing neutral chip token and the glyph to the
- * muted-strong text token — the palette the rest of the app's placeholders
- * already use. Flagged in the delivery report; swap to the design token if the
- * pulled context says otherwise.
+ * Отступы и заливка кружка сняты с макета 3z0f6dgev4HMwBAHPjTjPo (узлы
+ * 1033:15574 «Броней нет» и 1033:15798 «Броней нет история» — один и тот же
+ * шаблон): поля 16 по краям, кружок 64 с заливкой #F5F5F5, 24 до заголовка,
+ * 12 между заголовком и описанием, 24 до кнопки, кнопка высотой 48.
+ *
+ * NOTE: тон самого глифа в макете переменной не задан — он остаётся на
+ * `text.mutedStrong`, палитре остальных заглушек приложения.
  *
  * `compact` drops the `flex: 1` so the same template can be dropped INTO a
  * section of a scrolling screen (the Home «Афиша»/«Выбрали для вас» rails)
@@ -101,7 +102,8 @@ export function StateView({
       {action ? (
         action.variant === "button" ? (
           <View style={styles.action}>
-            <PrimaryButton label={action.label} onPress={action.onPress} />
+            {/* 48 высотой — как «Найти ресторан» в макете (node 1033:15581). */}
+            <PrimaryButton label={action.label} onPress={action.onPress} size="lg" />
           </View>
         ) : (
           <Pressable
@@ -132,7 +134,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.lg,
   },
   compact: {
     flex: 0,
@@ -145,10 +147,12 @@ const styles = StyleSheet.create({
     // A perfect circle (Figma «Состояния»: light-grey circle, grey glyph
     // centred), so the radius is always half the size — not a rounded square.
     borderRadius: ICON_CONTAINER_SIZE / 2,
-    backgroundColor: colors.background.chip,
+    // #F5F5F5 из макета — тот же тон, что и `background.screen`,
+    // а не чиповый #F1F1F1, который стоял здесь раньше.
+    backgroundColor: colors.background.screen,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xxl,
   },
   title: {
     ...typography.titleMd,
@@ -159,7 +163,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.muted,
     textAlign: "center",
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   // The loading state keeps the pre-template spacing (spinner over a caption).
   loadingTitle: {
@@ -169,7 +173,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   action: {
-    marginTop: spacing.xl,
+    marginTop: spacing.xxl,
   },
   link: {
     marginTop: spacing.xl,

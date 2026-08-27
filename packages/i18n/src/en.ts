@@ -918,7 +918,7 @@ export const en: LocaleOverride<Dictionary> = {
     cancelErrorGone: "This booking can no longer be cancelled — it's completed or was cancelled earlier",
   },
   myBookings: {
-    title: "My bookings",
+    title: "Bookings",
     loadingTitle: "Loading your bookings…",
     loadingMore: "Loading more…",
     emptyTitle: "No bookings yet",

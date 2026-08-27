@@ -1,31 +1,31 @@
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 /**
- * Сегментированный переключатель: серая дорожка со скруглением-капсулой, а
- * активная вкладка — белая «пилюля» внутри неё (Figma
- * dVjT37j984ErvOmzxlx29p, node 3004:6801).
+ * Переключатель «Активные / История» на экране броней — ряд чипов-капсул,
+ * а НЕ сегментированная дорожка (Figma 3z0f6dgev4HMwBAHPjTjPo, узлы
+ * 1033:15569 → 1033:15570/1033:15572).
  *
- * Это НЕ `SegmentedTabs`: тот рисует подчёркнутый ряд вкладок и стоит на
- * карточке заведения и в галерее фотографий. Два разных элемента управления
- * из макета живут отдельно намеренно — попытка сделать один с пропом-видом
- * означала бы, что правка на экране броней двигает пиксели на карточке
- * заведения.
+ * По макету: чипы прижаты влево и занимают ровно ширину подписи (ряд 183
+ * при экране 375), высота 40, боковой отступ 12, скругление-капсула, зазор 6.
+ * Выбранный — сплошной фирменный #B33036 с белой подписью, невыбранный —
+ * светло-серый #F3F2F2 с тёмной. Раньше это была серая дорожка с белой
+ * пилюлей внутри и вкладками во всю ширину — в макете такого элемента нет.
  *
- * Вкладки делят ширину поровну (`flex: 1`), поэтому длинные русские подписи
- * («Предстоящие») получают ровно половину дорожки и обрезаются многоточием,
- * а не выдавливают соседа за край на 360 px.
+ * Это НЕ `SegmentedTabs`: тот рисует подчёркнутый ряд вкладок на карточке
+ * заведения и в галерее фотографий. И это НЕ `FilterChip`: тот — фильтр с
+ * крестиком/шевроном и своей семантикой (`button` + `selected`), а здесь
+ * вкладки, которым нужна роль `tab`/`tablist`, иначе скринридер прочитает
+ * переключение раздела как включение фильтра.
  *
- * Белая пилюля не едет, а перекрашивается: анимация её положения требует
- * измерения дорожки через `onLayout`, а до первого измерения переключатель
- * оставался бы без выделенной вкладки. Пропущенный кадр анимации дешевле
- * кадра, на котором не видно, где ты находишься.
+ * Подпись у выбранной и невыбранной вкладки одного кегля и начертания
+ * (14/20 Medium) — различает их заливка, как и в макете.
  */
 
-/** Высота вкладки: 10 + 20 (строка) + 10 = 40, как в макете (node 3004:6802).
- * Вне 4pt-шкалы, поэтому число локальное, а не токен. */
-const TAB_PADDING_VERTICAL = 10;
+/** Зазор между чипами — 6 (ряд 1033:15569: 93 + 6 = 99). В 4pt-шкале
+ * `spacing` такого шага нет, поэтому число живёт здесь. */
+const TAB_GAP = 6;
 
 export function PillTabs({
   labels,
@@ -37,7 +37,7 @@ export function PillTabs({
   onChange: (index: number) => void;
 }) {
   return (
-    <View style={styles.track} accessibilityRole="tablist">
+    <View style={styles.row} accessibilityRole="tablist">
       {labels.map((label, index) => {
         const active = index === activeIndex;
         return (
@@ -51,9 +51,10 @@ export function PillTabs({
             // так активная вкладка видна и голосовому доступу, и тесту.
             aria-selected={active}
             accessibilityLabel={label}
-            // Вкладка 40 высотой внутри дорожки в 44: два пикселя отступа
-            // сверху и снизу добирают минимальную цель касания.
-            hitSlop={{ top: spacing.xxs, bottom: spacing.xxs }}
+            // Чип рисуется на 40, а нажимается на 44: по 2 сверху и снизу.
+            // По горизонтали не растягиваем — соседний чип в 6 точках,
+            // зоны касания перекрылись бы.
+            hitSlop={TAB_TOUCH_SLOP}
             style={[styles.tab, active && styles.tabActive]}
           >
             <Text
@@ -70,38 +71,39 @@ export function PillTabs({
   );
 }
 
+const TAB_TOUCH_SLOP = {
+  top: (hitSlop.minTouchTarget - controlHeight.chip) / 2,
+  bottom: (hitSlop.minTouchTarget - controlHeight.chip) / 2,
+  left: 0,
+  right: 0,
+} as const;
+
 const styles = StyleSheet.create({
-  track: {
+  row: {
     flexDirection: "row",
-    gap: spacing.xxs,
-    padding: spacing.xxs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.background.screen,
-    minHeight: hitSlop.minTouchTarget,
+    alignItems: "center",
+    gap: TAB_GAP,
   },
   tab: {
-    flex: 1,
-    // `minWidth: 0` в RN не нужен — flexBasis 0 уже позволяет вкладке сжаться;
-    // важно только, чтобы подпись обрезалась, а не растягивала дорожку.
+    // Чипы прижаты влево и по ширине подписи — без `flex: 1`, иначе они
+    // растянутся во всю строку, чего в макете нет.
+    alignSelf: "flex-start",
+    height: controlHeight.chip,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    paddingVertical: TAB_PADDING_VERTICAL,
     borderRadius: radius.pill,
+    backgroundColor: colors.background.chipAlt,
   },
   tabActive: {
-    backgroundColor: colors.background.surface,
+    backgroundColor: colors.brand.primary,
   },
   label: {
-    ...typography.body,
+    ...typography.labelMedium,
     color: colors.text.primary,
   },
-  // В макете подпись активной и неактивной вкладки одного цвета и кегля —
-  // различает их именно белая пилюля. Начертание всё же меняем: на сером
-  // фоне одна лишь заливка плохо читается при ярком солнце, а полужирный
-  // тот же размер и не двигает соседей.
   labelActive: {
-    ...typography.labelSemiBold,
-    color: colors.text.primary,
+    ...typography.labelMedium,
+    color: colors.text.onBrand,
   },
 });

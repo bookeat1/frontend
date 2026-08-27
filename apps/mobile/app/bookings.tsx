@@ -233,12 +233,13 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
-  // Отступы из макета (node 3004:6800): поля 16 по краям, 24 между
-  // переключателем и первой карточкой (8 снизу от вкладок + 16 сверху у
-  // списка), 12 между карточками.
+  // Отступы из макета (Figma 3z0f6dgev4HMwBAHPjTjPo, node 1033:15568 —
+  // полоса 375×56, ряд чипов 40 высотой на отметке y=8): поля 16 по краям,
+  // по 8 сверху и снизу от ряда вкладок. Дальше 24 до первой карточки
+  // (8 снизу от вкладок + 16 сверху у списка), 12 между карточками.
   tabs: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
     backgroundColor: colors.background.surface,
   },
@@ -248,6 +249,10 @@ const styles = StyleSheet.create({
   },
   listEmpty: {
     flexGrow: 1,
+    // Поля пустого состояния — его собственные 16 (см. `StateViews`), поэтому
+    // боковой отступ ленты снимается: иначе получалось 16 + 16 = 32, и
+    // описание в макете шириной 343 переносилось раньше времени.
+    paddingHorizontal: spacing.none,
   },
   footer: {
     paddingVertical: spacing.lg,

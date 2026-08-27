@@ -106,6 +106,10 @@ export default function FavoritesScreen() {
                 favoriteTabCount(query.data.counts, value),
               )}
               selected={tab === value}
+              // Выбранный чип — фирменный бордовый, а не чёрный
+              // (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3053:10169: выбранный
+              // чип залит `background/brand` #B33036 с белой подписью).
+              selectedTone="brand"
               size="roomy"
               onPress={() => setTab(value)}
             />
