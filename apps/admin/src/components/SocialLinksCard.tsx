@@ -5,7 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseSocialLinkRows, type SocialLink, type SocialLinkInput } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { useOptionalAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
+import { isVenueUnavailableError } from "@/lib/venue-access";
 import { Button } from "./ui/Button";
 import {
   SOCIAL_LINK_ERROR_COPY,
@@ -13,7 +15,7 @@ import {
   draftsFromLinks,
   type SocialLinkDraft,
 } from "./ui/SocialLinksField";
-import { ErrorState, LoadingState } from "./StateViews";
+import { ErrorState, LoadingState, VenueUnavailableState } from "./StateViews";
 
 /**
  * «Соцсети» в настройках заведения — чтобы ресторан правил свои ссылки сам.
@@ -43,6 +45,7 @@ export function SocialLinksCard({
   client?: SocialLinksClient;
 }) {
   const queryClient = useQueryClient();
+  const auth = useOptionalAuth();
   const queryKey = useMemo(() => ["restaurant-social-links", restaurantId] as const, [restaurantId]);
 
   const query = useQuery({
@@ -52,6 +55,18 @@ export function SocialLinksCard({
 
   if (query.isPending) return <LoadingState title={copy.loadingTitle} />;
   if (query.isError) {
+    // 404/403 on the venue is not a connection problem: the venue is hidden
+    // from the catalog (the read goes through the public venue endpoint, which
+    // does not serve deactivated venues) or is no longer this person's. Saying
+    // «проверьте соединение» there sends people looking for a network fault
+    // that does not exist.
+    if (isVenueUnavailableError(query.error)) {
+      return (
+        <VenueUnavailableState
+          onPickAnother={auth ? () => auth.clearRestaurant() : undefined}
+        />
+      );
+    }
     return <ErrorState message={copy.loadFailed} onRetry={() => void query.refetch()} />;
   }
 

@@ -308,7 +308,21 @@ export interface MyRestaurantsResponse {
  * Only the fields the panel reads are modelled; the payload carries more. */
 export interface CatalogVenue {
   id: string;
+  /** ВНИМАНИЕ: это НЕ колонка `name`, а перевод. Сервер отдаёт
+   * `name_i18n[язык запроса] ?? name` (transport baseFromDomain →
+   * I18n.Resolve), а браузер всегда шлёт Accept-Language: ru — значит у
+   * заведения с заполненным `name_i18n.ru` панель видит именно перевод.
+   * Поэтому переименование обязано писать И `name`, И `name_i18n.ru`: запись
+   * одного `name` уходит в колонку, которую никто не читает. */
   name: string;
+  /** Переводы названия по языкам, как они лежат в базе. Ключ ОПУЩЕН, когда
+   * переводов нет (`omitempty`). Нужен, чтобы переименование заменило только
+   * русский перевод, а не стёрло остальные (PATCH замещает карту целиком). */
+  name_i18n?: Record<string, string>;
+  /** Тот же перевод, что и у названия (`description_i18n.ru ?? description`).
+   * ЗАПИСАТЬ перевод описания через API сейчас НЕЛЬЗЯ: тело PATCH/POST
+   * `/restaurants/:id` не принимает `description_i18n` вообще (см. backend
+   * saveRestaurantRequest) — задача бэкенду. */
   description: string;
   cuisine_type: string;
   address: string;
@@ -355,6 +369,10 @@ export interface CatalogVenue {
  * `[]` clears it. */
 export interface CatalogVenueInput {
   name?: string;
+  /** Переводы названия. Сервер ЗАМЕЩАЕТ карту целиком (applyRestaurant:
+   * `m.NameI18n = in.NameI18n`), поэтому слать её можно только слитой с уже
+   * существующей — иначе переименование сотрёт казахский и английский. */
+  name_i18n?: Record<string, string>;
   description?: string;
   cuisine_type?: string;
   address?: string;

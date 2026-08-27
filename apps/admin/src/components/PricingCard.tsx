@@ -10,10 +10,12 @@ import {
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { useOptionalAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
+import { isVenueUnavailableError } from "@/lib/venue-access";
 import { Button } from "./ui/Button";
 import { Field, Select, TextInput } from "./ui/FormControls";
-import { ErrorState, LoadingState } from "./StateViews";
+import { ErrorState, LoadingState, VenueUnavailableState } from "./StateViews";
 
 /**
  * «Средний чек» — the venue's categorical price tier (₸/₸₸/₸₸₸) and its numeric
@@ -56,6 +58,7 @@ export function PricingCard({
   client?: PricingClient;
 }) {
   const queryClient = useQueryClient();
+  const auth = useOptionalAuth();
   const queryKey = useMemo(() => ["restaurant-pricing", restaurantId] as const, [restaurantId]);
 
   const pricingQuery = useQuery({
@@ -64,7 +67,17 @@ export function PricingCard({
   });
 
   if (pricingQuery.isPending) return <LoadingState title={copy.loadingTitle} />;
-  if (pricingQuery.isError) return <ErrorState onRetry={() => void pricingQuery.refetch()} />;
+  if (pricingQuery.isError) {
+    // Same split as in SocialLinksCard: the average check is read through the
+    // public venue endpoint, which answers 404 for a venue hidden from the
+    // catalog. That is not «плохая связь», and a retry cannot fix it.
+    if (isVenueUnavailableError(pricingQuery.error)) {
+      return (
+        <VenueUnavailableState onPickAnother={auth ? () => auth.clearRestaurant() : undefined} />
+      );
+    }
+    return <ErrorState onRetry={() => void pricingQuery.refetch()} />;
+  }
 
   return (
     <PricingForm

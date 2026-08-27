@@ -11,6 +11,7 @@ export {
   type AdminApiClientOptions,
   type ImageUploadErrorCode,
 } from "./client";
+export { PANEL_LOCALE, mergeVenueNameI18n } from "./venue-i18n";
 export {
   classifyCapacitySwitchFailure,
   type CapacitySwitchFailure,

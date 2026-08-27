@@ -6,6 +6,7 @@ import {
   activeVenueFeatures,
   cuisineIdsOf,
   mergeVenueFeatureOptions,
+  mergeVenueNameI18n,
   parseSocialLinkRows,
   sameCuisineSelection,
   sameVenueFeatureSelection,
@@ -33,6 +34,7 @@ import {
   hasActiveVenueFilters,
   type VenueFilters,
 } from "@/lib/venue-filters";
+import { isVenueUnavailableError } from "@/lib/venue-access";
 
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { VenueFilterBar } from "./VenueFilterBar";
@@ -294,7 +296,9 @@ export function VenuesView() {
  *   • повторное «Сохранить» после уже созданного заведения не создаёт второе —
  *     оно правит созданное (id запомнен).
  */
-function VenueFormModal({
+/** Экспортируется ради теста переименования: собрать это же тело запроса
+ * через весь экран каталога значит поднять четыре справочника и листинг. */
+export function VenueFormModal({
   title,
   venue,
   dictionary,
@@ -454,6 +458,14 @@ function VenueFormModal({
       email: email.trim(),
       price_category: priceCategory,
     };
+    // Переименование: сервер отдаёт НЕ колонку `name`, а перевод
+    // `name_i18n.ru` (браузер всегда шлёт Accept-Language: ru). Пока русский
+    // перевод не переписан вместе с колонкой, название на экране не меняется
+    // — сколько ни сохраняй. Карту сервер замещает целиком, поэтому она
+    // сливается с пришедшей, а не собирается заново.
+    const nameI18n = mergeVenueNameI18n(venue?.name_i18n, name.trim());
+    if (nameI18n) input.name_i18n = nameI18n;
+
     // Диапазон чека — либо обе границы, либо ни одной: половина диапазона в
     // карточке заведения выглядит как «от 6000 до нуля».
     const min = Number.parseInt(priceMin, 10);
@@ -674,7 +686,11 @@ function VenueFormModal({
           </p>
         ) : venue && socialQuery.isError ? (
           <p className="text-sm text-brand" role="alert">
-            {t.admin.socialLinks.loadFailed}
+            {/* Ссылки читаются публичной карточкой заведения, а она не отдаёт
+                скрытые из каталога заведения — это 404, а не сбой связи. */}
+            {isVenueUnavailableError(socialQuery.error)
+              ? t.admin.venueUnavailable.hiddenVenueLinks
+              : t.admin.socialLinks.loadFailed}
           </p>
         ) : (
           <SocialLinksField
