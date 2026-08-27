@@ -45,12 +45,20 @@ export function VenueContactsSection({ restaurant }: { restaurant: Restaurant | 
   if (!hasVenueContacts(restaurant)) return null;
 
   return (
-    <View style={detailStyles.section} testID="venue-contacts">
-      <Text style={detailStyles.sectionTitle}>{t.restaurant.contacts}</Text>
+    <View style={[detailStyles.section, detailStyles.sectionSpread]} testID="venue-contacts">
+      {/* Макет 986:9025: между группами блока просвет 24, внутри группы — 16.
+          Заголовок и ряд значков — одна группа (986:9026), адрес — вторая
+          (986:9035), карта — третья (986:9046). Раньше всё лежало плоско с
+          просветом 16, и заголовок отстоял от адреса ровно так же, как от
+          собственных значков. */}
+      <View style={detailStyles.sectionGroup}>
+        <Text style={detailStyles.sectionTitle}>{t.restaurant.contacts}</Text>
 
-      {/* Просвет между иконками здесь 8, а не 12 как в брони, — так выверено по
-          макету 986:8940; поведение при этом общее. */}
-      <VenueContactIcons phone={restaurant.phone} social={restaurant.social} gap={spacing.sm} />
+        {/* Просвет между иконками здесь 8, а не 12 как в брони, — так выверено по
+            макету 986:8940; поведение при этом общее. */}
+        <VenueContactIcons phone={restaurant.phone} social={restaurant.social} gap={spacing.sm} />
+      </View>
+
       <VenueAddressRow restaurant={restaurant} />
 
       <MapPreview restaurant={restaurant} />

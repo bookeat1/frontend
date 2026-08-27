@@ -159,6 +159,37 @@ export const typography = {
     fontSize: 10,
     lineHeight: 14,
   },
+  /**
+   * Название события НА КАДРЕ карточки списка «Афиша» — 18 (Figma
+   * 3z0f6dgev4HMwBAHPjTjPo, node 3452:13369). Отдельный токен, а не
+   * `titleCard` (18/26, разрядка −0.3): в макете у этой строки нет разрядки,
+   * а межстрочный задан как «normal» — для Noto Sans в 18 pt это ~24.
+   *
+   * ШРИФТ РАСХОДИТСЯ С МАКЕТОМ ОСОЗНАННО. В Figma здесь Playfair Display Bold
+   * Italic; в приложение эта гарнитура не загружена (грузятся только Noto Sans
+   * и Inter — см. `apps/mobile/app/_layout.tsx`), и её добавление — это новая
+   * зависимость и решение владельца, а не правка отступов. Сам макет
+   * непоследователен: третья карточка того же экрана (node 3452:13221)
+   * нарисована Noto Sans Bold. До решения держим Noto Sans Bold.
+   */
+  eventCardTitle: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  /**
+   * Название события на кадре КАРТОЧКИ АФИШИ — 28/38 (node 3452:13244).
+   * Крупнее всего остального в приложении вместе с `titleXxl` (24/32), потому
+   * что лежит на фотографии во весь экран.
+   *
+   * Шрифт — то же расхождение, что и у `eventCardTitle`: в макете Playfair
+   * Display Bold Italic, в приложении её нет.
+   */
+  eventHeroTitle: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 28,
+    lineHeight: 38,
+  },
   /** Promo banner caption over the photo — the one place the design uses Inter. */
   bannerCaption: {
     fontFamily: fontFamilies.interSemiBold,
