@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Story, StoryInput } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { formatDateTime, isoToLocalInput, localInputToIso } from "@/lib/format";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
@@ -25,6 +26,43 @@ function StoryBadge({ active }: { active: boolean }) {
       {active ? t.admin.stories.badgeActive : t.admin.stories.badgeInactive}
     </span>
   );
+}
+
+/**
+ * Просроченная сторис ОСТАЁТСЯ в списке кабинета — иначе заведение не смогло бы
+ * её продлить: карточка просто исчезла бы с собственного экрана. Поэтому здесь
+ * бейдж, а не фильтр.
+ *
+ * `is_expired` считает сервер тем же моментом, каким фильтрует гостевую выдачу.
+ * Сравнивать `expires_at` с часами браузера было бы проще и неверно: ноутбук,
+ * сбитый на час, красил бы живую карточку в «просрочено» — и наоборот.
+ */
+const DEFAULT_EXPIRY_HOURS = 24;
+
+function StoryExpiryBadge({ story }: { story: Story }) {
+  if (story.is_expired) {
+    return (
+      <span className="inline-block whitespace-nowrap rounded-pill bg-amber-100 px-md py-xxs text-[12px] font-medium text-amber-900">
+        {t.admin.stories.badgeExpired}
+      </span>
+    );
+  }
+  if (!story.expires_at) return null;
+  return (
+    <span className="inline-block whitespace-nowrap rounded-pill bg-slate-100 px-md py-xxs text-[12px] font-medium text-slate-600">
+      {t.admin.stories.badgeExpiresAt(formatDateTime(story.expires_at))}
+    </span>
+  );
+}
+
+/**
+ * Значение для <input type="datetime-local"> на N часов вперёд от «сейчас» —
+ * то самое умолчание, которое форма ПРЕДЛАГАЕТ при создании. Именно предлагает:
+ * поле можно очистить (сторис станет бессрочной) или выбрать другой момент.
+ * Сервер никакого умолчания не подставляет.
+ */
+function defaultExpiryInput(hours = DEFAULT_EXPIRY_HOURS): string {
+  return isoToLocalInput(new Date(Date.now() + hours * 60 * 60 * 1000).toISOString());
 }
 
 export function StoriesView() {
@@ -133,6 +171,7 @@ export function StoriesView() {
                       <div className="flex flex-wrap items-center gap-sm">
                         <span className="text-sm font-semibold text-text">#{s.sort_order}</span>
                         <StoryBadge active={s.is_active} />
+                        <StoryExpiryBadge story={s} />
                       </div>
                       {s.caption ? (
                         <p className="mt-xxs break-words text-[13px] text-text-muted">
@@ -245,6 +284,14 @@ function StoryFormModal({
   // Ссылка ПЕРЕХОДА — отдельное состояние от imageUrl (адрес картинки).
   const [actionUrl, setActionUrl] = useState(story?.action_url ?? "");
   const [isActive, setIsActive] = useState(story?.is_active ?? true);
+  // «Показывать до» — необязательный срок. При СОЗДАНИИ поле предзаполнено на
+  // сутки вперёд (умолчание, которое кабинет предлагает); при РЕДАКТИРОВАНИИ
+  // показывается то, что уже стоит у сторис, включая пустоту у бессрочной —
+  // предлагать +24 часа при правке значило бы молча вешать срок на карточку,
+  // которую заведение сознательно оставило бессрочной.
+  const [expiresAt, setExpiresAt] = useState(
+    isEdit ? isoToLocalInput(story?.expires_at) : defaultExpiryInput(),
+  );
   const [formError, setFormError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -279,6 +326,18 @@ function StoryFormModal({
       return;
     }
 
+    // Пустое поле — это «бессрочно», а не ошибка: срок опционален. Непустое
+    // значение datetime-local — настенное время БРАУЗЕРА, и localInputToIso
+    // переводит его в абсолютный момент RFC3339 ровно так же, как в формах
+    // событий и акций. "" на выходе при непустом вводе означает, что дату не
+    // удалось разобрать, — тогда лучше сказать об этом, чем молча снять срок.
+    const expiryLocal = expiresAt.trim();
+    const expiryIso = expiryLocal ? localInputToIso(expiryLocal) : "";
+    if (expiryLocal && !expiryIso) {
+      setFormError(t.admin.stories.expiresAtInvalid);
+      return;
+    }
+
     const trimmedCaption = caption.trim();
     mutation.mutate({
       image_url: image,
@@ -286,6 +345,9 @@ function StoryFormModal({
       // Пустое поле снимает ссылку, а не оставляет прежнюю: правка формы
       // отправляет полный набор полей.
       action_url: link || null,
+      // Тем же правилом снимается и срок: пустая строка возвращает сторис в
+      // бессрочное состояние, а не оставляет прежний срок.
+      expires_at: expiryIso || null,
       is_active: isActive,
     });
   }
@@ -317,6 +379,29 @@ function StoryFormModal({
             maxLength={2048}
             onChange={(e) => setActionUrl(e.target.value)}
           />
+        </Field>
+        <Field label={t.admin.stories.fieldExpiresAt} hint={t.admin.stories.fieldExpiresAtHint}>
+          <div className="flex flex-wrap items-center gap-sm">
+            <TextInput
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
+            {expiresAt ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setExpiresAt("")}>
+                {t.admin.stories.expiresAtClear}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setExpiresAt(defaultExpiryInput())}
+              >
+                {t.admin.stories.expiresAtDefault}
+              </Button>
+            )}
+          </div>
         </Field>
         <CheckboxRow
           label={t.admin.stories.fieldActive}

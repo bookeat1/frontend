@@ -43,6 +43,8 @@ function story(over: Partial<Story> = {}): Story {
     action_url: null,
     sort_order: 0,
     is_active: true,
+    expires_at: null,
+    is_expired: false,
     created_at: "2026-08-01T10:00:00Z",
     ...over,
   };
