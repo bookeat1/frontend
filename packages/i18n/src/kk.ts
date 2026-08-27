@@ -792,6 +792,8 @@ export const kk: LocaleOverride<Dictionary> = {
     dinner: "Кешкі ас",
     slotsNoneInPeriod: "Бұл уақытқа бос слот жоқ — басқа кезеңді қараңыз",
     continueToConfirm: "Жалғастыру",
+    continueNeedsSlot: "Уақытты таңдаңыз",
+    continueNoSlots: "Бұл күнге бос уақыт жоқ — басқа күнді таңдаңыз",
     confirmTitle: "Растау",
     confirmDetailsTitle: "Мәліметтер",
     confirmDateTimeLabel: "Күні мен уақыты",

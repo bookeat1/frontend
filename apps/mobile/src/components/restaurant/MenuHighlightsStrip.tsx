@@ -21,17 +21,39 @@ import { DishDetailSheet } from "./DishDetailSheet";
  * гостю набранного предзаказа и выбранного слота. Закрыв карточку, он остаётся
  * ровно там, где был.
  *
- * Карточка здесь читательская — см. обоснование в `DishDetailSheet`.
+ * Карточка — ТА ЖЕ, что открывается из экрана меню, и с 2026-08-27 с тем же
+ * действием «счётчик + Добавить · итого»: владелец сравнил два экрана рядом и
+ * попросил, чтобы они не отличались. Раньше действия здесь не было по честной
+ * причине — у блюда из ленты не было цены ЧИСЛОМ, а считать итог из строки
+ * «8 990 ₸» значило бы придумывать деньги. Теперь сервер отдаёт `price_minor`,
+ * и та же кнопка считает по настоящей цене.
+ *
+ * Если числа всё же нет (старая сборка бэкенда, незаполненная цена) — кнопки
+ * снова НЕТ. Правило не «показать и понадеяться», а «нет числа — нет
+ * действия».
  */
 export function MenuHighlightsStrip({
   items,
   contentContainerStyle,
+  onAdd,
 }: {
   items: MenuHighlight[];
   /** Отступы ряда задаёт экран: в брони и в подтверждении они разные. */
   contentContainerStyle?: StyleProp<ViewStyle>;
+  /**
+   * Кладёт блюдо в черновик предзаказа. Не передан — лента читательская
+   * (заведение не принимает онлайн-бронь, добавлять некуда).
+   *
+   * Оба экрана передают сюда ОДИН общий колбэк `useAddDishToPreorder`, чтобы
+   * «Добавить» с ленты означало на них одно и то же.
+   */
+  onAdd?: (dish: DishCardItem, quantity: number) => void;
 }) {
   const [openedDish, setOpenedDish] = useState<DishCardItem | null>(null);
+
+  // Считать итог не из чего — кнопки нет. Ровно то же правило, что у строки
+  // меню (`canAddDish` в restaurant/[id]/menu.tsx).
+  const canAdd = onAdd !== undefined && openedDish?.priceMinor != null;
 
   return (
     <>
@@ -51,8 +73,14 @@ export function MenuHighlightsStrip({
 
       <DishDetailSheet
         dish={openedDish}
-        canAdd={false}
-        onAdd={() => {}}
+        canAdd={canAdd}
+        onAdd={(quantity) => {
+          const dish = openedDish;
+          // Закрываем ПЕРЕД добавлением: гость остаётся на своём экране, а
+          // счётчик предзаказа над лентой обновляется у него на глазах.
+          setOpenedDish(null);
+          if (dish) onAdd?.(dish, quantity);
+        }}
         onClose={() => setOpenedDish(null)}
       />
     </>

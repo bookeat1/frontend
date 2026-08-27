@@ -31,7 +31,11 @@ import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import { dateChoices } from "../../../../src/lib/availability-label";
 import { guestOptions } from "../../../../src/lib/availability-options";
-import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
+import {
+  estimatePreorderTotalMinor,
+  useAddDishToPreorder,
+  useBookingDraft,
+} from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
 import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
 import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
@@ -164,6 +168,31 @@ export default function ReservationScreen() {
 
   const preorderTotal = estimatePreorderTotalMinor(draft.preorder);
   const preorderCount = draft.preorder.reduce((sum, line) => sum + line.quantity, 0);
+
+  // «Добавить» с карточки блюда в ленте «Лучшие позиции» пишет в ЭТОТ же
+  // черновик — тот, что наполняет экран меню. Общий хук, один и тот же на
+  // этом экране и на подтверждении.
+  const addDishToPreorder = useAddDishToPreorder();
+
+  /**
+   * Почему «Продолжить» неактивна, словами.
+   *
+   * Владелец заполнил предзаказ, увидел мёртвую кнопку и решил, что сломан
+   * предзаказ. На самом деле не было выбрано время — и об этом экран молчал:
+   * сетка слотов осталась выше, за экран прокрутки.
+   *
+   * Два разных ответа, потому что и делать надо разное: «выберите время» —
+   * когда выбирать есть из чего, и «на эту дату времени нет» — когда день
+   * пустой. Пока слоты грузятся или запрос упал, строки нет: над кнопкой в
+   * этот момент стоит своё состояние (загрузка / ошибка с повтором), а
+   * додумывать причину за сервер нечестно.
+   */
+  const continueHint = useMemo(() => {
+    if (draft.slot) return null;
+    if (availability.isPending || availability.isError || !availability.data) return null;
+    const anyFree = availability.data.slots.some((slot) => slot.available);
+    return anyFree ? t.booking.continueNeedsSlot : t.booking.continueNoSlots;
+  }, [draft.slot, availability.isPending, availability.isError, availability.data]);
 
   const handleSelectSlot = (slot: AvailabilitySlot) => {
     draft.setSlot(slot);
@@ -361,6 +390,10 @@ export default function ReservationScreen() {
               <MenuHighlightsStrip
                 items={restaurant.menuHighlights}
                 contentContainerStyle={styles.topPicksRow}
+                // Заведение без онлайн-брони до этой ветки не доходит (экран
+                // выше отдаёт своё состояние), но условие оставлено явным:
+                // добавлять в бронь, которой не будет, некуда.
+                onAdd={restaurant.acceptsOnlineBookings ? addDishToPreorder : undefined}
               />
             </View>
           ) : null}
@@ -368,11 +401,21 @@ export default function ReservationScreen() {
 
         <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
           <View style={styles.footer}>
+            {/* Причина стоит НАД кнопкой и в одном с ней контейнере: она
+                объясняет именно её, и отдельно от неё уехать не может. */}
+            {continueHint ? (
+              <Text style={styles.continueHint} accessibilityRole="alert">
+                {continueHint}
+              </Text>
+            ) : null}
             <PrimaryButton
               size="lg"
               label={t.booking.continueToConfirm}
               onPress={handleContinue}
               disabled={!draft.slot}
+              // Скринридер объявляет причину вместе с самой кнопкой, а не
+              // только отдельной строкой рядом.
+              accessibilityHint={continueHint ?? undefined}
             />
           </View>
         </SafeAreaView>
@@ -672,5 +715,13 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.md,
     gap: spacing.sm,
+  },
+  /** Причина неактивной кнопки. Тихая и фактическая: обычный приглушённый
+   * текст по центру, без плашки и без красного — это не ошибка гостя, а
+   * недостающий шаг. */
+  continueHint: {
+    ...typography.caption,
+    color: colors.text.muted,
+    textAlign: "center",
   },
 });

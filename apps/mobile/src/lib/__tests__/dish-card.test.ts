@@ -22,6 +22,10 @@ const HIGHLIGHT: MenuHighlight = {
   name: "Люля",
   description: "Баранина на углях",
   price: "5\u00a0400 ₸",
+  // `price_minor` с сервера (2026-08-27). До него у блюда из ленты числа не
+  // было вовсе, и «Добавить» на карточке была выключена.
+  priceMinor: 540_000,
+  isTopPick: true,
   photo: undefined,
 };
 
@@ -44,11 +48,20 @@ describe("dishCardFromMenuDish", () => {
 });
 
 describe("dishCardFromHighlight", () => {
-  it("готовую строку цены берёт как есть и НЕ разбирает обратно в число", () => {
+  it("печатает готовую строку цены, а считает по числу с сервера", () => {
     const card = dishCardFromHighlight(HIGHLIGHT);
+    // Печатаем ровно то, что пришло строкой…
     expect(card.priceLabel).toBe(HIGHLIGHT.price);
-    // Считать «цена × количество» здесь не из чего — и придумывать нечего.
+    // …а считаем по `price_minor`, а не по разбору этой строки обратно.
+    expect(card.priceMinor).toBe(540_000);
+  });
+
+  it("сервер не дал числа — priceMinor null, и «Добавить» останется выключенной", () => {
+    // Старая сборка бэкенда или цена, которую сервер не смог перевести. Ноль
+    // читался бы как «бесплатно», разбор «5 400 ₸» — как выдуманные деньги.
+    const card = dishCardFromHighlight({ ...HIGHLIGHT, priceMinor: null });
     expect(card.priceMinor).toBeNull();
+    expect(card.priceLabel).toBe(HIGHLIGHT.price);
   });
 
   it("пустая строка цены — это «цену уточняйте», а не пустое место", () => {
@@ -59,7 +72,8 @@ describe("dishCardFromHighlight", () => {
   });
 
   it("в ленте живут только доступные блюда, поэтому карточка не врёт про стоп-лист", () => {
-    // mapMenuHighlights отфильтровывает всё, у чего is_available === false.
+    // Недоступные блюда в ленту не попадают: их отбрасывает СЕРВЕР
+    // (usecase/menu.resolveHighlights).
     expect(dishCardFromHighlight(HIGHLIGHT).isAvailable).toBe(true);
   });
 

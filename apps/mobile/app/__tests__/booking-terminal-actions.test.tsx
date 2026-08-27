@@ -78,7 +78,7 @@ const RESTAURANT: Restaurant = {
   photos: [],
   promoBanners: [],
   menuHighlights: [
-    { id: "d-1", name: "Бешбармак", description: "", price: "4 990 ₸" },
+    { id: "d-1", name: "Бешбармак", description: "", price: "4 990 ₸", priceMinor: 499_000, isTopPick: false },
   ],
   openingHoursText: "",
   schedule: null,

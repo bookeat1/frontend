@@ -785,6 +785,8 @@ export const en: LocaleOverride<Dictionary> = {
     dinner: "Dinner",
     slotsNoneInPeriod: "No open slots for this time — check another period",
     continueToConfirm: "Continue",
+    continueNeedsSlot: "Pick a time",
+    continueNoSlots: "No free time on this date — pick another day",
     confirmTitle: "Confirmation",
     confirmDetailsTitle: "Details",
     confirmDateTimeLabel: "Date and time",

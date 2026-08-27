@@ -29,6 +29,14 @@ const t = getDictionary("ru");
 const push = vi.fn();
 let params: Record<string, string> = {};
 
+// Шторка фильтров с 2026-08-27 содержит `TimeOfDayChips`, а он читает словарь
+// из контекста (`useLocale`), которого в тесте экрана нет. Тот же приём, что в
+// home-party-handoff.test.tsx.
+vi.mock("../../src/lib/locale", async () => {
+  const { getDictionary } = await import("@bookeat/i18n");
+  return { useLocale: () => ({ locale: "ru", dictionary: getDictionary("ru"), setLocale: vi.fn() }) };
+});
+
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push, back: vi.fn(), replace: vi.fn(), canGoBack: () => false }),
   usePathname: () => "/search",

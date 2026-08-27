@@ -10,9 +10,11 @@
  * Confirmed absent from `backend-core` as of this writing (checked the DTOs
  * in internal/transport/rest/restaurants and internal/transport/rest/menu,
  * and internal/domain/restaurant.go + menu.go):
- *   - a "popular in menu" / highlighted flag on menu items: still absent. The
- *     strip does not invent dishes — it shows the venue's own first available
- *     dishes in the venue's own order (mapMenuHighlights in http-mapping.ts).
+ *   - a "popular in menu" flag on menu items: NO LONGER ABSENT (2026-08-27).
+ *     The venue marks its own «Лучшие позиции» (menu_items.top_pick_position)
+ *     and the server serves the whole rail from
+ *     GET /restaurants/:id/menu-highlights, marked dishes first. The app no
+ *     longer derives it — see mapMenuHighlights in http-mapping.ts.
  *   - a tenge price *range* (only a price_category tier "₸"/"₸₸"/"₸₸₸" exists)
  *   - social links: DOES exist (social_links on the detail endpoint) — real
  *     data is used for that.

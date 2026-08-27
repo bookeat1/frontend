@@ -1,4 +1,4 @@
-import { EMPTY_FILTERS, type PriceLevel, type SearchFilters } from "@bookeat/api";
+import { EMPTY_FILTERS, type PriceLevel, type SearchFilters, type TimeOfDay } from "@bookeat/api";
 import { colors, hitSlop, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -469,6 +469,14 @@ interface AvailabilityChip {
 
 type SelectedChip = RemovableChip | AvailabilityChip;
 
+/** Подписи времени суток — из того же словаря, что и чипы в шторке; свой
+ * список слов здесь завёлся бы ровно для того, чтобы разойтись с ними. */
+const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = {
+  morning: t.search.filters.timeOfDayMorning,
+  lunch: t.search.filters.timeOfDayLunch,
+  dinner: t.search.filters.timeOfDayDinner,
+};
+
 /**
  * Разворачивает ВЕСЬ применённый подбор в чипы «выбранного» — ровно то, что
  * гость собрал в шторке: дата и гости, цена, кухни, удобства, «открыто
@@ -512,6 +520,25 @@ function buildSelectedChips(
         sectionTitle: t.booking.guestsSectionTitle,
       },
     );
+    // Время суток — часть того же подбора, но, в отличие от даты и гостей,
+    // снимается ОТДЕЛЬНО: без него запрос остаётся осмысленным (весь день),
+    // а без даты или гостей — нет. Без этого чипа применённое «Обед» не было
+    // бы видно на экране выдачи вовсе, и снять его можно было бы только
+    // вернувшись в шторку.
+    const period = filters.availability.timeOfDay;
+    if (period !== undefined) {
+      chips.push({
+        kind: "remove",
+        key: "availability:timeOfDay",
+        label: TIME_OF_DAY_LABELS[period],
+        removeFilters: (prev) => ({
+          ...prev,
+          availability: prev.availability
+            ? { ...prev.availability, timeOfDay: undefined }
+            : undefined,
+        }),
+      });
+    }
   }
   if (filters.priceLevel !== undefined) {
     const priceLevel: PriceLevel = filters.priceLevel;

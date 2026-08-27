@@ -17,6 +17,7 @@ import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import {
   estimatePreorderTotalMinor,
+  useAddDishToPreorder,
   useBookingDraft,
   type PreorderDraftLine,
 } from "../../../../src/lib/booking-draft";
@@ -56,6 +57,11 @@ export default function ConfirmBookingScreen() {
   const createBooking = useCreateBooking();
 
   const [submitError, setSubmitError] = useState<SubmitError | null>(null);
+
+  // Тот же колбэк, что на шаге брони: «Добавить» с ленты пишет в ЭТОТ же
+  // черновик, который экран показывает списком выше. Бронь ещё не создана —
+  // предзаказ здесь правится степперами, поэтому и добавить в него можно.
+  const addDishToPreorder = useAddDishToPreorder();
 
   // Defences against arriving here in a state that cannot be submitted. Neither
   // should happen through the flow (the gate is on «Продолжить», and Continue is
@@ -318,16 +324,22 @@ export default function ConfirmBookingScreen() {
         </View>
 
         {/* Top Picks (node 918:12160) — из того же ответа о заведении. Тап
-            открывает карточку блюда поверх экрана: раньше лента и здесь была
-            мёртвой. Добавить блюдо отсюда нельзя — на этом шаге предзаказ
-            меняют выше по флоу, а после подтверждения его правку закрывает
-            сервер; кнопка, которая иногда невозможна, хуже её отсутствия. */}
+            открывает карточку блюда поверх экрана, и с 2026-08-27 из неё же
+            блюдо кладётся в предзаказ: владелец сравнил этот экран с экраном
+            меню и попросил, чтобы карточка была одна и та же. Бронь на этом
+            шаге ещё НЕ создана — предзаказ выше правится степперами, — так что
+            добавление уходит в тот же черновик, а не в созданную бронь.
+
+            Пока идёт отправка, добавлять уже нечего: тело запроса собрано, и
+            новая позиция в него не попадёт. Поэтому на время `submitting`
+            карточка снова читательская. */}
         {restaurant && restaurant.menuHighlights.length > 0 ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t.restaurant.menuHighlights}</Text>
             <MenuHighlightsStrip
               items={restaurant.menuHighlights}
               contentContainerStyle={styles.topPicksRow}
+              onAdd={submitting ? undefined : addDishToPreorder}
             />
           </View>
         ) : null}

@@ -160,6 +160,12 @@ function banners(restaurantId: string): PromoBanner[] {
   ];
 }
 
+/**
+ * Лента «Лучшие позиции». Первое блюдо ОТМЕЧЕНО заведением (`isTopPick`),
+ * второе попало добивкой — так офлайн-режим повторяет обе половины серверного
+ * правила. У обоих есть цена числом, поэтому в мок-режиме кнопка «Добавить ·
+ * итого» на карточке из ленты работает так же, как на живом бэкенде.
+ */
 function menuHighlights(restaurantId: string): MenuHighlight[] {
   return [
     {
@@ -167,6 +173,8 @@ function menuHighlights(restaurantId: string): MenuHighlight[] {
       name: "Стейк с овощами",
       description: "Говядина, овощи гриль и авторский соус",
       price: "8 990 ₸",
+      priceMinor: 899_000,
+      isTopPick: true,
       photo: photo("foodGrillSkewers", `${restaurantId}-menu-1`, "Стейк с овощами"),
     },
     {
@@ -174,6 +182,8 @@ function menuHighlights(restaurantId: string): MenuHighlight[] {
       name: "Павлова с ягодами",
       description: "Меренга, крем и сезонные ягоды",
       price: "3 290 ₸",
+      priceMinor: 329_000,
+      isTopPick: false,
       photo: photo("foodDessertBerry", `${restaurantId}-menu-2`, "Павлова с ягодами"),
     },
   ];

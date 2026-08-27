@@ -1,4 +1,4 @@
-import type { Amenity, Cuisine, PriceLevel, SearchFilters } from "@bookeat/api";
+import type { Amenity, Cuisine, PriceLevel, SearchFilters, TimeOfDay } from "@bookeat/api";
 import { EMPTY_FILTERS } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -10,10 +10,13 @@ import { FilterChip } from "../FilterChip";
 import { IconButton } from "../IconButton";
 import { PrimaryButton } from "../PrimaryButton";
 import { X } from "../icons";
+import { DEFAULT_GUESTS } from "../../lib/availability-options";
+import { toDateKey } from "../../lib/format";
 import { AvailabilityBar } from "./AvailabilityBar";
 import { CheckboxRow } from "./CheckboxRow";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { SegmentedControl } from "./SegmentedControl";
+import { TimeOfDayChips } from "./TimeOfDayChips";
 
 const t = getDictionary();
 
@@ -126,6 +129,38 @@ export function FilterSheet({
   const toggleCity = (city: string) =>
     setDraft((prev) => ({ ...prev, city: prev.city === city ? undefined : city }));
 
+  /**
+   * Время суток живёт ВНУТРИ `availability` — вместе с датой и числом гостей,
+   * потому что сервер применяет окно `time_from`/`time_to` только вместе с
+   * ними (`availabilityFilter` в бэкенде). Отсюда единственное неочевидное
+   * решение этого раздела: выбор «Обеда» при пустом подборе ДОСЫЛАЕТ вторую
+   * половину — сегодняшнюю дату и компанию по умолчанию, — ровно как это
+   * делает колесо в капсуле выше (`AvailabilityWheels`). Иначе чип выглядел бы
+   * выбранным, а выдача не менялась бы вовсе: фасет-декорация, за которую уже
+   * приходилось чинить фильтр удобств.
+   *
+   * Капсула над чипами тут же покажет «Сегодня · 2 гостя» — то, что реально
+   * уйдёт в запрос, — и её крестик снимет подбор целиком, вместе со временем.
+   */
+  const setTimeOfDay = (next: TimeOfDay | undefined) =>
+    setDraft((prev) => {
+      if (!next) {
+        // Снятие времени НЕ снимает дату и гостей: человек убрал одно условие,
+        // а не весь подбор.
+        return prev.availability
+          ? { ...prev, availability: { ...prev.availability, timeOfDay: undefined } }
+          : prev;
+      }
+      return {
+        ...prev,
+        availability: {
+          date: prev.availability?.date ?? toDateKey(new Date()),
+          guests: prev.availability?.guests ?? DEFAULT_GUESTS,
+          timeOfDay: next,
+        },
+      };
+    });
+
   const reset = () => {
     setDraft(EMPTY_FILTERS);
   };
@@ -221,6 +256,18 @@ export function FilterSheet({
               value={draft.availability}
               onChange={(availability) => setDraft((prev) => ({ ...prev, availability }))}
             />
+
+            {/* Время суток — та же тройка «Завтрак / Обед / Ужин», что и в
+                сетке слотов на экране брони: значения и границы живут в
+                `@bookeat/api/time-of-day`, а не здесь. Стоит сразу под
+                капсулой, потому что это третья часть ОДНОГО условия
+                (`availability`), а не самостоятельный фильтр — подпись под
+                чипами говорит об этом прямо. */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>{t.search.filters.timeOfDayTitle}</Text>
+              <TimeOfDayChips value={draft.availability?.timeOfDay} onChange={setTimeOfDay} />
+              <Text style={styles.sectionNote}>{t.search.filters.timeOfDayNote}</Text>
+            </View>
 
             {/* Здесь был раздел «Повод» (Свидание / С друзьями / С детьми /
                 Деловая встреча / Праздник). Убран 2026-08-25 по решению

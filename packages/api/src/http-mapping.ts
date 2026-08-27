@@ -141,6 +141,18 @@ export interface ApiMenuItem {
   name: string;
   description: string;
   price: string;
+  /**
+   * The SAME price in integer minor units (тиыны), added by the backend on
+   * 2026-08-27 alongside the decimal string (menuItemResponse.PriceMinor).
+   * Nullable server-side — it is `null`, never 0, when the stored decimal
+   * cannot be converted — and ABSENT on an older build, hence optional here.
+   * Both cases mean the same thing to the app: no number, no arithmetic.
+   */
+  price_minor?: number | null;
+  /** The venue's own «Лучшая позиция» mark. Absent on an older backend.
+   * NOT the same as `is_featured`, which is the cross-venue "Выбор шефа" rail
+   * of the home screen. */
+  is_top_pick?: boolean;
   image_url: string | null;
   is_available: boolean;
   category: string | null;
@@ -166,9 +178,11 @@ export interface ApiReviewSummary {
   count: number;
 }
 
-/** How many dishes the "Популярное в меню" strip shows. The menu endpoint has
- * no limit parameter and a real venue returns ~300 items, so the cut happens
- * client-side. */
+/** Сколько блюд показывает лента «Лучшие позиции». Уходит СЕРВЕРУ параметром
+ * `?limit=` (`GET /restaurants/:id/menu-highlights`), а не режет ответ на
+ * клиенте: восемь — это и потолок слотов, которые заведение может отметить в
+ * кабинете (`menu_items.top_pick_position` CHECK 1..8). Сервер ограничивает
+ * limit сверху сам (highlightLimitMax = 24). */
 export const MENU_HIGHLIGHT_LIMIT = 8;
 
 /**
@@ -445,36 +459,47 @@ function formatMenuPrice(raw: string | null | undefined): string {
 }
 
 /**
- * The API has no "popular dish" flag (see unknown-data.ts for what that
- * costs us), so the strip shows the venue's own first available dishes in the
- * venue's own `display_order` — real data in a real order, just not "popular".
+ * Лента «Лучшие позиции» — ровно то, что прислал сервер
+ * (`GET /restaurants/:id/menu-highlights`), в его порядке.
  *
- * A photo is NOT a condition for showing a dish. It used to be, and on this
- * catalog that emptied the strip for every single venue: not one dish in the
- * database has an `image_url` (checked 2026-07-26 — Abay 200 dishes, Chaihana
- * 69, Koktobe 84, zero photos between them). Name, description and price are
- * real; the photo is simply missing, and the card draws a deliberate
- * photo-less tile for it.
+ * До 2026-08-27 ленту собирал КЛИЕНТ: брал всё меню (~300 блюд), оставлял
+ * доступные, сортировал по `display_order` и резал первые восемь. Правило
+ * жило в приложении, поэтому заведение могло влиять на свою витрину только
+ * порядком всего меню, а «это наше фирменное» сказать было негде. Теперь
+ * правило одно и живёт на сервере (`usecase/menu.resolveHighlights`):
+ * отмеченные заведением блюда впереди, остальные добивают ленту до лимита, и
+ * недоступные не отдаются вовсе.
+ *
+ * ПОРЯДОК НЕ ТРОГАЕМ. Пересортировать здесь по `display_order` или по
+ * `is_top_pick` значило бы вернуть второе, слегка другое правило ленты — то,
+ * от чего эта правка и уходит.
+ *
+ * A photo is NOT a condition for showing a dish: on the live catalog most
+ * dishes have none (811 of 2376 on 2026-08-24), and hiding the rest would
+ * empty the rail. Name, description and price are real; the card draws a
+ * deliberate photo-less tile.
  */
-export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined, limit: number): MenuHighlight[] {
-  return (items ?? [])
-    .filter((item) => item.is_available)
-    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
-    .slice(0, limit)
-    .map((item) => {
-      const imageUrl = text(item.image_url);
-      return {
-        id: item.id,
-        name: text(item.name),
-        description: plainText(item.description),
-        price: formatMenuPrice(item.price),
-        // Undefined, not a placehold.co tile: "we have no photo" is a fact the
-        // card can render honestly, a stub image is a picture of nothing.
-        photo: imageUrl
-          ? imageToPhoto(imageUrl, item.id, text(item.name), "food")
-          : undefined,
-      };
-    });
+export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined): MenuHighlight[] {
+  return (items ?? []).map((item) => {
+    const imageUrl = text(item.image_url);
+    return {
+      id: item.id,
+      name: text(item.name),
+      description: plainText(item.description),
+      price: formatMenuPrice(item.price),
+      // Число — только если сервер его дал. Иначе null: «Добавить» останется
+      // выключенной, а не посчитает итог из строки «8 990 ₸».
+      priceMinor: typeof item.price_minor === "number" && Number.isFinite(item.price_minor)
+        ? item.price_minor
+        : null,
+      isTopPick: item.is_top_pick === true,
+      // Undefined, not a placehold.co tile: "we have no photo" is a fact the
+      // card can render honestly, a stub image is a picture of nothing.
+      photo: imageUrl
+        ? imageToPhoto(imageUrl, item.id, text(item.name), "food")
+        : undefined,
+    };
+  });
 }
 
 /** Promos carry no image server-side, so the banner is caption-only. */
@@ -885,7 +910,9 @@ export function mapRestaurantStories(items: ApiStory[] | null | undefined): Rest
  * fail the venue screen (see HttpRestaurantRepository.getRestaurant). */
 export interface RestaurantExtras {
   reviews?: ApiReviewSummary;
-  menu?: ApiMenuItem[];
+  /** Ответ `GET /restaurants/:id/menu-highlights` — уже ГОТОВАЯ лента, а не
+   * всё меню: экран заведения больше не выкачивает 300 блюд ради восьми. */
+  highlights?: ApiMenuItem[];
   promos?: ApiPromo[];
 }
 
@@ -990,9 +1017,8 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     photos,
     // Real, from GET /restaurants/:id/promos (published promos only).
     promoBanners: mapPromoBanners(extras.promos),
-    // Real dishes from GET /restaurants/:id/menu — see mapMenuHighlights for
-    // why "popular" is really "first available with a photo".
-    menuHighlights: mapMenuHighlights(extras.menu, MENU_HIGHLIGHT_LIMIT),
+    // Лента с сервера — GET /restaurants/:id/menu-highlights, в его порядке.
+    menuHighlights: mapMenuHighlights(extras.highlights),
     // The venue's own words, untouched. Rendered ONLY as a fallback when the
     // structured schedule is absent — see the field's doc comment.
     openingHoursText: text(api.opening_hours),

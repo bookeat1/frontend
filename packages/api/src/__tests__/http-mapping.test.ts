@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  MENU_HIGHLIGHT_LIMIT,
   mapEventSummary,
   mapGuideCollectionDetail,
   mapGuideRouteDetail,
@@ -113,14 +112,14 @@ describe("prices are in tenge", () => {
   });
 
   it("a dish price is formatted as grouped tenge", () => {
-    const [dish] = mapMenuHighlights([apiDish({ price: "5500.00" })], 8);
+    const [dish] = mapMenuHighlights([apiDish({ price: "5500.00" })]);
     expect(dish.price).toMatch(/₸$/);
     expect(dish.price).not.toContain("$");
     expect(dish.price.replace(/\s/g, "")).toBe("5500₸");
   });
 
   it("an ABSENT price is unknown, not 0 ₸ — a free dish is a lie", () => {
-    const [dish] = mapMenuHighlights([apiDish({ price: "" })], 8);
+    const [dish] = mapMenuHighlights([apiDish({ price: "" })]);
     expect(dish.price).toBe("");
     expect(dish.price).not.toContain("0");
     expect(parsePriceMinor("")).toBeNull();
@@ -159,16 +158,16 @@ describe("a dish without a photo is still on the menu", () => {
   it("shows dishes with no image_url at all", () => {
     // The whole live catalog is like this: ~350 dishes, zero photos. Filtering
     // on the photo emptied «Популярное в меню» for every venue.
-    const dishes = mapMenuHighlights(
-      [apiDish({ id: "d-1", name: "Плов" }), apiDish({ id: "d-2", name: "Лагман", image_url: "" })],
-      8,
-    );
+    const dishes = mapMenuHighlights([
+      apiDish({ id: "d-1", name: "Плов" }),
+      apiDish({ id: "d-2", name: "Лагман", image_url: "" }),
+    ]);
     expect(dishes.map((d) => d.name)).toEqual(["Плов", "Лагман"]);
     expect(dishes.every((d) => d.photo === undefined)).toBe(true);
   });
 
   it("a photo-less dish gets NO placeholder image — undefined, so the card can be honest", () => {
-    const [dish] = mapMenuHighlights([apiDish()], 8);
+    const [dish] = mapMenuHighlights([apiDish()]);
     expect(dish.photo).toBeUndefined();
   });
 });
@@ -214,26 +213,38 @@ describe("a venue without a photo does not borrow one from a stranger", () => {
     expect(detail.photos.map((p) => p.uri)).toEqual([uri]);
   });
 
-  it("an unavailable dish is still hidden — that IS a fact from the server", () => {
-    const dishes = mapMenuHighlights(
-      [apiDish({ id: "d-1" }), apiDish({ id: "d-2", is_available: false })],
-      8,
-    );
-    expect(dishes).toHaveLength(1);
+  /**
+   * С 2026-08-27 ленту собирает СЕРВЕР (`GET /restaurants/:id/menu-highlights`,
+   * usecase/menu.resolveHighlights): он же отбрасывает недоступные блюда, он же
+   * ставит отмеченные заведением вперёд и он же режет по `limit`. Здесь
+   * проверяется ровно обратное прежнему: клиент НЕ пересобирает ленту заново.
+   * Прежние проверки «фильтрует по is_available» и «сортирует по display_order»
+   * не ослаблены, а переехали в бэкенд (menu/facade_test.go).
+   */
+  it("порядок сервера сохраняется — display_order клиент больше не сортирует", () => {
+    const dishes = mapMenuHighlights([
+      apiDish({ id: "d-1", name: "Отмеченное", display_order: 99, is_top_pick: true }),
+      apiDish({ id: "d-2", name: "Добивка", display_order: 1 }),
+    ]);
+    expect(dishes.map((d) => d.name)).toEqual(["Отмеченное", "Добивка"]);
+    expect(dishes.map((d) => d.isTopPick)).toEqual([true, false]);
   });
 
-  it("keeps the venue's own display_order and cuts at the limit", () => {
-    const many = Array.from({ length: 20 }, (_, i) =>
-      apiDish({ id: `d-${i}`, name: `Блюдо ${i}`, display_order: 20 - i }),
-    );
-    const dishes = mapMenuHighlights(many, MENU_HIGHLIGHT_LIMIT);
-    expect(dishes).toHaveLength(MENU_HIGHLIGHT_LIMIT);
-    expect(dishes[0].name).toBe("Блюдо 19");
+  it("price_minor приходит числом и доезжает до карточки как priceMinor", () => {
+    const [dish] = mapMenuHighlights([apiDish({ price: "5500.00", price_minor: 550_000 })]);
+    expect(dish.priceMinor).toBe(550_000);
+  });
+
+  it("нет price_minor (старая сборка бэкенда) — null, а не ноль", () => {
+    // Ноль читался бы как «блюдо бесплатное», а разбор строки «5 500 ₸»
+    // обратно в деньги — как выдумывание суммы.
+    expect(mapMenuHighlights([apiDish({ price: "5500.00" })])[0].priceMinor).toBeNull();
+    expect(mapMenuHighlights([apiDish({ price_minor: null })])[0].priceMinor).toBeNull();
   });
 
   it("survives a null menu (the side-request failed)", () => {
-    expect(mapMenuHighlights(null, 8)).toEqual([]);
-    expect(mapMenuHighlights(undefined, 8)).toEqual([]);
+    expect(mapMenuHighlights(null)).toEqual([]);
+    expect(mapMenuHighlights(undefined)).toEqual([]);
   });
 });
 

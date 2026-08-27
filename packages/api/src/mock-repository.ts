@@ -307,7 +307,9 @@ export class MockRestaurantRepository implements RestaurantRepository {
           id: dish.id,
           name: dish.name,
           description: dish.description,
-          priceMinor: parseMockPriceMinor(dish.price),
+          // Число берём из самой фикстуры — тот же путь, что на живом бэкенде
+          // (`price_minor`), а не разбор строки «8 990 ₸» обратно в деньги.
+          priceMinor: dish.priceMinor,
           // У живых блюд фото нет ни у одного, поэтому в типе оно необязательное;
           // в фикстурах оно есть, но код обязан переживать и его отсутствие.
           imageUrl: dish.photo?.uri ?? null,
@@ -727,14 +729,6 @@ const LEAD_MINUTES = 60;
 /** Every fixture whose id ends with this digit behaves like a live venue with
  * no tables: every slot unavailable with reason "capacity". */
 const CAPACITY_ONLY_SUFFIX = "2";
-
-/** "8 990 ₸" -> 899000. The fixture price is a display string, so this is a
- * best-effort read; an unparseable one becomes null (unknown, not free). */
-function parseMockPriceMinor(display: string): number | null {
-  const digits = display.replace(/[^\d]/g, "");
-  if (!digits) return null;
-  return Number(digits) * 100;
-}
 
 function buildMockSlots(restaurant: Restaurant, date: string, guests: number): AvailabilitySlot[] {
   // Заведение, которое не принимает онлайн-бронь, не отдаёт слотов ни на одну

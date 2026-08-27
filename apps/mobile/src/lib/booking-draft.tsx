@@ -1,5 +1,6 @@
 import type { AvailabilitySlot, PreorderLineInput } from "@bookeat/api";
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import type { DishCardItem } from "./dish-card";
 import { addDays, toDateKey } from "./format";
 
 /**
@@ -97,6 +98,17 @@ interface BookingDraftValue extends BookingDraft {
   setPhone(phone: string): void;
   setNotes(notes: string): void;
   setPreorderQuantity(line: Omit<PreorderDraftLine, "quantity">, quantity: number): void;
+  /**
+   * ПРИБАВЛЯЕТ количество к тому, что уже набрано (в отличие от
+   * `setPreorderQuantity`, который выставляет итоговое число, как степпер на
+   * экране предзаказа).
+   *
+   * Нужен ленте «Лучшие позиции»: гость может открыть карточку блюда дважды и
+   * дважды нажать «Добавить», и второе нажатие должно дать три штуки, а не
+   * молча заменить две на одну. Сложение живёт ВНУТРИ обновления состояния,
+   * поэтому два быстрых нажатия подряд не теряются.
+   */
+  addPreorderQuantity(line: Omit<PreorderDraftLine, "quantity">, quantity: number): void;
   clearPreorder(): void;
   /** Prefills name/phone from the signed-in account WITHOUT clobbering
    * anything the guest already typed. */
@@ -332,6 +344,22 @@ export function BookingDraftProvider({
     [],
   );
 
+  const addPreorderQuantity = useCallback(
+    (line: Omit<PreorderDraftLine, "quantity">, quantity: number) => {
+      const added = Math.max(1, Math.floor(quantity));
+      setPreorder((current) => {
+        const existing = current.find((item) => item.menuItemId === line.menuItemId);
+        if (!existing) return [...current, { ...line, quantity: added }];
+        return current.map((item) =>
+          item.menuItemId === line.menuItemId
+            ? { ...item, quantity: item.quantity + added }
+            : item,
+        );
+      });
+    },
+    [],
+  );
+
   const clearPreorder = useCallback(() => setPreorder([]), []);
 
   const prefillContact = useCallback((input: { name?: string | null; phone?: string | null }) => {
@@ -388,6 +416,7 @@ export function BookingDraftProvider({
       setPhone: setPhoneKeyed,
       setNotes: setNotesKeyed,
       setPreorderQuantity,
+      addPreorderQuantity,
       clearPreorder,
       prefillContact,
     }),
@@ -410,6 +439,7 @@ export function BookingDraftProvider({
       setPhoneKeyed,
       setNotesKeyed,
       setPreorderQuantity,
+      addPreorderQuantity,
       clearPreorder,
       prefillContact,
     ],
@@ -436,4 +466,30 @@ export function estimatePreorderTotalMinor(lines: PreorderDraftLine[]): number |
     total += line.priceMinor * line.quantity;
   }
   return total;
+}
+
+/**
+ * Добавление блюда ИЗ ЛЕНТЫ «Лучшие позиции» в черновик предзаказа — один
+ * колбэк на оба экрана, где эта лента стоит (шаг брони и подтверждение).
+ *
+ * Почему хук, а не по месту в каждом экране: владелец сравнил два экрана
+ * рядом и попросил, чтобы карточка блюда вела себя ОДИНАКОВО. Две копии этой
+ * пары строк разъехались бы ровно там, где это заметно, — в количестве.
+ *
+ * Блюдо без цены ЧИСЛОМ сюда не попадает (карточка не покажет кнопку), но
+ * проверка продублирована здесь: черновик с ценой `null` увёл бы весь итог
+ * предзаказа в «цену уточняйте» (см. `estimatePreorderTotalMinor`).
+ */
+export function useAddDishToPreorder(): (dish: DishCardItem, quantity: number) => void {
+  const { addPreorderQuantity } = useBookingDraft();
+  return useCallback(
+    (dish: DishCardItem, quantity: number) => {
+      if (dish.priceMinor === null) return;
+      addPreorderQuantity(
+        { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor },
+        quantity,
+      );
+    },
+    [addPreorderQuantity],
+  );
 }

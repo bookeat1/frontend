@@ -19,6 +19,7 @@ import {
   mapGuideCollectionDetail,
   mapHomePromos,
   mapMenuSections,
+  MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
   mapPreorder,
@@ -216,10 +217,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    */
   async getRestaurant(id: string): Promise<Restaurant> {
     const encoded = encodeURIComponent(id);
-    const [api, reviews, menu, promos] = await Promise.all([
+    const [api, reviews, highlights, promos] = await Promise.all([
       this.client.get<ApiRestaurant>(`/restaurants/${encoded}`),
       optional(this.client.get<ApiReviewSummary>(`/restaurants/${encoded}/reviews/summary`)),
-      optional(this.client.get<ApiMenuItem[]>(`/restaurants/${encoded}/menu`)),
+      // Лента «Лучшие позиции» — отдельной ручкой, с сервера уже собранной и
+      // упорядоченной. Раньше здесь качалось ВСЁ меню (у живого заведения до
+      // ~300 блюд) ради восьми карточек, а правило ленты жило в клиенте.
+      optional(
+        this.client.get<ApiMenuItem[]>(`/restaurants/${encoded}/menu-highlights`, {
+          limit: MENU_HIGHLIGHT_LIMIT,
+        }),
+      ),
       optional(
         this.client
           .get<ApiPage<ApiPromo>>(`/restaurants/${encoded}/promos`, {
@@ -229,7 +237,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
           .then((page) => page.items ?? []),
       ),
     ]);
-    return mapRestaurantDetail(api, { reviews, menu, promos });
+    return mapRestaurantDetail(api, { reviews, highlights, promos });
   }
 
   /** GET /restaurants/:id, mapped to the card shape — one request, no

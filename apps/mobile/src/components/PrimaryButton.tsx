@@ -17,6 +17,14 @@ interface PrimaryButtonProps {
    * (Figma node 471:3967). Not a new component — same pill, one number. */
   size?: "md" | "lg";
   accessibilityLabel?: string;
+  /**
+   * Уточнение, которое скринридер зачитывает ПОСЛЕ подписи, — «почему сейчас
+   * нельзя нажать» и тому подобное. Заведено для неактивной «Продолжить» на
+   * экране брони: зрячий гость видит причину строкой над кнопкой, незрячий
+   * должен получить её вместе с самой кнопкой, а не только отдельным текстом
+   * рядом. Смысл кнопки по-прежнему несёт `label` — подсказка его не заменяет.
+   */
+  accessibilityHint?: string;
 }
 
 /**
@@ -33,6 +41,7 @@ export function PrimaryButton({
   size = "md",
   icon: Icon,
   accessibilityLabel,
+  accessibilityHint,
 }: PrimaryButtonProps) {
   const isSecondary = variant === "secondary";
   const labelColor = isSecondary ? colors.text.primary : colors.text.onBrand;
@@ -40,6 +49,7 @@ export function PrimaryButton({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
