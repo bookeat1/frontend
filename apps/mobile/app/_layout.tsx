@@ -6,6 +6,7 @@ import {
   NotoSans_600SemiBold,
   NotoSans_700Bold,
 } from "@expo-google-fonts/noto-sans";
+import { PlayfairDisplay_700Bold_Italic } from "@expo-google-fonts/playfair-display";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -35,11 +36,16 @@ export default function RootLayout() {
     NotoSans_600SemiBold,
     NotoSans_700Bold,
     Inter_600SemiBold,
+    // Названия событий в «Афише» и на карточке афиши — единственное место, где
+    // макет ставит засечный курсив (узлы 3452:13369, 3452:13244).
+    PlayfairDisplay_700Bold_Italic,
   });
 
   // Keep the native splash screen up (managed by expo-router) until the real
-  // typeface is ready — the design specifies Noto Sans / Inter throughout,
-  // so we never want to flash the system font first.
+  // typeface is ready — the design specifies Noto Sans / Inter throughout, plus
+  // Playfair Display for event titles, so we never want to flash the system
+  // font first. A new face goes INTO this same `useFonts` call, never into a
+  // second one: the splash is held on this one flag.
   if (!fontsLoaded && !fontError) {
     return null;
   }
