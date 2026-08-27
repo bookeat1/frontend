@@ -163,17 +163,19 @@ export const typography = {
    * Название события НА КАДРЕ карточки списка «Афиша» — 18 (Figma
    * 3z0f6dgev4HMwBAHPjTjPo, node 3452:13369). Отдельный токен, а не
    * `titleCard` (18/26, разрядка −0.3): в макете у этой строки нет разрядки,
-   * а межстрочный задан как «normal» — для Noto Sans в 18 pt это ~24.
+   * а межстрочный задан как «normal» — для Playfair Display в 18 pt это ~24.
    *
-   * ШРИФТ РАСХОДИТСЯ С МАКЕТОМ ОСОЗНАННО. В Figma здесь Playfair Display Bold
-   * Italic; в приложение эта гарнитура не загружена (грузятся только Noto Sans
-   * и Inter — см. `apps/mobile/app/_layout.tsx`), и её добавление — это новая
-   * зависимость и решение владельца, а не правка отступов. Сам макет
-   * непоследователен: третья карточка того же экрана (node 3452:13221)
-   * нарисована Noto Sans Bold. До решения держим Noto Sans Bold.
+   * Гарнитура — Playfair Display Bold Italic, как нарисовано (решение
+   * владельца 2026-08-27: «шрифт добавляем, делаем как по макету»).
+   *
+   * МАКЕТ ЗДЕСЬ НЕПОСЛЕДОВАТЕЛЕН, и мы это НЕ копируем: две карточки из трёх
+   * (3452:13369, 3452:13373) нарисованы Playfair, третья (3452:13221) —
+   * Noto Sans Bold. Все карточки списка идут через ЭТОТ токен, то есть
+   * набраны одинаково: разный шрифт у соседних карточек одного списка читался
+   * бы как разный вид материала, а не как оформительский приём.
    */
   eventCardTitle: {
-    fontFamily: fontFamilies.notoSansBold,
+    fontFamily: fontFamilies.playfairDisplayBoldItalic,
     fontSize: 18,
     lineHeight: 24,
   },
@@ -182,11 +184,10 @@ export const typography = {
    * Крупнее всего остального в приложении вместе с `titleXxl` (24/32), потому
    * что лежит на фотографии во весь экран.
    *
-   * Шрифт — то же расхождение, что и у `eventCardTitle`: в макете Playfair
-   * Display Bold Italic, в приложении её нет.
+   * Гарнитура — Playfair Display Bold Italic, как в макете.
    */
   eventHeroTitle: {
-    fontFamily: fontFamilies.notoSansBold,
+    fontFamily: fontFamilies.playfairDisplayBoldItalic,
     fontSize: 28,
     lineHeight: 38,
   },
