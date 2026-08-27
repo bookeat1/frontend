@@ -11,6 +11,14 @@ export const fontFamilies = {
   notoSansSemiBold: "NotoSans_600SemiBold",
   notoSansBold: "NotoSans_700Bold",
   interSemiBold: "Inter_600SemiBold",
+  /**
+   * Playfair Display Bold Italic — акцентный НАБОРНЫЙ шрифт новых макетов:
+   * название заведения на карточке списка (Figma 3z0f6dgev4HMwBAHPjTjPo,
+   * node 3452:13349 — 18) и в шапке карточки заведения (node 3446:12640 —
+   * 28/38). Единственная начертанием засечная гарнитура в приложении: ею
+   * набирается ТОЛЬКО имя места, всё остальное остаётся Noto Sans.
+   */
+  playfairDisplayBoldItalic: "PlayfairDisplay_700Bold_Italic",
 } as const;
 
 export type FontFamilyToken = typeof fontFamilies;

@@ -6,6 +6,7 @@ import {
   NotoSans_600SemiBold,
   NotoSans_700Bold,
 } from "@expo-google-fonts/noto-sans";
+import { PlayfairDisplay_700Bold_Italic } from "@expo-google-fonts/playfair-display";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -35,10 +36,13 @@ export default function RootLayout() {
     NotoSans_600SemiBold,
     NotoSans_700Bold,
     Inter_600SemiBold,
+    // Акцентная засечная гарнитура новых макетов: ею набирается имя места на
+    // карточке списка и в шапке карточки заведения — и больше ничего.
+    PlayfairDisplay_700Bold_Italic,
   });
 
   // Keep the native splash screen up (managed by expo-router) until the real
-  // typeface is ready — the design specifies Noto Sans / Inter throughout,
+  // typeface is ready — the design specifies Noto Sans / Inter / Playfair Display throughout,
   // so we never want to flash the system font first.
   if (!fontsLoaded && !fontError) {
     return null;

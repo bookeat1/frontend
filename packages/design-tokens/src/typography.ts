@@ -21,6 +21,30 @@ export const typography = {
     lineHeight: 30,
     letterSpacing: -0.5,
   },
+  /**
+   * Название заведения НА фотографии карточки списка — Playfair Display Bold
+   * Italic 18 (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3452:13349/3452:13393).
+   * В макете межстрочный «normal»; для Playfair это ~1.33 кегля, отсюда 24.
+   *
+   * Отдельная роль, а не `titleSm`: у карточки нового вида имя лежит поверх
+   * снимка засечной курсивной гарнитурой, и это единственное место списка,
+   * где она появляется.
+   */
+  displayCard: {
+    fontFamily: fontFamilies.playfairDisplayBoldItalic,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  /**
+   * Название заведения в ШАПКЕ карточки заведения — Playfair Display Bold
+   * Italic 28/38 (node 3446:12640). Та же гарнитура, что на карточке списка,
+   * на ступень крупнее: список и деталка должны читаться как одно место.
+   */
+  displayHero: {
+    fontFamily: fontFamilies.playfairDisplayBoldItalic,
+    fontSize: 28,
+    lineHeight: 38,
+  },
   /** Section/screen titles: "Flour Demi", "О ресторане", "Популярное в меню", "Контакты". */
   titleLg: {
     fontFamily: fontFamilies.notoSansBold,

@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from "@bookeat/design-tokens";
+import { colors, listCard, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet } from "react-native";
@@ -28,10 +28,24 @@ export function FavoriteButton({
   itemName,
   isFavorite,
   onToggle,
+  placement = "photo",
 }: {
   itemName: string;
   isFavorite: boolean;
   onToggle: () => void;
+  /**
+   * `photo` (по умолчанию) — сердечко на снимке карточки ленты «Главной»:
+   * 12/12 от угла, белая подложка 20% (node 3053:8506).
+   *
+   * `listCard` — сердечко на карточке вертикального списка нового вида:
+   * 16/16 от угла, серая подложка 50% (node 3452:13346). Подложка ДРУГАЯ не
+   * от вкуса: у новой карточки низ снимка почти чёрный от градиента, и белый
+   * круг на ней светился бы пятном.
+   *
+   * Один компонент с одним числом, а не второе сердечко: смысл, метка для
+   * скринридера и цель касания у них общие.
+   */
+  placement?: "photo" | "listCard";
 }) {
   return (
     <Pressable
@@ -42,7 +56,11 @@ export function FavoriteButton({
       }
       onPress={onToggle}
       hitSlop={10}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.button,
+        placement === "listCard" && styles.buttonListCard,
+        pressed && styles.pressed,
+      ]}
     >
       <Heart
         size={24}
@@ -72,6 +90,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlay.photoControl,
     alignItems: "center",
     justifyContent: "center",
+  },
+  buttonListCard: {
+    top: listCard.overlayButtonInset,
+    right: listCard.overlayButtonInset,
+    width: listCard.overlayButtonSize,
+    height: listCard.overlayButtonSize,
+    backgroundColor: colors.overlay.listCardControl,
   },
   pressed: {
     opacity: 0.7,
