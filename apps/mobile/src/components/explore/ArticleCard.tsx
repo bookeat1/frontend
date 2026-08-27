@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   photo: {
     width: exploreLayout.cardWidth,
     height: exploreLayout.cardPhotoHeight,
-    borderRadius: radius.media,
+    borderRadius: radius.card,
     backgroundColor: colors.background.bannerPlaceholder,
   },
   // Те же размеры, что у карточки на экране «Статьи» (ArticleListCard): один и

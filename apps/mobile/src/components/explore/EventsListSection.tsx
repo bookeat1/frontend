@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   skeletonDate: {
     width: 40,
     height: 52,
-    borderRadius: radius.media,
+    borderRadius: radius.card,
     backgroundColor: colors.background.chip,
   },
   skeletonText: {
