@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   photo: {
     width: exploreLayout.cardWidth,
     height: exploreLayout.cardPhotoHeight,
-    borderRadius: radius.media,
+    borderRadius: radius.card,
     backgroundColor: colors.background.bannerPlaceholder,
   },
   badge: {

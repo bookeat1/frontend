@@ -109,6 +109,18 @@ export const typography = {
     fontSize: 14,
     lineHeight: 20,
   },
+  /**
+   * Подпись КОЛОНКИ в шторке «Дата и гости» — «Когда» и «Гости» (Figma
+   * 3z0f6dgev4HMwBAHPjTjPo, узлы 3447:13056 и 3447:13058): 14 Medium, но
+   * интерлиньяж 24, а не 20. Отдельный токен, а не `labelMedium`: кегль тот
+   * же, а высота строки в макете другая, и именно она задаёт просвет до
+   * первой строки колеса под подписью.
+   */
+  columnLabel: {
+    fontFamily: fontFamilies.notoSansMedium,
+    fontSize: 14,
+    lineHeight: 24,
+  },
   /** Hours/phone/address primary line, selected search chip label. */
   labelMedium: {
     fontFamily: fontFamilies.notoSansMedium,

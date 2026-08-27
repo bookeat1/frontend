@@ -3,27 +3,25 @@ import React, { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { dateChoices } from "../../lib/availability-label";
 import { DEFAULT_GUESTS, guestOptions } from "../../lib/availability-options";
-import { toDateKey } from "../../lib/format";
 import { useLocale } from "../../lib/locale";
 import { CalendarBlank, User } from "../icons";
-import { WheelSheet } from "../search/WheelSheet";
+import { PartySheet } from "./PartySheet";
 
 /**
  * Капсула «дата · гости» в шапке главной и выбор, который она открывает.
  *
- * Тап по половине поднимает НИЖНЮЮ ШТОРКУ с колесом (`WheelSheet`, макеты
- * 918:12317 и 918:12428) поверх главной — своя половина, своё колесо. Никакого
- * перехода на этом шаге не происходит: отдельного экрана выбора даты и гостей
- * в дизайне нет вовсе (правка владельца 2026-08-26). До неё тап уводил в
- * `/search` с параметром `focus`, там немедленно раскрывалась шторка фильтров,
- * и человек, назвавший всего лишь день, встречал нагруженную панель со всеми
- * фасетами сразу.
+ * Тап по ЛЮБОЙ из половин поднимает ОДНУ общую нижнюю шторку «Дата и гости»
+ * (`PartySheet`, макет 3447:13024): в ней рядом стоят оба колеса. Раньше
+ * половины поднимали ДВЕ разные шторки с одним колесом каждая, и человек,
+ * нажавший «2 гостя», подтверждал половину подбора — вторая молча бралась по
+ * умолчанию. Никакого перехода на этом шаге по-прежнему не происходит:
+ * отдельного экрана выбора даты и гостей в дизайне нет вовсе (правка владельца
+ * 2026-08-26).
  *
- * Наверх выбор уходит ЦЕЛИКОМ — парой «дата + гости», даже когда покрутили
- * одно колесо. Это не удобство, а правило сервера: он отвечает на вопрос
- * «есть ли стол на N гостей в такой-то день» и половину запроса игнорирует,
- * поэтому недостающая половина берёт значение по умолчанию (сегодня и
- * `DEFAULT_GUESTS`) — ровно как в `AvailabilityBar` внутри фильтров.
+ * Наверх выбор уходит ЦЕЛИКОМ — парой «дата + гости». Это не удобство, а
+ * правило сервера: он отвечает на вопрос «есть ли стол на N гостей в такой-то
+ * день» и половину запроса игнорирует. Колёса открываются на «сегодня» и
+ * `DEFAULT_GUESTS` — ровно как в `AvailabilityBar` внутри фильтров.
  *
  * Отдельный компонент, а не часть `HomeHeader`: шапка тянет вшитую в
  * приложение фотографию через `require`, и в тестах она не рендерится вовсе
@@ -46,8 +44,8 @@ export function PartySelector({
   onSearchParty: (party: { date: string; guests: number }) => void;
 }) {
   const { dictionary: t } = useLocale();
-  // Какая половина раскрыта колесом. `null` — шторки нет.
-  const [picker, setPicker] = useState<"date" | "guests" | null>(null);
+  // Шторка одна на обе половины, поэтому и состояние одно: открыта или нет.
+  const [open, setOpen] = useState(false);
   // Список дат считаем ОДИН раз на монтирование: главная живёт минуты, а не
   // сутки, и пересчёт на каждый рендер строил бы 61 объект впустую.
   const dates = useMemo(() => dateChoices(new Date()).options, []);
@@ -63,7 +61,7 @@ export function PartySelector({
         style={({ pressed }) => [styles.selector, styles.selectorLeft, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t.explore.dateSelectorLabel}: ${dateValue}`}
-        onPress={() => setPicker("date")}
+        onPress={() => setOpen(true)}
       >
         <CalendarBlank size={24} color={colors.text.primary} weight="regular" />
         <Text style={styles.selectorValue} numberOfLines={1}>
@@ -74,7 +72,7 @@ export function PartySelector({
         style={({ pressed }) => [styles.selector, styles.selectorRight, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t.explore.guestsSelectorLabel}: ${guestsValue}`}
-        onPress={() => setPicker("guests")}
+        onPress={() => setOpen(true)}
       >
         <User size={24} color={colors.text.primary} weight="regular" />
         <Text style={styles.selectorValue} numberOfLines={1}>
@@ -82,35 +80,20 @@ export function PartySelector({
         </Text>
       </Pressable>
 
-      {/* Обе шторки — ТОТ ЖЕ `WheelSheet`, что стоит в фильтрах каталога:
-          второе колесо означало бы два разных списка дат в одном приложении.
-          Выбор внутри черновой и уходит наверх только по «Готово»; крестик и
-          тап по затемнению не ищут ничего. */}
-      <WheelSheet
-        visible={picker === "date"}
-        title={t.booking.pickDateTitle}
-        options={dates}
-        value={dates[0].value}
-        submitLabel={t.search.availabilityDone}
-        closeLabel={t.search.availabilityClose}
-        onClose={() => setPicker(null)}
-        onSubmit={(date) => {
-          setPicker(null);
-          onSearchParty({ date, guests: DEFAULT_GUESTS });
-        }}
-      />
-
-      <WheelSheet
-        visible={picker === "guests"}
-        title={t.booking.pickGuestsTitle}
-        options={guests}
-        value={String(DEFAULT_GUESTS)}
-        submitLabel={t.search.availabilityDone}
-        closeLabel={t.search.availabilityClose}
-        onClose={() => setPicker(null)}
-        onSubmit={(picked) => {
-          setPicker(null);
-          onSearchParty({ date: toDateKey(new Date()), guests: Number(picked) });
+      {/* Колёса — ТЕ ЖЕ, что в фильтрах каталога (`WheelPicker`): второе
+          колесо означало бы два разных списка дат в одном приложении. Выбор
+          внутри черновой и уходит наверх только по «Показать заведения»;
+          крестик и тап по затемнению не ищут ничего. */}
+      <PartySheet
+        visible={open}
+        dateOptions={dates}
+        guestOptions={guests}
+        dateValue={dates[0].value}
+        guestsValue={String(DEFAULT_GUESTS)}
+        onClose={() => setOpen(false)}
+        onSubmit={(party) => {
+          setOpen(false);
+          onSearchParty({ date: party.date, guests: Number(party.guests) });
         }}
       />
     </View>
@@ -121,15 +104,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    // Капсула прижата к низу шапки: её высота фиксирована правилом, и
-    // свободное место при коротком приветствии должно оставаться НАД капсулой,
-    // а не висеть под ней, как было бы при раскладке сверху вниз.
-    marginTop: "auto",
   },
   selector: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    // Содержимое половины стоит ПО ЦЕНТРУ, а не у левого края (макет
+    // node 3447:13093 — `items-center justify-center`).
+    justifyContent: "center",
     gap: spacing.sm,
     height: controlHeight.pill,
     paddingHorizontal: spacing.lg,

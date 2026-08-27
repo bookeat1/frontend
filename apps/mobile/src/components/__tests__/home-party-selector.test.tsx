@@ -9,18 +9,21 @@ import { toDateKey } from "../../lib/format";
 /**
  * Капсула «дата · гости» на главной: выбор происходит ЗДЕСЬ, нижней шторкой.
  *
- * Что чинится этим тестом (правка владельца 2026-08-26): тап по половине
- * капсулы уводил на отдельный экран — в `/search?focus=date`, где немедленно
- * раскрывалась шторка фильтров. Такого экрана в дизайне нет вовсе (макет
- * 918:11747), а нагруженная панель фильтров пугает человека, который назвал
- * всего лишь день.
+ * Что чинится этим тестом:
+ *   1. (правка владельца 2026-08-26) тап по половине капсулы уводил на
+ *      отдельный экран — в `/search?focus=date`, где немедленно раскрывалась
+ *      шторка фильтров. Такого экрана в дизайне нет вовсе, а нагруженная
+ *      панель фильтров пугает человека, который назвал всего лишь день.
+ *   2. (правка владельца 2026-08-27) половины поднимали ДВЕ разные шторки, по
+ *      одному колесу в каждой. В макете (node 3447:13024) это ОДНА шторка
+ *      «Дата и гости» с двумя колёсами рядом, и подтверждение в ней одно.
  *
- * Поэтому проверяем ровно две вещи:
- *   1. тап поднимает ШТОРКУ прямо здесь и НИЧЕГО не сообщает наверх — переход
- *      в каталог на этом шаге не должен случиться даже случайно;
- *   2. «Готово» отдаёт ПАРУ «дата + гости», даже если крутили одно колесо:
- *      сервер игнорирует половину подбора, и второй его половине неоткуда
- *      взяться, кроме значения по умолчанию.
+ * Поэтому проверяем:
+ *   1. тап по ЛЮБОЙ половине поднимает ОДНУ и ту же шторку с обоими колёсами
+ *      и НИЧЕГО не сообщает наверх — переход в каталог на этом шаге не должен
+ *      случиться даже случайно;
+ *   2. «Показать заведения» отдаёт ПАРУ «дата + гости»;
+ *   3. крестик закрывает шторку, ничего не применив.
  */
 
 const t = getDictionary("ru");
@@ -57,37 +60,40 @@ const guestsHalf = () =>
   });
 
 describe("выбор даты и гостей на главной", () => {
-  it("тап по дате поднимает шторку выбора даты и никуда не уводит", async () => {
+  it("тап по дате поднимает общую шторку и никуда не уводит", async () => {
     const onSearchParty = renderSelector();
     const user = userEvent.setup();
 
-    expect(screen.queryByText(t.booking.pickDateTitle)).toBeNull();
+    expect(screen.queryByText(t.explore.partySheetTitle)).toBeNull();
 
     await user.click(dateHalf());
 
-    expect(await screen.findByText(t.booking.pickDateTitle)).toBeTruthy();
-    // Шторка — это ещё не выбор: пока не нажали «Готово», наверх ничего не
-    // ушло и никакого перехода произойти не может.
+    expect(await screen.findByText(t.explore.partySheetTitle)).toBeTruthy();
+    // Шторка — это ещё не выбор: пока не нажали кнопку, наверх ничего не ушло
+    // и никакого перехода произойти не может.
     expect(onSearchParty).not.toHaveBeenCalled();
   });
 
-  it("тап по гостям поднимает шторку выбора числа гостей", async () => {
+  it("тап по гостям поднимает ТУ ЖЕ шторку — с обоими колёсами", async () => {
     renderSelector();
     const user = userEvent.setup();
 
     await user.click(guestsHalf());
 
-    expect(await screen.findByText(t.booking.pickGuestsTitle)).toBeTruthy();
-    expect(screen.queryByText(t.booking.pickDateTitle)).toBeNull();
+    expect(await screen.findByText(t.explore.partySheetTitle)).toBeTruthy();
+    // Обе колонки на месте: половина подбора в отдельной шторке — ровно то,
+    // от чего эта правка избавляется.
+    expect(screen.getByText(t.explore.partyDateColumn)).toBeTruthy();
+    expect(screen.getByText(t.explore.partyGuestsColumn)).toBeTruthy();
   });
 
-  it("«Готово» отдаёт пару «дата + гости», а не одну половину", async () => {
+  it("«Показать заведения» отдаёт пару «дата + гости»", async () => {
     const onSearchParty = renderSelector();
     const user = userEvent.setup();
 
     await user.click(dateHalf());
-    await screen.findByText(t.booking.pickDateTitle);
-    await user.click(screen.getByRole("button", { name: t.search.availabilityDone }));
+    await screen.findByText(t.explore.partySheetTitle);
+    await user.click(screen.getByRole("button", { name: t.explore.partySubmit }));
 
     expect(onSearchParty).toHaveBeenCalledWith({
       date: toDateKey(new Date()),
@@ -100,10 +106,10 @@ describe("выбор даты и гостей на главной", () => {
     const user = userEvent.setup();
 
     await user.click(guestsHalf());
-    await screen.findByText(t.booking.pickGuestsTitle);
+    await screen.findByText(t.explore.partySheetTitle);
     await user.click(screen.getByRole("button", { name: t.search.availabilityClose }));
 
-    await waitFor(() => expect(screen.queryByText(t.booking.pickGuestsTitle)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(t.explore.partySheetTitle)).toBeNull());
     expect(onSearchParty).not.toHaveBeenCalled();
   });
 });

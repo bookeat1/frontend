@@ -71,6 +71,7 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
         keyExtractor={(cuisine) => cuisine.id}
         accessibilityLabel={t.explore.cuisineTitle}
         itemWidth={exploreLayout.cuisineChipLabel}
+        itemGap={spacing.md}
         renderItem={({ item }) => (
           <CuisineChip cuisine={item} onSelect={onPickCuisine} photoUri={photos.get(item.id)} />
         )}
@@ -101,7 +102,7 @@ function SkeletonRow() {
 const styles = StyleSheet.create({
   skeletonRow: {
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     overflow: "hidden",
   },

@@ -1,4 +1,4 @@
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { Image } from "expo-image";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -72,12 +72,16 @@ export function HomeHeader({
       style={[
         styles.root,
         // `minHeight`, а не `height`: при нормальном размере шрифта содержимое
-        // (44 + 16 + до двух строк по 32 + 16 + 48 + отступы = 224) в 264
-        // помещается с запасом, и блок ровно такой, как в макете. Но у корня
-        // стоит `overflow: "hidden"` ради скруглённого низа фотографии, и на
-        // системном увеличении шрифта жёсткая высота срезала бы капсулу даты и
-        // гостей. Так блок в этом единственном случае вырастет.
-        { paddingTop: insets.top + spacing.lg, minHeight: homeHeaderHeight(insets.top) },
+        // (16 + 56 + 24 + 16 + 64 + 24 + 48 + 16 = 264) в 264 помещается ровно,
+        // как в макете. Но у корня стоит `overflow: "hidden"` ради скруглённого
+        // низа фотографии, и на системном увеличении шрифта жёсткая высота
+        // срезала бы капсулу даты и гостей. Так блок в этом единственном
+        // случае вырастет.
+        //
+        // `paddingTop` — ровно безопасная зона: 16 до строки города даёт
+        // отдельный отступ самой строки (в макете это gap 16 между статус-баром
+        // и строкой города, node 3447:13082), иначе он складывался бы дважды.
+        { paddingTop: insets.top, minHeight: homeHeaderHeight(insets.top) },
       ]}
     >
       {/* Photo and scrim are decorative layers BEHIND the header's controls —
@@ -141,19 +145,25 @@ export function HomeHeader({
         </View>
       </View>
 
-      {/* Ровно две строки: «Доброе утро,» и имя под ним. Перенос приходит из
-          самой строки (`withName` в словаре ставит `\n` после запятой, как
-          U+2028 в макете 3102:11996), а `numberOfLines={2}` держит потолок —
-          очень длинное имя обрежется многоточием, но шапку не растянет. */}
-      <Text style={styles.greeting} numberOfLines={2}>
-        {greeting}
-      </Text>
+      {/* Приветствие и капсула — ОДИН блок со своим полем 16 и просветом 24
+          между ними (макет node 3447:13090: `p-[16px] gap-[24px]`). Отдельный
+          блок, а не два ребёнка корня: в макете поле у строки города и у этой
+          пары своё, а корень полей не имеет вовсе. */}
+      <View style={styles.bottomBlock}>
+        {/* Ровно две строки: «Доброе утро,» и имя под ним. Перенос приходит из
+            самой строки (`withName` в словаре ставит `\n` после запятой, как
+            U+2028 в макете 3102:11996), а `numberOfLines={2}` держит потолок —
+            очень длинное имя обрежется многоточием, но шапку не растянет. */}
+        <Text style={styles.greeting} numberOfLines={2}>
+          {greeting}
+        </Text>
 
-      <PartySelector
-        dateValue={dateValue}
-        guestsValue={guestsValue}
-        onSearchParty={onSearchParty}
-      />
+        <PartySelector
+          dateValue={dateValue}
+          guestsValue={guestsValue}
+          onSearchParty={onSearchParty}
+        />
+      </View>
     </View>
   );
 }
@@ -163,18 +173,24 @@ export function HomeHeader({
  * here. */
 const BADGE_SIZE = 8;
 
+/**
+ * Насколько кнопка-иконка 44pt выступает за нарисованные 24pt значка с каждой
+ * стороны. Отрицательным полем этот выступ срезается: тач-таргет остаётся
+ * 44pt, а в раскладку строка отдаёт ровно то, что нарисовано в макете.
+ */
+const ICON_BUTTON_OVERHANG = (hitSlop.minTouchTarget - 24) / 2;
+
 const styles = StyleSheet.create({
   root: {
     backgroundColor: colors.background.header,
     // The photo is clipped by the same rounded bottom as the block itself.
     overflow: "hidden",
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    // The white sheet below overlaps this block's rounded bottom by the same
-    // amount the old hero used, so keep room for that overlap.
+    // Полей у корня НЕТ: в макете (node 3447:13081) они лежат на строке города
+    // и на блоке «приветствие + капсула» по отдельности, а сам кадр идёт от
+    // края до края. Просвет между этими двумя блоками — 24.
     borderBottomLeftRadius: radius.card,
     borderBottomRightRadius: radius.card,
-    gap: spacing.lg,
+    gap: spacing.xxl,
   },
   photo: {
     position: "absolute",
@@ -196,20 +212,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
+    // Строка города: поле 16 со всех сторон вокруг содержимого высотой 24
+    // (макет node 3447:13084 — `p-[16px]`, значок 24). Плюс 16 сверху — это
+    // просвет между статус-баром и строкой из макета (`gap-[16px]`).
+    padding: spacing.lg,
+    marginTop: spacing.lg,
   },
   bellWrap: {
     position: "relative",
     // Кнопка 44pt шире своего значка 24pt, и значок из-за этого отходил от
-    // поля страницы на 10pt внутрь, хотя в макете он стоит вплотную. Сдвигаем
-    // саму кнопку, тач-таргет при этом остаётся прежним.
-    marginRight: -10,
+    // полей строки на 10pt внутрь, хотя в макете он стоит вплотную к ним.
+    // Сдвигаем саму кнопку, тач-таргет при этом остаётся прежним.
+    marginRight: -ICON_BUTTON_OVERHANG,
+    marginVertical: -ICON_BUTTON_OVERHANG,
   },
   badge: {
     position: "absolute",
-    // Точка непрочитанных, как в макете (node 986:8718): 8pt без числа.
-    // Сидит над правым верхом колокольчика и не растягивает тач-таргет 44pt.
-    top: 8,
-    right: 6,
+    // Точка непрочитанных, как в макете (node 3447:13089): 8pt без числа,
+    // правым верхом вплотную к правому верху ЗНАЧКА. Отсчёт идёт от кнопки
+    // 44pt, поэтому к отступам добавлен её выступ над значком — иначе точка
+    // повисает выше колокольчика и не растягивает тач-таргет 44pt.
+    top: ICON_BUTTON_OVERHANG,
+    right: ICON_BUTTON_OVERHANG + spacing.xxs,
     width: BADGE_SIZE,
     height: BADGE_SIZE,
     borderRadius: BADGE_SIZE / 2,
@@ -220,8 +244,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs + 2,
     flexShrink: 1,
-    // A comfortable tap target for the city picker without shifting the layout.
-    minHeight: 44,
+    // A comfortable tap target for the city picker without shifting the layout:
+    // 44 в высоту, но лишние 10 сверху и снизу срезаны отрицательным полем —
+    // строка в макете ровно 24 высотой.
+    minHeight: hitSlop.minTouchTarget,
+    marginVertical: -ICON_BUTTON_OVERHANG,
   },
   cityPressed: {
     opacity: 0.6,
@@ -230,6 +257,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.onDark,
     flexShrink: 1,
+  },
+  bottomBlock: {
+    // Блок прижат к низу шапки: свободное место при коротком приветствии
+    // должно оставаться НАД ним, а не висеть под капсулой.
+    marginTop: "auto",
+    padding: spacing.lg,
+    gap: spacing.xxl,
   },
   greeting: {
     ...typography.titleXxl,

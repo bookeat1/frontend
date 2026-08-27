@@ -87,6 +87,11 @@ export const en: LocaleOverride<Dictionary> = {
     dateSelectorLabel: "Date",
     guestsSelectorLabel: "Guests",
 
+    partySheetTitle: "Date and guests",
+    partyDateColumn: "When",
+    partyGuestsColumn: "Guests",
+    partySubmit: "Show places",
+
     recommendedTitle: "Picked for you",
 
     cuisineTitle: "Choose a cuisine",

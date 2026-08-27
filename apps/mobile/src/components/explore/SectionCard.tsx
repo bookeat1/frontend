@@ -88,17 +88,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     borderRadius: radius.homeSection,
     paddingVertical: spacing.lg,
-    gap: spacing.xxl,
+    // 12 между строкой заголовка и содержимым блока — ровно то, что рисует
+    // макет (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3447:12743 и соседние
+    // «Container»: `p-[16px] gap-[12px]`; первая карточка стоит на 56 от
+    // верха блока = 16 поля + 28 заголовка + 12). Было 24, и содержимое
+    // каждого из пяти блоков главной опускалось на 12 ниже макета.
+    gap: spacing.md,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
-    // 44pt tall for the touch target, while the title's own line box is 24 —
+    // 44pt tall for the touch target, while the title's own line box is 28 —
     // the slack on each side is cancelled with 8pt negative margins so the
-    // block still sits about where the reference puts it (title top 16 below
-    // the section edge, 24 above the card strip).
+    // title sits exactly where the design puts it: 16 below the block's edge,
+    // 12 above the content under it.
     minHeight: hitSlop.minTouchTarget,
     marginVertical: -spacing.sm,
     paddingHorizontal: spacing.lg,

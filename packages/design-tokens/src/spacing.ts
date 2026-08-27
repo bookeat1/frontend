@@ -37,15 +37,30 @@ export const radius = {
   /** Confirmation dialog sheet. */
   dialog: 24,
   /**
+   * Верхние углы НИЖНЕЙ ШТОРКИ «Дата и гости» на главной — 16 (Figma
+   * 3z0f6dgev4HMwBAHPjTjPo, node 3447:13024 — `rounded-t-[16px]`). Отдельный
+   * токен, а не `dialog` (24): диалог подтверждения и шторка подбора — разные
+   * вещи, и в макете у них разный радиус.
+   */
+  sheet: 16,
+  /**
    * Карточка брони в списке «Мои брони» (Figma dVjT37j984ErvOmzxlx29p,
    * node 3004:6807 — `rounded-[24px]`). Отдельный токен, а не `dialog`:
    * значение совпадает, но роль другая, и диалог не должен тянуть за собой
    * карточку списка, если один из двух радиусов поменяют.
    */
   bookingCard: 24,
-  /** Photo inside a horizontally scrolling Explore card (restaurant, dish,
-   * event). Measured on `design-ref/screen-explore.png`: the corner curve of
-   * the event photo runs 15px at 1:1 frame scale. */
+  /**
+   * 16 — промежуточный радиус.
+   *
+   * Фотографии карточек главной сюда БОЛЬШЕ НЕ ходят: в макете
+   * (3z0f6dgev4HMwBAHPjTjPo, узлы 3447:12749, 3447:12869 и соседние) у них
+   * `rounded-[20px]`, то есть `card`. Прежние 16 были сняты с отрендеренного
+   * экрана `design-ref/screen-explore.png` на глаз, а не с узла.
+   *
+   * Остаётся как основа для мелких скруглений (квадрат чекбокса в фильтрах —
+   * `media / 3`).
+   */
   media: 16,
   /**
    * Белый блок содержимого на сером листе экрана «Статьи»
@@ -134,12 +149,21 @@ export const exploreLayout = {
    * the white sheet, which overlaps them with its rounded top corners. */
   heroHeight: 265,
   sheetOverlap: 20,
-  /** Horizontally scrolling card. At 256 only one card and a sliver of the
-   * next fitted on a 390-wide phone, and the rail read as a single venue with
-   * something cut off behind it. 200 + 8 gap shows two whole cards and the
-   * third clearly peeking — the point of a rail is that there is more in it. */
-  cardWidth: 200,
-  cardPhotoHeight: 120,
+  /**
+   * Карточка горизонтального ряда на главной — 256 в ширину, фотография 148 в
+   * высоту (Figma 3z0f6dgev4HMwBAHPjTjPo, узлы 3447:12749, 3447:12830,
+   * 3447:12913 и соседние: `w-[256px]`, `h-[148px]`, просвет между карточками
+   * 8).
+   *
+   * Было 200x120 — значение, выбранное НАМИ на глаз, чтобы в ряд помещалось
+   * две целых карточки и третья с краю. Макет рисует одну целую и заметный
+   * край второй, и по правилу владельца от 26.08.2026 («значения UI берём из
+   * Figma, не подгоняем на глаз») ряд возвращён к макету. Если две карточки в
+   * кадре всё-таки нужны — это решение владельца по бете, и менять его надо
+   * вместе с этим комментарием, а не молча.
+   */
+  cardWidth: 256,
+  cardPhotoHeight: 148,
   /**
    * Круг с фотографией кухни в ряду «Выберите кухню».
    *

@@ -29,6 +29,7 @@ export function CardStrip<T>({
   renderItem,
   accessibilityLabel,
   itemWidth = exploreLayout.cardWidth,
+  itemGap = spacing.sm,
 }: {
   data: readonly T[];
   keyExtractor: (item: T) => string;
@@ -37,8 +38,11 @@ export function CardStrip<T>({
   /** Fixed width of one item, so `getItemLayout` stays exact. Defaults to the
    * standard Explore card; the circular cuisine rail passes its own width. */
   itemWidth?: number;
+  /** Просвет между элементами. По умолчанию 8 — столько между карточками в
+   * макете; ряд кухонь передаёт свои 12 (node 3447:12763 — `gap-[12px]`). */
+  itemGap?: number;
 }) {
-  const separator = useCallback(() => <View style={styles.separator} />, []);
+  const separator = useCallback(() => <View style={{ width: itemGap }} />, [itemGap]);
   // Ряд длиннее экрана и ещё не домотан до конца — только тогда подсказка
   // что-то обещает.
   const [contentWidth, setContentWidth] = useState(0);
@@ -63,8 +67,8 @@ export function CardStrip<T>({
       // Constant width cards: telling the list the geometry up front avoids a
       // measurement pass per card on a slow device.
       getItemLayout={(_, index) => ({
-        length: itemWidth + spacing.sm,
-        offset: (itemWidth + spacing.sm) * index,
+        length: itemWidth + itemGap,
+        offset: (itemWidth + itemGap) * index,
         index,
       })}
       onContentSizeChange={(width) => setContentWidth(width)}
@@ -101,8 +105,5 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.lg,
-  },
-  separator: {
-    width: spacing.sm,
   },
 });

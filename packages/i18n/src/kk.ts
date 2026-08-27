@@ -91,6 +91,11 @@ export const kk: LocaleOverride<Dictionary> = {
     dateSelectorLabel: "Күні",
     guestsSelectorLabel: "Қонақтар",
 
+    partySheetTitle: "Күні және қонақтар",
+    partyDateColumn: "Қашан",
+    partyGuestsColumn: "Қонақтар",
+    partySubmit: "Мекемелерді көрсету",
+
     recommendedTitle: "Сізге таңдадық",
 
     cuisineTitle: "Асханы таңдаңыз",
