@@ -1,5 +1,5 @@
 import type { FavoriteEvent, FavoriteItem, FavoritePromo, RestaurantSummary } from "@bookeat/api";
-import { colors, spacing, typography } from "@bookeat/design-tokens";
+import { colors, listCard, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
@@ -224,6 +224,7 @@ function RestaurantRow({ restaurant }: { restaurant: RestaurantSummary }) {
             itemName={restaurant.name}
             isFavorite={favorite.isFavorite}
             onToggle={favorite.toggle}
+            placement="listCard"
           />
         }
       />
@@ -249,7 +250,6 @@ function EventRow({ event }: { event: FavoriteEvent }) {
         title={event.title}
         meta={meta}
         coverImageUrl={event.coverImageUrl}
-        tags={event.tags}
         favorite={{ isFavorite: favorite.isFavorite, onToggle: favorite.toggle }}
         onPress={() => router.push(`/event/${event.id}`)}
         accessibilityLabel={t.afisha.card(event.title, meta, event.restaurantName)}
@@ -292,7 +292,9 @@ function ToggleFailed() {
   );
 }
 
-/** Ритм между карточками — 40 по макету. */
+/** Просвет между карточками — 16 (Figma 3z0f6dgev4HMwBAHPjTjPo, node
+ * 3452:13343: `gap-[16px]`). Было 40 — под старую карточку с текстом ПОД
+ * снимком, где меньший просвет слипался бы с подписью соседней. */
 function Separator() {
   return <View style={styles.separator} />;
 }
@@ -323,18 +325,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   list: {
-    // Карточки сами отступают от краёв (фото 8, текст 16), поэтому у списка
-    // горизонтальных отступов нет — иначе они сложились бы.
+    // Боковой отступ ленты — 16, и он принадлежит ЛЕНТЕ, а не карточке
+    // (node 3452:13343). У старой карточки снимок отступал от края на 8, а
+    // текст под ним на 16, поэтому отступа у списка не было; теперь подпись
+    // лежит на снимке, и у карточки одна левая граница.
+    paddingHorizontal: listCard.listPadding,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxxl,
   },
   separator: {
-    height: spacing.huge,
+    height: listCard.gap,
   },
   toggleFailed: {
     ...typography.caption,
     color: colors.brand.primary,
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
   },
 });

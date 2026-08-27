@@ -1,4 +1,4 @@
-import { colors, spacing } from "@bookeat/design-tokens";
+import { colors, listCard, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
@@ -102,12 +102,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   listContent: {
-    // БЕЗ бокового отступа намеренно: `PromotionListCard` держит его сама и
-    // по-разному для фотографии (8) и для подписи (16). Здесь стоял общий
-    // `padding: 16`, он складывался с внутренними — ровно та же ошибка, что
-    // чинили на экране поиска и потом в «Афише».
+    // Боковой отступ и просвет — по 16, как на странице поиска (node
+    // 3452:13343). Раньше отступа тут не было вовсе: карточка держала его
+    // сама и по-разному для фотографии (8) и для подписи (16). В новой
+    // карточке подпись лежит на снимке, и граница у неё одна.
+    paddingHorizontal: listCard.listPadding,
     paddingTop: spacing.lg,
-    gap: spacing.xl,
+    gap: listCard.gap,
     paddingBottom: spacing.xxxl,
   },
 });

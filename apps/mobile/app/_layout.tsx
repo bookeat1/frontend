@@ -36,16 +36,17 @@ export default function RootLayout() {
     NotoSans_600SemiBold,
     NotoSans_700Bold,
     Inter_600SemiBold,
-    // Названия событий в «Афише» и на карточке афиши — единственное место, где
-    // макет ставит засечный курсив (узлы 3452:13369, 3452:13244).
+    // Единственная засечная гарнитура макетов: названия событий в «Афише» и
+    // на карточке афиши (узлы 3452:13369, 3452:13244) плюс имя заведения на
+    // карточке списка и в шапке карточки заведения — и больше ничего.
     PlayfairDisplay_700Bold_Italic,
   });
 
   // Keep the native splash screen up (managed by expo-router) until the real
   // typeface is ready — the design specifies Noto Sans / Inter throughout, plus
-  // Playfair Display for event titles, so we never want to flash the system
-  // font first. A new face goes INTO this same `useFonts` call, never into a
-  // second one: the splash is held on this one flag.
+  // Playfair Display for event and venue titles, so we never want to flash the
+  // system font first. A new face goes INTO this same `useFonts` call, never
+  // into a second one: the splash is held on this one flag.
   if (!fontsLoaded && !fontError) {
     return null;
   }

@@ -13,8 +13,14 @@ import { exploreLayout, listCard } from "../spacing";
  * расходится тихо.
  */
 describe("размеры, сверенные с макетом", () => {
-  it("обложка карточки вертикального списка — 206 (узлы 3192:6275, 3192:6279)", () => {
-    expect(listCard.coverHeight).toBe(206);
+  it("карточка вертикального списка — 198 высотой, поля 18 (узел 3452:13345)", () => {
+    expect(listCard.coverHeight).toBe(198);
+    expect(listCard.contentPadding).toBe(18);
+  });
+
+  it("лента карточек — отступ и просвет по 16 (узел 3452:13343)", () => {
+    expect(listCard.listPadding).toBe(16);
+    expect(listCard.gap).toBe(16);
   });
 
   it("круг кухни и его ячейка — 96 (узел 3106:12348)", () => {

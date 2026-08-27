@@ -1,197 +1,77 @@
 import type { RestaurantSummary } from "@bookeat/api";
-import { colors, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { cuisineLine, splitCuisines } from "../lib/cuisine-display";
 import { openStateLabel } from "../lib/schedule";
-import { PhotoView } from "./PhotoView";
+import { ListMediaCard } from "./ListMediaCard";
 
 interface RestaurantCardProps {
   restaurant: RestaurantSummary;
   onPress: (id: string) => void;
   /**
-   * Абсолютно позиционированный элемент ПОВЕРХ фотографии — сегодня это
-   * сердечко на экране «Избранное» (макет 602:3630).
+   * Абсолютно позиционированный элемент ПОВЕРХ снимка — сегодня это сердечко
+   * избранного (`FavoriteRestaurantCard`).
    *
-   * Слот, а не встроенное сердечко: в каталоге и поиске сердечка на карточке
-   * нет, и включать его флагом означало бы тянуть запрос избранного на экраны,
-   * которым он не нужен. Вторая карточка заведения ради одной иконки — дефект.
+   * Слот, а не встроенное сердечко: в каталоге сердечка на карточке нет, и
+   * включать его флагом означало бы тянуть запрос избранного на экраны,
+   * которым он не нужен.
    */
   photoOverlay?: React.ReactNode;
 }
 
 /**
- * Высота снимка — общая для всех вертикальных списков (`listCard.coverHeight`,
- * 206 из макета гастрогида). Раньше здесь стояло собственное 148.
- */
-const IMAGE_HEIGHT = listCard.coverHeight;
-
-/**
- * Search-result card — matches Figma nodes 347:5716–347:5730. The design has
- * no rating/star and no status badge overlaid on the photo: open/closed is a
- * plain text line under the name, and cuisine + price render as chips below
- * the description.
+ * Карточка заведения в вертикальном списке (поиск, избранное). Вся геометрия
+ * живёт в общей `ListMediaCard` — здесь остаётся только то, что делает
+ * карточку карточкой ЗАВЕДЕНИЯ: какие поля идут в название и в подпись.
+ *
+ * Макет 3z0f6dgev4HMwBAHPjTjPo, node 3452:13344: имя места лежит на снимке,
+ * под ним одна строка «Европейская · ₸₸₸ · 500 м».
+ *
+ * Расстояния («500 м») в подписи НЕТ и не будет, пока нет данных: ни
+ * геопозиции гостя, ни расстояния в API. Прошлая версия этой строки считала
+ * его из хеша id заведения — такое из приложения уже убирали. Чек — символьной
+ * СТУПЕНЬЮ «₸/₸₸/₸₸₸», как в макете (правка владельца 2026-08-24, откат
+ * числового диапазона от 2026-08-20): ступень приходит с сервера в
+ * price_category и есть у КАЖДОГО заведения, поэтому цена в подписи всегда, а
+ * не только у тех, кому маркетолог успел проставить средний чек в тенге. Тем
+ * же алфавитом подписаны чипы фильтра цены в поиске и подпись в шапке
+ * карточки заведения.
+ *
+ * Описание в две строки и ряд бордовых чипов (кухни, чек, «Открыто») с
+ * карточки ушли вместе со старой вёрсткой: в новом макете под снимком нет
+ * места — оно всё внутри снимка. Статус открытости остаётся в
+ * accessibilityLabel и на самой карточке заведения.
  */
 export function RestaurantCard({ restaurant, onPress, photoOverlay }: RestaurantCardProps) {
-  // У заведения может быть НЕСКОЛЬКО кухонь (набор из справочника, порядок
-  // значим — первая главная). В карточку помещаются две, остальные сворачиваются
-  // в «+N»: см. splitCuisines, там же почему именно две.
-  const { visible: visibleCuisines, hiddenCount, hiddenNames } = splitCuisines(
-    restaurant.cuisines,
-  );
-  // Скринридер получает набор ЦЕЛИКОМ, включая свёрнутые под «+N».
-  const cuisineLabel = cuisineLine(restaurant.cuisines);
-  // Раньше рядом со статусом стояло расстояние («Открыто · 3.4 км»),
-  // посчитанное из хеша id заведения. Ни геопозиции гостя, ни расстояния в API
-  // нет — строка теперь говорит только то, что мы действительно знаем.
-  //
-  // «Открыто»/«Закрыто» — серверный `schedule.open_now` (в таймзоне
-  // заведения), третье состояние — «часы работы не указаны». Клиент здесь
-  // ничего не вычисляет.
+  // В подписи — ГЛАВНАЯ кухня, одна: в макете там ровно одно название
+  // («Европейская · ₸₸₸ · 500 м»), а строка однострочная. Весь набор,
+  // включая непоказанные, уходит в метку для скринридера — так же, как это
+  // делал прежний ряд чипов с «+N».
+  const primaryCuisine = splitCuisines(restaurant.cuisines, 1).visible[0]?.name ?? "";
   const statusLabel = openStateLabel(restaurant.schedule);
+  const price = restaurant.priceLevel;
+  // Подпись из того, что реально есть: пустые куски не оставляют висящих
+  // разделителей «· ·».
+  const subtitle = [primaryCuisine, price].filter(Boolean).join(" · ");
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      // Скринридер слышит ровно то, что видно глазами.
-      accessibilityLabel={[restaurant.name, restaurant.description, cuisineLabel, statusLabel]
+    <ListMediaCard
+      title={restaurant.name}
+      titleLines={1}
+      subtitle={subtitle}
+      coverUri={restaurant.coverPhoto?.uri}
+      overlay={photoOverlay}
+      onPress={() => onPress(restaurant.id)}
+      // Скринридер слышит больше, чем видно глазами, ровно на статус
+      // открытости: он был подписью на старой карточке, и терять его при
+      // смене вёрстки было бы регрессом доступности.
+      accessibilityLabel={[
+        restaurant.name,
+        cuisineLine(restaurant.cuisines),
+        price,
+        statusLabel,
+      ]
         .filter(Boolean)
         .join(", ")}
-      onPress={() => onPress(restaurant.id)}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-    >
-      {/* Фото карточки декоративное: всё, что оно говорит, уже сказано в
-          accessibilityLabel самой карточки выше. Заведения без фото и
-          заведения с отвалившимся фото выглядят одинаково — нейтральная
-          плашка, а не дыра в списке. */}
-      <View style={styles.imageWrap}>
-        <PhotoView
-          uri={restaurant.coverPhoto?.uri}
-          style={styles.image}
-          decorative
-          placeholderIconSize={32}
-        />
-        {/* Слой ровно по границам ФОТОГРАФИИ (обёртка шире неё на 8 с каждой
-            стороны): сердечко внутри позиционируется 12/12 от угла снимка,
-            как в макете, а не 12 от края обёртки. */}
-        {photoOverlay ? (
-          <View style={styles.photoOverlayLayer} pointerEvents="box-none">
-            {photoOverlay}
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-          {restaurant.name}
-        </Text>
-        {/* Venue description, two lines max — the same plain-text field the
-            detail screen shows under «О ресторане». Hidden entirely when the
-            venue left it blank, rather than leaving a gap. */}
-        {restaurant.description ? (
-          <Text style={styles.description} numberOfLines={2} ellipsizeMode="tail">
-            {restaurant.description}
-          </Text>
-        ) : null}
-        <View style={styles.chipsRow}>
-          {/* «Открыто»/«Закрыто» — такой же чип, как кухня и чек (правка
-              владельца 2026-08-21: на поиске статус оставался подписью
-              старого вида). Один вид у всех меток карточки, и тот же, что на
-              карточке заведения. */}
-          {statusLabel ? (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{statusLabel}</Text>
-            </View>
-          ) : null}
-          {/* Кухни отдельными чипами, а не одной строкой через запятую:
-              «Европейская, Средиземноморская, Грузинская» в одном чипе
-              растягивается на всю карточку и читается как одно название.
-              Заведение без кухонь (на бою такое есть — «Agora wine and deli»)
-              просто не даёт ни одного чипа, а не пустой серый прямоугольник. */}
-          {visibleCuisines.map((cuisine) => (
-            <View key={cuisine.id} style={styles.chip}>
-              <Text style={styles.chipText} numberOfLines={1}>
-                {cuisine.name}
-              </Text>
-            </View>
-          ))}
-          {/* Остаток набора. Знак «+» с числом переводить не нужно, а имена
-              спрятанных кухонь озвучиваются в accessibilityLabel карточки. */}
-          {hiddenCount > 0 ? (
-            <View style={styles.chip} accessibilityLabel={hiddenNames}>
-              <Text style={styles.chipText}>{`+${hiddenCount}`}</Text>
-            </View>
-          ) : null}
-          {/* Ценовая категория — символьной ступенью «₸/₸₸/₸₸₸» (правка
-              владельца 2026-08-24, откат числового диапазона от 2026-08-20).
-              Ступень приходит с сервера в price_category и есть у каждого
-              заведения, поэтому чип рисуется всегда, а не только у тех, кому
-              маркетолог успел проставить средний чек в тенге. Тем же алфавитом
-              подписаны чипы фильтра цены в поиске. */}
-          <View style={styles.chip}>
-            <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
-          </View>
-        </View>
-      </View>
-    </Pressable>
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    gap: spacing.lg,
-  },
-  imageWrap: {
-    // Фотография отступает от краёв на 8, подпись под ней — на 16 (макет
-    // экрана поиска). Отступ живёт на обёртке, а не на самой карточке: иначе
-    // он сложился бы с внутренними 16 у текста и получилось бы 24.
-    paddingHorizontal: spacing.sm,
-  },
-  photoOverlayLayer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: spacing.sm,
-    right: spacing.sm,
-  },
-  pressed: {
-    opacity: 0.9,
-  },
-  image: {
-    width: "100%",
-    height: IMAGE_HEIGHT,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
-  },
-  body: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.xs,
-  },
-  name: {
-    ...typography.titleSm,
-    color: colors.text.primary,
-  },
-  description: {
-    ...typography.body,
-    color: colors.text.muted,
-  },
-  chipsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    // Просвет между метками 6 (макет 3053:8208); в шкале такого шага нет,
-    // поэтому он собран из существующих токенов, а не написан числом.
-    gap: spacing.xs + 2,
-    marginTop: spacing.xxs,
-  },
-  // Бордовая метка из макета 3053:8617: подложка фирменного цвета с
-  // прозрачностью 15%, поля 12/6, радиус-пилюля.
-  chip: {
-    backgroundColor: colors.background.chipBrand,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  chipText: {
-    ...typography.captionMedium,
-    color: colors.text.brand,
-  },
-});

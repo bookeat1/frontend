@@ -5,7 +5,7 @@ import { useRestaurantFavorite } from "../hooks/useFavorites";
 import { RestaurantCard } from "./RestaurantCard";
 
 /**
- * Карточка заведения с сердечком избранного (макет 340:2535, правка владельца
+ * Карточка заведения с сердечком избранного (макет 3452:13344, правка владельца
  * 2026-08-20 «добавлена кнопка избранная»).
  *
  * Отдельный компонент, а не флаг у `RestaurantCard`: сама карточка остаётся
@@ -35,6 +35,7 @@ export function FavoriteRestaurantCard({
           itemName={restaurant.name}
           isFavorite={favorite.isFavorite}
           onToggle={favorite.toggle}
+          placement="listCard"
         />
       }
     />

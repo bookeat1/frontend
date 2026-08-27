@@ -1,4 +1,4 @@
-import { colors, hitSlop, radius, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, radius, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
@@ -61,7 +61,11 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: hitSlop.minTouchTarget,
+    // 48 — высота поля из макета (Figma 3z0f6dgev4HMwBAHPjTjPo,
+    // node 918:12556: `h-[48px]`), она же `controlHeight.pill`. Было 44 —
+    // минимальная цель касания, а не значение макета: поле стояло на 4 ниже
+    // нарисованного и весь ряд под ним уезжал вверх.
+    height: controlHeight.pill,
     backgroundColor: colors.background.chipAlt,
     borderRadius: radius.pill,
     paddingHorizontal: 16,

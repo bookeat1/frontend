@@ -6,12 +6,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import RestaurantDetailScreen from "../restaurant/[id]/index";
 
 /**
- * СТРОКА ПОД АДРЕСОМ на экране заведения (макет 340:2535, правка владельца
- * 2026-08-25).
+ * ПОДПИСЬ ПОД ИМЕНЕМ МЕСТА в шапке экрана заведения.
  *
- * Было: «Открыто до 23:00» + чек + рейтинг. Стало: кухня + чек + рейтинг, а
- * признак открытости остаётся ровно в одном месте — в блоке расписания под
- * описанием, где рядом с ним стоят и часы («Ежедневно с 10:00 до 23:00»).
+ * История: было «Открыто до 23:00» + чек + рейтинг; 2026-08-25 стало кухня +
+ * чек + рейтинг отдельными чипами под фотографией; 2026-08-27 шапку заменил
+ * «Hero / Editorial» (макет 3z0f6dgev4HMwBAHPjTjPo, node 3446:12620) — имя,
+ * ОДНА строка «кухни · чек» и метка оценки лежат теперь НА снимке, и ряда
+ * чипов с «+N» больше нет.
+ *
+ * Признак открытости всё это время остаётся ровно в одном месте — в блоке
+ * расписания под описанием, где рядом с ним стоят и часы.
  *
  * Почему это проверяется тестом, а не глазами: «открытость исчезла с экрана
  * совсем» и «открытость переехала вниз» выглядят в диффе одинаково, а для
@@ -93,15 +97,18 @@ describe("шапка экрана заведения", () => {
     );
     renderScreen();
 
-    expect(await screen.findByText("Европейская")).toBeTruthy();
-    expect(screen.getByText("Казахская")).toBeTruthy();
-    // Цена — ступенью (правка владельца 2026-08-24); сумма в тенге не рисуется,
-    // даже когда сервер прислал диапазон.
-    expect(screen.getByText("₸₸")).toBeTruthy();
-    expect(screen.queryByText(/8\s?000/)).toBeNull();
+    // Кухни и чек — ОДНОЙ строкой через «·» (node 3446:12641), а не чипами.
+    const subtitle = await screen.findByText(/Европейская/);
+    expect(subtitle.textContent).toContain("Казахская");
+    // Цена в этой строке — СТУПЕНЬЮ (правка владельца 2026-08-24); сумма в
+    // тенге не рисуется, даже когда сервер прислал диапазон.
+    expect(subtitle.textContent).toContain("₸₸");
+    expect(subtitle.textContent).not.toMatch(/8\s?000/);
   });
 
-  it("больше двух кухонь сворачиваются в «+N», как на карточке в списке", async () => {
+  it("весь набор кухонь стоит в подписи, «+N» больше нет", async () => {
+    // В новой шапке ширины хватает на всю строку, и прятать часть набора под
+    // «+N» больше незачем: чипов, которые бы уехали за край, тут нет.
     getRestaurant.mockResolvedValue(
       venue({
         cuisines: [
@@ -114,8 +121,9 @@ describe("шапка экрана заведения", () => {
     );
     renderScreen();
 
-    expect(await screen.findByText("+2")).toBeTruthy();
-    expect(screen.queryByText("Грузинская")).toBeNull();
+    const subtitle = await screen.findByText(/Европейская/);
+    expect(subtitle.textContent).toContain("Грузинская");
+    expect(screen.queryByText("+2")).toBeNull();
   });
 
   it("заведение без кухонь и без отзывов всё равно показывает ступень цены", async () => {
@@ -134,7 +142,7 @@ describe("шапка экрана заведения", () => {
     renderScreen();
 
     expect(await screen.findByText("Agora wine and deli")).toBeTruthy();
-    expect(screen.getByText("₸₸")).toBeTruthy();
+    expect(screen.getByText(/₸₸/)).toBeTruthy();
     // Ни чипа-заглушки кухни, ни прочерка вместо цены.
     expect(screen.queryByText("+0")).toBeNull();
     expect(screen.queryByText("—")).toBeNull();
@@ -152,7 +160,8 @@ describe("шапка экрана заведения", () => {
     );
     renderScreen();
 
-    expect(await screen.findByText("Казахская")).toBeTruthy();
-    expect(screen.getByText("₸₸₸")).toBeTruthy();
+    // Подпись — одна строка «кухни · чек», поэтому ищем подстрокой.
+    const subtitle = await screen.findByText(/Казахская/);
+    expect(subtitle.textContent).toContain("₸₸₸");
   });
 });

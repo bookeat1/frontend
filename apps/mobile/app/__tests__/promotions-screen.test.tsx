@@ -156,7 +156,7 @@ describe("«Акции»: потянуть вниз, чтобы обновить
 });
 
 describe("«Акции»: верх списка", () => {
-  it("лента не добавляет своих боковых полей — их держит карточка", async () => {
+  it("боковые поля держит ЛЕНТА — 16, как на странице поиска", async () => {
     renderScreen();
 
     const card = await screen.findByRole("button", { name: /Скидка a/ });
@@ -165,24 +165,19 @@ describe("«Акции»: верх списка", () => {
     expect(listContent).toBeTruthy();
     const style = getComputedStyle(listContent as HTMLElement);
 
-    // Первая карточка начинается сразу под шапкой, через один отступ 16 —
-    // столько же, сколько в «Афише».
+    // Первая карточка начинается сразу под шапкой, через один отступ 16.
     expect(style.paddingTop).toBe(`${spacing.lg}px`);
-    // Боковых полей у ленты нет: общий `padding: 16` складывался с отступами
-    // карточки и отжимал фотографию от края экрана на 24 вместо 8.
-    expect(style.paddingLeft).toBe("0px");
-    expect(style.paddingRight).toBe("0px");
+    // Боковые 16 теперь у ленты (node 3452:13343). Раньше их не было вовсе:
+    // старая карточка держала отступ сама и по-разному для фотографии (8) и
+    // для подписи (16). В новой подпись лежит на снимке, и граница одна.
+    expect(style.paddingLeft).toBe(`${listCard.listPadding}px`);
+    expect(style.paddingRight).toBe(`${listCard.listPadding}px`);
   });
 
-  it("обложка акции той же высоты, что и во всех остальных списках", async () => {
+  it("карточка акции той же высоты, что и во всех остальных списках", async () => {
     renderScreen();
 
-    const cover = (await screen.findAllByTestId("photo-placeholder"))[0];
-    expect(getComputedStyle(cover).height).toBe(`${listCard.coverHeight}px`);
-
-    // Фотография отступает от края экрана на 8, как в «Афише» и в поиске.
-    const coverWrap = cover.parentElement?.parentElement;
-    expect(coverWrap).toBeTruthy();
-    expect(getComputedStyle(coverWrap as HTMLElement).paddingLeft).toBe(`${spacing.sm}px`);
+    const card = await screen.findByRole("button", { name: /Скидка a/ });
+    expect(getComputedStyle(card).height).toBe(`${listCard.coverHeight}px`);
   });
 });
