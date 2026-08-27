@@ -30,6 +30,15 @@ export {
   type PlatformContentFailureKind,
 } from "./platform-content";
 export {
+  MENU_TOP_PICK_LIMIT,
+  classifyMenuTopPickFailure,
+  isTopPickReorder,
+  moveTopPick,
+  topPickSlotsLeft,
+  type MenuTopPickFailure,
+  type MenuTopPickFailureKind,
+} from "./menu-top-picks";
+export {
   classifyGuideFailure,
   type GuideFailure,
   type GuideFailureKind,

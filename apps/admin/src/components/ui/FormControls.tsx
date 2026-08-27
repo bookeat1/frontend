@@ -69,12 +69,18 @@ export function CheckboxRow({
   checked,
   onChange,
   disabled,
+  ariaLabel,
   hint,
 }: {
   label: string;
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
+  /** Доступное имя, когда видимая подпись у нескольких строк одинаковая.
+   * В списке блюд подпись «В лучшие позиции» повторяется в каждой строке, и с
+   * закрытыми глазами такие флажки неразличимы; сюда кладут подпись вместе с
+   * названием блюда. Пусто — именем остаётся видимый текст. */
+  ariaLabel?: string;
   /** Пояснение под строкой. Существует прежде всего ради ВЫКЛЮЧЕННОГО флажка:
    * запертый переключатель без причины читается как поломка, а причина,
    * сказанная вслух, — как решение. */
@@ -91,6 +97,7 @@ export function CheckboxRow({
           type="checkbox"
           checked={checked}
           disabled={disabled}
+          aria-label={ariaLabel}
           onChange={(e) => onChange(e.target.checked)}
           className="h-5 w-5 shrink-0 accent-brand"
         />

@@ -102,6 +102,36 @@ export interface AdminMenuItem {
   tags: string[];
 }
 
+/**
+ * Одна строка редактора «Лучших позиций» — GET /restaurants/:id/menu-top-picks.
+ *
+ * ЭТО ДРУГАЯ РУЧКА, НЕ /admin/restaurants/:id/menu. Список меню в панели идёт
+ * через админский обработчик (internal/transport/rest/admin/response.go), и его
+ * menuItemResponse отметки НЕ отдаёт — там нет ни is_top_pick, ни
+ * top_pick_position. Поэтому отметки читаются отдельным запросом, у которого
+ * своя форма ответа (internal/transport/rest/menu/response.go).
+ *
+ * Ответ сервера содержит и другие поля (name_i18n, price_minor, tags…); здесь
+ * описано то, что панель показывает, а не всё, что приходит.
+ *
+ * `is_available: false` — блюдо в стоп-листе. Оно ОСТАЁТСЯ на полке и держит
+ * своё место (репозиторий не фильтрует по наличию специально), но гостю его не
+ * показывают: витринная выдача убирает недоступные блюда сама.
+ */
+export interface AdminMenuTopPick {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  price: string;
+  image_url: string | null;
+  is_available: boolean;
+  is_top_pick: boolean;
+  /** Место на полке, 1..8. Null не приходит на этой ручке (она выбирает строки
+   * по `top_pick_position IS NOT NULL`), но поле по контракту обнуляемое. */
+  top_pick_position: number | null;
+  category: string | null;
+}
+
 /** A menu category (admin.menuCategoryResponse). */
 export interface AdminMenuCategory {
   id: string;

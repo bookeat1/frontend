@@ -12,6 +12,7 @@ import type {
   AdminListParams,
   AdminMenuCategory,
   AdminMenuItem,
+  AdminMenuTopPick,
   AdminPromo,
   ApiPage,
   AuthUser,
@@ -1251,6 +1252,57 @@ export class AdminApiClient {
       { body: { item_ids: itemIds, available } },
     );
     return res?.updated ?? 0;
+  }
+
+  // ---- Menu: «Лучшие позиции» ----------------------------------------------
+  //
+  // Три ручки ниже смонтированы БЕЗ префикса /admin — на группе menuScoped
+  // (internal/bootstrap/app.go), то есть путь начинается с /restaurants/:id.
+  // Это не описка и не разнобой ради разнобоя: правки меню всегда жили на
+  // общей венью-группе за RequireRestaurantManager(..., "id"), а /admin/... —
+  // отдельный обработчик панели, в который эти маршруты не добавляли. Тот же
+  // гейт, тот же владелец, другой префикс. Такие вызовы в клиенте уже есть
+  // (/restaurants/:id/cuisines, /restaurants/:id/booking-policy).
+
+  /** GET /restaurants/:id/menu-top-picks — редакторский вид полки: что
+   * заведение отметило, в его порядке, ВКЛЮЧАЯ блюда в стоп-листе. Отдельно от
+   * гостевой выдачи именно поэтому: она недоступные блюда прячет, а
+   * управляющий должен видеть, что место занято. */
+  listMenuTopPicks(restaurantId: string): Promise<AdminMenuTopPick[]> {
+    return this.request<AdminMenuTopPick[]>(
+      "GET",
+      `/restaurants/${encodeURIComponent(restaurantId)}/menu-top-picks`,
+    );
+  }
+
+  /** PATCH /restaurants/:id/menu-items/:itemId/top-pick — отметить или снять
+   * одно блюдо. Отметка занимает наименьшее свободное место. Повторная отметка
+   * уже отмеченного блюда его НЕ двигает. Полная полка — 422 с кодом
+   * `menu_top_picks_limit`, см. classifyMenuTopPickFailure. */
+  async setMenuItemTopPick(
+    restaurantId: string,
+    itemId: string,
+    isTopPick: boolean,
+  ): Promise<void> {
+    await this.request<unknown>(
+      "PATCH",
+      `/restaurants/${encodeURIComponent(restaurantId)}/menu-items/${encodeURIComponent(
+        itemId,
+      )}/top-pick`,
+      { body: { is_top_pick: isTopPick } },
+    );
+  }
+
+  /** PUT /restaurants/:id/menu-highlights — весь порядок целиком, одной
+   * транзакцией. Тело описывает РЕЗУЛЬТАТ, поэтому повтор безобиден; посылать
+   * по запросу на каждый обмен местами нельзя — такая череда записей может
+   * примениться наполовину. Пустой список очищает полку. */
+  async replaceMenuTopPicks(restaurantId: string, itemIds: string[]): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/restaurants/${encodeURIComponent(restaurantId)}/menu-highlights`,
+      { body: { item_ids: itemIds } },
+    );
   }
 
   // ---- Gastroguide (superadmin editor) -------------------------------------

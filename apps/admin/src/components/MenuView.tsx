@@ -2,15 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminMenuItem } from "@bookeat/api/admin";
+import { topPickSlotsLeft, type AdminMenuItem } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { formatPrice } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
+import { CheckboxRow } from "./ui/FormControls";
 import { ImageThumb } from "./ui/ImageThumb";
+import { MenuTopPicksCard } from "./MenuTopPicksCard";
+import { menuTopPickErrorMessage } from "./menu-top-picks-copy";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
+
+const topPicksCopy = t.admin.menu.topPicks;
 
 export function MenuView() {
   const { restaurant } = useAuth();
@@ -20,18 +25,66 @@ export function MenuView() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
+  const [topPickError, setTopPickError] = useState<string | null>(null);
 
   const queryKey = ["menu", restaurantId] as const;
+  // Отдельный ключ, потому что это ДРУГАЯ ручка: админский список меню
+  // (/admin/restaurants/:id/menu) отметок не отдаёт вовсе — в его ответе нет
+  // ни is_top_pick, ни top_pick_position. Полку читаем венью-ручкой
+  // /restaurants/:id/menu-top-picks, и она же единственная показывает
+  // отмеченные блюда, которые сейчас в стоп-листе.
+  const topPicksKey = ["menu-top-picks", restaurantId] as const;
 
   const menuQuery = useQuery({
     queryKey,
     queryFn: () => apiClient.listMenu(restaurantId),
   });
 
+  const topPicksQuery = useQuery({
+    queryKey: topPicksKey,
+    queryFn: () => apiClient.listMenuTopPicks(restaurantId),
+  });
+
+  const topPicks = useMemo(() => topPicksQuery.data ?? [], [topPicksQuery.data]);
+  const markedIds = useMemo(() => new Set(topPicks.map((p) => p.id)), [topPicks]);
+  const slotsLeft = topPickSlotsLeft(topPicks.length);
+
+  function afterTopPickWrite(error?: unknown) {
+    if (error === undefined) {
+      setTopPickError(null);
+    } else {
+      // Отказ рассортирован по машинному коду конверта, а не по статусу:
+      // полная полка приходит тем же 422, что и любая другая проверка.
+      setTopPickError(menuTopPickErrorMessage(error).text);
+    }
+    // Перечитываем в обоих случаях: после успеха — чтобы увидеть выданное
+    // сервером место, после отказа — чтобы вернуть экран к тому, что на
+    // сервере на самом деле.
+    void queryClient.invalidateQueries({ queryKey: topPicksKey });
+  }
+
+  const setTopPick = useMutation({
+    mutationFn: ({ itemId, next }: { itemId: string; next: boolean }) =>
+      apiClient.setMenuItemTopPick(restaurantId, itemId, next),
+    onSuccess: () => afterTopPickWrite(),
+    onError: (error) => afterTopPickWrite(error),
+  });
+
+  const reorderTopPicks = useMutation({
+    mutationFn: (itemIds: string[]) => apiClient.replaceMenuTopPicks(restaurantId, itemIds),
+    onSuccess: () => afterTopPickWrite(),
+    onError: (error) => afterTopPickWrite(error),
+  });
+
   const toggle = useMutation({
     mutationFn: ({ itemId, next }: { itemId: string; next: boolean }) =>
       apiClient.setMenuItemAvailability(restaurantId, itemId, next),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      // Стоп-лист меняет то, что показано НА ПОЛКЕ: отмеченное блюдо остаётся
+      // на своём месте, но получает подпись «гостю сейчас не показывают».
+      void queryClient.invalidateQueries({ queryKey: topPicksKey });
+    },
   });
 
   const stopList = useMutation({
@@ -41,6 +94,7 @@ export function MenuView() {
       setNotice(t.admin.menu.stopListDone(updated));
       setSelected(new Set());
       void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: topPicksKey });
     },
     onError: () => setNotice(t.admin.menu.stopListFailed),
   });
@@ -77,6 +131,40 @@ export function MenuView() {
         </p>
       ) : null}
 
+      {/* Полка «Лучшие позиции». Показана, только когда в меню есть что
+          отмечать: карточка с приглашением отметить блюдо над пустым меню
+          советует несуществующее действие. */}
+      {(menuQuery.data?.length ?? 0) > 0 ? (
+        <>
+          {topPickError ? (
+            <p role="alert" className="rounded-card bg-rose-100 px-md py-sm text-sm text-rose-700">
+              {topPickError}
+            </p>
+          ) : null}
+          {topPicksQuery.isPending ? (
+            <LoadingState title={topPicksCopy.loading} />
+          ) : topPicksQuery.isError ? (
+            <ErrorState
+              message={topPicksCopy.loadFailed}
+              onRetry={() => void topPicksQuery.refetch()}
+            />
+          ) : (
+            <MenuTopPicksCard
+              picks={topPicks}
+              reordering={reorderTopPicks.isPending}
+              removingId={
+                setTopPick.isPending && setTopPick.variables?.next === false
+                  ? (setTopPick.variables?.itemId ?? null)
+                  : null
+              }
+              disabled={setTopPick.isPending || reorderTopPicks.isPending}
+              onReorder={(itemIds) => reorderTopPicks.mutate(itemIds)}
+              onRemove={(pick) => setTopPick.mutate({ itemId: pick.id, next: false })}
+            />
+          )}
+        </>
+      ) : null}
+
       {menuQuery.isPending ? (
         <LoadingState title={t.admin.menu.loadingTitle} />
       ) : menuQuery.isError ? (
@@ -94,7 +182,7 @@ export function MenuView() {
                 {items.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-center gap-md border-b border-hairline px-lg py-md last:border-0"
+                    className="flex flex-wrap items-center gap-md border-b border-hairline px-lg py-md last:border-0"
                   >
                     <input
                       type="checkbox"
@@ -121,6 +209,31 @@ export function MenuView() {
                     <span className="shrink-0 text-sm text-text-muted">
                       {formatPrice(item.price)}
                     </span>
+                    {/* Отметка «в лучшие позиции». Общий CheckboxRow, а не
+                        свой флажок: второй похожий контрол — это дефект.
+                        Заперт, когда все места заняты, и тогда же объясняет
+                        причину: запертый переключатель без причины читается
+                        как поломка. Сервер всё равно остаётся судьёй — он
+                        отвечает 422 menu_top_picks_limit, если полку успели
+                        занять в другой вкладке. */}
+                    <div className="w-full shrink-0 sm:w-auto">
+                      <CheckboxRow
+                        label={topPicksCopy.mark}
+                        ariaLabel={topPicksCopy.markAria(item.name)}
+                        checked={markedIds.has(item.id)}
+                        disabled={
+                          setTopPick.isPending ||
+                          reorderTopPicks.isPending ||
+                          (slotsLeft === 0 && !markedIds.has(item.id))
+                        }
+                        hint={
+                          slotsLeft === 0 && !markedIds.has(item.id)
+                            ? topPicksCopy.markFullHint
+                            : undefined
+                        }
+                        onChange={(next) => setTopPick.mutate({ itemId: item.id, next })}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => toggle.mutate({ itemId: item.id, next: !item.is_available })}
