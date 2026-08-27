@@ -1,17 +1,17 @@
+import { eventHero } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { ScrollView, Share, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { EventHero } from "../../src/components/afisha/EventHero";
 import { DetailInfoRow, detailStyles as styles } from "../../src/components/detail/DetailBlocks";
 import { VenueContactsSection } from "../../src/components/detail/VenueContactsSection";
 import { useExploreEvents, useEvent } from "../../src/components/explore/use-explore-data";
 import { ArrowLeft, CalendarBlank, Export, Heart } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
-import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
-import { TagChips } from "../../src/components/TagChips";
 import { useEventFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
 import { formatDateTime, formatDayMonth, formatTime } from "../../src/lib/format";
@@ -32,6 +32,9 @@ const t = getDictionary();
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  // Кнопки шапки лежат ПОВЕРХ фотографии, а не в отдельной белой полосе, —
+  // значит их отступ сверху считаем сами от безопасной зоны устройства.
+  const insets = useSafeAreaInsets();
   const { event, isLoading, isError, refetch } = useEvent(id);
   const eventsQuery = useExploreEvents();
 
@@ -120,47 +123,60 @@ export default function EventDetailScreen() {
 
   return (
     <View style={styles.root}>
-      {header(
-        <View style={styles.headerRightGroup}>
-          <IconButton
-            icon={Heart}
-            accessibilityLabel={
-              favorite.isFavorite
-                ? t.restaurant.favoriteRemove(event.title)
-                : t.restaurant.favoriteAdd(event.title)
-            }
-            selected={favorite.isFavorite}
-            onPress={favorite.toggle}
-          />
-          <IconButton
-            icon={Export}
-            accessibilityLabel={t.a11y.shareButton}
-            onPress={() => void share(event.title, venue)}
-          />
-        </View>,
-      )}
-
       <ScrollView style={styles.scrollFloor}
             showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Cover first, then the gallery the venue uploaded beside it. With
-            nothing but a cover the rail draws exactly the single photo this
-            screen showed before. */}
-        {/* Фотография и подпись под ней — ОДИН блок (макет 986:8940): это
-            ответ на вопрос «что за событие», и серый просвет посреди него
-            делил бы ответ надвое. */}
-        <View style={styles.summaryBlock}>
-          <PhotoRail uris={[event.coverImageUrl, ...event.images]} style={styles.coverContainer} />
-          <View style={styles.summary}>
-          <Text style={styles.title}>{event.title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          <TagChips tags={event.tags} />
-          {favorite.failed ? (
+        {/* Фотография, название, подпись и метки — ОДИН кадр (макет 986:8940,
+            узел «Hero / Editorial» 3452:13224): подпись лежит ПОВЕРХ
+            фотографии, а кнопки шапки — на ней же. */}
+        <EventHero
+          photos={[event.coverImageUrl, ...event.images]}
+          title={event.title}
+          subtitle={subtitle}
+          tags={event.tags}
+          topInset={insets.top}
+          backButton={
+            <IconButton
+              icon={ArrowLeft}
+              tone="onPhotoLight"
+              size={eventHero.controlSize}
+              accessibilityLabel={t.a11y.backButton}
+              onPress={() => router.back()}
+            />
+          }
+          actions={
+            <>
+              <IconButton
+                icon={Heart}
+                tone="onPhotoLight"
+                size={eventHero.controlSize}
+                accessibilityLabel={
+                  favorite.isFavorite
+                    ? t.restaurant.favoriteRemove(event.title)
+                    : t.restaurant.favoriteAdd(event.title)
+                }
+                selected={favorite.isFavorite}
+                onPress={favorite.toggle}
+              />
+              <IconButton
+                icon={Export}
+                tone="onPhotoLight"
+                size={eventHero.controlSize}
+                accessibilityLabel={t.a11y.shareButton}
+                onPress={() => void share(event.title, venue)}
+              />
+            </>
+          }
+        />
+        {/* Сообщение о неудавшемся сохранении — отдельным белым блоком: на
+            кадре ему места нет, а `summary` (подпись под фотографией) в этом
+            макете больше не рисуется. */}
+        {favorite.failed ? (
+          <View style={styles.section}>
             <Text style={styles.favoriteFailed} accessibilityRole="alert">
               {t.restaurant.favoriteFailed}
             </Text>
-            ) : null}
           </View>
-        </View>
+        ) : null}
 
         {/* «Об афише» — hidden entirely when the venue wrote no description,
             rather than showing an empty heading. */}
@@ -169,9 +185,11 @@ export default function EventDetailScreen() {
             если есть хотя бы одно из двух, и внутри каждая строка рисуется
             только когда она есть. */}
         {event.description || calendarLine ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t.afisha.aboutTitle}</Text>
-            {event.description ? <Text style={styles.body}>{event.description}</Text> : null}
+          <View style={[styles.section, styles.sectionSpread]}>
+            <View style={styles.sectionGroup}>
+              <Text style={styles.sectionTitle}>{t.afisha.aboutTitle}</Text>
+              {event.description ? <Text style={styles.body}>{event.description}</Text> : null}
+            </View>
             {calendarLine ? <DetailInfoRow icon={CalendarBlank} primary={calendarLine} /> : null}
           </View>
         ) : null}

@@ -121,6 +121,21 @@ export const detailStyles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
   },
+  /**
+   * Просвет 24 между СМЫСЛОВЫМИ ГРУППАМИ внутри белого блока — макет
+   * 986:8940 (узлы 986:8975 и 986:9025: у обоих контейнеров `gap-[24px]`).
+   * Внутри группы просвет остаётся 16 (`sectionGroup`).
+   *
+   * Отдельный стиль, а не правка `section`: `section` — это ещё и блоки, у
+   * которых одна группа, и там 24 не с чем чередовать.
+   */
+  sectionSpread: {
+    gap: spacing.xxl,
+  },
+  /** Группа внутри блока: заголовок + текст, значки, адрес (просвет 16). */
+  sectionGroup: {
+    gap: spacing.lg,
+  },
   sectionTitle: {
     ...typography.titleLg,
     color: colors.text.primary,
