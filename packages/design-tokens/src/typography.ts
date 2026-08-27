@@ -159,6 +159,170 @@ export const typography = {
     fontSize: 10,
     lineHeight: 14,
   },
+  /* ------------------------------------------------------------------ *
+   * ГАСТРОГИД — «Editorial v2» (Figma 3z0f6dgev4HMwBAHPjTjPo,
+   * node 3192:6246) и страница бренда (node 3424:3927).
+   *
+   * ПОЧЕМУ ОТДЕЛЬНАЯ ГРУППА, А НЕ ПЕРЕИСПОЛЬЗОВАНИЕ ОБЩИХ РОЛЕЙ. Гастрогид в
+   * новом макете набран журнально: заголовки — Playfair Display Italic,
+   * подписи — золото на фотографии, кегли 10/11/13, которых в остальном
+   * приложении нет. Подмешать это в `titleSection`/`caption` значило бы
+   * утащить журнальный вид на главную и в поиск.
+   *
+   * ПРО МЕЖДУСТРОЧНЫЙ ИНТЕРВАЛ. В макете у большинства надписей стоит
+   * `leading: normal`, то есть автоматический интервал шрифта. Значения ниже
+   * взяты не на глаз: три надписи шапки измерены по узлам
+   * (3192:6254 — 11 pt даёт 13, 3192:6255 — 36 pt Playfair даёт 48,
+   * 3192:6256 — явные 20) и «Смотреть все» (3192:6261 — 13 pt даёт 16).
+   * Отсюда два коэффициента автоинтервала: 1.2 для SF Pro (у нас Noto Sans)
+   * и 1.333 для Playfair. Остальные строки посчитаны ими же.
+   * ------------------------------------------------------------------ */
+
+  /** Надпись над слоганом шапки — «BOOKEAT GUIDE · АЛМАТЫ» (node 3192:6254):
+   * 11/13 SemiBold с разрядкой 0.88, золотом по фотографии. */
+  guideHeroEyebrow: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 0.88,
+  },
+  /** Слоган шапки гастрогида (node 3192:6255) — Playfair Display Italic 36/48.
+   * Самый крупный текст приложения после него ничего нет. */
+  guideHeroHeadline: {
+    fontFamily: fontFamilies.playfairDisplayItalic,
+    fontSize: 36,
+    lineHeight: 48,
+  },
+  /** Строка под слоганом (node 3192:6256) — 15/20 Regular, интервал в макете
+   * задан явно. */
+  guideHeroSubline: {
+    fontFamily: fontFamilies.notoSansRegular,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  /** Заголовок секции гастрогида — «Рубрики», «Выбор редакции»,
+   * «Гастропрогулки» (узлы 3192:6260, 3192:6265, 3192:6273): Playfair Display
+   * Italic 24/32. */
+  guideSectionTitle: {
+    fontFamily: fontFamilies.playfairDisplayItalic,
+    fontSize: 24,
+    lineHeight: 32,
+  },
+  /** Надпись «ЕДА»/«МЕСТА» на плитке рубрики (node 3192:6099) — 10/12
+   * SemiBold, разрядка 0.8. */
+  guideRubricEyebrow: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0.8,
+  },
+  /** Название на плитке рубрики (node 3192:6100) — 13/16 SemiBold. */
+  guideRubricTitle: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 13,
+    lineHeight: 16,
+  },
+  /** Надпись над названием на большой карточке (node 3192:6268) — 11/13
+   * SemiBold с разрядкой 0.88. Тот же кегль, что у шапки, но своя роль. */
+  guideCardEyebrow: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 0.88,
+  },
+  /** Название на большой карточке (узлы 3192:6269, 3192:6277) — 16/19 Bold. */
+  guideCardTitle: {
+    fontFamily: fontFamilies.notoSansBold,
+    fontSize: 16,
+    lineHeight: 19,
+  },
+  /** Строка под названием «Выбора редакции» (node 3192:6270) — 13/16 Regular. */
+  guideCardMeta: {
+    fontFamily: fontFamilies.notoSansRegular,
+    fontSize: 13,
+    lineHeight: 16,
+  },
+  /** Описание на карточке гастропрогулки (node 3192:6278) — 14/17 Regular. */
+  guideCardBody: {
+    fontFamily: fontFamilies.notoSansRegular,
+    fontSize: 14,
+    lineHeight: 17,
+  },
+
+  /* --- Страница бренда в гастрогиде (node 3424:3927, «Ocean Basket») --- */
+
+  /** Заголовок секции страницы бренда (узлы 3426:9632, 3427:12239,
+   * 3441:12380) — Cormorant Garamond Bold 24/32. */
+  brandSectionTitle: {
+    fontFamily: fontFamilies.cormorantGaramondBold,
+    fontSize: 24,
+    lineHeight: 32,
+  },
+  /** Крупная надпись блока брони (node 3443:12585) — Cormorant Garamond Bold
+   * 29/39. */
+  brandTitleLg: {
+    fontFamily: fontFamilies.cormorantGaramondBold,
+    fontSize: 29,
+    lineHeight: 39,
+  },
+  /** Заголовок карточки главы истории (node 3443:12477) — Cormorant Garamond
+   * Bold 18/24. */
+  brandTitleSm: {
+    fontFamily: fontFamilies.cormorantGaramondBold,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  /** Разряженная надпись-рубрика («КАРТА ПРИКЛЮЧЕНИЙ», node 3425:3939) —
+   * Montserrat Medium 14/17 с разрядкой 2.52. */
+  brandEyebrow: {
+    fontFamily: fontFamilies.montserratMedium,
+    fontSize: 14,
+    lineHeight: 17,
+    letterSpacing: 2.52,
+  },
+  /** Город над названием точки (node 3441:12292) — Montserrat Medium 13/16
+   * с разрядкой 1.04. */
+  brandVenueCity: {
+    fontFamily: fontFamilies.montserratMedium,
+    fontSize: 13,
+    lineHeight: 16,
+    letterSpacing: 1.04,
+  },
+  /** Название точки (node 3441:12293) — Montserrat SemiBold 16/19. */
+  brandVenueName: {
+    fontFamily: fontFamilies.montserratSemiBold,
+    fontSize: 16,
+    lineHeight: 19,
+  },
+  /** Подпись главы («ГЛАВА 1 · КЕЙПТАУН · ЮАР», node 3443:12476) —
+   * Montserrat Medium 12/20 с разрядкой 1.2. */
+  brandChapterLabel: {
+    fontFamily: fontFamilies.montserratMedium,
+    fontSize: 12,
+    lineHeight: 20,
+  },
+  /** Обычный текст страницы бренда (узлы 3427:12240, 3443:12580) —
+   * Montserrat Regular 14/17. */
+  brandBody: {
+    fontFamily: fontFamilies.montserratRegular,
+    fontSize: 14,
+    lineHeight: 17,
+  },
+  /** Мелкая подпись страницы бренда (узлы 3441:12381, 3441:12382) —
+   * Montserrat Regular 12/22. Интервал задан в макете явно. */
+  brandCaption: {
+    fontFamily: fontFamilies.montserratRegular,
+    fontSize: 12,
+    lineHeight: 22,
+  },
+  /** Подпись на кнопке страницы бренда (node 3443:12587) — Montserrat
+   * SemiBold 14/17. */
+  brandButtonLabel: {
+    fontFamily: fontFamilies.montserratSemiBold,
+    fontSize: 14,
+    lineHeight: 17,
+  },
+
   /** Promo banner caption over the photo — the one place the design uses Inter. */
   bannerCaption: {
     fontFamily: fontFamilies.interSemiBold,

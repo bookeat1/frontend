@@ -1,42 +1,74 @@
 import { RepositoryError } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { brandPageLayout, colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BrandCta } from "../../src/components/articles/BrandCta";
+import { BrandHero } from "../../src/components/articles/BrandHero";
 import { GuideVenueBlock } from "../../src/components/articles/GuideVenueBlock";
-import { detailStyles } from "../../src/components/detail/DetailBlocks";
 import { useGuideCollection } from "../../src/components/explore/use-explore-data";
-import { ArrowLeft, Export } from "../../src/components/icons";
+import { ArrowLeft } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
-import { PhotoView } from "../../src/components/PhotoView";
-import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { usePullToRefresh } from "../../src/hooks/usePullToRefresh";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 
 const t = getDictionary();
 
 /**
- * «Статья» — one editorial collection's detail (GET /gastroguide/collections/:slug).
+ * Страница одной подборки гастрогида — `GET /gastroguide/collections/:slug`.
+ * Макет 3z0f6dgev4HMwBAHPjTjPo, node 3424:3927 («Ocean Basket / Mobile / 390»).
  *
- * Раскладка макета 1001:11921: серый лист экрана, на нём белые блоки с
- * просветом 8 — тот же приём, что на карточке афиши и акции, поэтому фон,
- * шапка и белый «пол» берутся из общего `detailStyles`, а не пишутся заново.
+ * ЭКРАН ПЕРЕСОБРАН ПО НОВОМУ МАКЕТУ (2026-08-27). Было: серый лист экрана и
+ * белые блоки с просветом 8, как у афиши и акции. Стало: тёплый кремовый лист
+ * (#FCF7EC), тёмно-синяя шапка с круглыми кнопками поверх неё, секция «Все
+ * точки» со счётчиком заведений и замыкающий синий блок с кнопкой.
+ * Типографика тоже своя — Cormorant Garamond у заголовков и Montserrat у
+ * текста, как нарисовано.
  *
- * Блок 1 — обложка (240, поля по 8, радиус 24), название, подпись «От BookEat»
- * и чип «Подборка»; у блока скруглён только НИЗ, потому что сверху он
- * продолжает белую шапку. Дальше — блоки заведений (`GuideVenueBlock`).
- * Tapping a venue block opens that restaurant (`/restaurant/:restaurantId`) —
- * the same nav the catalog uses.
+ * ЧЕГО ИЗ МАКЕТА ЗДЕСЬ НЕТ И ПОЧЕМУ — ЧЕСТНЫЙ СПИСОК. Макет нарисован для
+ * ОДНОГО бренда (Ocean Basket), а экран открывается для ЛЮБОЙ подборки, и
+ * ответ ручки несёт ровно `{slug, title, subtitle, description,
+ * coverImageUrl, venueCount, categorySlugs, venues[]}`. Поэтому не сделано:
  *
- * The header carries «Поделиться» — the design draws a heart beside it, but
- * there is no favourite-an-article endpoint, and an inert heart is a lie about
- * what the app remembers (see the fake-favorite-heart bug in team-memory). It
- * lands the day the backend can store it.
+ *   • фирменная графика шапки — рыбы, якорь, компас, надпись «Seafood
+ *     Expedition» шрифтом Lobster (узлы 3425:3927, 3425:3940, 3425:3941):
+ *     рисунок конкретного бренда, поля под него в API нет;
+ *   • блок «Найдите свой улов» с картой точек (node 3426:9633): ни картинки
+ *     карты, ни координат заведений подборка не отдаёт;
+ *   • плашка «WELCOME DRINK · Подробнее» (node 3425:3942) и значки
+ *     «Welcome drink» на карточках точек (node 3441:12296): акций у подборки
+ *     в ответе нет — они живут у заведения и у промо, не здесь;
+ *   • секция «Фирменный улов» с блюдами и ценами (node 3441:12383): меню
+ *     принадлежит заведению, а не подборке;
+ *   • «ИСТОРИЯ БРЕНДА» — четыре раскрывающиеся главы (узлы 3443:12468 и
+ *     соседние): у подборки ровно одно текстовое поле `description`, глав в
+ *     нём нет и разрезать его на главы на клиенте нельзя;
+ *   • блок Instagram «@oceanbasketkz» (node 3443:12573): у ПОДБОРКИ нет
+ *     инстаграма, он есть у заведения — и стоит на карточке заведения ниже;
+ *   • номера точек «01», «02» на карточках (node 3441:12295): подборка — это
+ *     НАБОР заведений, а не маршрут; нумерация обещала бы порядок обхода,
+ *     которого в данных нет (порядок обхода есть у гастропрогулки,
+ *     `/routes/:slug`).
  *
- * States: an unknown slug is a 404 → an honest "not found" (no retry, there is
- * nothing to re-fetch that would exist); any other failure → a retryable error.
+ * ГДЕ КОД НАМЕРЕННО РАСХОДИТСЯ С МАКЕТОМ.
+ *
+ *   • «Все точки» в макете — ГОРИЗОНТАЛЬНАЯ лента карточек 292 pt (node
+ *     3427:12241), на карточке только город и название. У живой подборки в
+ *     блоке заведения лежит ещё редакционная заметка, галерея события или
+ *     акции и строка «адрес · @инстаграм» — в 292 pt им места нет, и лента
+ *     означала бы выбросить редакционный текст, ради которого подборку и
+ *     собирают. Поэтому карточки идут вертикальным списком во всю ширину, но
+ *     сами карточки — из макета: белые, скругление 16, кадр 215, город
+ *     золотом заглавными над названием;
+ *   • сердечка в шапке (node 3427:12227) нет: избранного для подборок на
+ *     бэкенде не существует;
+ *   • кнопка замыкающего блока в макете зовёт «Выберите точку на карте» —
+ *     карты нет, поэтому она ведёт в каталог заведений.
+ *
+ * Состояния прежние: неизвестный слаг — это 404 и честное «не найдено» (нечему
+ * появиться при повторе), любой другой отказ — ошибка с повтором.
  */
 export default function ArticleDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -64,19 +96,25 @@ export default function ArticleDetailScreen() {
     }
   };
 
-  const header = (right?: React.ReactNode) => (
-    <SafeAreaView edges={["top"]} style={detailStyles.headerSafeArea}>
-      <View style={detailStyles.header}>
-        <IconButton icon={ArrowLeft} accessibilityLabel={t.a11y.backButton} onPress={() => router.back()} />
-        {right}
+  // Шапка веток «загружаем / не найдено / ошибка»: фирменной синей шапки там
+  // нет — рисовать её не на чем (ни названия, ни обложки ещё нет), а пустой
+  // синий кадр читался бы как поломка. Остаётся стрелка на кремовом листе.
+  const plainHeader = () => (
+    <SafeAreaView edges={["top"]}>
+      <View style={styles.plainHeader}>
+        <IconButton
+          icon={ArrowLeft}
+          accessibilityLabel={t.a11y.backButton}
+          onPress={() => router.back()}
+        />
       </View>
     </SafeAreaView>
   );
 
   if (query.isLoading) {
     return (
-      <View style={detailStyles.root}>
-        {header()}
+      <View style={styles.root}>
+        {plainHeader()}
         <LoadingState title={t.articles.loading} />
       </View>
     );
@@ -84,8 +122,8 @@ export default function ArticleDetailScreen() {
 
   if (notFound) {
     return (
-      <View style={detailStyles.root}>
-        {header()}
+      <View style={styles.root}>
+        {plainHeader()}
         <EmptyState title={t.articles.notFoundTitle} description={t.articles.notFoundDescription} />
       </View>
     );
@@ -93,8 +131,8 @@ export default function ArticleDetailScreen() {
 
   if (query.isError || !collection) {
     return (
-      <View style={detailStyles.root}>
-        {header()}
+      <View style={styles.root}>
+        {plainHeader()}
         <ErrorState
           title={t.articles.errorTitle}
           description={t.articles.errorDescription}
@@ -105,149 +143,114 @@ export default function ArticleDetailScreen() {
   }
 
   return (
-    <View style={detailStyles.root}>
-      {header(
-        <IconButton
-          icon={Export}
-          accessibilityLabel={t.a11y.shareButton}
-          onPress={() => void share(collection.title)}
-        />,
-      )}
-
+    <View style={styles.root}>
       <ScrollView
-        style={detailStyles.scrollFloor}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={detailStyles.scrollContent}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) }}
         // Ветки «загружаем», «не найдено» и «ошибка» жестом не обновляются:
         // у ошибки своя кнопка «Повторить», а 404 по слагу перезапросом не
         // лечится — там нечего появиться.
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={styles.summaryBlock}>
-          <View style={styles.coverContainer}>
-            <PhotoView
-              uri={collection.coverImageUrl}
-              style={styles.cover}
-              transition={200}
-              priority="high"
-              placeholderIconSize={40}
-              decorative
-            />
-          </View>
+        <BrandHero
+          title={collection.title}
+          subtitle={collection.subtitle}
+          coverImageUrl={collection.coverImageUrl}
+          onBack={() => router.back()}
+          onShare={() => void share(collection.title)}
+        />
 
-          <View style={styles.summary}>
-            {/* Название и подпись стоят вплотную (просвет 2): это одна
-                надпись из двух строк, а не два независимых пункта. */}
-            <View style={styles.titleGroup}>
-              <Text style={styles.title}>{collection.title}</Text>
-              <Text style={styles.author}>{t.explore.articleAuthorDefault}</Text>
+        <View style={styles.content}>
+          {/* Редакционный текст подборки. В макете на его месте четыре
+              раскрывающиеся главы истории бренда; глав в данных нет, а
+              выбросить единственное текстовое поле подборки нельзя — это и
+              есть материал, ради которого её открыли. */}
+          {collection.description ? (
+            <Text style={styles.description}>{collection.description}</Text>
+          ) : null}
+
+          {collection.venues.length > 0 ? (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{t.articles.allPointsTitle}</Text>
+                {/* Счётчик справа — из макета (node 3427:12240). Считается по
+                    ФАКТИЧЕСКИ пришедшим блокам, а не по `venueCount`: у
+                    списочной формы это число могло устареть, а гость видит
+                    именно карточки. */}
+                <Text style={styles.sectionCount}>
+                  {t.articles.venueCount(collection.venues.length)}
+                </Text>
+              </View>
+              <View style={styles.venues}>
+                {collection.venues.map((venue) => (
+                  <GuideVenueBlock
+                    key={venue.restaurantId}
+                    venue={venue}
+                    onPress={openRestaurant}
+                  />
+                ))}
+              </View>
             </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipLabel}>{t.articles.collectionChip}</Text>
-            </View>
-            {/* Подзаголовка и описания в макете нет: там весь текст статьи
-                разложен по блокам заведений. У живых подборок он лежит именно
-                в этих полях, и прятать его значило бы потерять единственную
-                копию редакционного текста. */}
-            {collection.subtitle ? <Text style={styles.subtitle}>{collection.subtitle}</Text> : null}
-            {collection.description ? (
-              <Text style={styles.description}>{collection.description}</Text>
-            ) : null}
-          </View>
+          ) : null}
+
+          {/* Замыкающий блок стоит ВСЕГДА, а не только у подборки без
+              заведений (раньше здесь была одинокая кнопка «Посмотреть
+              заведения»): в макете материал заканчивается призывом, и
+              статья про места вне каталога иначе обрывается в никуда. */}
+          <BrandCta
+            eyebrow={t.articles.ctaEyebrow}
+            title={t.articles.ctaTitle}
+            actionLabel={t.articles.browseVenues}
+            onPress={() => router.push("/search")}
+          />
         </View>
-
-        {collection.venues.length > 0 ? (
-          collection.venues.map((venue) => (
-            <GuideVenueBlock key={venue.restaurantId} venue={venue} onPress={openRestaurant} />
-          ))
-        ) : (
-          // Статья про места вне каталога заканчивается текстом, и без этой
-          // кнопки — в никуда. Подставлять сюда «похожие заведения» я не стал:
-          // связь была бы выдуманной, а человек такое чувствует.
-          <View style={styles.browse}>
-            <PrimaryButton
-              label={t.articles.browseVenues}
-              variant="secondary"
-              size="lg"
-              onPress={() => router.push("/search")}
-            />
-          </View>
-        )}
-
-        {/* Белый «пол» под последним блоком — отдельный элемент, а не нижний
-            отступ контейнера: отступ красился бы серым, и под последней
-            карточкой снова тянулась бы серая полоса. В макете последний блок
-            уходит под индикатор «домой» (34), поэтому высота = нижняя
-            безопасная зона; на устройствах без неё остаётся 16, чтобы блок не
-            упирался в самый край экрана. */}
-        <View style={[styles.bottomFloor, { height: Math.max(insets.bottom, spacing.lg) }]} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  browse: {
-    paddingHorizontal: spacing.lg,
+  root: {
+    flex: 1,
+    // Тёплый кремовый лист страницы (#FCF7EC, node 3424:3927) вместо прежнего
+    // серого: белых блоков-разделителей на этом экране больше нет.
+    backgroundColor: colors.brand2.sheet,
   },
-  // Обложка, название, подпись и чип — ОДИН белый блок. Скруглён только низ:
-  // сверху он продолжает белую шапку экрана без просвета.
-  summaryBlock: {
-    backgroundColor: colors.background.surface,
-    borderBottomLeftRadius: radius.contentBlock,
-    borderBottomRightRadius: radius.contentBlock,
-    paddingBottom: spacing.lg,
-    gap: spacing.lg,
-  },
-  coverContainer: {
+  plainHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 56,
     paddingHorizontal: spacing.sm,
   },
-  cover: {
-    width: "100%",
-    height: 240,
-    borderRadius: radius.photoHero,
-    backgroundColor: colors.background.chip,
-  },
-  summary: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.lg,
-  },
-  titleGroup: {
-    gap: spacing.xxs,
-  },
-  title: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-  },
-  author: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  // Метка той же бордовой гаммы, что чипы в списках и на карточке заведения
-  // (правка владельца 2026-08-21: в статьях метка оставалась серой).
-  chip: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.background.chipBrand,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  chipLabel: {
-    ...typography.labelMedium,
-    color: colors.text.brand,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.text.muted,
+  content: {
+    paddingHorizontal: brandPageLayout.contentPaddingHorizontal,
+    paddingVertical: brandPageLayout.contentPaddingVertical,
+    gap: brandPageLayout.sectionGap,
   },
   description: {
-    ...typography.body,
-    color: colors.text.primary,
+    ...typography.brandBody,
+    color: colors.brand2.navy,
   },
-  bottomFloor: {
-    // Съедает просвет 8, который контейнер ставит между блоками: последний
-    // блок должен переходить в белый «пол» без серой полоски.
-    marginTop: -spacing.sm,
-    backgroundColor: colors.background.surface,
+  section: {
+    gap: brandPageLayout.venueCardGap,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xl,
+  },
+  sectionTitle: {
+    ...typography.brandSectionTitle,
+    color: colors.brand2.navy,
+    flexShrink: 1,
+  },
+  sectionCount: {
+    ...typography.brandBody,
+    color: colors.brand2.navy,
+    textAlign: "right",
+  },
+  venues: {
+    gap: brandPageLayout.venueCardGap,
   },
 });

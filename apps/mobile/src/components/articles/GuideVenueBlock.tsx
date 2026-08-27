@@ -1,5 +1,5 @@
 import type { GuideCollectionVenue } from "@bookeat/api";
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { brandPageLayout, colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -8,11 +8,14 @@ import { PhotoRail } from "../PhotoRail";
 
 const t = getDictionary();
 
-/** Ширина и высота одной фотографии в ленте блока — 256x148 из макета
- * (node 1001:11921, `Menu Item Image`). Кадр УЖЕ карточки (343 при экране 375),
- * поэтому вторая фотография видна краем и лента читается как лента. */
+/**
+ * Кадр в ленте блока. Ширина 256 осталась прежней (кадр УЖЕ карточки, поэтому
+ * вторая фотография видна краем и лента читается как лента), а высота
+ * поднялась со 148 до 215 — столько в новом макете страницы подборки
+ * (3z0f6dgev4HMwBAHPjTjPo, node 3441:12290, «Restaurant photo»).
+ */
 export const GUIDE_PHOTO_WIDTH = 256;
-export const GUIDE_PHOTO_HEIGHT = 148;
+export const GUIDE_PHOTO_HEIGHT = brandPageLayout.venueCardPhotoHeight;
 
 /** Instagram as the design writes it — «@handle», not a URL. The venue field
  * holds whatever the cabinet typed: a full link, a bare handle, sometimes with
@@ -88,28 +91,39 @@ export function GuideVenueBlock({
       onPress={() => onPress(venue.restaurantId)}
       style={({ pressed }) => [styles.block, pressed && styles.pressed]}
     >
-      <View style={styles.titleRow}>
-        <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">
-          {venue.name}
-        </Text>
-        <CaretRight size={24} color={colors.text.muted} weight="regular" />
-      </View>
+      {/* ФОТОГРАФИЯ ТЕПЕРЬ СВЕРХУ И БЕЗ БОКОВОГО ОТСТУПА. В макете страницы
+          подборки (node 3441:12290) кадр занимает всю ширину карточки и
+          упирается в её скруглённые углы — прежние 8 от края и порядок
+          «название, потом кадр» ушли вместе со старым макетом.
 
-      {/* Кадр фиксированный (256), а не по ширине карточки: в макете лента
-          уезжает за правый край блока, и обрезает её `overflow: hidden` самого
-          блока. Одну фотографию `PhotoRail` рисует во всю ширину — так же, как
-          рисовал обычную обложку до появления галерей.
-
-          `inset` — это боковой отступ ленты внутри блока, и он МЕНЬШЕ отступа
-          текста: фотография стоит на 8 от края блока, подписи на 16. */}
+          Кадр фиксированный (256), а не по ширине карточки: лента уезжает за
+          правый край блока, и обрезает её `overflow: hidden` самого блока.
+          Одну фотографию `PhotoRail` рисует во всю ширину. */}
       <PhotoRail
         uris={photos}
         height={GUIDE_PHOTO_HEIGHT}
-        inset={spacing.sm}
+        inset={0}
         frameWidth={GUIDE_PHOTO_WIDTH}
-        borderRadius={radius.card}
+        borderRadius={0}
         showDots={false}
       />
+
+      <View style={styles.titleRow}>
+        <View style={styles.titleGroup}>
+          {/* Город заглавными с разрядкой — надпись над названием из макета
+              (node 3441:12292). Пустой город означает отсутствие строки, а не
+              выдуманную: подставлять сюда «Алматы» нельзя. */}
+          {venue.city.trim() ? (
+            <Text style={styles.city} numberOfLines={1} ellipsizeMode="tail">
+              {venue.city.trim().toUpperCase()}
+            </Text>
+          ) : null}
+          <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">
+            {venue.name}
+          </Text>
+        </View>
+        <CaretRight size={24} color={colors.brand2.muted} weight="regular" />
+      </View>
 
       <View style={styles.textGroup}>
         {/* Заголовок и текст события/акции — над адресом заведения, как в макете.
@@ -143,45 +157,54 @@ export function GuideVenueBlock({
 const styles = StyleSheet.create({
   block: {
     backgroundColor: colors.background.surface,
-    borderRadius: radius.contentBlock,
+    // 16 из макета страницы подборки (node 3441:12289) — было 24
+    // (`radius.contentBlock`) от старого белого блока на сером листе.
+    borderRadius: radius.brandCard,
+    borderWidth: 1,
+    borderColor: colors.brand2.cardBorder,
     // Лента фотографий шире карточки и должна упираться в её край, а не
-    // вылезать на серый фон.
+    // вылезать наружу.
     overflow: "hidden",
-    // Боковых отступов у блока НЕТ: фотография отступает от его края на 8, а
-    // текст на 16, и одним общим значением это не выражается. Каждая строка
-    // ставит свой отступ сама, иначе он сложился бы с внутренним и фотография
-    // ушла бы от края дальше макетных 8 (правка владельца 2026-08-24).
-    paddingVertical: spacing.lg,
-    gap: spacing.xxl,
+    // Сверху отступа НЕТ: там фотография во всю ширину карточки.
+    paddingBottom: brandPageLayout.contentPaddingHorizontal,
+    gap: spacing.sm,
   },
   pressed: {
     opacity: 0.7,
   },
   titleRow: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: brandPageLayout.contentPaddingHorizontal,
+    paddingTop: brandPageLayout.contentPaddingHorizontal,
     flexDirection: "row",
-    // По макету шеврон стоит у ВЕРХНЕЙ строки заголовка, а не по центру блока
-    // из двух строк.
+    // Шеврон стоит у ВЕРХНЕЙ строки заголовка, а не по центру блока из двух
+    // строк.
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: spacing.xxl,
+    gap: spacing.md,
+  },
+  titleGroup: {
+    flexShrink: 1,
+    gap: spacing.sm,
+  },
+  city: {
+    ...typography.brandVenueCity,
+    color: colors.brand2.goldMuted,
   },
   name: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-    flexShrink: 1,
+    ...typography.brandVenueName,
+    color: colors.brand2.navy,
   },
   textGroup: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.lg,
+    paddingHorizontal: brandPageLayout.contentPaddingHorizontal,
+    gap: spacing.sm,
   },
   highlightTitle: {
-    ...typography.titleSm,
-    color: colors.text.primary,
+    ...typography.brandTitleSm,
+    color: colors.brand2.navy,
   },
   note: {
-    ...typography.body,
-    color: colors.text.primary,
+    ...typography.brandBody,
+    color: colors.brand2.navy,
   },
   footer: {
     flexDirection: "row",
@@ -189,19 +212,19 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   address: {
-    ...typography.body,
-    color: colors.text.primary,
+    ...typography.brandBody,
+    color: colors.brand2.muted,
     // Длинный адрес («Микрорайон Мирас, 2, Бостандыкский район») на экране
     // 360 pt сжимается и переносится, а не выталкивает ник за край.
     flexShrink: 1,
   },
   separator: {
-    ...typography.caption,
-    color: colors.text.primary,
+    ...typography.brandCaption,
+    color: colors.brand2.muted,
   },
   handle: {
-    ...typography.body,
-    color: colors.text.primary,
+    ...typography.brandBody,
+    color: colors.brand2.muted,
     flexShrink: 1,
   },
 });

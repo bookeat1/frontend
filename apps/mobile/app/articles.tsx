@@ -1,57 +1,68 @@
-import { colors, radius, spacing } from "@bookeat/design-tokens";
+import { colors, guideLayout } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { ArticleListCard } from "../src/components/articles/ArticleListCard";
-import { GuideCollectionGrid } from "../src/components/articles/GuideCollectionGrid";
-import { GuideRouteCard } from "../src/components/articles/GuideRouteCard";
+import { GuideEditorialCard } from "../src/components/articles/GuideEditorialCard";
+import { GuideRubricRail } from "../src/components/articles/GuideRubricRail";
+import { GuideSectionHeader } from "../src/components/articles/GuideSectionHeader";
 import { splitGuideCollections } from "../src/components/articles/guide-collections";
 import { GUIDE_HERO_CONTENT_HEIGHT, GuideHero } from "../src/components/articles/GuideHero";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { DataErrorState } from "../src/components/DataErrorState";
-import { SectionHeader } from "../src/components/explore/SectionCard";
-import { useGuideCollections, useGuideRoutes } from "../src/components/explore/use-explore-data";
+import {
+  useGuideCity,
+  useGuideCollections,
+  useGuideRoutes,
+} from "../src/components/explore/use-explore-data";
 import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
 import { EmptyState, LoadingState } from "../src/components/StateViews";
 
 const t = getDictionary();
 
 /**
- * «Гастрогид» — корень четвёртой вкладки (макет dVjT37j984ErvOmzxlx29p,
- * node 1099:6800). Сверху фотография города со слоганом, ниже один белый блок
- * «Подборки»: сетка плиток и под ней широкие карточки. И сетку, и карточки
- * кормит ОДНА ручка `GET /gastroguide/collections`, одна подборка показывается
- * ровно один раз — правило дележа лежит в `guide-collections.ts`.
+ * «Гастрогид» — корень четвёртой вкладки. Макет 3z0f6dgev4HMwBAHPjTjPo,
+ * node 3192:6246 «Гастрогид — Editorial v2».
  *
- * Ниже вторым белым блоком идут «Гастропрогулки» (node 1099:6892) — отдельная
- * ручка `GET /gastroguide/routes?city=`. Это НЕ подборки: маршрут это
- * последовательность остановок, и среди них есть места, которых нет и не будет
- * в каталоге заведений (парк, базар, Кок-Тобе).
+ * ЭКРАН ПЕРЕСОБРАН ЦЕЛИКОМ (2026-08-27, правка владельца «изменил страницы
+ * гастрогида полностью, сделай по макету»). Что стало другим:
  *
- * БЛОК ЦЕЛИКОМ СКРЫТ, пока маршрутов нет: пустых состояний тут два подряд быть
- * не должно, а «Подборки» уже объясняют человеку, что раздел живой. Ошибка
- * загрузки маршрутов тоже не рушит экран — подборки грузятся своим запросом.
+ *   • лист экрана кремовый (#F7F5F1), а белых блоков-секций больше НЕТ.
+ *     Раньше содержимое лежало двумя белыми карточками на сером листе — в
+ *     новом макете секции стоят прямо на кремовом фоне, а «карточкой»
+ *     становится сама фотография;
+ *   • секций стало три вместо двух: «Рубрики» (горизонтальная лента плиток),
+ *     «Выбор редакции» и «Гастропрогулки»;
+ *   • подписи переехали НА фотографию: и у плитки, и у большой карточки текст
+ *     лежит поверх затемнения, а не под кадром;
+ *   • заголовки набраны Playfair Display Italic 24 — у гастрогида своя
+ *     журнальная типографика, отдельная от главной.
  *
- * ЧЕГО ЗДЕСЬ НЕТ И ПОЧЕМУ:
+ * ОТКУДА БЕРУТСЯ ДАННЫЕ (ручек по-прежнему две, третьей секции сервер не
+ * знает):
  *
- *  - рубрики (`GET /gastroguide/categories`) этот экран больше не запрашивает:
- *    их DTO несёт только `{id, slug, title, position}`, плитка из него выходила
- *    без фотографии, а нажатие на неё отбирало список — обоих поведений в
- *    продукте быть не должно. Ручка и метод репозитория живы, просто не нужны
- *    здесь;
- *  - сердечка на карточке подборки нет: избранное на бэкенде знает про
- *    заведения, события и акции, но не про подборки (см. ArticleListCard).
+ *   • `GET /gastroguide/collections` — одна ручка на «Рубрики» и «Выбор
+ *     редакции». Делит их та же редакционная привязка, что и раньше
+ *     (`splitGuideCollections`): подборка с рубрикой идёт в ленту, подборка
+ *     без рубрики — большой карточкой. Одна подборка показывается ровно один
+ *     раз;
+ *   • `GET /gastroguide/routes?city=` — «Гастропрогулки». Это НЕ подборки:
+ *     маршрут это последовательность остановок, и среди них есть места,
+ *     которых нет и не будет в каталоге (парк, базар, Кок-Тобе).
  *
- * Шеврон в заголовке секции остаётся декоративным (`SectionHeader` рисует его
- * кнопкой только когда есть `onSeeAll`): этот экран и ЕСТЬ полный список
- * подборок, «показать все» вести некуда.
+ * ПРО «ВЫБОР РЕДАКЦИИ». В макете под этим заголовком нарисована ОДНА карточка.
+ * Лонгридов у редакции бывает больше, и показывать только первый значило бы
+ * молча спрятать остальные — под заголовком идут ВСЕ подборки без рубрики,
+ * одинаковыми карточками из макета. Отбирать «главную» на клиенте нечем:
+ * поля «выбор редакции» в ответе нет.
  *
- * Четыре состояния списка живут ВНУТРИ белого блока, а шапка остаётся на месте
- * всегда: это корень вкладки, и пустой экран вместо раздела выглядел бы как
- * поломка приложения. Пустой ответ — норма («ничего не опубликовали»), а не
- * ошибка; отказ разбирает `DataErrorState` (нет сети / техработы / прочее).
+ * Секция маршрутов СКРЫТА ЦЕЛИКОМ, пока маршрутов нет: двух пустых состояний
+ * подряд быть не должно. Отказ этой ручки тоже не рушит экран — подборки
+ * грузятся своим запросом.
+ *
+ * СТРЕЛКИ «НАЗАД» НЕТ, хотя в макете она нарисована (node 3202:6432): это
+ * корень вкладки, и возвращаться из корня некуда — см. `GuideHero`.
  */
 export default function ArticlesScreen() {
   const navPad = useNavBarSpacing();
@@ -59,6 +70,7 @@ export default function ArticlesScreen() {
 
   const collectionsQuery = useGuideCollections();
   const routesQuery = useGuideRoutes();
+  const { city } = useGuideCity();
   const [heroBehindStatusBar, setHeroBehindStatusBar] = useState(true);
 
   // ДВА запроса, и оба принадлежат этому экрану, поэтому предикат по кэшу
@@ -87,12 +99,10 @@ export default function ArticlesScreen() {
       <StatusBar style={heroBehindStatusBar ? "light" : "dark"} />
 
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: navPad }]}
+        contentContainerStyle={{ paddingBottom: navPad }}
         showsVerticalScrollIndicator={false}
-        // Экран — одна лента, и тянется он целиком: и когда подборок нет
-        // (пустое состояние живёт ВНУТРИ белого блока, лента остаётся), и
-        // когда загрузка сорвалась. Отдельной обёртки под пустое состояние
-        // здесь не нужно — фотография шапки сама длиннее экрана.
+        // Экран — одна лента, и тянется он целиком: и когда подборок нет, и
+        // когда загрузка сорвалась. Фотография шапки сама длиннее экрана.
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         scrollEventThrottle={16}
         onScroll={(event) => {
@@ -100,61 +110,102 @@ export default function ArticlesScreen() {
           if (passed === heroBehindStatusBar) setHeroBehindStatusBar(!passed);
         }}
       >
-        {/* Стрелки «назад» здесь нет НИ ПРИ КАКОМ заходе: это корень вкладки,
-            и возвращаться из корня некуда. Раньше она показывалась по
-            `router.canGoBack()` — то есть при заходе с главной по шеврону
-            «Гастрогид», где в стеке остаётся запись, — и гость видел на
-            корневой вкладке кнопку, которая уводила его на другую вкладку.
-            У вложенных экранов раздела (`/articles/[slug]`, `/routes/[slug]`)
-            стрелка своя и остаётся на месте. */}
-        <GuideHero title={t.nav.gastroguide} headline={t.articles.guideHeadline} />
+        {/* Город в надписи-рубрике и в слогане — тот же, что во всех
+            городозависимых запросах экрана (`useGuestCity`), а не зашитая
+            «Алматы» из макета: гость, выбравший Астану, увидит Астану. Года
+            «2026» из макета в надписи нет — его неоткуда взять, а зашитый год
+            протухает молча. */}
+        <GuideHero
+          title={t.articles.guideBrandTitle(city)}
+          eyebrow={t.articles.guideEyebrow(city)}
+          headline={t.articles.guideHeadline(city)}
+          subline={t.articles.guideSubheadline}
+        />
 
-        <View style={styles.section}>
-          <SectionHeader title={t.articles.collectionsTitle} />
+        <View style={styles.content}>
+          <View style={styles.section}>
+            <GuideSectionHeader title={t.articles.rubricsTitle} />
 
-          {rubrics.length > 0 ? (
-            <View style={styles.gridWrap}>
-              <GuideCollectionGrid collections={rubrics} onPress={openArticle} />
+            {rubrics.length > 0 ? (
+              <GuideRubricRail collections={rubrics} onPress={openArticle} />
+            ) : null}
+
+            {/* Загрузка, отказ и пустой ответ живут в ПЕРВОЙ секции: она
+                кормится той же ручкой, что и «Выбор редакции», и рисовать одно
+                и то же состояние дважды незачем. Пустой ответ — норма
+                («ничего не опубликовали»), а не ошибка; отказ разбирает
+                `DataErrorState` (нет сети / техработы / прочее). */}
+            {collectionsQuery.isLoading ? (
+              <LoadingState title={t.articles.loading} compact />
+            ) : collectionsQuery.isError ? (
+              <DataErrorState
+                error={collectionsQuery.error}
+                onRetry={() => void collectionsQuery.refetch()}
+                compact
+              />
+            ) : collections.length === 0 ? (
+              <EmptyState
+                title={t.articles.emptyTitle}
+                description={t.articles.emptyDescription}
+                compact
+              />
+            ) : null}
+          </View>
+
+          {articles.length > 0 ? (
+            <View style={styles.section}>
+              <GuideSectionHeader title={t.articles.editorPickTitle} />
+              <View style={styles.cards}>
+                {articles.map((collection) => (
+                  <GuideEditorialCard
+                    key={collection.slug}
+                    variant="editorPick"
+                    coverImageUrl={collection.coverImageUrl}
+                    // Золотая надпись — подзаголовок подборки заглавными
+                    // (в макете на её месте стоит «OCEAN BASKET»). Пустой
+                    // подзаголовок означает отсутствие надписи, а не выдуманную:
+                    // второго поля под неё в ответе нет.
+                    eyebrow={collection.subtitle.trim().toUpperCase() || undefined}
+                    title={collection.title}
+                    summary={collection.description}
+                    accessibilityLabel={
+                      collection.description
+                        ? t.articles.card(collection.title, collection.description)
+                        : collection.title
+                    }
+                    onPress={() => openArticle(collection.slug)}
+                  />
+                ))}
+              </View>
             </View>
           ) : null}
 
-          {collectionsQuery.isLoading ? (
-            <LoadingState title={t.articles.loading} compact />
-          ) : collectionsQuery.isError ? (
-            <DataErrorState
-              error={collectionsQuery.error}
-              onRetry={() => void collectionsQuery.refetch()}
-              compact
-            />
-          ) : collections.length === 0 ? (
-            <EmptyState
-              title={t.articles.emptyTitle}
-              description={t.articles.emptyDescription}
-              compact
-            />
-          ) : articles.length > 0 ? (
-            <View style={styles.list}>
-              {articles.map((collection) => (
-                <ArticleListCard
-                  key={collection.slug}
-                  collection={collection}
-                  onPress={openArticle}
-                />
-              ))}
+          {routes.length > 0 ? (
+            <View style={styles.section}>
+              <GuideSectionHeader title={t.articles.routesTitle} />
+              <View style={styles.cards}>
+                {routes.map((route) => {
+                  // Строку под названием пишет РЕДАКЦИЯ («1 день · 4 точки»):
+                  // в ней бывает «вечер» или «2 дня · 7 точек», и собирать её
+                  // из `pointCount` на клиенте значило бы выкинуть первую
+                  // половину. Счёт точек остаётся запасным вариантом.
+                  const summary = route.durationLabel || t.articles.routePoints(route.pointCount);
+                  return (
+                    <GuideEditorialCard
+                      key={route.slug}
+                      variant="walk"
+                      coverImageUrl={route.coverImageUrl}
+                      title={route.title}
+                      summary={summary}
+                      accessibilityLabel={t.articles.card(route.title, summary)}
+                      onPress={() => openRoute(route.slug)}
+                    />
+                  );
+                })}
+              </View>
             </View>
           ) : null}
         </View>
-
-        {routes.length > 0 ? (
-          <View style={styles.section}>
-            <SectionHeader title={t.articles.routesTitle} />
-            <View style={styles.list}>
-              {routes.map((route) => (
-                <GuideRouteCard key={route.slug} route={route} onPress={openRoute} />
-              ))}
-            </View>
-          </View>
-        ) : null}
       </ScrollView>
 
       <BottomNavBar />
@@ -165,24 +216,20 @@ export default function ArticlesScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background.screen,
+    // Кремовый лист макета (#F7F5F1), а не общий серый экрана: белых
+    // блоков-секций на этом экране больше нет, и фон виден целиком.
+    backgroundColor: colors.guide.sheet,
   },
-  scrollContent: {
-    // Просвет 8 между шапкой и белым блоком (node 1099:6801) — серый лист
-    // экрана виден в нём полоской, как в макете.
-    gap: spacing.sm,
+  content: {
+    paddingTop: guideLayout.contentPaddingTop,
+    paddingBottom: guideLayout.contentPaddingBottom,
+    paddingHorizontal: guideLayout.contentPaddingHorizontal,
+    gap: guideLayout.sectionGap,
   },
   section: {
-    backgroundColor: colors.background.surface,
-    borderRadius: radius.contentBlock,
-    paddingVertical: spacing.lg,
-    gap: spacing.xxl,
+    gap: guideLayout.sectionHeaderGap,
   },
-  gridWrap: {
-    paddingHorizontal: spacing.lg,
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.xxl,
+  cards: {
+    gap: guideLayout.cardGap,
   },
 });

@@ -59,10 +59,22 @@ vi.mock("../../src/components/articles/GuideHero", async () => {
   const { FlowHeader } = await import("../../src/components/FlowHeader");
   return {
     ...actual,
-    GuideHero: ({ title, headline }: { title: string; headline: string }) => (
+    GuideHero: ({
+      title,
+      eyebrow,
+      headline,
+      subline,
+    }: {
+      title: string;
+      eyebrow: string;
+      headline: string;
+      subline: string;
+    }) => (
       <div>
         <FlowHeader title={title} tone="onDark" />
+        <span>{eyebrow}</span>
         <span>{headline}</span>
+        <span>{subline}</span>
       </div>
     ),
   };
@@ -197,10 +209,16 @@ describe("экран гастрогида", () => {
     expect(back).not.toHaveBeenCalled();
   });
 
-  it("оставляет заголовок «Гастрогид» на месте, без стрелки", async () => {
+  it("оставляет заголовок шапки на месте, без стрелки", async () => {
     renderScreen();
 
-    const heading = await screen.findByRole("heading", { name: t.nav.gastroguide });
+    // С макета «Editorial v2» (node 3192:6251) в шапке стоит брендовая
+    // надпись с городом, а не слово «Гастрогид». Город берётся тот же, что
+    // во всех городозависимых запросах экрана: в тесте профиля нет и
+    // хранилище пусто, поэтому это откат словаря.
+    const heading = await screen.findByRole("heading", {
+      name: t.articles.guideBrandTitle(t.explore.cityFallback),
+    });
     expect(heading).toBeTruthy();
     // Слева от заголовка остаётся пустой слот той же ширины, что и кнопка,
     // поэтому шапка не съезжает: заголовок — по-прежнему средняя колонка.

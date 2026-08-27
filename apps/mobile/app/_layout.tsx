@@ -1,11 +1,19 @@
 import { colors } from "@bookeat/design-tokens";
+import { CormorantGaramond_700Bold } from "@expo-google-fonts/cormorant-garamond";
 import { Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+} from "@expo-google-fonts/montserrat";
 import {
   NotoSans_400Regular,
   NotoSans_500Medium,
   NotoSans_600SemiBold,
   NotoSans_700Bold,
 } from "@expo-google-fonts/noto-sans";
+import { PlayfairDisplay_400Regular_Italic } from "@expo-google-fonts/playfair-display";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -35,6 +43,17 @@ export default function RootLayout() {
     NotoSans_600SemiBold,
     NotoSans_700Bold,
     Inter_600SemiBold,
+    // Гастрогид «Editorial v2» (Figma 3192:6246) набран Playfair Display
+    // Italic, страница бренда (3424:3927) — Cormorant Garamond + Montserrat.
+    // Оба раздела живут на своих экранах, но грузятся здесь вместе с
+    // остальными: `useFonts` держит сплэш до готовности, и подгружать
+    // гарнитуру на входе в раздел значило бы показать там системный шрифт.
+    PlayfairDisplay_400Regular_Italic,
+    CormorantGaramond_700Bold,
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
   });
 
   // Keep the native splash screen up (managed by expo-router) until the real

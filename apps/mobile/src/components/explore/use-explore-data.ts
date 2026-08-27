@@ -335,34 +335,45 @@ export function useExplorePromotion(promoId: string | undefined): {
  * из того же кэша `["me"]`, что и шапка главной, с откатом на город по
  * умолчанию из словаря. Второго запроса профиля это не создаёт.
  */
-export function useGuideRoutes(): UseQueryResult<GuideRoute[]> {
-  const repository = useRepository();
+/**
+ * Город для ЭКРАНОВ ГАСТРОГИДА — тот же порядок старшинства, что и у
+ * `useGuestCity` (выбор на этом устройстве → город профиля → откат словаря),
+ * но БЕЗ `useAuth`.
+ *
+ * Отдельный хук именно поэтому: гастрогид открыт и гостю, и требовать здесь
+ * `AuthProvider` значило бы привязать редакционный раздел к авторизации ради
+ * одного слова «Алматы». Профиль читается наблюдателем за тем же ключом
+ * `["me"]`, что заполняет главная, но БЕЗ собственного запроса
+ * (`enabled: false`) — второго обращения к серверу это не создаёт, а как
+ * только профиль появится в кэше, хук перерисуется сам.
+ *
+ * `isResolving` — «город ещё неизвестен»: пока читается хранилище устройства,
+ * городозависимый запрос слать рано, иначе гость увидит вспышку чужого города.
+ */
+export function useGuideCity(): { city: string; isResolving: boolean } {
   const { dictionary: t } = useLocale();
-
-  // Тот же порядок старшинства, что и в useGuestCity: сначала выбор НА ЭТОМ
-  // УСТРОЙСТВЕ, потом город профиля, потом откат словаря. Хранилище устройства
-  // не требует сессии, поэтому здесь оно доступно так же, как на главной.
   const stored = usePreferredCity();
-
-  // Наблюдатель за тем же ключом `["me"]`, что заполняет главная, но БЕЗ
-  // собственного запроса (`enabled: false`) и без useAuth: гастрогид открыт и
-  // гостю, и требовать здесь AuthProvider значило бы привязать редакционный
-  // раздел к авторизации ради одного слова «Алматы». Как только профиль
-  // появится в кэше, хук перерисуется сам и переспросит маршруты для его
-  // города.
   const me = useQuery<AuthUser>({
     queryKey: ["me"],
     queryFn: () => Promise.reject(new Error("profile is fetched elsewhere")),
     enabled: false,
   });
-  const city = stored.city?.trim() || me.data?.city?.trim() || t.explore.cityFallback;
+  return {
+    city: stored.city?.trim() || me.data?.city?.trim() || t.explore.cityFallback,
+    isResolving: stored.isHydrating,
+  };
+}
+
+export function useGuideRoutes(): UseQueryResult<GuideRoute[]> {
+  const repository = useRepository();
+  const { city, isResolving } = useGuideCity();
 
   return useQuery<GuideRoute[]>({
     queryKey: ["guide", "routes", city],
     queryFn: () => repository.getGuideRoutes(city),
     // Пока читается город устройства, спрашивать маршруты рано — иначе на
     // холодном старте мелькнут маршруты чужого города.
-    enabled: city.length > 0 && !stored.isHydrating,
+    enabled: city.length > 0 && !isResolving,
     staleTime: 5 * 60_000,
   });
 }
