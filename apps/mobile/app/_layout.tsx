@@ -1,12 +1,22 @@
 import { colors } from "@bookeat/design-tokens";
+import { CormorantGaramond_700Bold } from "@expo-google-fonts/cormorant-garamond";
 import { Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+} from "@expo-google-fonts/montserrat";
 import {
   NotoSans_400Regular,
   NotoSans_500Medium,
   NotoSans_600SemiBold,
   NotoSans_700Bold,
 } from "@expo-google-fonts/noto-sans";
-import { PlayfairDisplay_700Bold_Italic } from "@expo-google-fonts/playfair-display";
+import {
+  PlayfairDisplay_400Regular_Italic,
+  PlayfairDisplay_700Bold_Italic,
+} from "@expo-google-fonts/playfair-display";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -36,16 +46,29 @@ export default function RootLayout() {
     NotoSans_600SemiBold,
     NotoSans_700Bold,
     Inter_600SemiBold,
-    // Единственная засечная гарнитура макетов: названия событий в «Афише» и
-    // на карточке афиши (узлы 3452:13369, 3452:13244) плюс имя заведения на
-    // карточке списка и в шапке карточки заведения — и больше ничего.
+    // Playfair Display в ДВУХ начертаниях, у каждого своя роль: Bold Italic —
+    // названия событий в «Афише» (узлы 3452:13369, 3452:13244), имя заведения
+    // на карточке списка и в шапке заведения; Italic (400) — журнальные
+    // заголовки гастрогида «Editorial v2» (3192:6246).
     PlayfairDisplay_700Bold_Italic,
+    PlayfairDisplay_400Regular_Italic,
+    // Страница бренда в гастрогиде (3424:3927) — Cormorant Garamond +
+    // Montserrat. Эти разделы живут на своих экранах, но грузятся здесь
+    // вместе с остальными: `useFonts` держит сплэш до готовности, и
+    // подгружать гарнитуру на входе в раздел значило бы показать там
+    // системный шрифт.
+    CormorantGaramond_700Bold,
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
   });
 
   // Keep the native splash screen up (managed by expo-router) until the real
   // typeface is ready — the design specifies Noto Sans / Inter throughout, plus
-  // Playfair Display for event and venue titles, so we never want to flash the
-  // system font first. A new face goes INTO this same `useFonts` call, never
+  // Playfair Display for event and venue titles and Playfair / Cormorant /
+  // Montserrat inside the gastroguide, so we never want to flash the system
+  // font first. A new face goes INTO this same `useFonts` call, never
   // into a second one: the splash is held on this one flag.
   if (!fontsLoaded && !fontError) {
     return null;

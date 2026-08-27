@@ -1,6 +1,6 @@
 import type { GuideCollection } from "@bookeat/api";
 import { describe, expect, it } from "vitest";
-import { GUIDE_GRID_COLUMNS, splitGuideCollections, toGridRows } from "../guide-collections";
+import { splitGuideCollections } from "../guide-collections";
 
 function collection(slug: string, categorySlugs: string[]): GuideCollection {
   return {
@@ -68,23 +68,5 @@ describe("splitGuideCollections", () => {
     splitGuideCollections(source);
 
     expect(source.map((c) => c.slug)).toEqual(["a", "b"]);
-  });
-});
-
-describe("toGridRows", () => {
-  it("режет на ряды по две плитки", () => {
-    expect(GUIDE_GRID_COLUMNS).toBe(2);
-    expect(toGridRows(["a", "b", "c", "d"])).toEqual([
-      ["a", "b"],
-      ["c", "d"],
-    ]);
-  });
-
-  it("нечётный хвост остаётся рядом из одной плитки", () => {
-    expect(toGridRows(["a", "b", "c"])).toEqual([["a", "b"], ["c"]]);
-  });
-
-  it("пустой список — ни одного ряда", () => {
-    expect(toGridRows([])).toEqual([]);
   });
 });
