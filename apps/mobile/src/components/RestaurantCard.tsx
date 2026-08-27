@@ -3,7 +3,6 @@ import { colors, listCard, radius, spacing, typography } from "@bookeat/design-t
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { cuisineLine, splitCuisines } from "../lib/cuisine-display";
-import { formatPriceRange } from "../lib/format";
 import { openStateLabel } from "../lib/schedule";
 import { PhotoView } from "./PhotoView";
 
@@ -122,16 +121,15 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
               <Text style={styles.chipText}>{`+${hiddenCount}`}</Text>
             </View>
           ) : null}
-          {/* Средний чек ТОЛЬКО цифрами — «8 000–15 000 ₸» (правка владельца
-              2026-08-20). Символьная ступень (₸/₸₸/₸₸₸) больше не подставляется:
-              заведение без числового диапазона остаётся вовсе без чипа цены.
-              Иначе в одном списке цена написана на двух языках, и соседние
-              карточки невозможно сравнить глазами. */}
-          {restaurant.priceRange ? (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{formatPriceRange(restaurant.priceRange)}</Text>
-            </View>
-          ) : null}
+          {/* Ценовая категория — символьной ступенью «₸/₸₸/₸₸₸» (правка
+              владельца 2026-08-24, откат числового диапазона от 2026-08-20).
+              Ступень приходит с сервера в price_category и есть у каждого
+              заведения, поэтому чип рисуется всегда, а не только у тех, кому
+              маркетолог успел проставить средний чек в тенге. Тем же алфавитом
+              подписаны чипы фильтра цены в поиске. */}
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
+          </View>
         </View>
       </View>
     </Pressable>

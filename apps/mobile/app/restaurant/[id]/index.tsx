@@ -20,7 +20,6 @@ import { splitCuisines } from "../../../src/lib/cuisine-display";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant, useRestaurantRefresh } from "../../../src/hooks/useRestaurant";
-import { formatPriceRange } from "../../../src/lib/format";
 import { trackEvent } from "../../../src/lib/analytics";
 
 const t = getDictionary();
@@ -144,11 +143,10 @@ export default function RestaurantDetailScreen() {
                   {t.restaurant.favoriteFailed}
                 </Text>
               ) : null}
-              {/* Раньше в этой строке всегда стоял хотя бы признак открытости,
-                  поэтому её рисовали безусловно. Теперь она может оказаться
-                  пустой (кухонь нет, чек не заполнен, отзывов нет) — и тогда
-                  на экране остался бы отступ 24 без содержимого. */}
-              {hasSummaryChips(restaurant) ? (
+              {/* Строку снова рисуем безусловно: ценовая ступень (₸/₸₸/₸₸₸)
+                  есть у КАЖДОГО заведения, поэтому пустой эта строка больше
+                  быть не может. Проверка hasSummaryChips нужна была, пока чип
+                  цены зависел от заполненного среднего чека в тенге. */}
               <View style={styles.chipsRow}>
                 {/* КУХНЯ И ЧЕК — то, что стоит в этой строке макета 340:2535
                     (правка владельца 2026-08-25). Признак открытости отсюда
@@ -166,16 +164,14 @@ export default function RestaurantDetailScreen() {
                     при этом умеет переноситься, чтобы длинные названия на 360
                     не уезжали за край. */}
                 <CuisineChips cuisines={restaurant.cuisines} />
-                {/* Средний чек ТОЛЬКО цифрами (правка владельца 2026-08-20),
-                    как и в списках. Символьная ступень (₸/₸₸/₸₸₸) больше не
-                    подставляется: заведение без числового диапазона остаётся
-                    без чипа цены, а не показывает цену другим языком, чем
-                    соседние экраны. */}
-                {restaurant.priceRange ? (
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>{formatPriceRange(restaurant.priceRange)}</Text>
-                  </View>
-                ) : null}
+                {/* Ценовая категория — символьной ступенью «₸/₸₸/₸₸₸» (правка
+                    владельца 2026-08-24, откат числового диапазона от
+                    2026-08-20), тем же алфавитом, что на карточках в списках и
+                    в чипах фильтра цены. Ступень есть у каждого заведения
+                    (price_category с сервера), поэтому чип рисуется всегда. */}
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>{restaurant.priceLevel}</Text>
+                </View>
                 {/* Рейтинг показываем только когда отзывы реально есть:
                     «0,0» у заведения без отзывов читается как плохая оценка. */}
                 {restaurant.reviewsCount > 0 ? (
@@ -185,8 +181,7 @@ export default function RestaurantDetailScreen() {
                     </Text>
                   </View>
                 ) : null}
-                </View>
-              ) : null}
+              </View>
               </View>
             </View>
 
@@ -294,19 +289,6 @@ export default function RestaurantDetailScreen() {
         </>
       )}
     </View>
-  );
-}
-
-/**
- * Есть ли в шапке хоть один чип. Кухни считаются ПОСЛЕ отсева безымянных —
- * тем же правилом, каким их рисует CuisineChips, иначе строка могла бы
- * появиться ради чипа, которого не будет.
- */
-function hasSummaryChips(restaurant: Restaurant): boolean {
-  return (
-    splitCuisines(restaurant.cuisines).visible.length > 0 ||
-    restaurant.priceRange !== undefined ||
-    restaurant.reviewsCount > 0
   );
 }
 

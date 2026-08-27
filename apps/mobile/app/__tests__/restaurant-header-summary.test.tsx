@@ -80,13 +80,14 @@ describe("шапка экрана заведения", () => {
     expect(screen.queryByText(/Часы работы не указаны/)).toBeNull();
   });
 
-  it("показывает кухню и средний чек", async () => {
+  it("показывает кухню и ценовую ступень символами", async () => {
     getRestaurant.mockResolvedValue(
       venue({
         cuisines: [
           { id: "european", name: "Европейская" },
           { id: "kazakh", name: "Казахская" },
         ],
+        priceLevel: "₸₸",
         priceRange: { min: 8000, max: 15000 },
       }),
     );
@@ -94,10 +95,10 @@ describe("шапка экрана заведения", () => {
 
     expect(await screen.findByText("Европейская")).toBeTruthy();
     expect(screen.getByText("Казахская")).toBeTruthy();
-    // Чек — цифрами и с НАСТОЯЩИМ тире (U+2013), а не дефисом из макета.
-    const price = screen.getByText(/8\s?000/);
-    expect(price.textContent).toContain("–");
-    expect(price.textContent).not.toContain("-");
+    // Цена — ступенью (правка владельца 2026-08-24); сумма в тенге не рисуется,
+    // даже когда сервер прислал диапазон.
+    expect(screen.getByText("₸₸")).toBeTruthy();
+    expect(screen.queryByText(/8\s?000/)).toBeNull();
   });
 
   it("больше двух кухонь сворачиваются в «+N», как на карточке в списке", async () => {
@@ -117,13 +118,15 @@ describe("шапка экрана заведения", () => {
     expect(screen.queryByText("Грузинская")).toBeNull();
   });
 
-  it("заведение без кухонь и без чека не оставляет пустую строку", async () => {
-    // На бою такое есть: «Agora wine and deli» — кухонь нет; чек не заполнен у
-    // большинства заведений каталога.
+  it("заведение без кухонь и без отзывов всё равно показывает ступень цены", async () => {
+    // На бою такое есть: «Agora wine and deli» — кухонь нет; средний чек в
+    // тенге не заполнен у большинства заведений каталога. Ступень есть всегда,
+    // поэтому строка меток не пустеет.
     getRestaurant.mockResolvedValue(
       venue({
         name: "Agora wine and deli",
         cuisines: [],
+        priceLevel: "₸₸",
         priceRange: undefined,
         reviewsCount: 0,
       }),
@@ -131,21 +134,25 @@ describe("шапка экрана заведения", () => {
     renderScreen();
 
     expect(await screen.findByText("Agora wine and deli")).toBeTruthy();
-    // Ни чипа-заглушки, ни прочерка вместо цены.
+    expect(screen.getByText("₸₸")).toBeTruthy();
+    // Ни чипа-заглушки кухни, ни прочерка вместо цены.
     expect(screen.queryByText("+0")).toBeNull();
     expect(screen.queryByText("—")).toBeNull();
-    expect(screen.queryByText("₸₸")).toBeNull();
     // Экран при этом целый: блок расписания ниже отрисовался.
     expect(screen.getByText(SCHEDULE_MARKER)).toBeTruthy();
   });
 
-  it("заведение без чека, но с кухней показывает кухню", async () => {
+  it("без числового диапазона от сервера цена всё равно ступенью", async () => {
     getRestaurant.mockResolvedValue(
-      venue({ cuisines: [{ id: "kazakh", name: "Казахская" }], priceRange: undefined }),
+      venue({
+        cuisines: [{ id: "kazakh", name: "Казахская" }],
+        priceLevel: "₸₸₸",
+        priceRange: undefined,
+      }),
     );
     renderScreen();
 
     expect(await screen.findByText("Казахская")).toBeTruthy();
-    expect(screen.queryByText("₸₸")).toBeNull();
+    expect(screen.getByText("₸₸₸")).toBeTruthy();
   });
 });
