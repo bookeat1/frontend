@@ -59,6 +59,10 @@ export const NAV: NavGroup[] = [
       { href: "/cities", label: t.admin.nav.cities },
       { href: "/platform-guests", label: t.admin.nav.platformGuests },
       { href: "/gastroguide", label: t.admin.nav.gastroguide },
+      // «Выбрали для вас» — ручной состав первого блока главной. Той же
+      // природы, что и гастрогид с модерацией главной: это витрина ВСЕЙ
+      // платформы, у неё нет заведения, и правит её только суперадмин.
+      { href: "/home-picks", label: t.admin.nav.homePicks },
       // Контент, у которого нет заведения (backend PR #103). Живёт в
       // платформенной группе, а значит: видит его только суперадмин и работает
       // он без выбранного заведения — выбирать нечего.

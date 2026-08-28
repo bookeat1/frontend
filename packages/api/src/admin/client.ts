@@ -31,6 +31,8 @@ import type {
   GuideCollectionDetail,
   GuideCollectionInput,
   GuideCollectionListParams,
+  HomePickVenue,
+  HomePicksInput,
   MyRestaurant,
   Schedule,
   ScheduleOverrideInput,
@@ -1464,6 +1466,43 @@ export class AdminApiClient {
     return this.request<ApiPage<VenueSearchResult>>("GET", "/restaurants/search", {
       params: { q: query, per_page: perPage },
     });
+  }
+
+  // ---- «Выбрали для вас»: ручной состав блока на главной ---------------------
+
+  /**
+   * `GET /admin/restaurants/picks?city=…` — РУЧНОЙ список этого города, в
+   * заданном порядке и ВМЕСТЕ с выключенными заведениями.
+   *
+   * Это НЕ то же самое, что видит гость: публичная `GET /restaurants/picks`
+   * при отсутствии ручного списка собирает блок автоматически, а здесь пустой
+   * массив — честный ответ «ручного списка нет», и именно на нём экран
+   * объясняет владельцу, что блок работает сам.
+   *
+   * Пустая строка города = список «для всех городов». Она не уезжает в адрес
+   * (request() пропускает пустые параметры), и это ровно та же семантика:
+   * запрос без города сервер читает как общий ключ.
+   */
+  listHomePicks(city = ""): Promise<ApiPage<HomePickVenue>> {
+    return this.request<ApiPage<HomePickVenue>>("GET", "/admin/restaurants/picks", {
+      params: { city },
+    });
+  }
+
+  /**
+   * `PUT /admin/restaurants/picks` — заменяет список города ЦЕЛИКОМ.
+   *
+   * Одна запись описывает результат полностью, поэтому её безопасно повторить,
+   * а двойное нажатие «Сохранить» не может собрать список, которого никто не
+   * просил. Пустой массив — это осознанное «вернуть блок к автоматическому
+   * подбору», а не ошибка.
+   *
+   * Повтор одного id в списке сервер отвергает (422): порядок с дублем
+   * неоднозначен.
+   */
+  async replaceHomePicks(city: string, restaurantIds: string[]): Promise<void> {
+    const body: HomePicksInput = { city, restaurant_ids: restaurantIds };
+    await this.request<unknown>("PUT", "/admin/restaurants/picks", { body });
   }
 
   // ---- Media (image upload) ------------------------------------------------

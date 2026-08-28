@@ -5,15 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import type { VenueSearchResult } from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
-import { Button } from "../ui/Button";
-import { Field, TextInput } from "../ui/FormControls";
-import { Modal } from "../ui/Modal";
+import { Button } from "./Button";
+import { Field, TextInput } from "./FormControls";
+import { Modal } from "./Modal";
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 
-const copy = t.admin.gastroguide;
-
-/** Below two characters the catalog search matches most of the city, which is
- * not a useful answer and is an expensive one. */
+/** Ниже двух символов поиск по каталогу находит половину города — это не
+ * полезный ответ и при этом дорогой. */
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 300;
 
@@ -21,22 +19,42 @@ export interface VenueSearchClient {
   searchVenues(query: string, perPage?: number): Promise<{ items: VenueSearchResult[] }>;
 }
 
+export interface VenuePickerCopy {
+  title: string;
+  searchLabel: string;
+  searchHint: string;
+  loading: string;
+  empty: string;
+  /** Подпись кнопки у заведения, которое уже в списке. */
+  alreadyAdded: string;
+  inactive: string;
+}
+
 /**
- * Search the venue catalog and attach one venue to the collection.
+ * ВЫБОР ЗАВЕДЕНИЯ ИЗ КАТАЛОГА — одно окно на панель.
  *
- * Venues already in the collection are shown and disabled rather than hidden:
- * an editor who cannot find "Дареджани" because it is already there would
- * assume the search is broken. The server refuses the duplicate anyway
- * (guide_venue_already_attached), so this is about not making them ask.
+ * Им пользуются подборка гастрогида и ручной состав блока «Выбрали для вас»:
+ * вопрос у них один и тот же («какое заведение добавить»), поэтому и поиск
+ * один. Различаются только подписи, и они приходят пропом `copy` — словарь
+ * внутри общего окна заставил бы оба экрана называть вещи одинаково.
+ *
+ * Заведения, которые уже в списке, ПОКАЗЫВАЮТСЯ и блокируются, а не прячутся:
+ * редактор, который не находит «Дареджани», потому что оно уже добавлено,
+ * решает, что сломан поиск.
+ *
+ * Запрос дебаунсится: набранное название — это один запрос, а не по одному на
+ * букву. Панелью пользуются и с телефона.
  */
-export function GuideVenuePickerModal({
+export function VenuePickerModal({
   client,
+  copy,
   attachedIds,
   onPick,
   onClose,
   attaching,
 }: {
   client: VenueSearchClient;
+  copy: VenuePickerCopy;
   attachedIds: string[];
   onPick: (venue: VenueSearchResult) => void;
   onClose: () => void;
@@ -45,8 +63,6 @@ export function GuideVenuePickerModal({
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
 
-  // Debounced so a typed name is one request, not one per keystroke — this
-  // panel is used over a phone connection often enough for that to matter.
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
     return () => clearTimeout(id);
@@ -54,7 +70,7 @@ export function GuideVenuePickerModal({
 
   const enabled = debounced.length >= MIN_QUERY;
   const searchQuery = useQuery({
-    queryKey: ["guide-venue-search", debounced],
+    queryKey: ["venue-search", debounced],
     queryFn: () => client.searchVenues(debounced, 20),
     enabled,
   });
@@ -63,11 +79,11 @@ export function GuideVenuePickerModal({
   const items = searchQuery.data?.items ?? [];
 
   return (
-    <Modal title={copy.venueAdd} onClose={onClose}>
+    <Modal title={copy.title} onClose={onClose}>
       <div className="flex flex-col gap-md">
-        <Field label={copy.venueSearch} hint={copy.venueSearchHint} htmlFor="guide-venue-search">
+        <Field label={copy.searchLabel} hint={copy.searchHint} htmlFor="venue-picker-search">
           <TextInput
-            id="guide-venue-search"
+            id="venue-picker-search"
             type="search"
             autoFocus
             value={query}
@@ -76,11 +92,11 @@ export function GuideVenuePickerModal({
         </Field>
 
         {!enabled ? null : searchQuery.isPending ? (
-          <LoadingState title={copy.venueSearchLoading} />
+          <LoadingState title={copy.loading} />
         ) : searchQuery.isError ? (
           <ErrorState onRetry={() => void searchQuery.refetch()} />
         ) : items.length === 0 ? (
-          <EmptyState title={copy.venueSearchEmpty} />
+          <EmptyState title={copy.empty} />
         ) : (
           <ul className="flex max-h-[360px] flex-col gap-xs overflow-y-auto">
             {items.map((v) => {
@@ -95,7 +111,7 @@ export function GuideVenuePickerModal({
                       <span className="break-words text-sm font-medium text-text">{v.name}</span>
                       {!v.is_active ? (
                         <span className="whitespace-nowrap rounded-pill bg-rose-100 px-sm py-xxs text-[11px] text-rose-700">
-                          {copy.venueInactive}
+                          {copy.inactive}
                         </span>
                       ) : null}
                     </div>
@@ -109,7 +125,7 @@ export function GuideVenuePickerModal({
                     loading={attaching}
                     onClick={() => onPick(v)}
                   >
-                    {already ? copy.venueAlreadyAdded : t.admin.common.create}
+                    {already ? copy.alreadyAdded : t.admin.common.create}
                   </Button>
                 </li>
               );

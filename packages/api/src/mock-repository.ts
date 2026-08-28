@@ -146,9 +146,22 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return undefined;
   }
 
-  async getPopularRestaurants(): Promise<RestaurantSummary[]> {
+  /**
+   * Блок «Выбрали для вас». Ручного списка в моке нет — он живёт на сервере,
+   * — поэтому здесь воспроизводится ровно последняя, автоматическая ветка
+   * ручки: заведения каталога в его порядке, отфильтрованные по городу.
+   *
+   * Фильтр по городу обязателен именно здесь: без него мок ответил бы одним и
+   * тем же на любой город, и «блок показывает чужой город» нельзя было бы
+   * увидеть до боевого сервера.
+   */
+  async getRecommendedRestaurants(city?: string, limit = 20): Promise<RestaurantSummary[]> {
     await this.simulateNetwork();
-    return restaurants.map(toSummary);
+    const wanted = city?.trim().toLowerCase();
+    return restaurants
+      .filter((r) => (wanted ? r.city.trim().toLowerCase() === wanted : true))
+      .slice(0, limit)
+      .map(toSummary);
   }
 
   async searchRestaurants(query: SearchQuery): Promise<SearchResult> {

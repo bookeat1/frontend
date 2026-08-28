@@ -22,7 +22,7 @@ import { GuideCollectionFormModal } from "./GuideCollectionFormModal";
 import { GuideGuestPreview } from "./GuideGuestPreview";
 import { GuideStatusBadge } from "./GuideStatusBadge";
 import { GuideVenueList } from "./GuideVenueList";
-import { GuideVenuePickerModal } from "./GuideVenuePickerModal";
+import { VenuePickerModal } from "../ui/VenuePickerModal";
 import { guideErrorMessage } from "./guide-copy";
 
 const copy = t.admin.gastroguide;
@@ -328,8 +328,17 @@ export function GuideCollectionDetailView({
       ) : null}
 
       {picking ? (
-        <GuideVenuePickerModal
+        <VenuePickerModal
           client={client}
+          copy={{
+            title: copy.venueAdd,
+            searchLabel: copy.venueSearch,
+            searchHint: copy.venueSearchHint,
+            loading: copy.venueSearchLoading,
+            empty: copy.venueSearchEmpty,
+            alreadyAdded: copy.venueAlreadyAdded,
+            inactive: copy.venueInactive,
+          }}
           attachedIds={attachedIds}
           attaching={attachMutation.isPending}
           onClose={() => setPicking(false)}

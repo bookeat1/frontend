@@ -66,7 +66,22 @@ export interface RestaurantRepository {
    * `Cache-Control: max-age` + ETag) instead of a second cache of our own.
    */
   getMapPreviewUrl(restaurantId: string, options?: MapPreviewOptions): string | undefined;
-  getPopularRestaurants(): Promise<RestaurantSummary[]>;
+  /**
+   * «Выбрали для вас» на главной — `GET /restaurants/picks?city=…&limit=…`.
+   *
+   * Отдельная ручка, а не `?is_popular=true`, потому что состав блока теперь
+   * может задать владелец РУКАМИ: сервер сначала ищет ручной список для этого
+   * города, потом общий список «для всех городов», и только если ни одного
+   * нет — собирает блок как раньше (`is_popular=true` в порядке
+   * `display_order`). Клиент об этих трёх ветках не знает и знать не должен:
+   * он спрашивает «что показать в блоке», ответ всегда одной формы — обычная
+   * страница каталога.
+   *
+   * `city` необязателен: без него сервер отвечает списком «для всех городов».
+   * Но главная его ВСЕГДА присылает — иначе гость в Астане увидит подборку,
+   * собранную для другого города.
+   */
+  getRecommendedRestaurants(city?: string, limit?: number): Promise<RestaurantSummary[]>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   /** Короткая выборка каталога ради фотографий (см. http-repository). */
   getCatalogPreview(perPage?: number): Promise<RestaurantSummary[]>;

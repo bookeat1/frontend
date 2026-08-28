@@ -40,8 +40,9 @@ import {
  * pill and the booking draft's own default of 2. */
 export const EXPLORE_DEFAULT_GUESTS = 2;
 
-/** How many venues «Выбрали для вас» shows. The endpoint returns up to 20; the
- * strip is capped rather than mounting a long horizontal list. */
+/** Сколько заведений показывает «Выбрали для вас». Уходит на сервер как
+ * `limit`, а не обрезается на клиенте: обрезка молча выкинула бы хвост
+ * РУЧНОГО списка владельца, и он не понял бы, куда делись заведения. */
 const RECOMMENDED_LIMIT = 8;
 
 /** How many events «Афиша» asks for. The vertical list stays short on the home
@@ -53,14 +54,27 @@ const EXPLORE_EVENTS_LIMIT = 12;
 const ARTICLES_LIMIT = 6;
 
 /**
- * REAL DATA — «Выбрали для вас».
- * GET /restaurants?is_popular=true (RestaurantRepository.getPopularRestaurants).
+ * РЕАЛЬНЫЕ ДАННЫЕ — «Выбрали для вас».
+ * `GET /restaurants/picks?city=<город>` (RestaurantRepository.getRecommendedRestaurants).
+ *
+ * СОСТАВ БЛОКА ТЕПЕРЬ МОЖЕТ БЫТЬ ЗАДАН РУКАМИ. Ручка сама решает, что
+ * ответить: ручной список города → общий ручной список → прежний автоматический
+ * подбор. Клиент по ответу не отличает эти ветки и не должен: порядок ответа
+ * берётся КАК ЕСТЬ, потому что в ручном списке порядок — это решение владельца.
+ *
+ * ГОРОД — те же три обязательные части, что и у «Афиши» и «Акций»:
+ * параметр запроса, город В КЛЮЧЕ КЭША (иначе после смены города покажется
+ * подборка предыдущего) и гейт `isResolving` (иначе на холодном старте в
+ * Астане мелькнёт подборка откатного города). Любая одна часть без остальных
+ * чинит городской запрос наполовину.
  */
 export function useRecommendedRestaurants() {
   const repository = useRepository();
+  const { city, isResolving } = useGuestCity();
   return useQuery<RestaurantSummary[]>({
-    queryKey: ["popular-restaurants"],
-    queryFn: async () => (await repository.getPopularRestaurants()).slice(0, RECOMMENDED_LIMIT),
+    queryKey: ["home-picks", city, RECOMMENDED_LIMIT],
+    queryFn: () => repository.getRecommendedRestaurants(city, RECOMMENDED_LIMIT),
+    enabled: !isResolving,
     // The catalog changes on an editorial timescale, not a per-minute one, and
     // this is the first screen after a cold start on a phone connection.
     staleTime: 5 * 60_000,
@@ -483,7 +497,7 @@ export type { ArticleCardData, PromoStripItem };
  * смены города.
  */
 const HOME_QUERY_ROOTS: ReadonlySet<string> = new Set([
-  "popular-restaurants", // «Выбрали для вас»
+  "home-picks", // «Выбрали для вас» (GET /restaurants/picks)
   "catalog-preview", // фотографии кругов «Выберите кухню»
   "cuisines", // справочник кухонь (CUISINES_QUERY_KEY)
   "explore-events", // «Афиша»

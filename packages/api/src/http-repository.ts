@@ -252,11 +252,27 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return buildMapPreviewUrl(this.baseUrl, restaurantId, options);
   }
 
-  async getPopularRestaurants(): Promise<RestaurantSummary[]> {
-    const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants", {
-      is_popular: true,
-      page: 1,
-      per_page: POPULAR_PAGE_SIZE,
+  /**
+   * `GET /restaurants/picks` — состав блока «Выбрали для вас».
+   *
+   * Ответ — ОБЫЧНАЯ страница каталога (`{items, total, page, per_page}` из
+   * `ApiRestaurant`), поэтому здесь тот же `mapRestaurantSummary`, что и у
+   * листинга: второго маппинга у блока быть не должно, иначе карточки главной
+   * и карточки поиска начнут расходиться в мелочах.
+   *
+   * Порядок ответа НЕ ТРОГАЕМ: если владелец задал список руками, порядок в
+   * нём — это его решение, и любая сортировка на клиенте его сотрёт.
+   *
+   * Пустой `city` не отправляется вовсе (см. HttpClient): для сервера это то
+   * же самое, что и запрос без города, — список «для всех городов».
+   */
+  async getRecommendedRestaurants(
+    city?: string,
+    limit = POPULAR_PAGE_SIZE,
+  ): Promise<RestaurantSummary[]> {
+    const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/picks", {
+      city: city?.trim() || undefined,
+      limit,
     });
     return (page.items ?? []).map(mapRestaurantSummary);
   }

@@ -37,7 +37,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * пальцем проверяется на устройстве.
  */
 
-const getPopularRestaurants = vi.fn<() => Promise<RestaurantSummary[]>>();
+const getRecommendedRestaurants = vi.fn<() => Promise<RestaurantSummary[]>>();
 const getCatalogPreview = vi.fn<() => Promise<RestaurantSummary[]>>();
 const getCuisines = vi.fn<() => Promise<Cuisine[]>>();
 const listUpcomingEvents = vi.fn<() => Promise<EventPage>>();
@@ -104,7 +104,7 @@ vi.mock("../../src/lib/auth", () => ({
 
 vi.mock("../../src/lib/repository", () => ({
   useRepository: () => ({
-    getPopularRestaurants,
+    getRecommendedRestaurants,
     getCatalogPreview,
     getCuisines,
     listUpcomingEvents,
@@ -154,7 +154,7 @@ async function pull() {
 }
 
 beforeEach(() => {
-  getPopularRestaurants.mockReset().mockResolvedValue([]);
+  getRecommendedRestaurants.mockReset().mockResolvedValue([]);
   getCatalogPreview.mockReset().mockResolvedValue([]);
   getCuisines.mockReset().mockResolvedValue([]);
   listUpcomingEvents.mockReset().mockResolvedValue(emptyPage());
@@ -169,7 +169,7 @@ describe("главная: потянуть вниз, чтобы обновить
 
     // Первая загрузка: по одному запросу на блок.
     await waitFor(() => {
-      expect(getPopularRestaurants).toHaveBeenCalledTimes(1);
+      expect(getRecommendedRestaurants).toHaveBeenCalledTimes(1);
       expect(getCatalogPreview).toHaveBeenCalledTimes(1);
       expect(getCuisines).toHaveBeenCalledTimes(1);
       expect(listUpcomingEvents).toHaveBeenCalledTimes(1);
@@ -181,7 +181,7 @@ describe("главная: потянуть вниз, чтобы обновить
     await pull();
 
     await waitFor(() => {
-      expect(getPopularRestaurants).toHaveBeenCalledTimes(2);
+      expect(getRecommendedRestaurants).toHaveBeenCalledTimes(2);
       expect(getCatalogPreview).toHaveBeenCalledTimes(2);
       expect(getCuisines).toHaveBeenCalledTimes(2);
       expect(listUpcomingEvents).toHaveBeenCalledTimes(2);
