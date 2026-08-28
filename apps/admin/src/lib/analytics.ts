@@ -1,7 +1,6 @@
 "use client";
 
 import * as amplitude from "@amplitude/analytics-browser";
-import { sessionReplayPlugin } from "@amplitude/plugin-session-replay-browser";
 import type { AuthUser } from "@bookeat/api/admin";
 
 /**
@@ -20,9 +19,21 @@ import type { AuthUser } from "@bookeat/api/admin";
 
 const API_KEY = process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY;
 
-/** Fraction of sessions Session Replay records. 1 = every session; lower this
- * (e.g. 0.5) if the test project's replay quota becomes a concern. */
-const SESSION_REPLAY_SAMPLE_RATE = 1;
+/*
+ * SESSION REPLAY IS GONE — DO NOT BRING IT BACK WITHOUT A DECISION ON PAPER.
+ *
+ * It used to run here with `sampleRate: 1`, i.e. EVERY session of every staff
+ * member was recorded as video and shipped to the same Amplitude project the
+ * guest app writes to. A replay of this panel is a replay of the booking list:
+ * guests' names and phone numbers, on screen, frame by frame. The masking
+ * defaults do not cover plain text, and nobody chose that trade-off.
+ *
+ * The plugin is REMOVED rather than set to `sampleRate: 0`: a zero sample rate
+ * still loads and starts the replay SDK, so one config edit (or a default
+ * change upstream) is all that stands between the panel and recording again.
+ * No plugin, no recording — and the change is visible in the diff, not in a
+ * number.
+ */
 
 let initialized = false;
 
@@ -49,9 +60,6 @@ export function initAnalytics(): void {
   }
 
   try {
-    // Add the Session Replay plugin before init so the very first session on the
-    // page is eligible for capture (the documented order).
-    amplitude.add(sessionReplayPlugin({ sampleRate: SESSION_REPLAY_SAMPLE_RATE }));
     amplitude.init(API_KEY, {
       // Page views, element clicks, form interactions, sessions — no manual
       // instrumentation needed for the baseline funnel.
@@ -74,7 +82,10 @@ export function identifyUser(user: AuthUser): void {
     amplitude.setUserId(user.id);
     const identity = new amplitude.Identify();
     identity.set("role", user.role);
-    if (user.email) identity.set("email", user.email);
+    // NO EMAIL, and no name/phone either. The user id is an opaque UUID — it
+    // says WHICH account without saying WHOSE, which is all analytics needs;
+    // an address is a personal identifier in a third-party service, and it was
+    // landing in the same project the guest app writes to.
     amplitude.identify(identity);
   } catch (err) {
     console.error("[analytics] identify failed", err);

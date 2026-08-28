@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@amplitude/analytics-browser": "2.45.5",
-    "@amplitude/plugin-session-replay-browser": "1.33.7",
     "@bookeat/api": "workspace:*",
     "@bookeat/design-tokens": "workspace:*",
     "@bookeat/i18n": "workspace:*",
