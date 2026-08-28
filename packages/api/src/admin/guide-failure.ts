@@ -38,6 +38,11 @@ export type GuideFailureKind =
    * holds no venue a guest could open. Nothing was written; attach an active
    * venue first. */
   | "collection_empty"
+  /** `guide_route_empty` — публикация маршрута отклонена: в нём нет ни одной
+   * остановки. Ничего не записано; сначала добавьте остановку. Отдельно от
+   * `collection_empty` нарочно: у подборки речь про АКТИВНЫЕ заведения, у
+   * маршрута — про наличие остановок вообще, и это разные исправления. */
+  | "route_empty"
   /** `guide_venue_already_attached` — this venue is already in THIS collection.
    * Harmless: the intended state already holds. */
   | "venue_already_attached"
@@ -98,6 +103,8 @@ export function classifyGuideFailure(error: unknown): GuideFailure {
       return { kind: "slug_taken", applied: false, needsReload: false };
     case "guide_collection_empty":
       return { kind: "collection_empty", applied: false, needsReload: false };
+    case "guide_route_empty":
+      return { kind: "route_empty", applied: false, needsReload: false };
     case "guide_venue_already_attached":
       return { kind: "venue_already_attached", applied: false, needsReload: true };
     default:

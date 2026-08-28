@@ -59,6 +59,11 @@ export const NAV: NavGroup[] = [
       { href: "/cities", label: t.admin.nav.cities },
       { href: "/platform-guests", label: t.admin.nav.platformGuests },
       { href: "/gastroguide", label: t.admin.nav.gastroguide },
+      // Гастропрогулки — второй вид редакционного контента гастрогида (свои
+      // ручки /admin/gastroguide/routes, свои остановки). Отдельный пункт, а
+      // не кнопка внутри «Статей»: целый тип контента, спрятанный за кнопкой
+      // на чужом экране, редактор не находит.
+      { href: "/gastroguide/routes", label: t.admin.nav.gastroRoutes },
       // «Выбрали для вас» — ручной состав первого блока главной. Той же
       // природы, что и гастрогид с модерацией главной: это витрина ВСЕЙ
       // платформы, у неё нет заведения, и правит её только суперадмин.
@@ -85,4 +90,31 @@ export const PLATFORM_ROUTES: string[] = NAV.filter((g) => g.worksWithoutVenue).
  */
 export function isPlatformRoute(pathname: string): boolean {
   return PLATFORM_ROUTES.some((href) => pathname === href || pathname.startsWith(`${href}/`));
+}
+
+/**
+ * Какой пункт меню подсвечен на `pathname` — ровно ОДИН, самый длинный
+ * подходящий href.
+ *
+ * Просто «pathname начинается с href» здесь уже не годится: /gastroguide/routes
+ * начинается и с «/gastroguide», и с «/gastroguide/routes», и оба пункта
+ * загорались бы разом. Побеждает более длинный (то есть более точный) — это
+ * тот же принцип, по которому маршрутизаторы выбирают самое конкретное
+ * совпадение.
+ *
+ * «/» из префиксного сравнения исключён нарочно: это дашборд заведения, а не
+ * префикс всего на свете, — иначе подсвечивался бы первый пункт всегда.
+ */
+export function activeNavHref(pathname: string): string | null {
+  let best: string | null = null;
+  for (const group of NAV) {
+    for (const item of group.items) {
+      const matches =
+        item.href === "/"
+          ? pathname === "/"
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
+      if (matches && (best === null || item.href.length > best.length)) best = item.href;
+    }
+  }
+  return best;
 }

@@ -31,6 +31,12 @@ import type {
   GuideCollectionDetail,
   GuideCollectionInput,
   GuideCollectionListParams,
+  GuideRoute,
+  GuideRouteDetail,
+  GuideRouteInput,
+  GuideRouteListParams,
+  GuideRoutePoint,
+  GuideRoutePointInput,
   HomePickVenue,
   HomePicksInput,
   MyRestaurant,
@@ -1466,6 +1472,120 @@ export class AdminApiClient {
     return this.request<ApiPage<VenueSearchResult>>("GET", "/restaurants/search", {
       params: { q: query, per_page: perPage },
     });
+  }
+
+  // ---- Гастропрогулки (маршруты гастрогида) ----------------------------------
+  //
+  // Отдельное семейство ручек, а не «подборка с точками»: у маршрута свои
+  // поля (длительность), свои остановки со своей позицией и остановка может
+  // вообще не иметь заведения. Сервер держит их врозь — держим и здесь.
+
+  listGuideRoutes(params: GuideRouteListParams = {}): Promise<ApiPage<GuideRoute>> {
+    return this.request<ApiPage<GuideRoute>>("GET", "/admin/gastroguide/routes", {
+      params: {
+        // Как и у подборок: ?status= — один список через запятую.
+        status: params.status?.length ? params.status.join(",") : undefined,
+        city: params.city,
+        q: params.q,
+        page: params.page,
+        per_page: params.per_page,
+      },
+    });
+  }
+
+  getGuideRoute(routeId: string): Promise<GuideRouteDetail> {
+    return this.request<GuideRouteDetail>(
+      "GET",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}`,
+    );
+  }
+
+  createGuideRoute(input: GuideRouteInput): Promise<GuideRoute> {
+    return this.request<GuideRoute>("POST", "/admin/gastroguide/routes", { body: input });
+  }
+
+  updateGuideRoute(routeId: string, input: GuideRouteInput): Promise<GuideRoute> {
+    return this.request<GuideRoute>(
+      "PUT",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}`,
+      { body: input },
+    );
+  }
+
+  /** Публикация. Маршрут без единой остановки сервер публиковать отказывается
+   * (422 `guide_route_empty`) — пустая прогулка гостю показываться не должна. */
+  publishGuideRoute(routeId: string, publishedAt?: string): Promise<GuideRoute> {
+    return this.request<GuideRoute>(
+      "POST",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/publish`,
+      publishedAt ? { body: { published_at: publishedAt } } : {},
+    );
+  }
+
+  unpublishGuideRoute(routeId: string): Promise<GuideRoute> {
+    return this.request<GuideRoute>(
+      "POST",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/unpublish`,
+    );
+  }
+
+  archiveGuideRoute(routeId: string): Promise<GuideRoute> {
+    return this.request<GuideRoute>(
+      "POST",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/archive`,
+    );
+  }
+
+  /** Новая остановка встаёт в КОНЕЦ маршрута — позицию сервер назначает сам. */
+  addGuideRoutePoint(routeId: string, input: GuideRoutePointInput): Promise<GuideRoutePoint> {
+    return this.request<GuideRoutePoint>(
+      "POST",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/points`,
+      { body: input },
+    );
+  }
+
+  /** Правка остановки позицию НЕ меняет — порядок правится только reorder'ом. */
+  updateGuideRoutePoint(
+    routeId: string,
+    pointId: string,
+    input: GuideRoutePointInput,
+  ): Promise<GuideRoutePoint> {
+    return this.request<GuideRoutePoint>(
+      "PUT",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/points/${encodeURIComponent(
+        pointId,
+      )}`,
+      { body: input },
+    );
+  }
+
+  async deleteGuideRoutePoint(routeId: string, pointId: string): Promise<void> {
+    await this.request<unknown>(
+      "DELETE",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/points/${encodeURIComponent(
+        pointId,
+      )}`,
+    );
+  }
+
+  /**
+   * Пишет ИТОГОВЫЙ порядок остановок маршрута — целиком.
+   *
+   * `pointIds` обязан называть ровно текущие остановки, каждую один раз: всё
+   * остальное сервер отвергает (422 `guide_order_mismatch`) и не пишет ничего.
+   * Payload, разошедшийся с составом, означает устаревший экран, а угаданный
+   * порядок молча переписал бы маршрут.
+   *
+   * Запрос несёт весь порядок, а не перемещение, поэтому повтор после
+   * потерянного ответа безвреден.
+   */
+  async reorderGuideRoutePoints(routeId: string, pointIds: string[]): Promise<void> {
+    await this.request<unknown>(
+      "PUT",
+      `/admin/gastroguide/routes/${encodeURIComponent(routeId)}/points/order`,
+      { body: { point_ids: pointIds } },
+    );
   }
 
   // ---- «Выбрали для вас»: ручной состав блока на главной ---------------------

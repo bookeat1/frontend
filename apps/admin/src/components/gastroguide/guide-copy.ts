@@ -13,6 +13,7 @@ const FAILURE_TEXT: Record<GuideFailureKind, string> = {
   order_stale: copy.errorOrderMismatch,
   slug_taken: copy.errorSlugTaken,
   collection_empty: copy.errorCollectionEmpty,
+  route_empty: copy.errorRouteEmpty,
   venue_already_attached: copy.errorVenueAttached,
   refused: copy.errorUnknown,
   forbidden: copy.errorForbidden,

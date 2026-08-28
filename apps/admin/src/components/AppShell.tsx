@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/lib/auth-context";
-import { NAV } from "@/lib/nav";
+import { NAV, activeNavHref } from "@/lib/nav";
 import { t } from "@/lib/i18n";
 
 import { PushToggle } from "./PushToggle";
@@ -13,6 +13,7 @@ import { RestaurantSwitcher } from "./RestaurantSwitcher";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const current = activeNavHref(pathname);
   const { user, logout } = useAuth();
   // Only a superadmin sees both levels; for venue staff there is nothing to
   // separate, so the headings stay off.
@@ -49,12 +50,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
               <div className="flex gap-xs md:flex-col">
                 {group.items.map((item) => {
-                  // "/" is the dashboard, not a prefix of everything: without the
-                  // exact check every screen would light up the first nav item.
-                  const active =
-                    item.href === "/"
-                      ? pathname === "/"
-                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  // Ровно один пункт, самый точный (см. activeNavHref): просто
+                  // префиксное сравнение зажигало бы и «Статьи», и
+                  // «Гастропрогулки» на /gastroguide/routes.
+                  const active = item.href === current;
                   if (item.soon) {
                     return (
                       <span

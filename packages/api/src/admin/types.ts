@@ -1152,6 +1152,140 @@ export interface VenueSearchResult {
   primary_image?: string | null;
 }
 
+/* --- Гастропрогулки (маршруты гастрогида) ----------------------------------- */
+
+/**
+ * Публикационное состояние маршрута (domain.GuideRouteStatus).
+ *
+ * Тот же триплет, что у подборки, и намеренно ОДИН тип, а не два одинаковых:
+ * значок статуса (`GuideStatusBadge`) один на оба экрана, и второй тип-близнец
+ * заставил бы либо дублировать значок, либо приводить типы в месте вызова.
+ */
+export type GuideRouteStatus = GuideCollectionStatus;
+
+/**
+ * Что такое остановка маршрута (domain.GuideRoutePointKind).
+ *
+ *   `restaurant` — остановка, за которой стоит заведение каталога; у неё есть
+ *      `restaurant_id`, и карточка в приложении берётся из каталога;
+ *   `place` — остановка без заведения (парк, смотровая площадка, набережная).
+ *      Заведения у неё нет и быть не должно — сервер откажет.
+ */
+export type GuideRoutePointKind = "restaurant" | "place";
+
+/** Строка маршрута в списке редактора (GET /admin/gastroguide/routes). */
+export interface GuideRoute {
+  id: string;
+  slug: string;
+  title: string;
+  title_i18n?: I18nMap;
+  description: string;
+  description_i18n?: I18nMap;
+  cover_image_url: string | null;
+  /** Подпись длительности, свободный текст: «3–4 часа». */
+  duration_label: string;
+  duration_label_i18n?: I18nMap;
+  /** null — маршрут показывается во всех городах. */
+  city: string | null;
+  status: GuideRouteStatus;
+  published_at: string | null;
+  position: number;
+  /** Сколько в маршруте остановок — ВСЕХ, включая те, за которыми стоит
+   * отключённое заведение. В отличие от `venue_count` подборки это не «сколько
+   * увидит гость»: маршрут показывается целиком, отключается только карточка
+   * заведения внутри остановки. */
+  point_count: number;
+  updated_at: string;
+}
+
+/** Заведение за остановкой — так, как его видит редактор. `is_active: false`
+ * означает, что в приложении у этой остановки не будет карточки заведения. */
+export interface GuideRoutePointVenue {
+  id: string;
+  name: string;
+  address: string;
+  cuisine_type: string;
+  city: string;
+  price_category: string;
+  primary_image_url: string | null;
+  is_active: boolean;
+}
+
+/** Одна остановка маршрута. */
+export interface GuideRoutePoint {
+  id: string;
+  position: number;
+  kind: GuideRoutePointKind;
+  restaurant_id: string | null;
+  title: string;
+  title_i18n?: I18nMap;
+  description: string;
+  description_i18n?: I18nMap;
+  photo_url: string | null;
+  address: string;
+  address_i18n?: I18nMap;
+  latitude: number | null;
+  longitude: number | null;
+  /** Есть у любой остановки, за которой ещё числится заведение, — активное или
+   * нет; какое именно, говорит `is_active`. */
+  venue: GuideRoutePointVenue | null;
+}
+
+/** GET /admin/gastroguide/routes/:id — маршрут со всеми остановками. */
+export interface GuideRouteDetail extends GuideRoute {
+  points: GuideRoutePoint[];
+}
+
+/**
+ * Тело POST/PUT /admin/gastroguide/routes — ПОЛНАЯ замена правимых полей.
+ *
+ * Статуса здесь нет намеренно, как и у подборки: публикация — отдельные ручки,
+ * поэтому правка опечатки не может вывести маршрут в приложение.
+ * `city: null` — «во всех городах».
+ */
+export interface GuideRouteInput {
+  slug: string;
+  title: string;
+  title_i18n?: I18nMap;
+  description: string;
+  description_i18n?: I18nMap;
+  cover_image_url: string | null;
+  duration_label: string;
+  duration_label_i18n?: I18nMap;
+  city: string | null;
+  position: number;
+}
+
+/**
+ * Тело POST/PUT остановки. Позиции здесь нет: новая остановка встаёт в конец,
+ * правка позицию сохраняет, а порядок меняется только через отдельную ручку —
+ * иначе «поправить описание» могло бы незаметно переставить маршрут.
+ */
+export interface GuideRoutePointInput {
+  kind: GuideRoutePointKind;
+  /** Обязателен для `restaurant` и должен отсутствовать у `place`. */
+  restaurant_id?: string;
+  title: string;
+  title_i18n?: I18nMap;
+  description: string;
+  description_i18n?: I18nMap;
+  photo_url: string | null;
+  address: string;
+  address_i18n?: I18nMap;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** Запрос списка маршрутов в кабинете. */
+export interface GuideRouteListParams {
+  /** Пусто — все статусы. */
+  status?: GuideRouteStatus[];
+  city?: string;
+  q?: string;
+  page?: number;
+  per_page?: number;
+}
+
 /* --- «Выбрали для вас»: ручной состав блока на главной ---------------------- */
 
 /**
