@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminEvent, EventInput, FeedItemState } from "@bookeat/api/admin";
+import type {
+  AdminEvent,
+  EventContentField,
+  EventInput,
+  FeedItemState,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
@@ -16,7 +21,12 @@ import {
 } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { formatTags, parseTags } from "@/lib/tags";
-import { groupEventsIntoSeries, eventToInput } from "@/lib/event-series";
+import {
+  contentOverridesOf,
+  groupEventsIntoSeries,
+  eventToInput,
+  isSeriesDate,
+} from "@/lib/event-series";
 import { Button } from "./ui/Button";
 import { EventSeriesCard } from "./EventSeriesCard";
 import { FeedControl } from "./ui/FeedControl";
@@ -256,6 +266,12 @@ function EventFormModal({
   onSaved: () => void;
 }) {
   const isEdit = !!event;
+  // Дата серии наследует контент от правила (migration 0097). Форма та же, но
+  // человек должен видеть, ЧТО он правит: общий текст серии или исключение
+  // именно этой даты.
+  const inSeries = isSeriesDate(event);
+  const overrides = contentOverridesOf(event);
+  const [resetError, setResetError] = useState<string | null>(null);
   const [title, setTitle] = useState(event?.title ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [startsAt, setStartsAt] = useState(isoToLocalInput(event?.starts_at));
@@ -271,6 +287,15 @@ function EventFormModal({
   const [tags, setTags] = useState(formatTags(event?.tags));
   const [publishNow, setPublishNow] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  /** Сброс переопределения: поле (или все сразу) снова берётся у серии.
+   * Сервер сам стирает пометку и переписывает поле контентом правила — тело
+   * события для этого слать не надо. */
+  const resetMutation = useMutation({
+    mutationFn: (fields: EventContentField[]) => apiClient.resetEventContent(event!.id, fields),
+    onSuccess: onSaved,
+    onError: () => setResetError(t.admin.events.series.resetFailed),
+  });
 
   const mutation = useMutation({
     mutationFn: (input: EventInput) =>
@@ -327,12 +352,76 @@ function EventFormModal({
   return (
     <Modal title={isEdit ? t.admin.events.editTitle : t.admin.events.createTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
+        {inSeries ? (
+          <div
+            role="note"
+            className="flex flex-col gap-xs rounded-card bg-chip px-md py-sm text-text"
+          >
+            <span className="text-[13px] font-semibold">
+              {t.admin.events.series.dateContentTitle}
+            </span>
+            <span className="text-[12px] text-text-muted">
+              {t.admin.events.series.dateContentHint}
+            </span>
+            {overrides.length > 0 ? (
+              <>
+                <span className="text-[12px] text-text">
+                  {t.admin.events.series.overriddenList(
+                    overrides.map((f) => t.admin.events.series.fieldName(f)).join(", "),
+                  )}
+                </span>
+                <div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    loading={resetMutation.isPending && resetMutation.variables?.length === 0}
+                    disabled={resetMutation.isPending}
+                    onClick={() => {
+                      if (!window.confirm(t.admin.events.series.resetAllConfirm)) return;
+                      setResetError(null);
+                      resetMutation.mutate([]);
+                    }}
+                  >
+                    {t.admin.events.series.resetAll}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+            {resetError ? (
+              <p role="alert" className="text-[12px] text-brand">
+                {resetError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <Field label={t.admin.events.fieldTitle} required>
           <TextInput value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
         </Field>
+        <SeriesFieldNote
+          field="title"
+          inSeries={inSeries}
+          overrides={overrides}
+          busy={resetMutation.isPending}
+          onReset={(f) => {
+            setResetError(null);
+            resetMutation.mutate([f]);
+          }}
+        />
         <Field label={t.admin.events.fieldDescription}>
           <TextArea value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
+        <SeriesFieldNote
+          field="description"
+          inSeries={inSeries}
+          overrides={overrides}
+          busy={resetMutation.isPending}
+          onReset={(f) => {
+            setResetError(null);
+            resetMutation.mutate([f]);
+          }}
+        />
         <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
           <Field label={t.admin.events.fieldStartsAt} required>
             <TextInput
@@ -352,13 +441,43 @@ function EventFormModal({
         <Field label={t.admin.events.fieldVenue} hint={t.admin.events.fieldVenueHint}>
           <TextInput value={venue} onChange={(e) => setVenue(e.target.value)} />
         </Field>
+        <SeriesFieldNote
+          field="venue"
+          inSeries={inSeries}
+          overrides={overrides}
+          busy={resetMutation.isPending}
+          onReset={(f) => {
+            setResetError(null);
+            resetMutation.mutate([f]);
+          }}
+        />
         <Field label={t.admin.events.fieldTags} hint={t.admin.events.fieldTagsHint}>
           <TextInput value={tags} onChange={(e) => setTags(e.target.value)} maxLength={300} />
         </Field>
+        <SeriesFieldNote
+          field="tags"
+          inSeries={inSeries}
+          overrides={overrides}
+          busy={resetMutation.isPending}
+          onReset={(f) => {
+            setResetError(null);
+            resetMutation.mutate([f]);
+          }}
+        />
         <ImageUploadField
           label={t.admin.events.fieldCover}
           value={cover}
           onChange={setCover}
+        />
+        <SeriesFieldNote
+          field="cover_image_url"
+          inSeries={inSeries}
+          overrides={overrides}
+          busy={resetMutation.isPending}
+          onReset={(f) => {
+            setResetError(null);
+            resetMutation.mutate([f]);
+          }}
         />
         <ImageGalleryField
           label={t.admin.gallery.label}
@@ -419,5 +538,54 @@ function EventFormModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * Подпись под полем формы даты серии: наследуется оно от серии или это
+ * исключение именно у этой даты.
+ *
+ * Различие не косметическое. Поле, помеченное «своё», переживает правку общего
+ * контента серии — а поле, которое наследуется, будет ею переписано. Человек
+ * должен читать это ДО того, как что-то напишет, а не гадать потом, почему
+ * половина дат сменила текст, а половина нет.
+ */
+function SeriesFieldNote({
+  field,
+  inSeries,
+  overrides,
+  busy,
+  onReset,
+}: {
+  field: EventContentField;
+  inSeries: boolean;
+  overrides: EventContentField[];
+  busy: boolean;
+  onReset: (field: EventContentField) => void;
+}) {
+  if (!inSeries) return null;
+  const own = overrides.includes(field);
+  if (!own) {
+    return (
+      <p className="-mt-xs text-[12px] text-text-muted">
+        {t.admin.events.series.inheritedHint}
+      </p>
+    );
+  }
+  return (
+    <div className="-mt-xs flex flex-wrap items-center gap-xs">
+      <span className="inline-block whitespace-nowrap rounded-pill bg-amber-100 px-sm py-xxs text-[11px] font-medium text-amber-800">
+        {t.admin.events.series.overrideBadge}
+      </span>
+      <span className="text-[12px] text-text-muted">{t.admin.events.series.overrideHint}</span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onReset(field)}
+        className="rounded-pill px-sm py-xxs text-[12px] font-medium text-brand underline disabled:opacity-60"
+      >
+        {`${t.admin.events.series.resetField}: ${t.admin.events.series.fieldName(field)}`}
+      </button>
+    </div>
   );
 }
