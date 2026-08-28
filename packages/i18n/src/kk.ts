@@ -202,6 +202,7 @@ export const kk: LocaleOverride<Dictionary> = {
     catalogEmptyTitle: "Каталог әзірге бос",
     catalogEmptyDescription: "Мейрамханалар қосылысымен осында пайда болады",
     frequentTitle: "Жиі іздейді",
+    matchedDish: (dish: string) => `Мәзірде: ${dish}`,
 
     filters: {
       title: "Сүзгілер",

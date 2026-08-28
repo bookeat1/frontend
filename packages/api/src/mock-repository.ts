@@ -389,6 +389,7 @@ export class MockRestaurantRepository implements RestaurantRepository {
       status: "confirmed",
       notes: input.notes?.trim() ? input.notes.trim() : null,
       freeCancelDeadline: new Date(startsAt.getTime() - 180 * 60_000).toISOString(),
+      createdAt: new Date().toISOString(),
     };
     this.bookings.set(booking.id, booking);
     this.bookingsByKey.set(idempotencyKey, booking.id);

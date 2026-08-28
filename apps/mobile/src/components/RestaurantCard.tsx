@@ -1,8 +1,11 @@
 import type { RestaurantSummary } from "@bookeat/api";
+import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { cuisineLine, splitCuisines, venueSubtitle } from "../lib/cuisine-display";
 import { openStateLabel } from "../lib/schedule";
 import { ListMediaCard } from "./ListMediaCard";
+
+const t = getDictionary();
 
 interface RestaurantCardProps {
   restaurant: RestaurantSummary;
@@ -53,12 +56,20 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
   // заведения в подборке гастрогида, где кухня и ступень чека приходят
   // готовыми строками.
   const subtitle = venueSubtitle(primaryCuisine, price);
+  // «В меню: Паста Алио и олио» — блюдо, из-за которого заведение попало в
+  // выдачу. Поле приходит ТОЛЬКО из поиска и только при совпадении по меню
+  // (см. RestaurantSummary.matchedDish), поэтому в избранном и в каталоге
+  // строки просто нет — ничего лишнего там не появляется.
+  const matchedDish = restaurant.matchedDish
+    ? t.search.matchedDish(restaurant.matchedDish.name)
+    : undefined;
 
   return (
     <ListMediaCard
       title={restaurant.name}
       titleLines={1}
       subtitle={subtitle}
+      note={matchedDish}
       coverUri={restaurant.coverPhoto?.uri}
       overlay={photoOverlay}
       onPress={() => onPress(restaurant.id)}
@@ -70,6 +81,10 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
         cuisineLine(restaurant.cuisines),
         price,
         statusLabel,
+        // Блюдо идёт и в метку: без него скринридер прочитает карточку
+        // заведения, названия которого в запросе не было, и объяснения не
+        // услышит.
+        matchedDish,
       ]
         .filter(Boolean)
         .join(", ")}

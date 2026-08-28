@@ -33,6 +33,7 @@ import type {
   GuideRoutePoint,
   GuideCollectionVenue,
   GuideHighlight,
+  MatchedDish,
   MenuHighlight,
   MenuSection,
   AppNotification,
@@ -131,6 +132,13 @@ export interface ApiRestaurant {
   schedule?: ApiSchedule;
   /** Может ли сервер выдать слот по этому заведению вообще. */
   accepts_online_bookings?: boolean;
+  /**
+   * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
+   * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
+   * по названию заведения поля нет вовсе, поэтому оно необязательное и может
+   * прийти null.
+   */
+  matched_dish?: { id?: string; name?: string } | null;
 }
 
 /** menuItemResponse — GET /restaurants/:id/menu returns a bare array of these
@@ -551,6 +559,10 @@ export interface ApiBooking {
   /** Only on the detail/create payload (bookingDetailsResponse), not on the
    * plain list rows. */
   free_cancel_deadline?: string | null;
+  /** RFC3339 момент создания брони — сервер отдаёт его и в списке, и в
+   * деталке (bookingResponse.CreatedAt). Необязательный здесь только на
+   * случай старой сборки бэкенда. */
+  created_at?: string | null;
 }
 
 /** paymentResponse — internal/transport/rest/payments/response.go. Only the
@@ -699,6 +711,7 @@ export function mapBooking(api: ApiBooking): Booking {
     status: mapBookingStatus(api.status),
     notes: text(api.notes) || null,
     freeCancelDeadline: text(api.free_cancel_deadline) || null,
+    createdAt: text(api.created_at) || null,
   };
 }
 
@@ -958,7 +971,20 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     // (проверено curl'ом: все три ручки отдают одно и то же поле).
     schedule: mapSchedule(api.schedule),
     acceptsOnlineBookings: api.accepts_online_bookings === true,
+    matchedDish: mapMatchedDish(api.matched_dish),
   };
+}
+
+/**
+ * Блюдо, по которому сработал поиск. Возвращает undefined на всё, что нельзя
+ * показать гостю: поля нет (поиск по названию заведения), пришёл null, или имя
+ * пустое — подпись «в меню:» без названия блюда хуже, чем её отсутствие.
+ */
+function mapMatchedDish(raw: ApiRestaurant["matched_dish"]): MatchedDish | undefined {
+  if (!raw) return undefined;
+  const name = text(raw.name);
+  if (!name) return undefined;
+  return { id: text(raw.id), name };
 }
 
 /**

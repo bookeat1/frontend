@@ -271,6 +271,24 @@ export interface RestaurantSummary {
   schedule: VenueSchedule | null;
   /** См. Restaurant.acceptsOnlineBookings. Есть и в списке, и в деталке. */
   acceptsOnlineBookings: boolean;
+  /**
+   * Блюдо, из-за которого заведение попало в выдачу поиска.
+   *
+   * Приходит ТОЛЬКО от `GET /restaurants/search` и только когда совпадение
+   * случилось по меню: поиск по названию заведения поле не присылает вовсе
+   * (проверено на тестовом бэкенде 2026-08-28: «паста» → 8 заведений, у
+   * каждого своё блюдо — Social Coffee «Паста с митболами из ягненка»).
+   * Листинг, избранное и деталка его не отдают, поэтому поле необязательное.
+   */
+  matchedDish?: MatchedDish;
+}
+
+/** Блюдо из меню, по которому сработал поиск: ровно то, что отдаёт сервер в
+ * `matched_dish`. Отдельный тип, а не инлайн-объект — его читают и карточка, и
+ * тесты маппинга. */
+export interface MatchedDish {
+  id: string;
+  name: string;
 }
 
 export interface SearchFilters {
@@ -575,6 +593,15 @@ export interface Booking {
   notes: string | null;
   /** Absolute moment free cancellation ends; null when it no longer applies. */
   freeCancelDeadline: string | null;
+  /**
+   * RFC3339 момент создания брони. Сервер отдаёт `created_at` в КАЖДОМ ответе
+   * по броням (internal/transport/rest/bookings/response.go, поле не
+   * опциональное), но старый ответ его не присылал, поэтому здесь `null` —
+   * это «сервер не сказал», а не «брони не было».
+   *
+   * Нужен ровно для одного: посчитать, сколько бронь прожила до отмены.
+   */
+  createdAt: string | null;
 }
 
 /**

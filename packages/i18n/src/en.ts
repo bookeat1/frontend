@@ -197,6 +197,7 @@ export const en: LocaleOverride<Dictionary> = {
     catalogEmptyTitle: "The catalog is empty for now",
     catalogEmptyDescription: "Restaurants will appear here as soon as they're added",
     frequentTitle: "Popular searches",
+    matchedDish: (dish: string) => `On the menu: ${dish}`,
 
     filters: {
       title: "Filters",

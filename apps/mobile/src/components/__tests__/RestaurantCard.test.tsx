@@ -128,4 +128,26 @@ describe("кухни на карточке", () => {
     expect(screen.queryByText(/\+0/)).toBeNull();
     expect(screen.queryByText(/Европейская кухня/)).toBeNull();
   });
+
+  it("под названием пишет блюдо, по которому заведение нашлось", () => {
+    render(
+      <RestaurantCard
+        restaurant={{ ...BASE, matchedDish: { id: "d-1", name: "Паста Алио и олио" } }}
+        onPress={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("В меню: Паста Алио и олио")).toBeTruthy();
+    // Блюдо слышит и скринридер: иначе он прочитает карточку заведения, слова
+    // из запроса в названии которого нет, и объяснения не получит.
+    expect(screen.getByRole("button", { name: /Паста Алио и олио/ })).toBeTruthy();
+  });
+
+  it("без совпадения по меню никакой лишней строки не появляется", () => {
+    // Так карточка выглядит в избранном и при поиске по названию заведения:
+    // сервер `matched_dish` не присылает вовсе.
+    render(<RestaurantCard restaurant={BASE} onPress={vi.fn()} />);
+
+    expect(screen.queryByText(/В меню/)).toBeNull();
+  });
 });

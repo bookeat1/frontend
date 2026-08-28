@@ -40,6 +40,7 @@ import { PhotoView } from "./PhotoView";
 export function ListMediaCard({
   title,
   subtitle,
+  note,
   coverUri,
   overlay,
   badge,
@@ -51,6 +52,16 @@ export function ListMediaCard({
   /** Одна строка под названием: «Европейская · 8 000–15 000 ₸» у заведения,
    * «18 мая · 13:00» у события. Пусто — строки просто нет. */
   subtitle?: string;
+  /**
+   * Ещё одна необязательная строка ПОД подписью — сегодня только «В меню:
+   * <блюдо>» в выдаче поиска, когда заведение нашлось по меню.
+   *
+   * Отдельный слот, а не склейка с `subtitle`: подпись однострочная и уже
+   * занята («Европейская · ₸₸»), а дописать туда блюдо значило бы обрезать
+   * многоточием либо кухню, либо блюдо. Экраны, которые её не передают
+   * (избранное, статьи, акции, подборки), рисуются ровно как раньше.
+   */
+  note?: string;
   coverUri?: string | null;
   /** Абсолютно позиционированный элемент поверх снимка — сердечко избранного.
    * Слот, а не встроенный флаг: в списках без избранного он не должен тянуть
@@ -116,6 +127,11 @@ export function ListMediaCard({
             {subtitle}
           </Text>
         ) : null}
+        {note ? (
+          <Text style={styles.note} numberOfLines={1} ellipsizeMode="tail">
+            {note}
+          </Text>
+        ) : null}
       </View>
       </View>
     </Pressable>
@@ -166,6 +182,12 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.text.onDarkMuted,
+  },
+  note: {
+    // Тем же кеглем, что и подпись, но не приглушённая: это ОТВЕТ на запрос
+    // гостя («почему это заведение здесь»), а не второстепенная справка.
+    ...typography.captionMedium,
+    color: colors.text.onDark,
   },
   overlayLayer: {
     position: "absolute",
