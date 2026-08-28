@@ -165,3 +165,13 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
 }
+
+/**
+ * The same context, but tolerant of not being inside the provider. Used by
+ * shared cards that are also rendered standalone in tests (and by the venue
+ * catalog, where "switch the panel's venue" is not the right offer) — they need
+ * to know whether they can offer a venue switch at all, not to crash.
+ */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext);
+}

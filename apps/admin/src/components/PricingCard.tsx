@@ -10,17 +10,22 @@ import {
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { useOptionalAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
+import { isVenueUnavailableError } from "@/lib/venue-access";
 import { Button } from "./ui/Button";
 import { Field, Select, TextInput } from "./ui/FormControls";
-import { ErrorState, LoadingState } from "./StateViews";
+import { ErrorState, LoadingState, VenueUnavailableState } from "./StateViews";
 
 /**
  * «Средний чек» — the venue's categorical price tier (₸/₸₸/₸₸₸) and its numeric
  * average-check range in whole tenge.
  *
- * Both write through the SAME `PATCH /restaurants/:id` and the panel prefills
- * from `GET /restaurants/:id` (the only read carrying the numeric range).
+ * Both write through the SAME `PATCH /restaurants/:id`, and the panel prefills
+ * from `GET /admin/restaurants/:id` — the cabinet read, which carries the
+ * numeric range AND serves a venue hidden from the catalog (the public
+ * `GET /restaurants/:id` answers 404 for one, which is why this card used to be
+ * unopenable for a deactivated venue).
  *
  * Two independent rules the card enforces before spending a request:
  *  - the range is both-or-neither (parsePriceRangeInput, tested DOM-free);
@@ -56,6 +61,7 @@ export function PricingCard({
   client?: PricingClient;
 }) {
   const queryClient = useQueryClient();
+  const auth = useOptionalAuth();
   const queryKey = useMemo(() => ["restaurant-pricing", restaurantId] as const, [restaurantId]);
 
   const pricingQuery = useQuery({
@@ -64,7 +70,14 @@ export function PricingCard({
   });
 
   if (pricingQuery.isPending) return <LoadingState title={copy.loadingTitle} />;
-  if (pricingQuery.isError) return <ErrorState onRetry={() => void pricingQuery.refetch()} />;
+  if (pricingQuery.isError) {
+    // Тот же разбор, что и в «Соцсетях»: 404/403 значит, что заведения здесь
+    // нет или оно больше не ваше — повтор запроса на это не отвечает.
+    if (isVenueUnavailableError(pricingQuery.error)) {
+      return <VenueUnavailableState onPickAnother={auth ? () => auth.clearRestaurant() : undefined} />;
+    }
+    return <ErrorState onRetry={() => void pricingQuery.refetch()} />;
+  }
 
   return (
     <PricingForm

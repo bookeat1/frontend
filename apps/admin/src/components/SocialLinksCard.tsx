@@ -5,7 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseSocialLinkRows, type SocialLink, type SocialLinkInput } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
+import { useOptionalAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
+import { isVenueUnavailableError } from "@/lib/venue-access";
 import { Button } from "./ui/Button";
 import {
   SOCIAL_LINK_ERROR_COPY,
@@ -13,16 +15,17 @@ import {
   draftsFromLinks,
   type SocialLinkDraft,
 } from "./ui/SocialLinksField";
-import { ErrorState, LoadingState } from "./StateViews";
+import { ErrorState, LoadingState, VenueUnavailableState } from "./StateViews";
 
 /**
  * «Соцсети» в настройках заведения — чтобы ресторан правил свои ссылки сам.
  *
- * Права: пишет тот же `PATCH /restaurants/:id`, что и «Средний чек». Роут
- * смонтирован на группе `RequireRestaurantManager` (bootstrap/app.go), а
- * `social_links`, в отличие от `is_active` и маркетинговых флагов, для
- * не-админа НЕ вырезается — управляющий заведения правит свои ссылки без
- * суперадмина.
+ * Права: читает `GET /admin/restaurants/:id`, пишет тот же
+ * `PATCH /restaurants/:id`, что и «Средний чек». Оба роута смонтированы на
+ * группе `RequireRestaurantManager` (bootstrap/app.go), а `social_links`, в
+ * отличие от `is_active` и маркетинговых флагов, для не-админа НЕ вырезается —
+ * управляющий заведения правит свои ссылки без суперадмина. Читать публичной
+ * карточкой заведения нельзя: она не отдаёт скрытые из каталога заведения.
  *
  * Набор ссылок сервер ЗАМЕЩАЕТ целиком, поэтому карточка сначала читает
  * текущий набор и только потом даёт сохранять: сохранить, не зная, что там
@@ -43,6 +46,7 @@ export function SocialLinksCard({
   client?: SocialLinksClient;
 }) {
   const queryClient = useQueryClient();
+  const auth = useOptionalAuth();
   const queryKey = useMemo(() => ["restaurant-social-links", restaurantId] as const, [restaurantId]);
 
   const query = useQuery({
@@ -52,6 +56,13 @@ export function SocialLinksCard({
 
   if (query.isPending) return <LoadingState title={copy.loadingTitle} />;
   if (query.isError) {
+    // 404/403 на заведении — это не сбой связи: заведения с таким id здесь нет
+    // (id остался от другого сервера) либо человека убрали из его команды. И то
+    // и другое лечится выбором другого заведения, а не кнопкой «Повторить» —
+    // «проверьте соединение» здесь отправляет искать несуществующую поломку сети.
+    if (isVenueUnavailableError(query.error)) {
+      return <VenueUnavailableState onPickAnother={auth ? () => auth.clearRestaurant() : undefined} />;
+    }
     return <ErrorState message={copy.loadFailed} onRetry={() => void query.refetch()} />;
   }
 

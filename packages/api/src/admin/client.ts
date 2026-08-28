@@ -1043,41 +1043,56 @@ export class AdminApiClient {
 
   // ---- Restaurant pricing (average check) ----------------------------------
   //
-  // NOTE the path: like booking-policy, this is NOT under `/admin`. The write
-  // route `PATCH /restaurants/:id` is mounted on the plain authenticated group
-  // and reachable by the venue's own manager; the backend STRIPS the marketing
-  // flags and `is_active` for non-admin callers, so this UI only ever sends the
-  // pricing fields. `RequireRestaurantManager` enforces membership.
+  // NOTE the paths: the READ is `GET /admin/restaurants/:id`, the WRITE is
+  // `PATCH /restaurants/:id` — like booking-policy, the write is NOT under
+  // `/admin`. Both are mounted on the same RequireRestaurantManager(…, "id")
+  // group (RegisterRestaurantScoped), so the venue's own manager reaches both;
+  // the backend STRIPS the marketing flags and `is_active` for non-admin
+  // callers, so this UI only ever sends the pricing fields.
 
   /**
-   * GET /restaurants/:id (the PUBLIC catalog endpoint, reused here). This is
-   * the only read that carries the numeric `price_range` alongside the
-   * categorical `price_category` — the admin profile endpoint
-   * (`getProfile`) returns the tier alone — so the «Средний чек» card prefills
-   * from here rather than adding a bespoke admin route.
+   * GET /admin/restaurants/:id — the venue as the CABINET sees it.
+   *
+   * NOT the public `GET /restaurants/:id`, which is what this used to call. The
+   * public endpoint serves the catalog, and the catalog does not contain a
+   * deactivated venue: `is_active = false` made it answer 404, and the panel
+   * turned that into «Не удалось загрузить. Проверьте соединение» — sending
+   * people to look for a network fault while the venue was simply hidden.
+   *
+   * The admin read is mounted on the same RequireRestaurantManager(…, "id")
+   * group as the write below, sees hidden venues, and carries the numeric
+   * `price_range` next to the categorical `price_category` (the admin profile
+   * endpoint, `getProfile`, returns the tier alone). It also does NOT localize:
+   * the panel gets the venue's own stored fields rather than a translation
+   * resolved from Accept-Language.
    */
   getRestaurantPricing(restaurantId: string): Promise<RestaurantPricing> {
     return this.request<RestaurantPricing>(
       "GET",
-      `/restaurants/${encodeURIComponent(restaurantId)}`,
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}`,
     );
   }
 
   // ---- Ссылки на соцсети ----------------------------------------------------
   //
-  // Тот же PATCH /restaurants/:id и тот же публичный GET. Роут смонтирован на
-  // группе RequireRestaurantManager, а `social_links` (в отличие от is_active и
-  // маркетинговых флагов) для не-админа НЕ вырезается — значит менеджер своего
-  // заведения правит свои ссылки сам, без суперадмина.
+  // Тот же PATCH /restaurants/:id и тот же админский GET, что у «Среднего
+  // чека». Оба роута смонтированы на группе RequireRestaurantManager, а
+  // `social_links` (в отличие от is_active и маркетинговых флагов) для
+  // не-админа НЕ вырезается — значит менеджер своего заведения правит свои
+  // ссылки сам, без суперадмина.
 
   /**
-   * GET /restaurants/:id → `social_links`. Ключ ОПУЩЕН, когда ссылок нет
+   * GET /admin/restaurants/:id → `social_links`. Ключ ОПУЩЕН, когда ссылок нет
    * (`omitempty`), поэтому пустой ответ и отсутствие ссылок — одно и то же.
+   *
+   * Читается админской ручкой, а не публичной карточкой: публичная не отдаёт
+   * скрытое из каталога заведение (404), и у выключенного заведения блок
+   * «Соцсети» не открывался вовсе — ни в настройках, ни в правке из каталога.
    */
   async getRestaurantSocialLinks(restaurantId: string): Promise<SocialLink[]> {
     const restaurant = await this.request<{ social_links?: SocialLink[] }>(
       "GET",
-      `/restaurants/${encodeURIComponent(restaurantId)}`,
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}`,
     );
     return restaurant.social_links ?? [];
   }

@@ -60,3 +60,33 @@ export function ErrorState({
     </Frame>
   );
 }
+
+/**
+ * The venue itself is gone from under the screen — 404/403 on the venue, not a
+ * bad connection. Deliberately NOT an ErrorState: «Повторить» here repeats a
+ * request that can only fail again, and the honest next step is picking another
+ * venue. The action is passed in, because "pick another" means the header
+ * switcher on a venue screen and nothing at all inside the venue catalog.
+ */
+export function VenueUnavailableState({
+  description,
+  onPickAnother,
+}: {
+  description?: string;
+  onPickAnother?: () => void;
+}) {
+  const copy = t.admin.venueUnavailable;
+  return (
+    <Frame>
+      <p className="text-base font-semibold text-text">{copy.title}</p>
+      <p className="max-w-md text-sm text-text-muted" role="alert">
+        {description ?? copy.description}
+      </p>
+      {onPickAnother ? (
+        <Button variant="secondary" onClick={onPickAnother}>
+          {copy.pick}
+        </Button>
+      ) : null}
+    </Frame>
+  );
+}

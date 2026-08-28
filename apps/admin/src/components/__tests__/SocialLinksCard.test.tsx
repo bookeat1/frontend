@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { SocialLink } from "@bookeat/api/admin";
+import { AdminApiError, type SocialLink } from "@bookeat/api/admin";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -147,6 +147,35 @@ describe("SocialLinksCard", () => {
     expect(await screen.findByText(/ссылки не загрузились/i)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^сохранить$/i })).toBeNull();
     expect(client.setRestaurantSocialLinks).not.toHaveBeenCalled();
+  });
+
+  it("404 на заведении объясняет ПРИЧИНУ и не предлагает бессмысленный повтор", async () => {
+    // Заведение читается кабинетной ручкой, которая видит и выключенные, —
+    // значит 404 здесь означает «такого заведения тут нет» (id с другого
+    // сервера) или «вас убрали из команды». «Проверьте соединение» на это
+    // отправляет чинить сеть, которая исправна, а кнопка «Повторить» повторяет
+    // запрос, который может только упасть снова.
+    const client: SocialLinksClient = {
+      getRestaurantSocialLinks: vi.fn().mockRejectedValue(new AdminApiError("not found", 404)),
+      setRestaurantSocialLinks: vi.fn(),
+    };
+    renderCard(client);
+
+    expect(await screen.findByText("Заведение недоступно")).toBeTruthy();
+    expect(screen.queryByText(/ссылки не загрузились/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /повторить/i })).toBeNull();
+  });
+
+  it("сбой связи остаётся сбоем связи — с повтором", async () => {
+    const client: SocialLinksClient = {
+      getRestaurantSocialLinks: vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+      setRestaurantSocialLinks: vi.fn(),
+    };
+    renderCard(client);
+
+    expect(await screen.findByText(/ссылки не загрузились/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /повторить/i })).toBeTruthy();
+    expect(screen.queryByText("Заведение недоступно")).toBeNull();
   });
 
   it("показывает чужой вид из старых данных, а не подменяет его молча", async () => {
