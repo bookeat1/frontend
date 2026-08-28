@@ -8,17 +8,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import GuideRubricsScreen from "../gastroguide/rubrics";
 
 /**
- * ЭКРАН «ВСЕ РУБРИКИ» (`/gastroguide/rubrics`, правка владельца 28.08.2026
- * «лучше столбиком»). Проверяем то, что ломается тихо:
+ * ЭКРАН «ВСЕ РУБРИКИ» (`/gastroguide/rubrics`). Заведён 28.08.2026 по правке
+ * владельца «лучше столбиком», в тот же день переведён на вид ЛИСТИНГА АКЦИЙ
+ * («сделай рубрики как листинг акций»). Проверяем то, что ломается тихо:
  *
  *   1. список берётся из СПРАВОЧНИКА рубрик (`GET /gastroguide/categories`), а
  *      не из ленты подборок: рубрика, у которой ещё нет ни одной подборки, в
  *      ленте на корне вкладки не показывается — и обязана показаться здесь;
- *   2. плитка ведёт на экран рубрики по ЕЁ СОБСТВЕННОМУ слагу (а не по слагу
+ *   2. карточка ведёт на экран рубрики по ЕЁ СОБСТВЕННОМУ слагу (а не по слагу
  *      подборки, из которой лента строит свои плитки);
- *   3. плитки — тот же компонент, что в ленте, а не копия вёрстки;
- *   4. отказ ленты ПОДБОРОК не рушит экран: без него у плиток нет фотографий,
- *      но названия рубрик — то, ради чего сюда пришли.
+ *   3. карточка — та же общая `ListMediaCard`, которой рисуется листинг акций,
+ *      а не копия вёрстки и не плитка ленты;
+ *   4. подпись под названием — ЧИСЛО ПОДБОРОК рубрики, со склонением; у пустой
+ *      рубрики подписи нет вовсе, выдуманного текста там не появляется;
+ *   5. отказ ленты ПОДБОРОК не рушит экран: без него у карточек нет ни
+ *      фотографий, ни подписи, но названия рубрик — то, ради чего сюда пришли.
  */
 
 const t = getDictionary("ru");
@@ -40,8 +44,8 @@ vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
-// Градиент-затемнение плитки — нативный модуль; на структуру, которую держит
-// этот файл, он не влияет.
+// Градиент-затемнение карточки — нативный модуль; на структуру, которую
+// держит этот файл, он не влияет.
 vi.mock("expo-linear-gradient", () => ({ LinearGradient: () => null }));
 
 const getGuideCategories = vi.fn<() => Promise<GuideCategory[]>>();
@@ -59,8 +63,8 @@ const CATEGORIES: GuideCategory[] = [
   { slug: "mountains", title: "Горы и гастрономия", position: 3 },
 ];
 
-const COLLECTIONS: GuideCollection[] = [
-  {
+function collection(over: Partial<GuideCollection>): GuideCollection {
+  return {
     slug: "steppe-tastes",
     kind: "collection",
     title: "Вкусы степи",
@@ -69,7 +73,25 @@ const COLLECTIONS: GuideCollection[] = [
     coverImageUrl: "https://cdn.example/steppe.jpg",
     venueCount: 2,
     categorySlugs: ["kazakh-cuisine"],
-  },
+    ...over,
+  };
+}
+
+const COLLECTIONS: GuideCollection[] = [
+  collection({}),
+  // Вторая подборка той же рубрики — ради счётчика в подписи; обложка у неё
+  // своя, и карточка обязана взять НЕ её, а обложку первой.
+  collection({
+    slug: "steppe-tastes-2",
+    title: "Вкусы степи, часть вторая",
+    coverImageUrl: "https://cdn.example/steppe-2.jpg",
+  }),
+  collection({
+    slug: "third-wave",
+    title: "Третья волна",
+    coverImageUrl: "https://cdn.example/coffee.jpg",
+    categorySlugs: ["coffee"],
+  }),
 ];
 
 function renderScreen() {
@@ -97,28 +119,70 @@ describe("экран «Все рубрики»", () => {
     expect(screen.getByText("Горы и гастрономия")).toBeTruthy();
   });
 
-  it("ведёт плиткой на экран рубрики по её собственному слагу", async () => {
+  it("ведёт карточкой на экран рубрики по её собственному слагу", async () => {
     const person = userEvent.setup();
     renderScreen();
 
-    const tile = await screen.findByRole("button", {
+    const card = await screen.findByRole("button", {
       name: t.articles.openRubric("Горы и гастрономия"),
     });
-    await person.click(tile);
+    await person.click(card);
 
     expect(push).toHaveBeenCalledWith("/gastroguide/rubric/mountains");
   });
 
-  it("рисует плитки тем же компонентом, что и лента на корне вкладки", async () => {
-    // Не «похожая вёрстка», а буквально тот же файл: разойтись двум копиям
-    // куда проще, чем одному компоненту.
-    const source = GuideRubricsScreen.toString();
-    expect(source).toContain("GuideRubricTile");
+  it("подписывает рубрику числом её подборок, со склонением", async () => {
+    renderScreen();
 
-    const { GuideRubricTile } = await import(
-      "../../src/components/articles/GuideRubricRail"
+    // Две подборки помечены «kazakh-cuisine», одна — «coffee».
+    await waitFor(() =>
+      expect(screen.getByText(t.articles.rubricCollectionCount(2))).toBeTruthy(),
     );
-    expect(GuideRubricTile).toBeTypeOf("function");
+    expect(screen.getByText(t.articles.rubricCollectionCount(1))).toBeTruthy();
+    // Склонение — не украшение: подпись читает живой человек.
+    expect(t.articles.rubricCollectionCount(1)).toBe("1 подборка");
+    expect(t.articles.rubricCollectionCount(2)).toBe("2 подборки");
+    expect(t.articles.rubricCollectionCount(5)).toBe("5 подборок");
+  });
+
+  it("у рубрики без подборок подписи нет вовсе — ни нуля, ни выдумки", async () => {
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByText("Горы и гастрономия")).toBeTruthy());
+    expect(screen.queryByText(t.articles.rubricCollectionCount(0))).toBeNull();
+    // Ни одной подписи, кроме двух честных счётчиков непустых рубрик.
+    expect(screen.queryAllByText(/подборк/)).toHaveLength(2);
+  });
+
+  it("берёт обложку ПЕРВОЙ подборки рубрики, а не следующих", async () => {
+    renderScreen();
+
+    await waitFor(() => expect(screen.getByText("Казахская кухня")).toBeTruthy());
+    // Снимок декоративен (alt=""), поэтому роли `img` у него нет — берём по
+    // тест-идентификатору общей `PhotoView`.
+    const sources = screen
+      .getAllByTestId("photo-image")
+      .map((node) => node.getAttribute("src"));
+    expect(sources).toContain("https://cdn.example/steppe.jpg");
+    expect(sources).not.toContain("https://cdn.example/steppe-2.jpg");
+  });
+
+  it("рисует карточки той же общей ListMediaCard, что и листинг акций", async () => {
+    // Не «похожая вёрстка», а буквально тот же файл: разойтись двум копиям
+    // куда проще, чем одному компоненту, а владелец просил, чтобы экраны
+    // выглядели одинаково.
+    const source = GuideRubricsScreen.toString();
+    expect(source).toContain("ListMediaCard");
+    // Плитки ленты гастрогида здесь больше нет — она осталась только в ленте.
+    expect(source).not.toContain("GuideRubricTile");
+
+    const { ListMediaCard } = await import("../../src/components/ListMediaCard");
+    expect(ListMediaCard).toBeTypeOf("function");
+
+    const { PromotionListCard } = await import(
+      "../../src/components/promotions/PromotionListCard"
+    );
+    expect(PromotionListCard.toString()).toContain("ListMediaCard");
   });
 
   it("заголовок экрана — тот же «Рубрики», что у ленты, и есть стрелка назад", async () => {

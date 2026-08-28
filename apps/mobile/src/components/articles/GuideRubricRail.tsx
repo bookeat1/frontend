@@ -96,22 +96,17 @@ export function rubricLabel(categorySlugs: readonly string[]): string {
 }
 
 /**
- * ПЛИТКА РУБРИКИ — единственная в приложении, и живёт она здесь.
+ * ПЛИТКА РУБРИКИ — карточка 118×158 макета (node 3192:6097) для
+ * ГОРИЗОНТАЛЬНОЙ ленты «Рубрики» на корне гастрогида, и только для неё.
  *
- * Её рисуют ДВА экрана: горизонтальная лента «Рубрики» на корне гастрогида
- * (плитка 118 шириной) и вертикальный список всех рубрик
- * (`/gastroguide/rubrics`, плитка во всю ширину листа). Второй экран
- * появился 2026-08-28 по правке владельца «лучше столбиком»; копии плитки
- * там нет намеренно — расходиться двум копиям куда проще, чем одному файлу.
+ * Экран «Все рубрики» (`/gastroguide/rubrics`) один день рисовался этой же
+ * плиткой во всю ширину листа (проп `fullWidth`), но 2026-08-28 владелец
+ * посмотрел и попросил «сделать рубрики как листинг акций» — тот экран
+ * переехал на общую `ListMediaCard`, а вариант во всю ширину убран отсюда,
+ * чтобы в файле не осталось ветки, которую никто не рисует.
  *
- * Отличается ровно одно — ширина, и она приходит пропом `fullWidth`. Высота,
- * скругление, затемнение, поля и обе надписи общие: это одна и та же карточка
- * макета (node 3192:6097).
- *
- * Надписи приходят пропами, а не собираются внутри: в ленте плитка подписана
- * ПОДБОРКОЙ (золотой слаг рубрики сверху, название подборки снизу), а в
- * списке — САМОЙ РУБРИКОЙ (её название из `GET /gastroguide/categories`, и
- * золотой надписи там нет: она повторяла бы заголовок).
+ * Надписи приходят пропами, а не собираются внутри: плитка подписана
+ * ПОДБОРКОЙ — золотой слаг рубрики сверху, название подборки снизу.
  */
 export function GuideRubricTile({
   coverImageUrl,
@@ -119,7 +114,6 @@ export function GuideRubricTile({
   title,
   accessibilityLabel,
   onPress,
-  fullWidth = false,
 }: {
   /** Обложки нет — стандартная плашка «фото нет», выдуманной картинки не будет. */
   coverImageUrl: string | null;
@@ -128,19 +122,13 @@ export function GuideRubricTile({
   title: string;
   accessibilityLabel: string;
   onPress: () => void;
-  /** Плитка тянется на всю ширину листа — вертикальный список рубрик. */
-  fullWidth?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        fullWidth ? styles.cardFullWidth : styles.cardRail,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       <PhotoView
         uri={coverImageUrl}
@@ -182,20 +170,13 @@ const styles = StyleSheet.create({
     gap: guideLayout.rubricGap,
   },
   card: {
+    width: guideLayout.rubricCardWidth,
     height: guideLayout.rubricCardHeight,
     borderRadius: radius.guideRubric,
     overflow: "hidden",
     justifyContent: "flex-end",
     padding: guideLayout.rubricCardPadding,
     backgroundColor: colors.background.chip,
-  },
-  cardRail: {
-    width: guideLayout.rubricCardWidth,
-  },
-  // В списке ширину задаёт лист, а не плитка: `alignSelf: "stretch"`, а не
-  // `width: "100%"` — второе ломается, если однажды у списка появятся поля.
-  cardFullWidth: {
-    alignSelf: "stretch",
   },
   pressed: {
     opacity: 0.7,
