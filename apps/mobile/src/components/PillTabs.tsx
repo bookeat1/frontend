@@ -1,31 +1,45 @@
-import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 /**
- * Переключатель «Активные / История» на экране броней — ряд чипов-капсул,
- * а НЕ сегментированная дорожка (Figma 3z0f6dgev4HMwBAHPjTjPo, узлы
- * 1033:15569 → 1033:15570/1033:15572).
+ * Переключатель «Активные / История» на экране броней — СЕГМЕНТИРОВАННАЯ
+ * ДОРОЖКА: серая капсула во всю ширину, внутри две половины, у выбранной
+ * белая заливка (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3053:10074 → 3053:10075
+ * и 3053:10077).
  *
- * По макету: чипы прижаты влево и занимают ровно ширину подписи (ряд 183
- * при экране 375), высота 40, боковой отступ 12, скругление-капсула, зазор 6.
- * Выбранный — сплошной фирменный #B33036 с белой подписью, невыбранный —
- * светло-серый #F3F2F2 с тёмной. Раньше это была серая дорожка с белой
- * пилюлей внутри и вкладками во всю ширину — в макете такого элемента нет.
+ * ЭТО ОСОЗНАННЫЙ РАЗВОРОТ (правка владельца 2026-08-28, «возвращаем табы»).
+ * Промежуточная редакция макета рисовала здесь ряд чипов-капсул по ширине
+ * подписи с бордовой заливкой у выбранного — этого в узле 3053:10074 больше
+ * нет. Чипы с бордовой заливкой остаются на «Избранном», но там свой
+ * компонент (`FilterChip` с `selectedTone="brand"`), а не этот, — трогать его
+ * не нужно.
+ *
+ * ПО МАКЕТУ. Дорожка `background/subtle` (#F8F8F8), скругление-капсула,
+ * внутреннее поле 2 и такой же просвет между половинами; каждая половина
+ * тянется поровну (`flex: 1`), поля 12 по бокам и 10 сверху/снизу — это и
+ * даёт высоту 40, а вся дорожка выходит 44. Выбранная половина белая,
+ * невыбранная — прозрачная (сквозь неё видна дорожка).
+ *
+ * ПОДПИСЬ ОДИНАКОВАЯ У ОБЕИХ ПОЛОВИН: Medium 14/20, цвет `text.primary`
+ * (#1B1B1B). В макете выбранную отличает ТОЛЬКО белая заливка — ни цвет, ни
+ * начертание текста не меняются. Поэтому активную вкладку обязательно
+ * помечает `aria-selected`: на глаз-то заливка видна, а скринридеру белый
+ * фон не расскажет ничего.
  *
  * Это НЕ `SegmentedTabs`: тот рисует подчёркнутый ряд вкладок на карточке
- * заведения и в галерее фотографий. И это НЕ `FilterChip`: тот — фильтр с
- * крестиком/шевроном и своей семантикой (`button` + `selected`), а здесь
- * вкладки, которым нужна роль `tab`/`tablist`, иначе скринридер прочитает
- * переключение раздела как включение фильтра.
- *
- * Подпись у выбранной и невыбранной вкладки одного кегля и начертания
- * (14/20 Medium) — различает их заливка, как и в макете.
+ * заведения и в галерее фотографий. И это НЕ `FilterChip`: тот — фильтр со
+ * своей семантикой (`button` + `selected`), а здесь вкладки, которым нужна
+ * роль `tab`/`tablist`, иначе скринридер прочитает переключение раздела как
+ * включение фильтра.
  */
 
-/** Зазор между чипами — 6 (ряд 1033:15569: 93 + 6 = 99). В 4pt-шкале
- * `spacing` такого шага нет, поэтому число живёт здесь. */
-const TAB_GAP = 6;
+/**
+ * Внутреннее поле дорожки и просвет между половинами — по 2 (node 3053:10074:
+ * `p-[2px]`, `gap-[2px]`; половины 168.5 при дорожке 343). В 4pt-шкале
+ * `spacing` такого шага нет, поэтому число живёт здесь.
+ */
+const TRACK_INSET = 2;
 
 export function PillTabs({
   labels,
@@ -37,7 +51,7 @@ export function PillTabs({
   onChange: (index: number) => void;
 }) {
   return (
-    <View style={styles.row} accessibilityRole="tablist">
+    <View style={styles.track} accessibilityRole="tablist">
       {labels.map((label, index) => {
         const active = index === activeIndex;
         return (
@@ -51,17 +65,12 @@ export function PillTabs({
             // так активная вкладка видна и голосовому доступу, и тесту.
             aria-selected={active}
             accessibilityLabel={label}
-            // Чип рисуется на 40, а нажимается на 44: по 2 сверху и снизу.
-            // По горизонтали не растягиваем — соседний чип в 6 точках,
-            // зоны касания перекрылись бы.
-            hitSlop={TAB_TOUCH_SLOP}
+            // Зона касания не расширяется: половина и так 40 в высоту при
+            // ширине в пол-экрана, а промахнуться мимо неё некуда — соседняя
+            // половина вплотную.
             style={[styles.tab, active && styles.tabActive]}
           >
-            <Text
-              style={[styles.label, active && styles.labelActive]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+            <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
               {label}
             </Text>
           </Pressable>
@@ -71,39 +80,31 @@ export function PillTabs({
   );
 }
 
-const TAB_TOUCH_SLOP = {
-  top: (hitSlop.minTouchTarget - controlHeight.chip) / 2,
-  bottom: (hitSlop.minTouchTarget - controlHeight.chip) / 2,
-  left: 0,
-  right: 0,
-} as const;
-
 const styles = StyleSheet.create({
-  row: {
+  track: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: TAB_GAP,
+    alignItems: "stretch",
+    gap: TRACK_INSET,
+    padding: TRACK_INSET,
+    borderRadius: radius.pill,
+    backgroundColor: colors.background.subtle,
   },
   tab: {
-    // Чипы прижаты влево и по ширине подписи — без `flex: 1`, иначе они
-    // растянутся во всю строку, чего в макете нет.
-    alignSelf: "flex-start",
+    // Половины делят дорожку поровну и тянутся во всю её ширину — в отличие
+    // от чипа, который занимал ровно ширину подписи.
+    flex: 1,
+    minWidth: 0,
     height: controlHeight.chip,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
-    backgroundColor: colors.background.chipAlt,
   },
   tabActive: {
-    backgroundColor: colors.brand.primary,
+    backgroundColor: colors.background.surface,
   },
   label: {
     ...typography.labelMedium,
     color: colors.text.primary,
-  },
-  labelActive: {
-    ...typography.labelMedium,
-    color: colors.text.onBrand,
   },
 });
