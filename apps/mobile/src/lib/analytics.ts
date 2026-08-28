@@ -55,9 +55,16 @@ export function initAnalytics(): void {
     amplitudeInit(API_KEY, undefined, {
       // The RN SDK's autocapture toggle (the equivalent of the browser SDK's
       // `defaultTracking`): let it capture sessions and app foreground/background
-      // lifecycle on its own. Network tracking, screen views and element
-      // interactions are left off — network capture would record API URLs, and
-      // screen views need a navigation integration we are not wiring here.
+      // lifecycle on its own.
+      //
+      // `screenViews` STAYS OFF, and that is not the same as having no screen
+      // views: they are sent by `ScreenViewTracker`, which is wired into
+      // expo-router and names the screen by its ROUTE TEMPLATE
+      // (`/restaurant/[id]`), never by the path with a real id in it. The SDK's
+      // own capture has no such integration here and would report the raw path.
+      //
+      // Network tracking stays off too — it would record API URLs, and those
+      // carry query parameters.
       autocapture: { sessions: true, appLifecycles: true },
     });
     initialized = true;

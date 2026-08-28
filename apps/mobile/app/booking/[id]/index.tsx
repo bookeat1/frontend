@@ -30,6 +30,7 @@ import {
   usePreorder,
 } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { trackEvent } from "../../../src/lib/analytics";
 import { useAuth } from "../../../src/lib/auth";
 import { formatMoneyMinor, formatRelativeDay, formatTime } from "../../../src/lib/format";
 
@@ -195,7 +196,27 @@ export default function ReservationScreen() {
     cancel.mutate(
       { bookingId: data.id },
       {
-        onSuccess: () => setDialogOpen(false),
+        onSuccess: (cancelled) => {
+          setDialogOpen(false);
+          // Отмена гостем — единственная, которую видит это приложение: экран
+          // авторизован и открывает СВОЮ бронь, отмена рестораном или
+          // администратором сюда не приходит вовсе. Поэтому `cancelled_by`
+          // здесь константа, а не догадка: событие честно называет источник,
+          // и его можно будет сложить с админскими отменами.
+          trackEvent("booking_cancel", {
+            restaurant_id: data.restaurantId,
+            cancelled_by: "guest",
+            status_before: data.status,
+            // Сколько бронь прожила и сколько оставалось до визита. Обе — часы
+            // с одним знаком после запятой, а не даты: продуктовый вопрос
+            // здесь «отменяют сразу или в последний момент», и для него дат не
+            // нужно. `null`, если сервер не прислал момент создания.
+            hours_since_created: hoursBetween(cancelled.createdAt, Date.now()),
+            hours_before_visit: hoursBetween(Date.now(), cancelled.startsAt),
+            // Была ли отмена платной — это про деньги, не про человека.
+            was_free: canGuestCancel(data),
+          });
+        },
         onError: (error) => setCancelError(cancelErrorMessage(error)),
       },
     );
@@ -414,6 +435,19 @@ export default function ReservationScreen() {
  * not theirs); a 422 that survived the already-cancelled re-read means the
  * booking is in some other terminal state.
  */
+/**
+ * Часы между двумя моментами, округлённые до десятых. `null`, если хоть один
+ * из них неизвестен или не разбирается как дата — выдуманный ноль в аналитике
+ * неотличим от настоящей мгновенной отмены.
+ */
+function hoursBetween(from: string | number | null, to: string | number | null): number | null {
+  if (from === null || to === null) return null;
+  const start = typeof from === "number" ? from : Date.parse(from);
+  const end = typeof to === "number" ? to : Date.parse(to);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.round(((end - start) / 3_600_000) * 10) / 10;
+}
+
 function cancelErrorMessage(error: unknown): string {
   if (error instanceof RepositoryError) {
     if (error.status === 403) return t.booking.cancelErrorForbidden;

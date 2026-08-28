@@ -29,6 +29,7 @@ import { AuthProvider } from "../src/lib/auth";
 import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
+import { ScreenViewTracker } from "../src/lib/screen-view-tracker";
 import { queryClient } from "../src/lib/queryClient";
 
 // Apply the persisted language to the i18n module as early as the JS bundle
@@ -100,6 +101,10 @@ export default function RootLayout() {
                 runtime. */}
             <PushProvider>
               <StatusBar style="dark" />
+              {/* Просмотры экранов — одним местом на всё приложение. Рисует
+                  null; отдельным узлом, а не хуком в AnalyticsProvider, чтобы
+                  переход по навигации не перерисовывал весь Stack. */}
+              <ScreenViewTracker />
               <Stack
                 screenOptions={{
                   headerShown: false,

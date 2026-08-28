@@ -35,6 +35,7 @@ function booking(overrides: Partial<Booking> = {}): Booking {
     status: "confirmed",
     notes: null,
     freeCancelDeadline: DEADLINE,
+    createdAt: null,
     ...overrides,
   };
 }

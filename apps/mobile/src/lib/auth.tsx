@@ -10,7 +10,7 @@ import { getCurrentLocale } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { trackEvent } from "./analytics";
+import { identifyUser, trackEvent } from "./analytics";
 import { runPushSignOutHook } from "./push-signout";
 import {
   getFreshAccessToken,
@@ -213,12 +213,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * в профиле», не давая её подтвердить. Имя при этом было и на сервере, и в
    * кеше. Одно хранилище — и такой рассинхрон невозможен.
    */
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (): Promise<AuthUser | null> => {
     try {
-      queryClient.setQueryData(["me"], await repository.getMe());
+      const me = await repository.getMe();
+      queryClient.setQueryData(["me"], me);
+      return me;
     } catch {
       // Prefill only. A failed /users/me must not knock the guest out of a
       // session that is otherwise fine.
+      return null;
     }
   }, [queryClient, repository]);
 
@@ -329,11 +332,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (input: { phone: string; code: string }) => {
       const session = await repository.verifyOtp(input);
       await applySession(session);
+      // Профиль читается ДО отправки события, и это единственная причина, по
+      // которой здесь `await`, а не прежний `void`: Amplitude штампует событие
+      // тем user id, который стоит В МОМЕНТ вызова, а identify из
+      // AnalyticsProvider случается только на следующем рендере — из-за этого
+      // все до одного `login` уходили анонимными, от device id. Тот же порядок
+      // («сначала опознать, потом событие») уже стоит в админке, см.
+      // LoginScreen. Чтение необязательное: не ответило — события всё равно
+      // уходят, просто без свойств пользователя.
+      const me = await loadUser();
+      if (me) identifyUser(me);
       // Explicit `login` event on a real OTP verify only. Fired here rather than
       // from the AnalyticsProvider so a cold-start rehydrate (which also reaches
       // "signed-in") is never counted as a login. Best-effort and non-throwing.
-      trackEvent("login");
-      void loadUser();
+      trackEvent("login", { is_new_user: session.isNewUser });
+      // Регистрация — ОТДЕЛЬНОЕ событие, а не свойство входа: воронку «сколько
+      // из открывших приложение завели аккаунт» строят по событию, и признак
+      // внутри `login` пришлось бы каждый раз разворачивать фильтром. Номера
+      // телефона, по которому вход и произошёл, в свойствах нет.
+      if (session.isNewUser) trackEvent("signup");
       return { isNewUser: session.isNewUser };
     },
     [applySession, loadUser, repository],

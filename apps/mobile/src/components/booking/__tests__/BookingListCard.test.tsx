@@ -44,6 +44,7 @@ const BOOKING: Booking = {
   status: "pending",
   notes: null,
   freeCancelDeadline: null,
+  createdAt: null,
 };
 
 beforeEach(() => {

@@ -14,6 +14,7 @@ import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCreateBooking } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../../src/lib/analytics";
+import { confirmErrorReason } from "../../../../src/lib/booking-error-analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import {
   estimatePreorderTotalMinor,
@@ -181,6 +182,20 @@ export default function ConfirmBookingScreen() {
           });
         },
         onError: (error) => {
+          // Провал подтверждения виден в аналитике ровно так же, как успех:
+          // без этого события `booking_confirm` рисовал воронку, в которой
+          // ошибок не бывает вовсе. Свойства описывают ОТКАЗ, а не гостя —
+          // ни имени, ни телефона, ни заметки к брони здесь нет.
+          trackEvent("booking_confirm_error", {
+            restaurant_id: id,
+            reason: confirmErrorReason(error),
+            // HTTP-статус и машинный код из конверта ошибки — оба написаны
+            // сервером для разработчика. Человеческий текст ошибки НЕ шлём:
+            // сообщение сервера свободное, и однажды в него попадёт имя или
+            // телефон из тела запроса.
+            status: error instanceof RepositoryError ? (error.status ?? null) : null,
+            code: error instanceof RepositoryError ? (error.code ?? null) : null,
+          });
           if (error instanceof RepositoryError && error.isUnauthorized) {
             router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
             return;

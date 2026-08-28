@@ -1,7 +1,7 @@
 import type { SearchFilters, SearchQuery } from "@bookeat/api";
 import { EMPTY_FILTERS } from "@bookeat/api";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { trackEvent } from "../lib/analytics";
 import { useRepository } from "../lib/repository";
 import { useAmenities } from "./useAmenities";
@@ -45,6 +45,38 @@ export function countActiveFilters(filters: SearchFilters): number {
   );
 }
 
+/**
+ * Свойства события «гость применил фильтры» — ФОРМА выбора, без единого
+ * значения, которое человек набрал руками.
+ *
+ * Что здесь есть и почему это безопасно: счётчики выбранных кухонь и удобств
+ * (не сами коды — их и так видно в справочниках, но продуктовый вопрос про
+ * количество), три булевых переключателя, ступень чека («₸₸» — свойство
+ * заведения, не человека) и параметры подбора: сколько гостей и выбрано ли
+ * время суток. Города НЕТ даже названием — только признак «выбран»: сузить
+ * выборку до города и до одного человека по остальным свойствам проще, чем
+ * кажется, а продуктовый вопрос («пользуются ли фильтром города») отвечает
+ * и булев.
+ *
+ * Чего здесь нет и не будет: текста запроса, телефона, имени, даты подбора —
+ * дату гость выбирает под конкретный свой визит, и вместе с городом и числом
+ * гостей это уже почти отпечаток.
+ */
+export function describeFilters(filters: SearchFilters): Record<string, unknown> {
+  return {
+    active_count: countActiveFilters(filters),
+    cuisine_count: filters.cuisineIds.length,
+    amenity_count: filters.amenityIds.length,
+    open_now: filters.openNowOnly,
+    online_bookable: filters.onlineBookableOnly,
+    has_city: filters.city !== undefined,
+    price_level: filters.priceLevel ?? null,
+    has_availability: filters.availability !== undefined,
+    guests: filters.availability?.guests ?? null,
+    time_of_day: filters.availability?.timeOfDay ?? null,
+  };
+}
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -79,6 +111,24 @@ export function useSearchScreen(options?: {
     return initial;
   });
   const debouncedText = useDebouncedValue(text, DEBOUNCE_MS);
+
+  // Одно событие на КАЖДЫЙ применённый набор фильтров — здесь, а не в обёртке
+  // над `setFilters`: наборов много (шторка, чип кухни, капсула даты, крестик
+  // на чипе, «Сбросить»), и обёртка обязала бы каждый из них не забыть про
+  // аналитику. Эффект видит результат любого из них.
+  //
+  // Первый проход пропускается: начальное состояние — это не выбор гостя, даже
+  // когда в него подставлена кухня из ссылки с главной. Событие с нулём
+  // активных фильтров при этом отправляется — сброс фильтров такой же
+  // осмысленный шаг, как их применение, и по `active_count: 0` он и читается.
+  const firstFiltersPass = useRef(true);
+  useEffect(() => {
+    if (firstFiltersPass.current) {
+      firstFiltersPass.current = false;
+      return;
+    }
+    trackEvent("search_filters_apply", describeFilters(filters));
+  }, [filters]);
 
   // One `search` event per SETTLED, non-empty query — keyed on the debounced
   // text so it fires once the guest stops typing, not on every keystroke. An

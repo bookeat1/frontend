@@ -39,6 +39,7 @@ const booking: Booking = {
   status: "confirmed",
   notes: null,
   freeCancelDeadline: DEADLINE,
+  createdAt: null,
 };
 
 const heldDeposit: BookingPayment = {

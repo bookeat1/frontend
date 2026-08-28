@@ -286,6 +286,10 @@ export function useCancelBooking() {
         ...booking,
         // The cancel payload has no free_cancel_deadline; keep what we knew.
         freeCancelDeadline: booking.freeCancelDeadline ?? previous?.freeCancelDeadline ?? null,
+        // То же самое и с моментом создания: ответ отмены его несёт, но старая
+        // сборка бэкенда могла бы не нести — терять уже известное нельзя, на
+        // нём считается «сколько бронь прожила».
+        createdAt: booking.createdAt ?? previous?.createdAt ?? null,
       }));
       // The table is back on the market.
       void queryClient.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });

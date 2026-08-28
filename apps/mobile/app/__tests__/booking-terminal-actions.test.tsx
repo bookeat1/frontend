@@ -104,6 +104,7 @@ function bookingWith(status: BookingStatus, when: "future" | "past" = "future"):
     status,
     notes: null,
     freeCancelDeadline: null,
+    createdAt: null,
   };
 }
 
