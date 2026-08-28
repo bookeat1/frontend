@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
-import { GuideCollectionScreen } from "../../src/components/articles/GuideCollectionScreen";
+import { ArticleScreen } from "../../src/components/articles/ArticleScreen";
 import { useArticle } from "../../src/components/explore/use-explore-data";
 
 /**
@@ -14,10 +14,13 @@ import { useArticle } from "../../src/components/explore/use-explore-data";
  * вида (слаг уникален глобально), поэтому deep link на подборку, разосланный
  * до разделения, откроет её здесь, а не покажет «не найдено».
  *
- * Верстка общая с подборкой (`GuideCollectionScreen`): форма ответа у обеих
- * детальных ручек одна.
+ * ВЕРСТКА БОЛЬШЕ НЕ ОБЩАЯ С ПОДБОРКОЙ (правка владельца 28.08.2026): статья
+ * собрана по образцу карточки афиши — фотография во всю ширину, название
+ * поверх неё, плавающие кнопки «назад»/«поделиться», те же белые блоки и
+ * типографика. Разбор — в `ArticleScreen`. Страница подборки гастрогида
+ * осталась на `GuideCollectionScreen` со своим брендовым макетом.
  */
 export default function ArticleDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  return <GuideCollectionScreen query={useArticle(slug)} />;
+  return <ArticleScreen query={useArticle(slug)} />;
 }

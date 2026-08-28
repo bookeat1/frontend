@@ -150,6 +150,9 @@ export const en: LocaleOverride<Dictionary> = {
     routeNotFoundDescription:
       "It may have been unpublished. Go back to the guide and pick another one.",
     openVenue: (name: string) => `Open ${name}`,
+
+    /** Heading of the article's text block — same shape as «About the event». */
+    articleAboutTitle: "About the article",
   },
   notifications: {
     title: "Notifications",

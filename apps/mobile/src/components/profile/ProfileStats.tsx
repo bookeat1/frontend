@@ -1,19 +1,25 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { PROFILE_SOCIAL_STATS_ENABLED } from "../../lib/feature-flags";
 
 /**
- * The three-cell stats row under the identity block: a number over its label.
+ * The stats row under the identity block: a number over its label.
  *
  * Only «Брони» has a backend behind it (`GET /bookings`, the same list the
- * bookings screen reads); «Отзывов» and «Друзья» have none yet and are passed a
- * real 0, not a plausible-looking number — a stat the guest cannot verify and
- * we cannot source is the same deceit as a fake filter. See profile.tsx for the
- * wiring and the track-C notes.
+ * bookings screen reads); «Отзывов» and «Друзья» have none yet and were passed
+ * a real 0, not a plausible-looking number.
+ *
+ * СЕЙЧАС РИСУЕТСЯ ОДНА ПЛАШКА. «Отзывов» и «Друзья» спрятаны флагом
+ * `PROFILE_SOCIAL_STATS_ENABLED` (см. lib/feature-flags.ts): продукта за ними
+ * нет вообще, и у КАЖДОГО гостя там стоял ноль. Код ячеек оставлен на месте —
+ * вернуть их значит переключить флаг и передать настоящие числа. Оставшаяся
+ * плашка «Брони» занимает всю ширину: одинокая треть с пустотой справа
+ * читалась бы как не догрузившийся ряд.
  *
  * The «Брони» cell is a real control: it opens the «Мои брони» list — the same
  * destination as the bottom-nav tab — so the count is a shortcut, not just a
- * number. The other two cells have nowhere to go yet and stay inert.
+ * number. The other two cells have nowhere to go and stay inert.
  */
 export function ProfileStats({
   bookings,
@@ -32,8 +38,12 @@ export function ProfileStats({
   return (
     <View style={styles.root} accessibilityRole="summary">
       <StatCell value={bookings} label={labels.bookings} onPress={onPressBookings} />
-      <StatCell value={reviews} label={labels.reviews} />
-      <StatCell value={friends} label={labels.friends} />
+      {PROFILE_SOCIAL_STATS_ENABLED ? (
+        <>
+          <StatCell value={reviews} label={labels.reviews} />
+          <StatCell value={friends} label={labels.friends} />
+        </>
+      ) : null}
     </View>
   );
 }

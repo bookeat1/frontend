@@ -62,8 +62,11 @@ export default function ProfileScreen() {
   // «Брони» — the only stat with a backend behind it: the same list the bookings
   // screen reads (`GET /bookings`), whose first page carries the true `total`.
   // Session-gated inside the hook, so a signed-out guest never fires it.
-  // «Отзывов» and «Друзья» have no endpoint yet — shown as a real 0 below, not
-  // a plausible-looking number. TODO(track-C backend): wire when they exist.
+  // «Отзывов» и «Друзья» СПРЯТАНЫ флагом PROFILE_SOCIAL_STATS_ENABLED
+  // (src/lib/feature-flags.ts, правка владельца 28.08.2026): продукта за ними
+  // нет, и у каждого гостя там стоял ноль. Нули ниже передаются по-прежнему —
+  // ячейки просто не рисуются; появятся ручки — флаг в `true` и сюда приедут
+  // настоящие числа. TODO(track-C backend).
   /**
    * Смена фотографии профиля. Отказ в доступе к галерее и сбой отправки — это
    * РАЗНЫЕ сообщения: первое чинится только в настройках телефона, и «попробуйте

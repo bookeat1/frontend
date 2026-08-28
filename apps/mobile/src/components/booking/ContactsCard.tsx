@@ -1,6 +1,7 @@
 import type { Restaurant } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
+import { MAP_PREVIEW_ENABLED } from "../../lib/feature-flags";
 import { VenueAddressRow, VenueContactIcons } from "../contacts/VenueContactLinks";
 import { BookingCard } from "./BookingCard";
 import { MapPreview } from "./MapPreview";
@@ -21,6 +22,11 @@ const t = getDictionary();
  * null, so this is the common case). If the venue has no contacts whatsoever
  * the card itself is not rendered (decided by the caller via `hasAnyContact`).
  */
+/**
+ * Координаты входят в признак ТОЛЬКО пока карта показывается: с выключенным
+ * `MAP_PREVIEW_ENABLED` заведение, у которого нет ничего кроме точки на карте,
+ * дало бы карточку «Контакты» с одним заголовком и пустотой под ним.
+ */
 export function hasAnyContact(restaurant: Restaurant): boolean {
   return Boolean(
     restaurant.social?.website ||
@@ -28,7 +34,9 @@ export function hasAnyContact(restaurant: Restaurant): boolean {
       restaurant.social?.instagram ||
       restaurant.address ||
       restaurant.phone ||
-      (restaurant.latitude !== undefined && restaurant.longitude !== undefined),
+      (MAP_PREVIEW_ENABLED &&
+        restaurant.latitude !== undefined &&
+        restaurant.longitude !== undefined),
   );
 }
 

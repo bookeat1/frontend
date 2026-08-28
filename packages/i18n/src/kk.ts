@@ -155,6 +155,9 @@ export const kk: LocaleOverride<Dictionary> = {
     routeNotFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Гастрогидке оралып, басқасын таңдаңыз.",
     openVenue: (name: string) => `«${name}» ашу`,
+
+    /** Мақала мәтіні блогының тақырыбы. */
+    articleAboutTitle: "Мақала туралы",
   },
   notifications: {
     title: "Хабарламалар",

@@ -12,6 +12,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { PixelRatio, Pressable, StyleSheet, Text, View } from "react-native";
 import { openMap } from "../../lib/external-links";
+import { MAP_PREVIEW_ENABLED } from "../../lib/feature-flags";
 import { diagnoseMapFailure, mapPreviewsEnabled } from "../../lib/map-preview";
 import { PHOTO_CACHE_POLICY } from "../../lib/photo-source";
 import { useRepository } from "../../lib/repository";
@@ -41,6 +42,18 @@ const t = getDictionary();
  * Tapping opens the device's maps app at the venue's coordinates, exactly as
  * before, in every state: with a map, with the placeholder, while loading.
  * With no coordinates the block is inert and says so instead of pretending.
+ *
+ * БЛОК ВРЕМЕННО СПРЯТАН ЦЕЛИКОМ — флаг `MAP_PREVIEW_ENABLED`
+ * (src/lib/feature-flags.ts, правка владельца 28.08.2026). Поставщика карт на
+ * бэкенде нет, ручка отвечает 503 `map_not_configured`, и на всех четырёх
+ * экранах (заведение, афиша, акция, бронь) гость видел не карту, а серую
+ * пунктирную заглушку. Прятать пришлось и заглушку: она занимает 180 pt и
+ * ничего не сообщает.
+ *
+ * Адрес и кнопка «открыть в картах» НЕ спрятаны — они живут в
+ * `contacts/VenueContactLinks` и работают без нашей картинки.
+ *
+ * Появится ключ Geoapify — флаг в `true`, и всё ниже включается как было.
  */
 export function MapPreview({
   restaurant,
@@ -53,6 +66,9 @@ export function MapPreview({
 }) {
   const repository = useRepository();
   const { latitude, longitude } = restaurant;
+  // Проверка ПЕРЕД остальными хуками невозможна (правила хуков), поэтому
+  // выключатель стоит первым же условием на выходе — ниже по коду он не
+  // повторяется.
   const hasCoordinates = latitude !== undefined && longitude !== undefined;
 
   // A retina render is worth the bytes on a phone screen; a 1x device would
@@ -86,6 +102,8 @@ export function MapPreview({
       </Text>
     </>
   );
+
+  if (!MAP_PREVIEW_ENABLED) return null;
 
   if (!hasCoordinates) {
     return <View style={[styles.block, styles.placeholderBlock]}>{placeholder}</View>;

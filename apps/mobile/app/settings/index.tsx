@@ -10,6 +10,7 @@ import { Bell, type IconProps, Info, Shield, Trash } from "../../src/components/
 import { ToggleRow } from "../../src/components/ToggleRow";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
+import { SETTINGS_SECURITY_ROW_ENABLED } from "../../src/lib/feature-flags";
 import { useNotificationsPref } from "../../src/lib/notifications-pref";
 
 /**
@@ -26,9 +27,11 @@ import { useNotificationsPref } from "../../src/lib/notifications-pref";
  * отдельный экран: решение принимается там же, где стоит пункт, и «Отмена»
  * возвращает ровно сюда.
  *
- * «Безопасность» has no screen yet (track-C):
- * it is drawn NON-interactive with a muted «Скоро» rather than a chevron that
- * leads nowhere — a dead affordance is the same lie as a fake stat. The
+ * «Безопасность» СПРЯТАНА флагом SETTINGS_SECURITY_ROW_ENABLED
+ * (src/lib/feature-flags.ts, правка владельца 28.08.2026): экрана за ней нет,
+ * и строка стояла неинтерактивной с подписью «Скоро» — обещание, за которым
+ * ничего не открывается. Разметка строки оставлена на месте: появится экран —
+ * флаг в `true`, а `InfoRow` меняется на строку с переходом. The
  * version row is pure info. The notifications toggle is a genuinely stored
  * client preference (see useNotificationsPref), not a server switch.
  *
@@ -90,7 +93,9 @@ export default function SettingsScreen() {
           onValueChange={setNotificationsEnabled}
         />
 
-        <InfoRow icon={Shield} label={t.settings.security} hint={t.settings.comingSoon} />
+        {SETTINGS_SECURITY_ROW_ENABLED ? (
+          <InfoRow icon={Shield} label={t.settings.security} hint={t.settings.comingSoon} />
+        ) : null}
 
         <InfoRow icon={Info} label={t.settings.appName} hint={versionLabel} />
 
