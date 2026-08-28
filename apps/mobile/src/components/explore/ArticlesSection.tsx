@@ -3,8 +3,8 @@ import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { ArticleCard } from "./ArticleCard";
+import { CardStrip } from "./CardStrip";
 import { SectionCard, SectionHeader } from "./SectionCard";
-import { type ArticleCardData } from "./placeholder";
 import { useExploreArticles } from "./use-explore-data";
 
 const t = getDictionary();
@@ -36,59 +36,48 @@ export function ArticlesSection({
     return null;
   }
 
-  // Раскладка из макета 986:8697: первая статья во всю ширину, остальные —
-  // парами под ней. Так свежая подборка читается первой, а не теряется среди
-  // одинаковых плиток.
+  // Раскладка из макета (node 3102:12122): первая статья во всю ширину блока,
+  // остальные — горизонтальной лентой под ней, через 32. Ровно та же пара
+  // «крупная карточка + лента», что у акций и афиши, — правка владельца
+  // 2026-08-28 («статьи должны выглядеть как афиши и акции»). БЫЛО: сетка по
+  // две карточки в ряд по старому макету 986:8697.
   //
   // Не больше ARTICLES_ON_HOME: главная — витрина, а не архив. Остальное
   // открывается по «Смотреть все», и именно поэтому заголовок ведёт туда.
   const shown = articles.slice(0, ARTICLES_ON_HOME);
   const [lead, ...rest] = shown;
-  const rows: ArticleCardData[][] = [];
-  for (let i = 0; i < rest.length; i += 2) {
-    rows.push(rest.slice(i, i + 2));
-  }
 
   return (
     <SectionCard>
       <SectionHeader title={t.explore.articlesTitle} onSeeAll={onSeeAll} />
       <View style={styles.column}>
-        <ArticleCard article={lead} onPress={() => onOpenArticle(lead.id)} variant="full" />
+        {/* Отступы 16 стоят у ПЕРВОЙ карточки, а не у всей колонки: лента ниже
+            ставит свои внутри `CardStrip` и должна уезжать под правый край. */}
+        <View style={styles.lead}>
+          <ArticleCard article={lead} onPress={() => onOpenArticle(lead.id)} variant="full" />
+        </View>
 
-        {rows.map((row) => (
-          <View key={row[0].id} style={styles.row}>
-            {row.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                onPress={() => onOpenArticle(article.id)}
-                variant="half"
-              />
-            ))}
-            {/* Нечётная последняя карточка остаётся в своей половине, а не
-                растягивается на весь ряд: иначе она выглядела бы как ещё одна
-                «главная» статья. */}
-            {row.length === 1 ? <View style={styles.rowFiller} /> : null}
-          </View>
-        ))}
+        {rest.length > 0 ? (
+          <CardStrip
+            data={rest}
+            keyExtractor={(article) => article.id}
+            accessibilityLabel={t.explore.articlesTitle}
+            renderItem={({ item }) => (
+              <ArticleCard article={item} onPress={() => onOpenArticle(item.id)} />
+            )}
+          />
+        ) : null}
       </View>
     </SectionCard>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  rowFiller: {
-    flex: 1,
-  },
+  /** Просвет между первой статьёй и лентой — 32 (node 3102:12122). */
   column: {
-    gap: spacing.xxl,
-    // Секция сама горизонтальных отступов не задаёт (их ставила лента), а
-    // фотография во всю ширину экрана упиралась в края — на экране «Статьи»
-    // она стоит с отступом.
+    gap: spacing.xxxl,
+  },
+  lead: {
     paddingHorizontal: spacing.lg,
   },
 });

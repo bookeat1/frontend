@@ -1,4 +1,4 @@
-import { colors, exploreLayout, listCard, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -19,19 +19,24 @@ export function ArticleCard({
   article,
   onPress,
   /**
-   * Как карточка занимает место (макет 986:8697):
-   *   full — первая статья, во всю ширину блока;
-   *   half — следующие, по две в ряд;
-   *   strip — фиксированная ширина для горизонтальной ленты.
+   * Как карточка занимает место (макет 3z0f6dgev4HMwBAHPjTjPo, node
+   * 3102:12122):
+   *   full — первая статья, во всю ширину блока (node 3102:12123);
+   *   strip — 256 в ширину, для горизонтальной ленты под ней (3102:12131).
    *
-   * Размер здесь не украшение, а порядок чтения: первая статья крупнее,
-   * потому что она свежая, а не потому что «так красивее».
+   * Кадр у обеих ОДИНАКОВОЙ высоты (148) и с одним скруглением (20) —
+   * различает их только ширина. Первая статья крупнее, потому что она свежая,
+   * а не потому что «так красивее».
+   *
+   * ВАРИАНТА `half` БОЛЬШЕ НЕТ. Сетка «по две в ряд» с кадром 104 была нашей
+   * раскладкой по старому макету 986:8697; новый рисует под первой статьёй
+   * горизонтальную ленту — ровно ту же, что у акций и афиши.
    */
   variant = "strip",
 }: {
   article: ArticleCardData;
   onPress: () => void;
-  variant?: "full" | "half" | "strip";
+  variant?: "full" | "strip";
 }) {
   return (
     <Pressable
@@ -41,17 +46,12 @@ export function ArticleCard({
       style={({ pressed }) => [
         styles.card,
         variant === "full" && styles.cardFull,
-        variant === "half" && styles.cardHalf,
         pressed && styles.pressed,
       ]}
     >
       <PhotoView
         uri={article.coverImageUrl ?? undefined}
-        style={[
-          styles.photo,
-          variant === "full" && styles.photoFull,
-          variant === "half" && styles.photoHalf,
-        ]}
+        style={[styles.photo, variant === "full" && styles.photoFull]}
         decorative
         placeholderIconSize={32}
       />
@@ -76,12 +76,6 @@ const styles = StyleSheet.create({
   cardFull: {
     width: "100%",
   },
-  // Половина ряда: ширину задаёт flex, а не проценты, — иначе промежуток между
-  // карточками пришлось бы вычитать из процентов вручную и он бы «плыл» на
-  // экранах разной ширины.
-  cardHalf: {
-    flex: 1,
-  },
   pressed: {
     opacity: 0.7,
   },
@@ -91,22 +85,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     backgroundColor: colors.background.bannerPlaceholder,
   },
-  // Высота общей карточки листингов (`listCard.coverHeight`) — та же, что у
-  // поиска, избранного и акций: один и тот же материал не должен выглядеть
-  // по-разному на двух экранах, а на главную гость попадает раньше всего.
-  // На экране «Статьи» карточки с 27.08.2026 свои — журнальные
-  // `GuideEditorialCard` со своими высотами (214 и 206).
+  // Первая статья отличается от ленты ТОЛЬКО шириной: высота кадра и
+  // скругление те же, что у карточки акции и афиши (node 3102:12124 —
+  // `h-[148px]`, `rounded-[20px]`). БЫЛО 198 при скруглении 24 — высота
+  // карточки ВЕРТИКАЛЬНЫХ листингов (`listCard.coverHeight`), которой на
+  // главной взяться неоткуда: здесь тот же ряд, что у акций.
   photoFull: {
     width: "100%",
-    height: listCard.coverHeight,
-    borderRadius: radius.photoHero,
-  },
-  // Ниже ростом, чем первая: в половину ширины кадр той же высоты выглядел бы
-  // непропорционально вытянутым.
-  photoHalf: {
-    width: "100%",
-    height: 104,
-    borderRadius: radius.photoHero,
+    height: exploreLayout.cardPhotoHeight,
   },
   text: {
     gap: spacing.xxs,
