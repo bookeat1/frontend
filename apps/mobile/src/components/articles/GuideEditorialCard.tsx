@@ -18,8 +18,9 @@ import { PhotoView } from "../PhotoView";
  * ДВА ВИДА, ОДИН КОМПОНЕНТ, потому что в макете они отличаются ровно тремя
  * числами:
  *
- *   • `editorPick` (node 3192:6266) — 214 высотой, затемнение 85 % от самого
- *     верха, три строки (золотая надпись, название, строка-справка), просвет 5;
+ *   • `editorPick` (node 3192:6266) — 214 высотой, затемнение тёмно-синее
+ *     (#0A3D6E) от самого верха, три строки (золотая надпись, название,
+ *     строка-справка), просвет 5;
  *   • `walk` (узлы 3192:6275, 3192:6279) — 206 высотой
  *     (`guideLayout.walkHeight`), затемнение 82 % от четверти высоты, две
  *     строки, просвет 4. Раньше высота бралась из `listCard.coverHeight`:
@@ -74,12 +75,14 @@ export function GuideEditorialCard({
         placeholderIconSize={40}
       />
       <LinearGradient
-        colors={[
-          colors.guide.scrimStart,
-          editorPick ? colors.guide.editorPickScrimEnd : colors.guide.walkScrimEnd,
-        ]}
+        colors={
+          editorPick
+            ? [colors.guide.editorPickScrimStart, colors.guide.editorPickScrimEnd]
+            : [colors.guide.scrimStart, colors.guide.walkScrimEnd]
+        }
         // «Выбор редакции» гасится от самого верха кадра (под ним три строки
-        // текста), гастропрогулка — от четверти высоты.
+        // текста) и НЕ чёрным, а тёмно-синим (node 3192:6266), гастропрогулка —
+        // чёрным от четверти высоты.
         locations={editorPick ? [0, 1] : [0.25, 1]}
         style={styles.scrim}
         pointerEvents="none"
