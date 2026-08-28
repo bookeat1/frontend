@@ -278,6 +278,30 @@ describe("экран гастрогида", () => {
     expect(await screen.findByText("4 точки")).toBeTruthy();
   });
 
+  it("«Смотреть все» у ленты рубрик ведёт на экран всех рубрик", async () => {
+    const user = userEvent.setup();
+
+    renderScreen();
+
+    await screen.findByText("Казахская кухня");
+    const seeAll = screen.getByLabelText(t.explore.sectionSeeAll(t.articles.rubricsTitle));
+    await user.click(seeAll);
+
+    expect(push).toHaveBeenCalledWith("/gastroguide/rubrics");
+  });
+
+  it("«Смотреть все» есть ТОЛЬКО у рубрик: у остальных секций вести некуда", async () => {
+    getGuideRoutes.mockResolvedValue([route("classic-almaty-tour", "Классический тур по Алматы")]);
+
+    renderScreen();
+
+    await screen.findByText(t.articles.routesTitle);
+    // Этот экран И ЕСТЬ полный список подборок и маршрутов — надпись, которая
+    // ничего не открывает, из приложения уже убирали.
+    expect(screen.queryByLabelText(t.explore.sectionSeeAll(t.articles.editorPickTitle))).toBeNull();
+    expect(screen.queryByLabelText(t.explore.sectionSeeAll(t.articles.routesTitle))).toBeNull();
+  });
+
   it("отказ ручки маршрутов не рушит экран: подборки на месте, секции маршрутов нет", async () => {
     getGuideRoutes.mockRejectedValue(new Error("сеть недоступна"));
 

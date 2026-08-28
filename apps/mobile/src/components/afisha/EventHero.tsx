@@ -18,6 +18,11 @@ import { PhotoRail } from "../PhotoRail";
  * макете точек под лентой нет (подпись занимает их место), поэтому листание
  * видно по самой фотографии — `showDots={false}`.
  *
+ * ЭТОТ ЖЕ КАДР СТОИТ НА КАРТОЧКЕ СТАТЬИ (правка владельца 28.08.2026) И НА
+ * КАРТОЧКЕ АКЦИИ (правка владельца «карточка акции должна быть такой же, как
+ * афиша и карточка заведения, по структуре»). Ничего специфично-«афишного»
+ * внутри нет: он принимает фотографии, название, подпись и метки.
+ *
  * Кнопки принимает пропсами, а не рисует сама: сердечко знает про избранное,
  * «поделиться» — про системный шит, и обоим здесь не место.
  */
@@ -26,6 +31,7 @@ export function EventHero({
   title,
   subtitle,
   tags,
+  badge,
   topInset,
   backButton,
   actions,
@@ -35,6 +41,14 @@ export function EventHero({
   title: string;
   subtitle?: string;
   tags: string[];
+  /**
+   * Одна выделенная метка перед остальными — фирменной плашкой, а не серой
+   * пилюлей. Заведена для карточки АКЦИИ: её «−20 %» это не метка в ряду
+   * прочих, а сама суть акции, и в списке она уже нарисована фирменным цветом
+   * (`PromotionListCard`, проп `badge`). У афиши её нет — там пилюли равны
+   * между собой.
+   */
+  badge?: string;
   /** Верхняя безопасная зона устройства — кнопки лежат на 14 ниже неё. */
   topInset: number;
   backButton: React.ReactNode;
@@ -71,8 +85,15 @@ export function EventHero({
             <Text style={styles.title}>{title}</Text>
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
-          {tags.length > 0 ? (
+          {badge || tags.length > 0 ? (
             <View style={styles.tags}>
+              {badge ? (
+                <View style={[styles.pill, styles.badgePill]}>
+                  <Text style={styles.pillText} numberOfLines={1} ellipsizeMode="tail">
+                    {badge}
+                  </Text>
+                </View>
+              ) : null}
               {tags.map((tag, index) => (
                 <View key={`${tag}-${index}`} style={styles.pill}>
                   {/* Метка всегда в одну строку: перенос ломал бы высоту ряда,
@@ -148,6 +169,9 @@ const styles = StyleSheet.create({
     // Ряд не переносится (в макете `overflow-clip`), поэтому длинный набор
     // меток обрезается краем кадра, а не уезжает вторым рядом на фотографию.
     flexShrink: 1,
+  },
+  badgePill: {
+    backgroundColor: colors.brand.primary,
   },
   pillText: {
     ...typography.captionMedium,

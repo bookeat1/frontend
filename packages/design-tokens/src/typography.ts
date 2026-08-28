@@ -286,6 +286,19 @@ export const typography = {
     fontSize: 20,
     lineHeight: 28,
   },
+  /**
+   * Ссылка «Смотреть все» справа от заголовка секции гастрогида
+   * (node 3192:6261) — 13 SemiBold. Высота строки в макете «normal»; берём 16
+   * — ровно та высота, которую макет проставил самому узлу (91×16).
+   *
+   * Свой токен, а не `captionMedium` (12/16 Medium): у ссылки другой кегль и
+   * другая насыщенность, и правка подписей каталога не должна её двигать.
+   */
+  guideSectionLink: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 13,
+    lineHeight: 16,
+  },
   /** Надпись «ЕДА»/«МЕСТА» на плитке рубрики (node 3192:6099) — 10/12
    * SemiBold, разрядка 0.8. */
   guideRubricEyebrow: {

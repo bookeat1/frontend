@@ -1,15 +1,15 @@
-import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
+import { eventHero } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView, Share, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { EventHero } from "../../src/components/afisha/EventHero";
 import { DetailInfoRow, detailStyles as styles } from "../../src/components/detail/DetailBlocks";
 import { VenueContactsSection } from "../../src/components/detail/VenueContactsSection";
 import { useExplorePromotion } from "../../src/components/explore/use-explore-data";
 import { ArrowLeft, CalendarBlank, Export, Heart } from "../../src/components/icons";
 import { IconButton } from "../../src/components/IconButton";
-import { PhotoRail } from "../../src/components/PhotoRail";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { usePromoFavorite } from "../../src/hooks/useFavorites";
@@ -21,13 +21,31 @@ const t = getDictionary();
 /**
  * «Карточка акции» — one promotion's detail screen, built as the twin of the
  * event card (app/event/[id].tsx): the SAME blocks, from the same code —
- * `detailStyles` for the layout and `VenueContactsSection` for the contacts —
- * so a guest moving between афиша and акции sees one screen, not two.
+ * `EventHero` for the header, `detailStyles` for the layout and
+ * `VenueContactsSection` for the contacts — so a guest moving between афиша и
+ * акции sees one screen, not two.
  *
- * Раскладка макета 986:8940: серый фон экрана разделяет белые блоки —
- * «фото + название + подпись», «Об акции» со сроком действия и «Контакты»
- * заведения-хозяина. Под последним блоком белый «пол», чтобы оттягивание вниз
- * не показывало серое.
+ * ПЕРЕСОБРАНА ПО ОБРАЗЦУ АФИШИ 2026-08-28 (правка владельца: «карточка акции
+ * должна быть такой же, как афиша и карточка заведения, по структуре»). Было:
+ * фотография в белой рамке с полями 12, под ней на белом название и подпись, а
+ * стрелка назад, сердечко и «поделиться» — в отдельной белой полосе сверху.
+ * Стало ровно то же, что у афиши и у статьи:
+ *
+ *   • фотография 350 ВО ВСЮ ШИРИНУ, название и подпись ПОВЕРХ неё в нижнем
+ *     углу, градиент-затемнение под текстом;
+ *   • три плавающие круглые кнопки НА кадре: «назад» слева, сердечко и
+ *     «поделиться» справа;
+ *   • дальше без изменений — те же белые блоки `detailStyles` с просветом 8,
+ *     «Об акции», «Контакты», белый «пол» и липкий футер.
+ *
+ * ЧЕГО У АКЦИИ НЕТ ПО ДАННЫМ (и потому нет на кадре):
+ *   • МЕТОК — у афиши это `event.tags`, у акции такого поля в ленте нет вовсе;
+ *   • ВРЕМЕНИ — у афиши `startsAt` с часом начала, у акции это срок кампании,
+ *     и он остаётся строкой «до 30 сентября» в подписи и рядом «Период» ниже.
+ *
+ * ЧЕГО НЕТ У АФИШИ, А У АКЦИИ ЕСТЬ: размер скидки. Он уходит в кадр отдельным
+ * пропом `badge` — фирменной плашкой, ровно как на карточке акции в списке, а
+ * не серой пилюлей в ряду меток.
  *
  * The promo is SELECTED out of the shared city feed — this backend has no
  * single-promo endpoint — so arriving from the list or from Home is a cache
@@ -37,6 +55,9 @@ const t = getDictionary();
 export default function PromotionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  // Кнопки шапки лежат ПОВЕРХ фотографии, а не в отдельной белой полосе, —
+  // значит их отступ сверху считаем сами от безопасной зоны устройства.
+  const insets = useSafeAreaInsets();
   const { promo, query } = useExplorePromotion(id);
 
   // Host venue — for the contacts block and the map. Disabled until the promo
@@ -58,7 +79,10 @@ export default function PromotionDetailScreen() {
     }
   };
 
-  const header = (right?: React.ReactNode) => (
+  // Шапка веток «загружаем / не найдено / ошибка» — та же белая полоса со
+  // стрелкой, что у афиши и у статьи: фотографии и названия там ещё нет, и
+  // рисовать кадр не на чем.
+  const plainHeader = () => (
     <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
       <View style={styles.header}>
         <IconButton
@@ -66,7 +90,6 @@ export default function PromotionDetailScreen() {
           accessibilityLabel={t.a11y.backButton}
           onPress={() => router.back()}
         />
-        {right}
       </View>
     </SafeAreaView>
   );
@@ -74,7 +97,7 @@ export default function PromotionDetailScreen() {
   if (query.isLoading) {
     return (
       <View style={styles.root}>
-        {header()}
+        {plainHeader()}
         <LoadingState title={t.promotions.loading} />
       </View>
     );
@@ -83,7 +106,7 @@ export default function PromotionDetailScreen() {
   if (query.isError) {
     return (
       <View style={styles.root}>
-        {header()}
+        {plainHeader()}
         <ErrorState
           title={t.promotions.errorTitle}
           description={t.promotions.errorDescription}
@@ -96,7 +119,7 @@ export default function PromotionDetailScreen() {
   if (!promo) {
     return (
       <View style={styles.root}>
-        {header()}
+        {plainHeader()}
         <EmptyState
           title={t.promotions.notFoundTitle}
           description={t.promotions.notFoundDescription}
@@ -123,71 +146,84 @@ export default function PromotionDetailScreen() {
 
   return (
     <View style={styles.root}>
-      {header(
-        <View style={styles.headerRightGroup}>
-          <IconButton
-            icon={Heart}
-            accessibilityLabel={
-              favorite.isFavorite
-                ? t.restaurant.favoriteRemove(promo.title)
-                : t.restaurant.favoriteAdd(promo.title)
-            }
-            selected={favorite.isFavorite}
-            onPress={favorite.toggle}
-          />
-          <IconButton
-            icon={Export}
-            accessibilityLabel={t.a11y.shareButton}
-            onPress={() => void share(promo.title, venue)}
-          />
-        </View>,
-      )}
-
       <ScrollView
         style={styles.scrollFloor}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {/* Фотография, название и подпись «Заведение · до 30 сентября» — ОДИН
-            блок, как на карточке афиши: это ответ на вопрос «что за акция», и
-            серый просвет посреди него делил бы ответ надвое.
-            Cover first, then the gallery. The «−N%» badge stays pinned to the
-            block rather than to a frame: it labels the PROMO, not one of its
-            photos, so it must not swipe away with the first one. */}
-        <View style={styles.summaryBlock}>
-          <View style={styles.coverContainer}>
-            <PhotoRail uris={[promo.coverImageUrl, ...promo.images]} />
-            {promo.discountPercent !== null ? (
-              <View style={promoStyles.badge}>
-                <Text style={promoStyles.badgeText}>
-                  {t.explore.promoDiscount(promo.discountPercent)}
-                </Text>
-              </View>
-            ) : null}
-          </View>
+            кадр, тот же `EventHero`, что у афиши и у статьи. Лента фотографий
+            сохранена: у акции сверх обложки бывает галерея. */}
+        <EventHero
+          photos={[promo.coverImageUrl, ...promo.images]}
+          title={promo.title}
+          subtitle={subtitle}
+          // Меток у акции нет — поля под них в ленте не существует.
+          tags={[]}
+          // Единственное, чего нет у афиши: размер скидки. Плашка привязана к
+          // КАДРУ, а не к первой фотографии, — она про акцию целиком и не
+          // должна улистываться вместе со снимком.
+          badge={
+            promo.discountPercent !== null
+              ? t.explore.promoDiscount(promo.discountPercent)
+              : undefined
+          }
+          topInset={insets.top}
+          backButton={
+            <IconButton
+              icon={ArrowLeft}
+              tone="onPhotoLight"
+              size={eventHero.controlSize}
+              accessibilityLabel={t.a11y.backButton}
+              onPress={() => router.back()}
+            />
+          }
+          actions={
+            <>
+              <IconButton
+                icon={Heart}
+                tone="onPhotoLight"
+                size={eventHero.controlSize}
+                accessibilityLabel={
+                  favorite.isFavorite
+                    ? t.restaurant.favoriteRemove(promo.title)
+                    : t.restaurant.favoriteAdd(promo.title)
+                }
+                selected={favorite.isFavorite}
+                onPress={favorite.toggle}
+              />
+              <IconButton
+                icon={Export}
+                tone="onPhotoLight"
+                size={eventHero.controlSize}
+                accessibilityLabel={t.a11y.shareButton}
+                onPress={() => void share(promo.title, venue)}
+              />
+            </>
+          }
+        />
 
-          <View style={styles.summary}>
-            <Text style={styles.title}>{promo.title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-            {favorite.failed ? (
-              <Text style={styles.favoriteFailed} accessibilityRole="alert">
-                {t.restaurant.favoriteFailed}
-              </Text>
-            ) : null}
+        {/* Сообщение о неудавшемся сохранении — отдельным белым блоком, как на
+            афише: на кадре ему места нет. */}
+        {favorite.failed ? (
+          <View style={styles.section}>
+            <Text style={styles.favoriteFailed} accessibilityRole="alert">
+              {t.restaurant.favoriteFailed}
+            </Text>
           </View>
-        </View>
+        ) : null}
 
         {/* «Об акции» и срок действия — ОДИН блок, ровно как «Об афише» с датой
             на карточке афиши: срок это часть рассказа об акции, а не отдельная
             запись. Заголовок появляется только при описании (без текста ему
             нечего озаглавливать), сам блок — если есть хотя бы одно из двух. */}
         {promo.description || period ? (
-          <View style={styles.section}>
+          <View style={[styles.section, styles.sectionSpread]}>
             {promo.description ? (
-              <>
+              <View style={styles.sectionGroup}>
                 <Text style={styles.sectionTitle}>{t.promotions.aboutTitle}</Text>
                 <Text style={styles.body}>{promo.description}</Text>
-              </>
+              </View>
             ) : null}
             {period ? (
               <DetailInfoRow
@@ -226,24 +262,3 @@ export default function PromotionDetailScreen() {
     </View>
   );
 }
-
-/** Единственное, что есть у акции и нет у афиши, — бейдж скидки. Остальная
- * раскладка живёт в `detailStyles`, общем с карточкой афиши. */
-const promoStyles = StyleSheet.create({
-  badge: {
-    // Отступы считаются от края ФОТОГРАФИИ, а не блока: фото начинается на
-    // 12 (поля блока) + 8 (внутренний отступ ленты), и бейдж отстоит от него
-    // на те же 12, что и на карточке акции в списке.
-    position: "absolute",
-    top: spacing.md + spacing.md,
-    left: spacing.md + spacing.sm + spacing.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand.primary,
-  },
-  badgeText: {
-    ...typography.caption,
-    color: colors.text.onBrand,
-  },
-});

@@ -167,7 +167,16 @@ export default function GastroguideScreen() {
 
         <View style={styles.content}>
           <View style={styles.section}>
-            <GuideSectionHeader title={t.articles.rubricsTitle} />
+            {/* «Смотреть все» есть только у этой секции: у неё одной есть куда
+                вести. Экран `/gastroguide/rubrics` показывает ВСЕ рубрики
+                справочника столбиком — в том числе те, у которых ещё нет ни
+                одной подборки и которых поэтому нет в ленте. У «Выбора
+                редакции» и «Гастропрогулок» надписи нет: этот экран и есть их
+                полный список. */}
+            <GuideSectionHeader
+              title={t.articles.rubricsTitle}
+              onSeeAll={() => router.push("/gastroguide/rubrics")}
+            />
 
             {rubrics.length > 0 ? (
               <GuideRubricRail collections={rubrics} onPress={openRubric} />

@@ -61,9 +61,21 @@ export function GuideRubricRail({
       style={styles.rail}
       contentContainerStyle={styles.railContent}
     >
-      {collections.map((collection) => (
-        <RubricCard key={collection.slug} collection={collection} onPress={onPress} />
-      ))}
+      {collections.map((collection) => {
+        const summary = collection.subtitle || collection.description;
+        return (
+          <GuideRubricTile
+            key={collection.slug}
+            coverImageUrl={collection.coverImageUrl}
+            eyebrow={rubricLabel(collection.categorySlugs)}
+            title={collection.title}
+            accessibilityLabel={
+              summary ? t.articles.card(collection.title, summary) : collection.title
+            }
+            onPress={() => onPress(collection)}
+          />
+        );
+      })}
     </ScrollView>
   );
 }
@@ -83,25 +95,55 @@ export function rubricLabel(categorySlugs: readonly string[]): string {
   return slug.replace(/[-_]+/g, " ").toUpperCase();
 }
 
-function RubricCard({
-  collection,
+/**
+ * ПЛИТКА РУБРИКИ — единственная в приложении, и живёт она здесь.
+ *
+ * Её рисуют ДВА экрана: горизонтальная лента «Рубрики» на корне гастрогида
+ * (плитка 118 шириной) и вертикальный список всех рубрик
+ * (`/gastroguide/rubrics`, плитка во всю ширину листа). Второй экран
+ * появился 2026-08-28 по правке владельца «лучше столбиком»; копии плитки
+ * там нет намеренно — расходиться двум копиям куда проще, чем одному файлу.
+ *
+ * Отличается ровно одно — ширина, и она приходит пропом `fullWidth`. Высота,
+ * скругление, затемнение, поля и обе надписи общие: это одна и та же карточка
+ * макета (node 3192:6097).
+ *
+ * Надписи приходят пропами, а не собираются внутри: в ленте плитка подписана
+ * ПОДБОРКОЙ (золотой слаг рубрики сверху, название подборки снизу), а в
+ * списке — САМОЙ РУБРИКОЙ (её название из `GET /gastroguide/categories`, и
+ * золотой надписи там нет: она повторяла бы заголовок).
+ */
+export function GuideRubricTile({
+  coverImageUrl,
+  eyebrow,
+  title,
+  accessibilityLabel,
   onPress,
+  fullWidth = false,
 }: {
-  collection: GuideCollection;
-  onPress: (collection: GuideCollection) => void;
+  /** Обложки нет — стандартная плашка «фото нет», выдуманной картинки не будет. */
+  coverImageUrl: string | null;
+  /** Золотая надпись над названием. Пусто — надписи нет. */
+  eyebrow?: string;
+  title: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+  /** Плитка тянется на всю ширину листа — вертикальный список рубрик. */
+  fullWidth?: boolean;
 }) {
-  const summary = collection.subtitle || collection.description;
-  const label = rubricLabel(collection.categorySlugs);
-
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={summary ? t.articles.card(collection.title, summary) : collection.title}
-      onPress={() => onPress(collection)}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        fullWidth ? styles.cardFullWidth : styles.cardRail,
+        pressed && styles.pressed,
+      ]}
     >
       <PhotoView
-        uri={collection.coverImageUrl}
+        uri={coverImageUrl}
         style={styles.photo}
         decorative
         size="tile"
@@ -116,15 +158,15 @@ function RubricCard({
         pointerEvents="none"
       />
       <View style={styles.copy}>
-        {label ? (
+        {eyebrow ? (
           <Text style={styles.eyebrow} numberOfLines={1} ellipsizeMode="tail">
-            {label}
+            {eyebrow}
           </Text>
         ) : null}
         {/* Две строки, как в макете: живые названия («Кофейная культура
             Алматы») в 118 pt ширины в одну не помещаются. */}
         <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
-          {collection.title}
+          {title}
         </Text>
       </View>
     </Pressable>
@@ -140,13 +182,20 @@ const styles = StyleSheet.create({
     gap: guideLayout.rubricGap,
   },
   card: {
-    width: guideLayout.rubricCardWidth,
     height: guideLayout.rubricCardHeight,
     borderRadius: radius.guideRubric,
     overflow: "hidden",
     justifyContent: "flex-end",
     padding: guideLayout.rubricCardPadding,
     backgroundColor: colors.background.chip,
+  },
+  cardRail: {
+    width: guideLayout.rubricCardWidth,
+  },
+  // В списке ширину задаёт лист, а не плитка: `alignSelf: "stretch"`, а не
+  // `width: "100%"` — второе ломается, если однажды у списка появятся поля.
+  cardFullWidth: {
+    alignSelf: "stretch",
   },
   pressed: {
     opacity: 0.7,
