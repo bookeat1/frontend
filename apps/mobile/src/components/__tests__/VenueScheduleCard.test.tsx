@@ -15,10 +15,27 @@ import type { DayOfWeek, ScheduleDay, VenueSchedule } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VenueScheduleCard } from "../VenueScheduleCard";
 
 const t = getDictionary();
+
+// Тест «сейчас открыто до …» читает системные часы: у `mixed` будни закрываются
+// в 23:00, а пятница и суббота — в 01:00. Без фиксации времени файл краснел
+// каждые выходные и в CI выглядел как поломка вёрстки. Прибиваем среду.
+const FIXED_NOW = new Date("2026-08-26T12:00:00+05:00");
+
+// Именно beforeEach, а не beforeAll: общий vitest.setup.ts вызывает
+// vi.useRealTimers() в afterEach, поэтому подмена, сделанная один раз на файл,
+// доживает только до конца первого теста.
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function day(
   dayOfWeek: DayOfWeek,
