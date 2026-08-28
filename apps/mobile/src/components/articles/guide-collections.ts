@@ -16,7 +16,11 @@ import type { GuideCollection } from "@bookeat/api";
  *     лентой большой карточкой: у него длинный текст и своя обложка.
  *
  * Признак взят из данных, а не выдуман: на проде 2026-08-20 ровно четыре
- * подборки помечены рубриками и ровно четыре (статьи-лонгриды) — нет.
+ * подборки помечены рубриками и ровно четыре — нет. Именно эти четыре
+ * «безрубричные» с 2026-08-28 стали отдельной сущностью «Статья»
+ * (`kind: "article"`, ручка `GET /articles`) и в этот ответ больше не
+ * приходят вовсе. Разбиение оставлено: сервер по-прежнему позволяет создать
+ * подборку без рубрики, и такая подборка обязана где-то показаться.
  *
  * Вырожденные случаи не ломают экран: если рубрик нет ни у кого, лента не
  * рисуется и весь гастрогид остаётся карточками; если рубрики есть у всех —
@@ -27,8 +31,13 @@ import type { GuideCollection } from "@bookeat/api";
 export interface GuideSections {
   /** Подборки-рубрики — плитки горизонтальной ленты «Рубрики». */
   rubrics: GuideCollection[];
-  /** Лонгриды без рубрики — большие карточки «Выбора редакции». */
-  articles: GuideCollection[];
+  /** Подборки без рубрики — большие карточки «Выбора редакции».
+   *
+   * ПОЛЕ НАЗЫВАЛОСЬ `articles`, пока подборка и статья были одной сущностью.
+   * С 2026-08-28 статья — отдельная сущность со своей ручкой `GET /articles`,
+   * и сюда она не попадает НИКОГДА: это подборки гастрогида, у которых
+   * редакция просто не проставила рубрику. */
+  editorPicks: GuideCollection[];
 }
 
 /**
@@ -37,10 +46,10 @@ export interface GuideSections {
  */
 export function splitGuideCollections(collections: readonly GuideCollection[]): GuideSections {
   const rubrics: GuideCollection[] = [];
-  const articles: GuideCollection[] = [];
+  const editorPicks: GuideCollection[] = [];
   for (const collection of collections) {
     if (collection.categorySlugs.length > 0) rubrics.push(collection);
-    else articles.push(collection);
+    else editorPicks.push(collection);
   }
-  return { rubrics, articles };
+  return { rubrics, editorPicks };
 }

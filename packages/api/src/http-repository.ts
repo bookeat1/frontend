@@ -550,6 +550,34 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return mapGuideRouteDetail(api);
   }
 
+  /* --- «Статьи» --- */
+
+  /**
+   * GET /articles — список СТАТЕЙ. Конверт и форма элемента те же, что у
+   * `/gastroguide/collections`, поэтому здесь тот же маппер: разница ровно в
+   * том, ЧТО отдаёт сервер (`kind: "article"` против `kind: "collection"`).
+   *
+   * Параметра `?category=` у этой ручки нет и быть не может: у статьи нет
+   * рубрики — именно этим она и отличается от подборки.
+   */
+  async listArticles(): Promise<GuideCollection[]> {
+    const page = await this.client.get<ApiPage<ApiGuideCollection>>("/articles");
+    return mapGuideCollections(page.items);
+  }
+
+  /**
+   * GET /articles/:slug — одна статья с блоками заведений. Неизвестный слаг —
+   * 404 с `isNotFound`, экран показывает «не найдено». Ручка резолвит слаг
+   * ЛЮБОГО вида (слаг уникален глобально), поэтому старая ссылка на подборку
+   * тут открывается, а не отваливается.
+   */
+  async getArticle(slug: string): Promise<GuideCollectionDetail> {
+    const api = await this.client.get<ApiGuideCollectionDetail>(
+      `/articles/${encodeURIComponent(slug)}`,
+    );
+    return mapGuideCollectionDetail(api);
+  }
+
   /* --- reservation flow --- */
 
   /**

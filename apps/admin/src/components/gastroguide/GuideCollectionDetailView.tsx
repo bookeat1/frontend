@@ -19,6 +19,7 @@ import { CheckboxRow, Field, TextArea } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
 import { ErrorState, LoadingState } from "../StateViews";
 import { GuideCollectionFormModal } from "./GuideCollectionFormModal";
+import { GUIDE_KIND_ROUTE } from "./GuideCollectionsView";
 import { GuideGuestPreview } from "./GuideGuestPreview";
 import { GuideStatusBadge } from "./GuideStatusBadge";
 import { GuideVenueList } from "./GuideVenueList";
@@ -161,6 +162,11 @@ export function GuideCollectionDetailView({
   }
 
   const collection = detailQuery.data;
+  // Вид берём У САМОЙ ЗАПИСИ, а не у экрана: обе детальные ручки резолвят
+  // запись любого вида, и открыть статью по прямой ссылке из раздела подборок
+  // (или наоборот) технически можно — подписи и рубрики должны следовать
+  // записи, а не адресу.
+  const kindCopy = copy.kinds[collection.kind];
   const attachedIds = collection.venues.map((v) => v.restaurant_id);
   const selectedCategoryIds = new Set(collection.categories.map((c) => c.id));
   const busy =
@@ -174,10 +180,10 @@ export function GuideCollectionDetailView({
   return (
     <section className="mx-auto flex max-w-[1100px] flex-col gap-lg">
       <Link
-        href="/gastroguide"
+        href={GUIDE_KIND_ROUTE[collection.kind]}
         className="self-start text-sm font-medium text-brand hover:underline"
       >
-        ← {copy.back}
+        ← {kindCopy.back}
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-md">
@@ -254,7 +260,11 @@ export function GuideCollectionDetailView({
         </div>
       ) : null}
 
-      {/* Rubrics */}
+      {/* Рубрики — ТОЛЬКО у подборки.
+          У статьи рубрик нет по определению, и сервер отвечает 422 на попытку
+          их привязать: показывать редактору переключатели, каждый из которых
+          вернёт ошибку, — хуже, чем не показывать раздел вовсе. */}
+      {collection.kind === "article" ? null : (
       <section className="flex flex-col gap-md rounded-card bg-surface p-lg">
         <div>
           <h2 className="text-base font-semibold text-text">{copy.categoriesTitle}</h2>
@@ -287,6 +297,7 @@ export function GuideCollectionDetailView({
           </div>
         )}
       </section>
+      )}
 
       {/* Venues */}
       <section className="flex flex-col gap-md">

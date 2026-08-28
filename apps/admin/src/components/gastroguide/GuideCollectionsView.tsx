@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   GuideCollection,
   GuideCollectionInput,
+  GuideCollectionKind,
   GuideCollectionStatus,
 } from "@bookeat/api/admin";
 
@@ -28,14 +29,32 @@ const STATUS_OPTIONS: GuideCollectionStatus[] = ["draft", "published", "archived
 export interface GuideCollectionsClient {
   listGuideCollections(params?: {
     status?: GuideCollectionStatus[];
+    kind?: GuideCollectionKind;
     q?: string;
     per_page?: number;
   }): Promise<{ items: GuideCollection[]; total: number }>;
   createGuideCollection(input: GuideCollectionInput): Promise<GuideCollection>;
 }
 
+/** Куда ведёт «Открыть» и куда возвращает «← к списку» — у каждого вида свой
+ * раздел панели. */
+export const GUIDE_KIND_ROUTE: Record<GuideCollectionKind, string> = {
+  collection: "/gastroguide",
+  article: "/articles",
+};
+
 /**
- * The list of guide collections.
+ * Список редакционных записей — ОДИН экран на два раздела панели.
+ *
+ * `kind` решает всё: какой фильтр уходит на сервер (`?kind=`), какие подписи
+ * стоят на экране, с каким видом создаётся новая запись и куда ведёт
+ * «Открыть». `/gastroguide` — подборки, `/articles` — статьи. Второй почти
+ * такой же экран не заводится нарочно (просьба владельца «сделай
+ * единообразно»): расходиться начали бы уже на первой правке.
+ *
+ * ФИЛЬТР ПО ВИДУ ЖИВЁТ НА СЕРВЕРЕ, а не в `.filter()` по ответу: страница
+ * выдачи одна на всю таблицу, и отбор на клиенте означал бы, что четыре
+ * подборки вытесняют статьи с первой страницы и наоборот.
  *
  * Unlike every other screen in this panel it is NOT scoped to the selected
  * venue: the guide is platform editorial content and belongs to the superadmin.
@@ -43,21 +62,25 @@ export interface GuideCollectionsClient {
  * this screen reads it.
  */
 export function GuideCollectionsView({
+  kind = "collection",
   client = apiClient,
 }: {
+  kind?: GuideCollectionKind;
   client?: GuideCollectionsClient;
 }) {
   const queryClient = useQueryClient();
+  const kindCopy = copy.kinds[kind];
   const [status, setStatus] = useState<GuideCollectionStatus | "">("");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const queryKey = ["guide-collections", status, search] as const;
+  const queryKey = ["guide-collections", kind, status, search] as const;
   const listQuery = useQuery({
     queryKey,
     queryFn: () =>
       client.listGuideCollections({
         status: status ? [status] : undefined,
+        kind,
         q: search.trim() || undefined,
         per_page: 100,
       }),
@@ -70,10 +93,17 @@ export function GuideCollectionsView({
     <section className="mx-auto flex max-w-[1100px] flex-col gap-lg">
       <header className="flex flex-wrap items-start justify-between gap-md">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-text">{copy.title}</h1>
-          <p className="mt-xxs max-w-lg break-words text-[13px] text-text-muted">{copy.subtitle}</p>
+          <h1 className="text-xl font-bold text-text">{kindCopy.title}</h1>
+          <p className="mt-xxs max-w-lg break-words text-[13px] text-text-muted">
+            {kindCopy.subtitle}
+          </p>
         </div>
         <div className="flex flex-wrap gap-sm">
+          {/* Прогулки и рубрики — принадлежность ГАСТРОГИДА. На экране статей
+              их нет: у статьи рубрик не бывает вовсе, а прогулка — третий вид
+              контента, и кнопка на чужом экране только путает. */}
+          {kind === "collection" ? (
+            <>
           <Link
             href="/gastroguide/routes"
             className="inline-flex min-h-[44px] items-center rounded-pill bg-chip px-lg text-sm font-medium text-text hover:bg-[#e7e7e7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -86,7 +116,9 @@ export function GuideCollectionsView({
           >
             {copy.categoriesManage}
           </Link>
-          <Button onClick={() => setCreating(true)}>{copy.create}</Button>
+            </>
+          ) : null}
+          <Button onClick={() => setCreating(true)}>{kindCopy.create}</Button>
         </div>
       </header>
 
@@ -120,7 +152,7 @@ export function GuideCollectionsView({
       </div>
 
       {listQuery.isPending ? (
-        <LoadingState title={copy.loadingTitle} />
+        <LoadingState title={kindCopy.loadingTitle} />
       ) : listQuery.isError ? (
         <ErrorState onRetry={() => void listQuery.refetch()} />
       ) : items.length === 0 ? (
@@ -128,8 +160,8 @@ export function GuideCollectionsView({
         // different situations and get different text: the first one is fixed by
         // clearing a filter, the second by creating a collection.
         <EmptyState
-          title={filtered ? copy.emptyFiltered : copy.emptyTitle}
-          description={filtered ? copy.emptyFilteredDescription : copy.emptyDescription}
+          title={filtered ? copy.emptyFiltered : kindCopy.emptyTitle}
+          description={filtered ? copy.emptyFilteredDescription : kindCopy.emptyDescription}
         />
       ) : (
         <>
@@ -166,7 +198,7 @@ export function GuideCollectionsView({
 
                 <div className="flex flex-wrap gap-xs sm:justify-end">
                   <Link
-                    href={`/gastroguide?collection=${encodeURIComponent(c.id)}`}
+                    href={`${GUIDE_KIND_ROUTE[kind]}?collection=${encodeURIComponent(c.id)}`}
                     className="inline-flex min-h-[36px] items-center rounded-pill bg-chip px-md text-[13px] font-medium text-text hover:bg-[#e7e7e7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                   >
                     {copy.openCollection}
@@ -181,6 +213,7 @@ export function GuideCollectionsView({
       {creating ? (
         <GuideCollectionFormModal
           client={client}
+          kind={kind}
           onClose={() => setCreating(false)}
           onSaved={() => {
             setCreating(false);

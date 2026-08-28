@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type { GuideCollection, GuideCollectionInput } from "@bookeat/api/admin";
+import type {
+  GuideCollection,
+  GuideCollectionInput,
+  GuideCollectionKind,
+} from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
 import { useCityDictionary } from "@/lib/use-cities";
@@ -30,19 +34,32 @@ export interface GuideCollectionWriteClient {
  * Publication is NOT here, on purpose: the server models it as separate
  * operations so fixing a typo can never take a collection live, and a form with
  * a status dropdown would put that decision back where it does not belong.
+ *
+ * ВИД ЗАПИСИ (`kind`) ТОЖЕ НЕ ВЫБИРАЕТСЯ РЕДАКТОРОМ. Он приходит с экрана, на
+ * котором форма открыта: `/gastroguide` создаёт подборку, `/articles` —
+ * статью. Выпадающий список означал бы «статью можно случайно создать в
+ * гастрогиде», а именно эту путаницу разделение и убирает. При РЕДАКТИРОВАНИИ
+ * берётся собственный вид записи, а не вид экрана: править запись с чужого
+ * раздела нельзя, но переносить её между сущностями формой — тем более.
  */
 export function GuideCollectionFormModal({
   client,
   collection,
+  kind = "collection",
   onClose,
   onSaved,
 }: {
   client: GuideCollectionWriteClient;
   collection?: GuideCollection;
+  /** Вид создаваемой записи. При редактировании игнорируется в пользу
+   * `collection.kind`. */
+  kind?: GuideCollectionKind;
   onClose: () => void;
   onSaved: (saved: GuideCollection) => void;
 }) {
   const isEdit = !!collection;
+  const effectiveKind = collection?.kind ?? kind;
+  const kindCopy = copy.kinds[effectiveKind];
   const [slug, setSlug] = useState(collection?.slug ?? "");
   const [title, setTitle] = useState(collection?.title ?? "");
   const [subtitle, setSubtitle] = useState(collection?.subtitle ?? "");
@@ -94,6 +111,7 @@ export function GuideCollectionFormModal({
 
     mutation.mutate({
       slug: cleanSlug,
+      kind: effectiveKind,
       title: title.trim(),
       subtitle: subtitle.trim(),
       description: description.trim(),
@@ -106,7 +124,7 @@ export function GuideCollectionFormModal({
   }
 
   return (
-    <Modal title={isEdit ? copy.editTitle : copy.createTitle} onClose={onClose}>
+    <Modal title={isEdit ? kindCopy.editTitle : kindCopy.createTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
         <Field label={copy.fieldTitle} required htmlFor="guide-form-title">
           <TextInput

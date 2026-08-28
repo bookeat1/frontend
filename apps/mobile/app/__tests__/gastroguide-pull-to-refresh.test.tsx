@@ -22,7 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn(), replace: vi.fn(), canGoBack: () => false }),
-  usePathname: () => "/articles",
+  usePathname: () => "/gastroguide",
 }));
 
 vi.mock("expo-status-bar", () => ({ StatusBar: () => null }));
@@ -75,11 +75,12 @@ vi.mock("../../src/lib/repository", () => ({
     ({ getGuideCollections, getGuideRoutes }) as unknown as RestaurantRepository,
 }));
 
-const ArticlesScreen = (await import("../articles")).default;
+const GastroguideScreen = (await import("../gastroguide")).default;
 
 function collection(slug: string): GuideCollection {
   return {
     slug,
+    kind: "collection",
     title: `Подборка ${slug}`,
     subtitle: "",
     description: "Описание подборки",
@@ -93,7 +94,7 @@ function renderScreen() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <ArticlesScreen />
+      <GastroguideScreen />
     </QueryClientProvider>,
   );
 }

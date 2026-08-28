@@ -5,7 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import ArticlesScreen from "../articles";
+import GastroguideScreen from "../gastroguide";
 
 /**
  * Экран гастрогида. Проверяем ровно то, что ломается тихо и что было решено
@@ -33,7 +33,7 @@ let canGoBack = false;
 
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push, back, replace: vi.fn(), canGoBack: () => canGoBack }),
-  usePathname: () => "/articles",
+  usePathname: () => "/gastroguide",
 }));
 
 vi.mock("expo-status-bar", () => ({
@@ -98,6 +98,7 @@ function collection(
 ): GuideCollection {
   return {
     slug,
+    kind: "collection",
     title,
     subtitle: "",
     description: "Описание подборки",
@@ -128,7 +129,7 @@ function renderScreen() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ArticlesScreen />
+      <GastroguideScreen />
     </QueryClientProvider>,
   );
 }
@@ -153,7 +154,7 @@ describe("экран гастрогида", () => {
 
     expect(push).toHaveBeenCalledWith("/gastroguide/rubric/kazakh-cuisine-rubric");
     // Именно рубрика, а не подборка: слаг подборки на этот экран не ведёт.
-    expect(push).not.toHaveBeenCalledWith("/articles/kazakh-cuisine");
+    expect(push).not.toHaveBeenCalledWith("/gastroguide/collections/kazakh-cuisine");
     // Список под сеткой на месте: отбора больше нет.
     expect(screen.getByText("Сейчас Алматы ест невероятно хорошо")).toBeTruthy();
   });

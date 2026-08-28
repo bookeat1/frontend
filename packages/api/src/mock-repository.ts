@@ -2,6 +2,7 @@ import {
   amenities,
   cuisines,
   guideCategories,
+  articles,
   guideCollection,
   guideCollections,
   guideRoutes,
@@ -272,6 +273,25 @@ export class MockRestaurantRepository implements RestaurantRepository {
       throw new RepositoryError(`Collection ${slug} not found`, undefined, 404);
     }
     return collection;
+  }
+
+  /* --- «Статьи» --- */
+
+  /** Только статьи — подборки гастрогида этой ручке не видны. */
+  async listArticles(): Promise<GuideCollection[]> {
+    await this.simulateNetwork();
+    return articles();
+  }
+
+  /** Одна статья с заведениями. Слаг резолвится независимо от вида записи —
+   * как у живой ручки, чтобы старая ссылка на подборку не отвечала 404. */
+  async getArticle(slug: string): Promise<GuideCollectionDetail> {
+    await this.simulateNetwork();
+    const article = guideCollection(slug);
+    if (!article) {
+      throw new RepositoryError(`Article ${slug} not found`, undefined, 404);
+    }
+    return article;
   }
 
   /* --- reservation flow --- */

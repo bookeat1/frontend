@@ -27,6 +27,7 @@ import type {
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
+  GuideCollectionKind,
   GuideRoute,
   GuideRouteDetail,
   GuideRoutePoint,
@@ -1218,6 +1219,9 @@ export function mapGuideCategories(
 
 export interface ApiGuideCollection {
   slug?: string;
+  /** `"collection"` | `"article"`. Optional on the wire on purpose — see
+   * `guideCollectionKind`. */
+  kind?: string;
   title?: string;
   subtitle?: string | null;
   description?: string | null;
@@ -1262,9 +1266,24 @@ export interface ApiGuideCollectionDetail extends ApiGuideCollection {
  * through `plainText` because the editorial blurb can carry the same legacy CMS
  * HTML the venue descriptions do.
  */
+/**
+ * `kind` со строгим откатом на «подборку».
+ *
+ * Ровно ОДНО значение считается статьёй — `"article"`. Всё остальное (поля
+ * нет, пустая строка, неизвестное будущее значение) читается как подборка:
+ * приложение выходит раньше сервера, и до его выката ответ вообще не несёт
+ * этого поля. Ошибиться в эту сторону безопасно — подборка попадёт на экран
+ * гастрогида, то есть туда, где она и была; ошибка в другую сторону утащила
+ * бы её в раздел «Статьи», из которого владелец её и убирал.
+ */
+function guideCollectionKind(kind: string | undefined): GuideCollectionKind {
+  return text(kind) === "article" ? "article" : "collection";
+}
+
 function mapGuideCollectionCard(api: ApiGuideCollection): GuideCollection {
   return {
     slug: text(api.slug),
+    kind: guideCollectionKind(api.kind),
     title: text(api.title),
     subtitle: plainText(api.subtitle),
     description: plainText(api.description),

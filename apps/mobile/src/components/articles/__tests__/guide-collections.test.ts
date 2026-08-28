@@ -5,6 +5,7 @@ import { splitGuideCollections } from "../guide-collections";
 function collection(slug: string, categorySlugs: string[]): GuideCollection {
   return {
     slug,
+    kind: "collection",
     title: slug,
     subtitle: "",
     description: "",
@@ -16,42 +17,42 @@ function collection(slug: string, categorySlugs: string[]): GuideCollection {
 
 describe("splitGuideCollections", () => {
   it("подборка с рубрикой идёт в сетку, без рубрики — в список под ней", () => {
-    const { rubrics, articles } = splitGuideCollections([
+    const { rubrics, editorPicks } = splitGuideCollections([
       collection("kazakh-cuisine", ["kazakh-cuisine-rubric"]),
       collection("almaty-longread", []),
       collection("coffee-culture", ["coffee-culture-rubric"]),
     ]);
 
     expect(rubrics.map((c) => c.slug)).toEqual(["kazakh-cuisine", "coffee-culture"]);
-    expect(articles.map((c) => c.slug)).toEqual(["almaty-longread"]);
+    expect(editorPicks.map((c) => c.slug)).toEqual(["almaty-longread"]);
   });
 
   it("ни одна подборка не попадает в обе группы", () => {
     const source = [collection("a", ["r"]), collection("b", [])];
-    const { rubrics, articles } = splitGuideCollections(source);
+    const { rubrics, editorPicks } = splitGuideCollections(source);
 
-    expect(rubrics.length + articles.length).toBe(source.length);
-    expect(rubrics.some((c) => articles.includes(c))).toBe(false);
+    expect(rubrics.length + editorPicks.length).toBe(source.length);
+    expect(rubrics.some((c) => editorPicks.includes(c))).toBe(false);
   });
 
   it("рубрик нет ни у кого — сетка пуста, весь гастрогид остаётся списком", () => {
-    const { rubrics, articles } = splitGuideCollections([
+    const { rubrics, editorPicks } = splitGuideCollections([
       collection("a", []),
       collection("b", []),
     ]);
 
     expect(rubrics).toEqual([]);
-    expect(articles.map((c) => c.slug)).toEqual(["a", "b"]);
+    expect(editorPicks.map((c) => c.slug)).toEqual(["a", "b"]);
   });
 
   it("рубрики есть у всех — списка под сеткой нет", () => {
-    const { rubrics, articles } = splitGuideCollections([
+    const { rubrics, editorPicks } = splitGuideCollections([
       collection("a", ["r1"]),
       collection("b", ["r2"]),
     ]);
 
     expect(rubrics.map((c) => c.slug)).toEqual(["a", "b"]);
-    expect(articles).toEqual([]);
+    expect(editorPicks).toEqual([]);
   });
 
   it("порядок сервера сохраняется внутри обеих групп", () => {

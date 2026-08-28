@@ -1,25 +1,17 @@
 /**
- * PLACEHOLDER SEAM FOR THE REBUILT HOME SCREEN — nothing here comes from the API.
+ * Формы карточек двух разделов главной («Акции» и «Статьи») и их СТАБИЛЬНЫЕ
+ * ПУСТЫЕ значения.
  *
- * Two home sections have no backend endpoint the guest app can call today, so
- * their data source lives here, isolated in one file. The COMPONENTS that
- * render them are real and final; only the source is a stub, and each stub is
- * an EMPTY array on purpose — the sections hide themselves cleanly when there
- * is nothing to show (see PromotionsSection / ArticlesSection), so the home
- * screen looks finished on today's real data.
+ * Файл заводился как заглушка: у обоих разделов не было ручки, и данные брались
+ * отсюда. Сейчас обе ручки живые — `GET /feed?city=` у акций (см.
+ * `useExplorePromotionsQuery`) и `GET /articles` у статей (см.
+ * `useExploreArticles`, ручка появилась 2026-08-28, когда статьи и подборки
+ * гастрогида развели на две сущности). Осталось ровно две вещи:
  *
- * Missing endpoints (checked against `packages/api/src/repository.ts` — the
- * guest-facing contract — and the backend conventions in team-memory):
- *
- *   promotions — no live GLOBAL promotions endpoint. Only per-restaurant
- *                `GET /restaurants/:id/promos` (a single venue, and its payload
- *                carries NO image field) and a unified `/feed` exist. TODO:
- *                wire `useExplorePromotions` to `GET /promotions` or
- *                `GET /feed?kind=promo` once the backend ships a cross-venue
- *                promo feed (backend branch `feat/promo-feed`, migration 0050).
- *
- *   articles   — no editorial/articles entity anywhere in the backend. TODO:
- *                wire `useExploreArticles` to `GET /articles` when it exists.
+ *   • ТИПЫ карточек — форма, которую рисуют компоненты разделов;
+ *   • ПУСТЫЕ КОНСТАНТЫ — то, что хуки возвращают во время загрузки, при отказе
+ *     и на пустом ответе. Массив отдаётся ПО ССЫЛКЕ, иначе главная
+ *     перерисовывалась бы на каждый рендер; разделы прячутся именно на нём.
  */
 
 /** One promo tile in the «Акции» strip. Shape the real feed is expected to
@@ -51,5 +43,8 @@ export interface ArticleCardData {
  * re-render on every home render. */
 export const PLACEHOLDER_PROMOTIONS: readonly PromoStripItem[] = [];
 
-/** MISSING ENDPOINT: GET /articles. Empty ⇒ section hidden. */
+/** Стабильный пустой результат «Статей» на время загрузки, при отказе и когда
+ * статей нет: раздел на главной прячется именно на нём. Возвращается ПО ССЫЛКЕ,
+ * чтобы не перерисовывать главную на каждый рендер. Живая ручка —
+ * `GET /articles` (см. `useExploreArticles`). */
 export const PLACEHOLDER_ARTICLES: readonly ArticleCardData[] = [];

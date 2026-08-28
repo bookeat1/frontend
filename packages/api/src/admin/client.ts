@@ -1435,6 +1435,7 @@ export class AdminApiClient {
         // The server reads ?status= as one comma-separated list, so several
         // statuses are joined rather than repeated.
         status: params.status?.length ? params.status.join(",") : undefined,
+        kind: params.kind,
         city: params.city,
         q: params.q,
         page: params.page,

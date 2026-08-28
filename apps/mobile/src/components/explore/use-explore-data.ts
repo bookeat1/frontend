@@ -429,6 +429,51 @@ export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
 }
 
 /**
+ * РЕАЛЬНЫЕ ДАННЫЕ — СТАТЬИ. `GET /articles` (RestaurantRepository.listArticles).
+ *
+ * ОТДЕЛЬНАЯ РУЧКА, А НЕ ФИЛЬТР ПО `kind` НАД ПОДБОРКАМИ. Владелец развёл
+ * статьи и рубрики гастрогида как разные сущности (2026-08-28), и клиентский
+ * отбор одного ответа означал бы, что оба раздела делят одну страницу выдачи:
+ * четыре подборки вытеснили бы статьи из первой страницы и наоборот. Поэтому
+ * и ключ кэша СВОЙ (`["articles","list"]`) — общий с подборками заставил бы
+ * один экран показывать данные другого.
+ *
+ * Пустой ответ — норма («ничего не опубликовали»): на главной раздел прячется,
+ * на экране `/articles` показывается спокойное пустое состояние.
+ */
+export function useArticles(): UseQueryResult<GuideCollection[]> {
+  const repository = useRepository();
+  return useQuery<GuideCollection[]>({
+    queryKey: ["articles", "list"],
+    queryFn: () => repository.listArticles(),
+    // Редакционный контент меняется медленно — тот же staleTime, что у
+    // подборок гастрогида.
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * РЕАЛЬНЫЕ ДАННЫЕ — одна статья с её заведениями, для страницы `/articles/:slug`.
+ * GET /articles/:slug (RestaurantRepository.getArticle).
+ *
+ * Свой ключ кэша (`["articles","item",slug]`), как и у подборки: список и
+ * деталка разной формы, и общий ключ позволил бы дешёвому списку вытеснить
+ * дорогую деталку.
+ */
+export function useArticle(slug: string | undefined): UseQueryResult<GuideCollectionDetail> {
+  const repository = useRepository();
+  return useQuery<GuideCollectionDetail>({
+    queryKey: ["articles", "item", slug],
+    queryFn: () => {
+      if (!slug) throw new Error("Missing article slug");
+      return repository.getArticle(slug);
+    },
+    enabled: Boolean(slug),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
  * REAL DATA — one collection with its venues, for the «Статья» detail screen.
  * GET /gastroguide/collections/:slug (RestaurantRepository.getGuideCollection).
  *
@@ -498,7 +543,7 @@ export function useGuideCollectionDetails(
   });
 }
 
-/** Maps one collection to the Home strip card. The byline is a UI CONSTANT
+/** Maps one article to the Home strip card. The byline is a UI CONSTANT
  * («От BookEat») — the payload has no author, this is editorial content — and
  * the card's `id` is the slug so a tap can route to `/articles/:slug`. */
 function toArticleCardData(collection: GuideCollection, author: string): ArticleCardData {
@@ -511,16 +556,21 @@ function toArticleCardData(collection: GuideCollection, author: string): Article
 }
 
 /**
- * «Статьи» on Home — now wired to the live GASTROGUIDE collections.
+ * «Статьи» на главной — читает `GET /articles`, а НЕ подборки гастрогида.
  *
- * Returns the stable empty PLACEHOLDER_ARTICLES (by reference) while loading, on
- * error, and when there are no collections — so ArticlesSection keeps its
- * hide-on-empty/error behaviour unchanged (its code did not change). The byline
- * comes from the dictionary so it follows the guest's language.
+ * БЫЛО `useGuideCollections()`: раздел кормился той же ручкой, что и гастрогид,
+ * и вёл на его экран. Владелец увидел это как баг («Статьи и рубрики гастрогида
+ * это разные сущности»), и починка — здесь, в источнике данных: с этой строкой
+ * ни одна подборка на главную попасть не может.
+ *
+ * Возвращает стабильный пустой PLACEHOLDER_ARTICLES (по ссылке) во время
+ * загрузки, при отказе и когда статей нет, — так ArticlesSection сохраняет своё
+ * поведение «прятаться на пустом». Подпись автора берётся из словаря и следует
+ * языку гостя.
  */
 export function useExploreArticles(): readonly ArticleCardData[] {
   const { dictionary: t } = useLocale();
-  const query = useGuideCollections();
+  const query = useArticles();
   const author = t.explore.articleAuthorDefault;
   return useMemo(() => {
     if (!query.data || query.data.length === 0) return PLACEHOLDER_ARTICLES;
@@ -561,11 +611,14 @@ const HOME_QUERY_ROOTS: ReadonlySet<string> = new Set([
 export function isHomeQueryKey(key: readonly unknown[]): boolean {
   const root = key[0];
   if (typeof root !== "string") return false;
-  // Гастрогид — общий корень у СПИСКА подборок («Статьи» на главной), деталки
-  // подборки и маршрутов гастропрогулок. На главной есть только список,
-  // поэтому совпадение по одному корню `guide` тянуло бы за собой чужие
-  // экраны.
-  if (root === "guide") return key[1] === "collections";
+  // «Статьи» — общий корень у СПИСКА статей (он на главной) и у деталки одной
+  // статьи (её на главной нет). Совпадение по одному корню `articles` тянуло
+  // бы за собой чужой экран.
+  if (root === "articles") return key[1] === "list";
+  // Гастрогида на главной больше НЕТ вовсе: раздел «Статьи» переехал на
+  // `GET /articles`, а подборки живут на своей вкладке. Поэтому корень
+  // `guide` сюда не попадает ни в каком виде — обновление главной не должно
+  // ходить за данными другого раздела.
   return HOME_QUERY_ROOTS.has(root);
 }
 

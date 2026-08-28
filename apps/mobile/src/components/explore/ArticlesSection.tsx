@@ -14,14 +14,20 @@ const t = getDictionary();
 const ARTICLES_ON_HOME = 6;
 
 /**
- * «Статьи» — editorial collections (GASTROGUIDE), wired to the live
- * `GET /gastroguide/collections` via `useExploreArticles`.
+ * «Статьи» — редакционные СТАТЬИ, живая ручка `GET /articles`
+ * (`useExploreArticles`).
+ *
+ * РАЗДЕЛ НЕ ВЕДЁТ В ГАСТРОГИД. Шеврон «Смотреть все» открывает `/articles`
+ * (список статей), тап по карточке — `/articles/:slug` (страница статьи). До
+ * 2026-08-28 обе ссылки приземлялись на экран гастрогида, потому что статьи и
+ * подборки были одной сущностью с одной ручкой; владелец это увидел, и теперь
+ * ни данные, ни маршруты этого раздела с гастрогидом не пересекаются.
+ * Маршруты приходят пропами и проверяются тестом главной.
  *
  * GRACEFUL EMPTY STATE: the hook returns [] while loading, on error, and when
  * nothing is published, so this renders NOTHING (header and white block
  * included). It owns its own `SectionCard`, so hiding it leaves no empty block
- * in the screen's stack. The header chevron opens the full `/articles` list;
- * tapping a card opens `/articles/:slug`.
+ * in the screen's stack.
  */
 export function ArticlesSection({
   onSeeAll,

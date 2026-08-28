@@ -63,6 +63,7 @@ vi.mock("../../src/lib/repository", () => ({
 function collection(slug: string, title: string, categorySlugs: string[]): GuideCollection {
   return {
     slug,
+    kind: "collection",
     title,
     subtitle: "",
     description: "Аутентичные вкусы степи.",

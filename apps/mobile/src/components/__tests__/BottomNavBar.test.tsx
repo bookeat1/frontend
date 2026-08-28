@@ -9,8 +9,13 @@ import { activeNavKey, BottomNavBar } from "../BottomNavBar";
  *
  * Проверяем ровно то, что ломается молча: куда ведёт четвёртая вкладка и какая
  * вкладка подсвечена на конкретном адресе. Пиксели тут не проверяются — их
- * проверяет глаз, а вот «/articles/almaty-brunch подсвечивает Гастрогид»
- * человек на глаз не заметит, пока гость не пожалуется.
+ * проверяет глаз, а вот «/gastroguide/collections/almaty-brunch подсвечивает
+ * Гастрогид» человек на глаз не заметит, пока гость не пожалуется.
+ *
+ * С 2026-08-28 здесь же держится РАЗВОД ДВУХ РАЗДЕЛОВ: `/articles` — это
+ * «Статьи», отдельная сущность, и вкладку гастрогида он подсвечивать НЕ
+ * должен. Раньше подсвечивал, и это была видимая часть бага «раздел „Статьи“
+ * ведёт в гастрогид».
  */
 
 const replace = vi.fn();
@@ -58,9 +63,15 @@ function uniqueColorOf(label: string): string {
 }
 
 describe("activeNavKey", () => {
-  it("подсвечивает «Гастрогид» на списке подборок и на самой подборке", () => {
-    expect(activeNavKey("/articles")).toBe("gastroguide");
-    expect(activeNavKey("/articles/almaty-brunch")).toBe("gastroguide");
+  it("подсвечивает «Гастрогид» на корне вкладки, рубрике и подборке", () => {
+    expect(activeNavKey("/gastroguide")).toBe("gastroguide");
+    expect(activeNavKey("/gastroguide/rubric/kazakh-cuisine")).toBe("gastroguide");
+    expect(activeNavKey("/gastroguide/collections/almaty-brunch")).toBe("gastroguide");
+  });
+
+  it("не подсвечивает гастрогид на «Статьях»: это другой раздел", () => {
+    expect(activeNavKey("/articles")).toBeNull();
+    expect(activeNavKey("/articles/almaty-longread")).toBeNull();
   });
 
   it("не подсвечивает ничего на избранном: вкладки у него больше нет", () => {
@@ -114,16 +125,18 @@ describe("BottomNavBar", () => {
     expect(strokes.every((color) => color === colors.brand.primary)).toBe(true);
   });
 
-  it("четвёртая вкладка ведёт на /articles и заменяет маршрут, а не кладёт его в стек", () => {
+  it("четвёртая вкладка ведёт на /gastroguide и заменяет маршрут, а не кладёт его в стек", () => {
     render(<BottomNavBar />);
 
     screen.getByRole("tab", { name: "Гастрогид" }).click();
 
-    expect(replace).toHaveBeenCalledWith("/articles");
+    expect(replace).toHaveBeenCalledWith("/gastroguide");
+    // Вкладка не может привести гостя в «Статьи» — это соседний раздел.
+    expect(replace).not.toHaveBeenCalledWith("/articles");
   });
 
   it("на подборке гастрогида отмечена именно четвёртая вкладка", () => {
-    pathname = "/articles/almaty-brunch";
+    pathname = "/gastroguide/collections/almaty-brunch";
     render(<BottomNavBar />);
 
     // Активность видно по цвету глифа: `accessibilityState` — нативное

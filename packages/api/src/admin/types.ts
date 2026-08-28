@@ -1148,10 +1148,21 @@ export interface GuideCategoryInput {
   is_active: boolean;
 }
 
+/**
+ * Что это за запись — ПОДБОРКА гастрогида или СТАТЬЯ.
+ *
+ * Разные сущности по решению владельца (2026-08-28), но одна таблица и один
+ * набор ручек редактора: экраны панели разводит `kind`. У статьи рубрик нет —
+ * сервер отвечает 422 на попытку привязать рубрику к `kind: "article"`,
+ * поэтому на экране статей подборщик рубрик не показывается вовсе.
+ */
+export type GuideCollectionKind = "collection" | "article";
+
 /** A collection row in the editor's list. */
 export interface GuideCollection {
   id: string;
   slug: string;
+  kind: GuideCollectionKind;
   title: string;
   title_i18n?: I18nMap;
   subtitle: string;
@@ -1212,6 +1223,11 @@ export interface GuideCollectionDetail extends GuideCollection {
  */
 export interface GuideCollectionInput {
   slug: string;
+  /** Опущен = `"collection"` (так решает сервер). Панель шлёт его ЯВНО и
+   * берёт из экрана, на котором открыта форма, а не из выпадающего списка:
+   * вид записи — это раздел, а не поле, которое редактор может выбрать не
+   * то. */
+  kind?: GuideCollectionKind;
   title: string;
   title_i18n?: I18nMap;
   subtitle: string;
@@ -1227,6 +1243,9 @@ export interface GuideCollectionInput {
 export interface GuideCollectionListParams {
   /** Empty/omitted = every status. */
   status?: GuideCollectionStatus[];
+  /** Опущен = записи обоих видов. Экран гастрогида шлёт `"collection"`,
+   * экран статей — `"article"`. */
+  kind?: GuideCollectionKind;
   city?: string;
   q?: string;
   page?: number;

@@ -288,11 +288,18 @@ export function homePromotions(city?: string, now: Date = new Date()): HomePromo
  * with no backend: one collection WITHOUT a subtitle and WITHOUT a cover (null),
  * and a venue block WITHOUT a note (the block hides its description line). There
  * is no author anywhere — the byline is a UI constant.
+ *
+ * ОБЕ СУЩНОСТИ ЛЕЖАТ В ОДНОМ СПИСКЕ, как и на бэкенде (одна таблица, колонка
+ * `kind`): подборки гастрогида (`kind: "collection"`, с рубриками) и статьи
+ * (`kind: "article"`, БЕЗ рубрик). Разводят их не данные, а две ручки — см.
+ * `guideCollections()` и `articles()`. Мок держит и то и другое, иначе офлайн
+ * невозможно увидеть, что разделение вообще работает.
  */
 function guideCollectionsData(): GuideCollectionDetail[] {
   return [
   {
     slug: "romantic-dinners",
+    kind: "collection",
     title: "Где провести романтический ужин",
     subtitle: "Пять мест для особенного вечера",
     description:
@@ -345,6 +352,7 @@ function guideCollectionsData(): GuideCollectionDetail[] {
   },
   {
     slug: "family-brunch",
+    kind: "collection",
     // Подборка без подзаголовка и без обложки — карточка показывает плейсхолдер.
     title: "Семейный бранч по выходным",
     subtitle: "",
@@ -376,6 +384,47 @@ function guideCollectionsData(): GuideCollectionDetail[] {
       },
     ],
   },
+  {
+    // СТАТЬЯ: рубрик нет вовсе (сервер отвергает статью с рубриками 422), и
+    // открывается она по `/articles/:slug`, а не с экрана гастрогида.
+    slug: "almaty-longread",
+    kind: "article",
+    title: "Сейчас Алматы ест невероятно хорошо",
+    subtitle: "Редакционный лонгрид",
+    description:
+      "Город за пять лет прошёл путь от одинаковых интерьеров до собственной кухни — рассказываем, где это видно за столом.",
+    coverImageUrl: photo("interiorChandelier", "article-1-cover", "Алматы ест хорошо").uri,
+    venueCount: 1,
+    categorySlugs: [],
+    venues: [
+      {
+        restaurantId: restaurants[2].id,
+        name: restaurants[2].name,
+        note: "Здесь начали жарить на углях местную рыбу — и с этого всё пошло.",
+        address: restaurants[2].address,
+        cuisineType: restaurants[2].cuisines[0]?.name ?? "",
+        city: restaurants[2].city,
+        priceCategory: restaurants[2].priceLevel,
+        imageUrl: restaurants[2].coverPhoto?.uri ?? null,
+        instagram: restaurants[2].social?.instagram ?? "",
+        highlight: null,
+      },
+    ],
+  },
+  {
+    // Статья БЕЗ обложки и БЕЗ заведений — экран показывает текст и замыкающий
+    // блок, а карточка в списке рисует плашку «фото нет».
+    slug: "coffee-manifest",
+    kind: "article",
+    title: "Манифест третьей волны",
+    subtitle: "",
+    description:
+      "Почему кофейни перестали спорить о зерне и начали спорить о воде.",
+    coverImageUrl: null,
+    venueCount: 0,
+    categorySlugs: [],
+    venues: [],
+  },
   ];
 }
 
@@ -397,14 +446,29 @@ export function guideCategories(): GuideCategory[] {
   ];
 }
 
-/** The «Статьи» list (cards only — no venues), like `GET /gastroguide/collections`. */
+/** Подборки гастрогида (только карточки, без заведений), как
+ * `GET /gastroguide/collections` — ТОЛЬКО `kind: "collection"`. */
 export function guideCollections(): GuideCollection[] {
-  return guideCollectionsData().map(({ venues: _venues, ...card }) => card);
+  return guideCollectionsData()
+    .filter((c) => c.kind === "collection")
+    .map(({ venues: _venues, ...card }) => card);
 }
 
-/** One collection with its venues, like `GET /gastroguide/collections/:slug`.
- * Returns `undefined` for an unknown slug so the mock repository can answer 404
- * exactly as the live endpoint does. */
+/** Статьи, как `GET /articles` — ТОЛЬКО `kind: "article"`. Отдельная функция,
+ * а не параметр: экран статей и экран гастрогида не должны уметь показать
+ * содержимое друг друга даже случайно. */
+export function articles(): GuideCollection[] {
+  return guideCollectionsData()
+    .filter((c) => c.kind === "article")
+    .map(({ venues: _venues, ...card }) => card);
+}
+
+/** Одна запись со своими заведениями, как `GET /gastroguide/collections/:slug`
+ * и `GET /articles/:slug`.
+ *
+ * ВИД ЗДЕСЬ НЕ ПРОВЕРЯЕТСЯ НАРОЧНО — обе живые ручки резолвят любой слаг
+ * (слаг уникален глобально), чтобы старые ссылки не отвечали 404. `undefined`
+ * на неизвестный слаг, чтобы мок-репозиторий отдал тот же 404, что и сервер. */
 export function guideCollection(slug: string): GuideCollectionDetail | undefined {
   return guideCollectionsData().find((c) => c.slug === slug);
 }

@@ -1031,9 +1031,28 @@ export interface GuideCategory {
  * so no fabricated critic name ever appears. `subtitle`, `description` and
  * `coverImageUrl` may all be absent server-side and degrade to empty/`null`.
  */
+export type GuideCollectionKind = "collection" | "article";
+
 export interface GuideCollection {
-  /** Stable identifier used in the URL (`/articles/:slug`) and as the list key. */
+  /** Stable identifier used in the URL (`/articles/:slug` for an article,
+   * `/gastroguide/collections/:slug` for a rubric collection) and as the list
+   * key. Slugs are globally unique across BOTH kinds, which is why either
+   * detail endpoint resolves any slug and old deep links keep working. */
   slug: string;
+  /**
+   * ЧТО ЭТО — ПОДБОРКА ГАСТРОГИДА ИЛИ СТАТЬЯ.
+   *
+   * Владелец развёл их как РАЗНЫЕ сущности (2026-08-28): у подборки есть
+   * рубрики и она живёт на экране гастрогида, у статьи рубрик нет и она живёт
+   * в разделе «Статьи». На бэкенде это одна таблица с колонкой `kind`, но две
+   * ручки: `GET /gastroguide/collections` (только `collection`) и
+   * `GET /articles` (только `article`).
+   *
+   * Поле ОБЯЗАТЕЛЬНОЕ в модели и НЕОБЯЗАТЕЛЬНОЕ на проводе: приложение
+   * выходит раньше сервера, и ответ без `kind` должен читаться как подборка —
+   * ровно то, чем все восемь опубликованных строк были до разделения.
+   */
+  kind: GuideCollectionKind;
   title: string;
   /** One-line strapline under the title. Empty when the collection omits it. */
   subtitle: string;

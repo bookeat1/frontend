@@ -42,8 +42,13 @@ const getCatalogPreview = vi.fn<() => Promise<RestaurantSummary[]>>();
 const getCuisines = vi.fn<() => Promise<Cuisine[]>>();
 const listUpcomingEvents = vi.fn<() => Promise<EventPage>>();
 const getPromotions = vi.fn<() => Promise<HomePromo[]>>();
+/** Раздел «Статьи» главной. С 2026-08-28 это `GET /articles`, а НЕ подборки
+ * гастрогида. */
+const listArticles = vi.fn<() => Promise<GuideCollection[]>>();
+/** Запросы, которых на главной НЕТ: подборки гастрогида и гастропрогулки
+ * живут на своей вкладке. Оба смонтированы рядом с экраном (см. пробник) —
+ * значит, жест на главной обязан их не трогать. */
 const getGuideCollections = vi.fn<() => Promise<GuideCollection[]>>();
-/** Запрос, которого на главной НЕТ: гастропрогулки живут на своём экране. */
 const getGuideRoutes = vi.fn<() => Promise<GuideRoute[]>>();
 
 vi.mock("expo-router", () => ({
@@ -109,21 +114,25 @@ vi.mock("../../src/lib/repository", () => ({
     getCuisines,
     listUpcomingEvents,
     getPromotions,
+    listArticles,
     getGuideCollections,
     getGuideRoutes,
   }),
 }));
 
 const HomeScreen = (await import("../index")).default;
-const { useGuideRoutes } = await import("../../src/components/explore/use-explore-data");
+const { useGuideCollections, useGuideRoutes } = await import(
+  "../../src/components/explore/use-explore-data"
+);
 
 function emptyPage(): EventPage {
   return { items: [], total: 0, page: 1, pages: 1, perPage: 12 };
 }
 
-/** Гастропрогулки, смонтированные РЯДОМ с экраном: тот же кэш, но не главная. */
-function GuideRoutesProbe() {
+/** Гастрогид, смонтированный РЯДОМ с экраном: тот же кэш, но не главная. */
+function GuideProbe() {
   useGuideRoutes();
+  useGuideCollections();
   return null;
 }
 
@@ -132,7 +141,7 @@ function renderHome() {
   render(
     <QueryClientProvider client={client}>
       <HomeScreen />
-      <GuideRoutesProbe />
+      <GuideProbe />
     </QueryClientProvider>,
   );
   return client;
@@ -159,6 +168,7 @@ beforeEach(() => {
   getCuisines.mockReset().mockResolvedValue([]);
   listUpcomingEvents.mockReset().mockResolvedValue(emptyPage());
   getPromotions.mockReset().mockResolvedValue([]);
+  listArticles.mockReset().mockResolvedValue([]);
   getGuideCollections.mockReset().mockResolvedValue([]);
   getGuideRoutes.mockReset().mockResolvedValue([]);
 });
@@ -174,6 +184,7 @@ describe("главная: потянуть вниз, чтобы обновить
       expect(getCuisines).toHaveBeenCalledTimes(1);
       expect(listUpcomingEvents).toHaveBeenCalledTimes(1);
       expect(getPromotions).toHaveBeenCalledTimes(1);
+      expect(listArticles).toHaveBeenCalledTimes(1);
       expect(getGuideCollections).toHaveBeenCalledTimes(1);
       expect(getGuideRoutes).toHaveBeenCalledTimes(1);
     });
@@ -186,16 +197,17 @@ describe("главная: потянуть вниз, чтобы обновить
       expect(getCuisines).toHaveBeenCalledTimes(2);
       expect(listUpcomingEvents).toHaveBeenCalledTimes(2);
       expect(getPromotions).toHaveBeenCalledTimes(2);
-      expect(getGuideCollections).toHaveBeenCalledTimes(2);
+      expect(listArticles).toHaveBeenCalledTimes(2);
     });
 
-    // Гастропрогулок на главной нет — жест их не трогает.
+    // Гастрогида на главной нет — жест не трогает ни подборки, ни прогулки.
+    expect(getGuideCollections).toHaveBeenCalledTimes(1);
     expect(getGuideRoutes).toHaveBeenCalledTimes(1);
   });
 
   it("кружок гаснет только когда ответил последний блок", async () => {
     renderHome();
-    await waitFor(() => expect(getGuideCollections).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(listArticles).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("кружка нет")).toBeTruthy();
 
     // «Афиша» отвечает не сразу — остальные блоки успевают вернуться раньше.
@@ -205,7 +217,7 @@ describe("главная: потянуть вниз, чтобы обновить
     await pull();
 
     expect(await screen.findByText("кружок крутится")).toBeTruthy();
-    await waitFor(() => expect(getGuideCollections).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listArticles).toHaveBeenCalledTimes(2));
     // Все, кроме «Афиши», уже ответили — а кружок обязан остаться.
     expect(screen.getByText("кружок крутится")).toBeTruthy();
 
