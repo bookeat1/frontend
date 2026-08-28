@@ -22,6 +22,7 @@ import type {
   BookingCancelInput,
   BookingListParams,
   BookingReasonInput,
+  EventContentField,
   EventInput,
   EventRecurrenceInput,
   FeedItemKind,
@@ -670,6 +671,25 @@ export class AdminApiClient {
 
   async deleteEvent(eventId: string): Promise<void> {
     await this.request<unknown>("DELETE", `/admin/events/${encodeURIComponent(eventId)}`);
+  }
+
+  /**
+   * Возвращает контент ЭТОЙ ДАТЫ к общему контенту серии (migration 0097).
+   *
+   * Пустой список полей — «вернуть всё»: сервер именно так читает отсутствующее
+   * тело, и это та кнопка, которую кабинет показывает. Список нужен для «верни
+   * только обложку, текст оставь мой».
+   *
+   * Ручка ничего не удаляет: она снимает пометку «поле своё» и переписывает
+   * поле тем, что лежит на правиле. Дата, у которой переопределений не было,
+   * от вызова не изменится.
+   */
+  resetEventContent(eventId: string, fields: EventContentField[] = []): Promise<AdminEvent> {
+    return this.request<AdminEvent>(
+      "POST",
+      `/admin/events/${encodeURIComponent(eventId)}/content/reset`,
+      fields.length > 0 ? { body: { fields } } : undefined,
+    );
   }
 
   // ---- Правила повтора (серии событий) -------------------------------------

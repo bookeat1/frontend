@@ -6,6 +6,7 @@ import type { AdminEvent, FeedStatus } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import {
+  contentOverridesOf,
   describeRecurrence,
   describeRecurrencePeriod,
   eventToInput,
@@ -16,6 +17,7 @@ import {
 import { formatDateTime, formatMinorTenge } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
+import { EventSeriesContentModal } from "./EventSeriesContentModal";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
 
@@ -48,6 +50,7 @@ export function EventSeriesCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [editingContent, setEditingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { rule, upcoming, occurrences } = row;
 
@@ -139,6 +142,11 @@ export function EventSeriesCard({
           <Button size="sm" variant="secondary" onClick={() => setExpanded((v) => !v)}>
             {expanded ? t.admin.events.series.hideDates : t.admin.events.series.showDates}
           </Button>
+          {/* Контент правится у СЕРИИ, а не у даты: одно название, одно
+              описание, одна обложка на все даты (migration 0097). */}
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setEditingContent(true)}>
+            {t.admin.events.series.editContent}
+          </Button>
           {upcoming.length > 0 ? (
             <Button
               size="sm"
@@ -215,6 +223,18 @@ export function EventSeriesCard({
                             {t.admin.events.series.past}
                           </span>
                         ) : null}
+                        {/* Дата, которая ведёт часть контента сама, обязана
+                            отличаться на вид: иначе «почему у этой пятницы
+                            другая афиша» выясняется только в форме. */}
+                        {contentOverridesOf(e).length > 0 ? (
+                          <span className="inline-block whitespace-nowrap rounded-pill bg-amber-100 px-sm py-xxs text-[11px] font-medium text-amber-800">
+                            {t.admin.events.series.overrideChip(
+                              contentOverridesOf(e)
+                                .map((f) => t.admin.events.series.fieldName(f))
+                                .join(", "),
+                            )}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="mt-xxs text-[12px] text-text-muted">
                         {e.ticketed
@@ -287,6 +307,17 @@ export function EventSeriesCard({
 
       {stopping ? (
         <StopSeriesModal row={row} onClose={() => setStopping(false)} onStopped={onInvalidate} />
+      ) : null}
+
+      {editingContent ? (
+        <EventSeriesContentModal
+          row={row}
+          onClose={() => setEditingContent(false)}
+          onSaved={() => {
+            setEditingContent(false);
+            onInvalidate();
+          }}
+        />
       ) : null}
     </li>
   );

@@ -1,6 +1,8 @@
+import { EVENT_CONTENT_FIELDS } from "@bookeat/api/admin";
 import type {
   AdminEvent,
   AdminEventRecurrence,
+  EventContentField,
   EventInput,
   EventRecurrenceInput,
 } from "@bookeat/api/admin";
@@ -281,4 +283,85 @@ export function eventToInput(e: AdminEvent, status: AdminEvent["status"] = e.sta
     city: e.city ?? null,
     action: e.action ? { label: e.action.label, url: e.action.url ?? null } : null,
   };
+}
+
+// ---- Общий контент серии (migration 0097) ----------------------------------
+//
+// До 0097 контент жил на КАЖДОЙ дате: «Афиша Greek Party» означала восемнадцать
+// раз выбрать ту же картинку и вставить тот же текст. Теперь контент задаётся
+// один раз на правиле, а даты его наследуют — и у отдельной даты остаётся право
+// вести поле САМА. Что именно она ведёт, считает сервер (диффом с серией) и
+// присылает в `content_overrides`; здесь только чтение этого поля.
+
+/** Пять полей, которые серия задаёт одна на все даты. */
+export const SERIES_CONTENT_FIELDS = EVENT_CONTENT_FIELDS;
+
+/** Редактируемый общий контент серии — ровно то, что правит форма серии. */
+export interface SeriesContentDraft {
+  title: string;
+  description: string;
+  venue: string;
+  cover_image_url: string | null;
+  tags: string[];
+}
+
+/** Текущий общий контент серии, взятый с правила. */
+export function seriesContentOf(rule: AdminEventRecurrence): SeriesContentDraft {
+  return {
+    title: rule.title,
+    description: rule.description,
+    venue: rule.venue ?? "",
+    cover_image_url: rule.cover_image_url ?? null,
+    tags: rule.tags ?? [],
+  };
+}
+
+/**
+ * Поля, которые ЭТА ДАТА ведёт сама.
+ *
+ * Отсутствие ключа и пустой массив значат одно и то же — «наследует всё»
+ * (сервер шлёт поле с `omitempty`). Неизвестные значения отбрасываем: словарь
+ * полей общий с бэкендом, но сборка кабинета может быть старше сервера.
+ */
+export function contentOverridesOf(event: AdminEvent | null | undefined): EventContentField[] {
+  const raw = event?.content_overrides ?? [];
+  return SERIES_CONTENT_FIELDS.filter((f) => raw.includes(f));
+}
+
+/** Эта дата ведёт это поле сама (а не наследует от серии). */
+export function isContentOverridden(
+  event: AdminEvent | null | undefined,
+  field: EventContentField,
+): boolean {
+  return contentOverridesOf(event).includes(field);
+}
+
+/** Дата порождена правилом повтора, а значит наследует контент серии. */
+export function isSeriesDate(event: AdminEvent | null | undefined): boolean {
+  return !!event?.recurrence_id;
+}
+
+/**
+ * Какие поля общего контента человек изменил в форме серии.
+ *
+ * Нужно, чтобы предупреждение о снятии с главной не всплывало на сохранении,
+ * которое ничего в контенте не поменяло. Теги сравниваются ПО ПОРЯДКУ: их
+ * порядок виден гостю в ряду чипов, поэтому перестановка — тоже изменение.
+ */
+export function seriesContentDiff(
+  rule: AdminEventRecurrence,
+  draft: SeriesContentDraft,
+): EventContentField[] {
+  const before = seriesContentOf(rule);
+  const changed: EventContentField[] = [];
+  if (before.title !== draft.title) changed.push("title");
+  if (before.description !== draft.description) changed.push("description");
+  if (before.venue !== draft.venue) changed.push("venue");
+  if ((before.cover_image_url ?? "") !== (draft.cover_image_url ?? "")) {
+    changed.push("cover_image_url");
+  }
+  const sameTags =
+    before.tags.length === draft.tags.length && before.tags.every((v, i) => v === draft.tags[i]);
+  if (!sameTags) changed.push("tags");
+  return changed;
 }

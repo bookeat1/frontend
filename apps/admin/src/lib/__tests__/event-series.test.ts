@@ -2,11 +2,16 @@ import type { AdminEvent, AdminEventRecurrence } from "@bookeat/api/admin";
 import { describe, expect, it } from "vitest";
 
 import {
+  contentOverridesOf,
   describeRecurrence,
   describeRecurrencePeriod,
   formatDurationMinutes,
   groupEventsIntoSeries,
+  isContentOverridden,
+  isSeriesDate,
   recurrenceToInput,
+  seriesContentDiff,
+  seriesContentOf,
 } from "../event-series";
 
 /**
@@ -206,5 +211,63 @@ describe("recurrenceToInput — PUT правила это ПОЛНАЯ заме�
     expect(input.occurrence_status).toBe("hidden");
     expect(input.frequency).toBe("weekly");
     expect(input.is_active).toBe(true);
+  });
+});
+
+/**
+ * Общий контент серии и исключения отдельных дат (migration 0097).
+ *
+ * `content_overrides` считает СЕРВЕР (диффом с серией) — здесь только чтение:
+ * «нет ключа» и «пустой массив» обязаны читаться одинаково, иначе кабинет
+ * пометит наследуемое поле как своё и человек не поймёт, почему правка серии
+ * его не изменила.
+ */
+describe("контент серии и переопределения даты", () => {
+  it("общий контент берётся с правила; отсутствующее место — пустая строка, а не undefined", () => {
+    expect(seriesContentOf(rule)).toEqual({
+      title: "Greek Party",
+      description: "Греческий вечер",
+      venue: "",
+      cover_image_url: null,
+      tags: [],
+    });
+    expect(
+      seriesContentOf({ ...rule, venue: "летняя терраса", cover_image_url: "https://cdn/g.jpg" }),
+    ).toMatchObject({ venue: "летняя терраса", cover_image_url: "https://cdn/g.jpg" });
+  });
+
+  it("дата без ключа переопределений наследует всё", () => {
+    const e = occurrence(4);
+    expect(contentOverridesOf(e)).toEqual([]);
+    expect(isContentOverridden(e, "title")).toBe(false);
+    expect(isSeriesDate(e)).toBe(true);
+  });
+
+  it("свои поля читаются в порядке формы, а незнакомые сервером имена отбрасываются", () => {
+    const e = occurrence(4, {
+      content_overrides: ["cover_image_url", "title", "capacity"] as never,
+    });
+    expect(contentOverridesOf(e)).toEqual(["title", "cover_image_url"]);
+    expect(isContentOverridden(e, "cover_image_url")).toBe(true);
+    expect(isContentOverridden(e, "description")).toBe(false);
+  });
+
+  it("разовое событие серией не считается", () => {
+    expect(isSeriesDate(occurrence(4, { recurrence_id: null }))).toBe(false);
+    expect(contentOverridesOf(null)).toEqual([]);
+  });
+
+  it("дифф контента ловит правку и молчит, когда правки нет", () => {
+    const same = seriesContentOf(rule);
+    expect(seriesContentDiff(rule, same)).toEqual([]);
+    expect(seriesContentDiff(rule, { ...same, title: "Greek Night" })).toEqual(["title"]);
+    // Порядок меток виден гостю в ряду чипов — перестановка тоже правка.
+    const tagged = { ...rule, tags: ["музыка", "18+"] };
+    expect(seriesContentDiff(tagged, { ...seriesContentOf(tagged), tags: ["18+", "музыка"] })).toEqual([
+      "tags",
+    ]);
+    // Пустая строка обложки и её отсутствие — одно и то же, а не изменение.
+    expect(seriesContentDiff({ ...rule, cover_image_url: null }, { ...same, cover_image_url: "" }))
+      .toEqual([]);
   });
 });

@@ -422,9 +422,32 @@ export interface AdminEvent {
    * не восемнадцать событий, а одна серия с восемнадцатью датами. Читать надо
    * именно «есть ключ / нет ключа»: сервер шлёт поле с `omitempty`. */
   recurrence_id?: string | null;
+  /** Поля контента, которые ЭТА ДАТА ведёт САМА, а не наследует от серии
+   * (migration 0097). Ключ приходит только в админском ответе и только когда
+   * переопределения есть: у разового события и у даты, которая целиком следует
+   * серии, его НЕТ вовсе — `undefined` читается как «наследует всё».
+   *
+   * Список выводит сервер из разницы с серией; клиент его не присылает и
+   * присылать не может — формат тела PUT не изменился. */
+  content_overrides?: EventContentField[];
   created_at: string;
   updated_at: string;
 }
+
+/** Одно редакционно осмысленное поле контента события
+ * (domain.EventContentField, migration 0097). Ровно эти пять полей серия
+ * задаёт один раз на все свои даты; расписание, статус, билеты и вместимость
+ * контентом НЕ считаются и через серию не разливаются. */
+export type EventContentField = "title" | "description" | "venue" | "cover_image_url" | "tags";
+
+/** Весь словарь полей контента в порядке формы кабинета. */
+export const EVENT_CONTENT_FIELDS: readonly EventContentField[] = [
+  "title",
+  "description",
+  "venue",
+  "cover_image_url",
+  "tags",
+];
 
 /** Как часто правило порождает даты (event_recurrences.frequency). */
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly";
