@@ -3,6 +3,7 @@ import type {
   Cuisine,
   EventPage,
   EventSummary,
+  GuideCategory,
   GuideCollection,
   GuideRoute,
   GuideRouteDetail,
@@ -10,7 +11,12 @@ import type {
   HomePromo,
   RestaurantSummary,
 } from "@bookeat/api";
-import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useAuth } from "../../lib/auth";
 import { useLocale } from "../../lib/locale";
@@ -443,6 +449,52 @@ export function useGuideCollection(
     },
     enabled: Boolean(slug),
     staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * РЕАЛЬНЫЕ ДАННЫЕ — рубрики гастрогида. GET /gastroguide/categories
+ * (RestaurantRepository.getGuideCategories).
+ *
+ * Ручка отдаёт РОВНО `{id, slug, title, position}`: ни обложки, ни описания.
+ * Поэтому она источник ОДНОЙ вещи — названия рубрики; всё остальное на экране
+ * рубрики приходит от подборок, помеченных этим слагом.
+ *
+ * Своим запросом это не становится дорого: список рубрик крошечный и меняется
+ * не чаще редакционных подборок, поэтому `staleTime` тот же.
+ */
+export function useGuideCategories(): UseQueryResult<GuideCategory[]> {
+  const repository = useRepository();
+  return useQuery<GuideCategory[]>({
+    queryKey: ["guide", "categories"],
+    queryFn: () => repository.getGuideCategories(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * НЕСКОЛЬКО подборок с их заведениями — для экрана рубрики, где заведения
+ * собираются из ВСЕХ подборок рубрики.
+ *
+ * `useQueries`, а не цикл из `useGuideCollection`: количество слагов зависит
+ * от ответа сервера, а хук в цикле — нарушение правил хуков. На проде
+ * 2026-08-28 у рубрики ровно одна подборка, но зашивать это в экран нельзя:
+ * вторая подборка в рубрике не должна молча пропасть.
+ *
+ * КЛЮЧИ КЭША ТЕ ЖЕ, что у `useGuideCollection` (`["guide","collection",slug]`),
+ * — открытая до этого страница подборки уже лежит в кэше и лишнего запроса не
+ * будет.
+ */
+export function useGuideCollectionDetails(
+  slugs: readonly string[],
+): UseQueryResult<GuideCollectionDetail>[] {
+  const repository = useRepository();
+  return useQueries({
+    queries: slugs.map((slug) => ({
+      queryKey: ["guide", "collection", slug],
+      queryFn: () => repository.getGuideCollection(slug),
+      staleTime: 5 * 60_000,
+    })),
   });
 }
 

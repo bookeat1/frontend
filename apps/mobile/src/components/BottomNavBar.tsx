@@ -83,7 +83,11 @@ export function useNavBarSpacing(): number {
  * `/booking/:id` (one reservation) maps to the «Бронь» tab even though that
  * screen does not render the bar today, so the mapping stays right if it ever
  * does. `/articles/:slug` (одна подборка) точно так же подсвечивает
- * «Гастрогид»: статья открывается из списка и остаётся тем же разделом.
+ * «Гастрогид»: статья открывается из списка и остаётся тем же разделом. То же
+ * у `/gastroguide/rubric/:slug` (экран одной рубрики) — это внутренность того
+ * же раздела, просто её адрес не начинается с `/articles`. Раздел живёт по
+ * ДВУМ префиксам, и каждый новый экран гастрогида обязан быть перечислен здесь
+ * явно, иначе вкладка под ним гаснет.
  *
  * `/favorites` больше не вкладка (вход в избранное переехал в профиль), так
  * что на этом экране не подсвечено ничего — это честнее, чем подсветить чужую
@@ -93,7 +97,8 @@ export function activeNavKey(pathname: string): NavKey | null {
   if (pathname === "/") return "overview";
   if (pathname.startsWith("/search")) return "search";
   if (pathname.startsWith("/bookings") || pathname.startsWith("/booking/")) return "bookings";
-  if (pathname.startsWith("/articles")) return "gastroguide";
+  if (pathname.startsWith("/articles") || pathname.startsWith("/gastroguide"))
+    return "gastroguide";
   if (pathname.startsWith("/profile")) return "profile";
   return null;
 }

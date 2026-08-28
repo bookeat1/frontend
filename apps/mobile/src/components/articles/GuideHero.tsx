@@ -5,6 +5,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FlowHeader } from "../FlowHeader";
+import { PhotoView } from "../PhotoView";
 
 /**
  * Шапка экрана гастрогида — макет «Editorial v2» (Figma
@@ -23,14 +24,22 @@ import { FlowHeader } from "../FlowHeader";
  *   • слоган набран Playfair Display Italic 36, над ним появилась золотая
  *     надпись-рубрика, под ним — строка в 15/20.
  *
- * СТРЕЛКИ «НАЗАД» ТУТ ПО-ПРЕЖНЕМУ НЕТ, хотя в макете она нарисована
- * (node 3202:6432). `/articles` — корень вкладки, и из корня возвращаться
- * некуда: стрелка либо вела в никуда, либо уводила на другую вкладку — этот
- * баг из приложения уже убирали. `FlowHeader` без `onBack` оставляет слева
- * пустой слот той же ширины, поэтому заголовок остаётся по центру.
- *
- * Фотография БУНДЛИТСЯ с приложением (`assets/gastroguide-hero.jpg`), а не
- * приходит с бэкенда: ручки «картинка шапки гастрогида» в API нет.
+ * ЭТА ЖЕ ШАПКА СТОИТ НА ЭКРАНЕ РУБРИКИ (node 3492:13724): кадр, скругление и
+ * оба затемнения там ровно те же, отличаются три вещи — они и вынесены в
+ * необязательные пропы:
+ *   • `onBack` — стрелка «назад». На КОРНЕ ВКЛАДКИ её нет и не будет, хотя в
+ *     макете она нарисована (node 3202:6432): из корня возвращаться некуда,
+ *     стрелка либо вела в никуда, либо уводила на другую вкладку — этот баг из
+ *     приложения уже убирали. Экран рубрики корнем НЕ является, и там она
+ *     обязана работать. `FlowHeader` без `onBack` оставляет слева пустой слот
+ *     той же ширины, поэтому заголовок в обоих случаях остаётся по центру;
+ *   • `cover` — откуда взять фотографию. Проп НЕ передан: бандлёный кадр
+ *     города (`assets/gastroguide-hero.jpg`) — ручки «картинка шапки
+ *     гастрогида» в API нет. Проп передан: обложка с сервера, и `null` внутри
+ *     него означает стандартную плашку «фото нет», а не выдуманную картинку;
+ *   • `eyebrowGap`/`sublineGap` — просветы блока текста. У корня вкладки все
+ *     6 (node 3192:6253), у рубрики 2 и 4 (узлы 3492:13731, 3496:13835),
+ *     поэтому заголовок со строкой под ним собраны в отдельную группу.
  */
 
 /** Высота шапки НИЖЕ строки состояния. Верхняя безопасная зона у разных
@@ -42,6 +51,10 @@ export function GuideHero({
   eyebrow,
   headline,
   subline,
+  onBack,
+  cover,
+  eyebrowGap = guideLayout.heroCopyGap,
+  sublineGap = guideLayout.heroCopyGap,
 }: {
   /** Брендовая надпись в шапке на 56 pt (node 3192:6251). */
   title: string;
@@ -51,6 +64,15 @@ export function GuideHero({
   headline: string;
   /** Строка под слоганом (node 3192:6256). */
   subline: string;
+  /** Стрелка «назад». Не передана — слева пустой слот (корень вкладки). */
+  onBack?: () => void;
+  /** Обложка с сервера. Проп не передан — бандлёный кадр города; `uri: null`
+   * внутри него — стандартная плашка «фото нет». */
+  cover?: { uri: string | null };
+  /** Просвет «золотая надпись → заголовок». */
+  eyebrowGap?: number;
+  /** Просвет «заголовок → строка под ним». */
+  sublineGap?: number;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -59,14 +81,18 @@ export function GuideHero({
       {/* Фотография и оба затемнения — декоративные слои ПОД заголовком:
           прятать их от скринридера надо поштучно, иначе из дерева доступности
           исчезнет и сам заголовок раздела. */}
-      <Image
-        source={require("../../../assets/gastroguide-hero.jpg")}
-        style={styles.photo}
-        contentFit="cover"
-        pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      />
+      {cover ? (
+        <PhotoView uri={cover.uri} style={styles.photo} decorative placeholderIconSize={40} />
+      ) : (
+        <Image
+          source={require("../../../assets/gastroguide-hero.jpg")}
+          style={styles.photo}
+          contentFit="cover"
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      )}
       <View
         style={styles.flatScrim}
         pointerEvents="none"
@@ -87,15 +113,19 @@ export function GuideHero({
       />
 
       <View style={{ paddingTop: insets.top }}>
-        <FlowHeader title={title} tone="onDark" />
+        <FlowHeader title={title} tone="onDark" onBack={onBack} />
       </View>
 
-      <View style={styles.copy}>
+      <View style={[styles.copy, { gap: eyebrowGap }]}>
         <Text style={styles.eyebrow}>{eyebrow}</Text>
-        {/* Ограничения строк нет намеренно: по-казахски и по-английски слоган
-            длиннее, и обрезанный слоган хуже слогана на три строки. */}
-        <Text style={styles.headline}>{headline}</Text>
-        <Text style={styles.subline}>{subline}</Text>
+        <View style={{ gap: sublineGap }}>
+          {/* Ограничения строк нет намеренно: по-казахски и по-английски
+              слоган длиннее, и обрезанный слоган хуже слогана на три строки.
+              На экране рубрики здесь стоит её название — оно тоже бывает
+              длинным («Кофейная культура Алматы»). */}
+          <Text style={styles.headline}>{headline}</Text>
+          {subline ? <Text style={styles.subline}>{subline}</Text> : null}
+        </View>
       </View>
     </View>
   );
@@ -136,7 +166,6 @@ const styles = StyleSheet.create({
   copy: {
     paddingHorizontal: guideLayout.contentPaddingHorizontal,
     paddingBottom: guideLayout.heroCopyBottom,
-    gap: guideLayout.heroCopyGap,
   },
   eyebrow: {
     ...typography.guideHeroEyebrow,

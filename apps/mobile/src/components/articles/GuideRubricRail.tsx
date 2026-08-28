@@ -27,9 +27,16 @@ const t = getDictionary();
  * сверху. Обложки нет — стандартная плашка «фото нет», выдуманной картинки
  * тут не будет.
  *
- * Плитка ОТКРЫВАЕТ ПОДБОРКУ (`/articles/:slug`), а не отбирает список под
- * собой: прежний отбор был нашей выдумкой и снят по итогам просмотра на
+ * КУДА ВЕДЁТ ПЛИТКА. Она нарисована как РУБРИКА, поэтому и открывает экран
+ * рубрики (`/gastroguide/rubric/:categorySlug`, node 3492:13723), а не
+ * подборку, из которой её собрали. Отбирать список под собой она по-прежнему
+ * не отбирает: прежний отбор был нашей выдумкой и снят по итогам просмотра на
  * устройстве.
+ *
+ * БЫЛО `/articles/:slug` — страница той самой подборки. Экран рубрики
+ * появился 2026-08-28 и показывает заведения ВСЕХ её подборок, поэтому
+ * наружу уходит вся подборка целиком: решение, по какому слагу открывать
+ * (рубрики или самой подборки), принимает экран, а не плитка.
  */
 
 export function GuideRubricRail({
@@ -37,7 +44,9 @@ export function GuideRubricRail({
   onPress,
 }: {
   collections: GuideCollection[];
-  onPress: (slug: string) => void;
+  /** Наружу уходит вся подборка: слаг рубрики лежит в её `categorySlugs`, и
+   * выбирать между ним и слагом подборки — дело экрана. */
+  onPress: (collection: GuideCollection) => void;
 }) {
   if (collections.length === 0) return null;
 
@@ -79,7 +88,7 @@ function RubricCard({
   onPress,
 }: {
   collection: GuideCollection;
-  onPress: (slug: string) => void;
+  onPress: (collection: GuideCollection) => void;
 }) {
   const summary = collection.subtitle || collection.description;
   const label = rubricLabel(collection.categorySlugs);
@@ -88,7 +97,7 @@ function RubricCard({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={summary ? t.articles.card(collection.title, summary) : collection.title}
-      onPress={() => onPress(collection.slug)}
+      onPress={() => onPress(collection)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       <PhotoView

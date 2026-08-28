@@ -1,6 +1,6 @@
 import type { RestaurantSummary } from "@bookeat/api";
 import React from "react";
-import { cuisineLine, splitCuisines } from "../lib/cuisine-display";
+import { cuisineLine, splitCuisines, venueSubtitle } from "../lib/cuisine-display";
 import { openStateLabel } from "../lib/schedule";
 import { ListMediaCard } from "./ListMediaCard";
 
@@ -49,9 +49,10 @@ export function RestaurantCard({ restaurant, onPress, photoOverlay }: Restaurant
   const primaryCuisine = splitCuisines(restaurant.cuisines, 1).visible[0]?.name ?? "";
   const statusLabel = openStateLabel(restaurant.schedule);
   const price = restaurant.priceLevel;
-  // Подпись из того, что реально есть: пустые куски не оставляют висящих
-  // разделителей «· ·».
-  const subtitle = [primaryCuisine, price].filter(Boolean).join(" · ");
+  // Подпись собирает общий помощник: ровно та же строка стоит под названием
+  // заведения в подборке гастрогида, где кухня и ступень чека приходят
+  // готовыми строками.
+  const subtitle = venueSubtitle(primaryCuisine, price);
 
   return (
     <ListMediaCard

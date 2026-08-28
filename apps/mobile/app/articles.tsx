@@ -1,3 +1,4 @@
+import type { GuideCollection } from "@bookeat/api";
 import { colors, guideLayout } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useRouter } from "expo-router";
@@ -92,6 +93,25 @@ export default function ArticlesScreen() {
   const routes = useMemo(() => routesQuery.data ?? [], [routesQuery.data]);
 
   const openArticle = useCallback((slug: string) => router.push(`/articles/${slug}`), [router]);
+
+  /**
+   * Плитка ленты «Рубрики» открывает ЭКРАН РУБРИКИ, а не подборку, из которой
+   * она собрана (node 3492:13723): нарисована она как рубрика, и на новом
+   * экране лежат заведения всех её подборок.
+   *
+   * Маршрут строится по ПЕРВОМУ слагу из `categorySlugs` — по нему же плитка
+   * подписана золотой надписью. В ленте оказываются только подборки, у которых
+   * он есть (`splitGuideCollections`), но если сервер однажды пришлёт пустой
+   * список — открывается сама подборка: это хуже по смыслу, но ведёт на живой
+   * экран, а не в никуда.
+   */
+  const openRubric = useCallback(
+    (collection: GuideCollection) => {
+      const rubric = collection.categorySlugs[0]?.trim();
+      router.push(rubric ? `/gastroguide/rubric/${rubric}` : `/articles/${collection.slug}`);
+    },
+    [router],
+  );
   const openRoute = useCallback((slug: string) => router.push(`/routes/${slug}`), [router]);
 
   return (
@@ -129,7 +149,7 @@ export default function ArticlesScreen() {
             <GuideSectionHeader title={t.articles.rubricsTitle} />
 
             {rubrics.length > 0 ? (
-              <GuideRubricRail collections={rubrics} onPress={openArticle} />
+              <GuideRubricRail collections={rubrics} onPress={openRubric} />
             ) : null}
 
             {/* Загрузка, отказ и пустой ответ живут в ПЕРВОЙ секции: она
