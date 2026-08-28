@@ -86,7 +86,15 @@ export function useSearchScreen(options?: {
   useEffect(() => {
     const q = debouncedText.trim();
     if (q.length === 0) return;
-    trackEvent("search", { query: q });
+    // НЕ отправляем сам текст запроса: 298 из 349 событий за первые десять
+    // дней оказались набранными вручную номерами телефонов (гости ищут
+    // телефоном), то есть мы складывали чужие персональные данные в сторонний
+    // сервис. Для продуктовых вопросов достаточно длины и того, цифровой ли
+    // запрос: «ищут телефоном» видно, самого номера нет.
+    trackEvent("search", {
+      query_length: q.length,
+      query_is_numeric: /^[\d\s()+-]+$/.test(q),
+    });
   }, [debouncedText]);
 
   const query: SearchQuery = useMemo(
