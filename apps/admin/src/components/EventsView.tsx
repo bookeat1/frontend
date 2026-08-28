@@ -16,7 +16,9 @@ import {
 } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { formatTags, parseTags } from "@/lib/tags";
+import { groupEventsIntoSeries, eventToInput } from "@/lib/event-series";
 import { Button } from "./ui/Button";
+import { EventSeriesCard } from "./EventSeriesCard";
 import { FeedControl } from "./ui/FeedControl";
 import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
 import { ImageGalleryField } from "./ui/ImageGalleryField";
@@ -25,37 +27,12 @@ import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 
-/** Map an existing event to the create/update payload (used for publish/hide,
- * which are just a status flip on the full PUT body).
- *
- * EVERY field the record has must be listed here. The PUT is a FULL REPLACE:
- * a field left out is not "unchanged", it is erased. `images`, `city` and
- * `action` are carried for exactly that reason — this screen does not edit
- * them, and pressing «Опубликовать» used to wipe them. */
-function eventToInput(e: AdminEvent, status = e.status): EventInput {
-  return {
-    title: e.title,
-    description: e.description,
-    starts_at: e.starts_at,
-    ends_at: e.ends_at,
-    venue: e.venue ?? "",
-    cover_image_url: e.cover_image_url ?? null,
-    status,
-    ticketed: e.ticketed,
-    ticket_price_minor: e.ticket_price_minor ?? null,
-    capacity: e.capacity ?? null,
-    tags: e.tags ?? [],
-    images: e.images ?? [],
-    city: e.city ?? null,
-    action: e.action ? { label: e.action.label, url: e.action.url ?? null } : null,
-  };
-}
-
 export function EventsView() {
   const { restaurant } = useAuth();
   const restaurantId = restaurant!.id;
   const queryClient = useQueryClient();
   const queryKey = ["events", restaurantId] as const;
+  const recurrencesKey = ["event-recurrences", restaurantId] as const;
 
   const [editing, setEditing] = useState<AdminEvent | null>(null);
   const [creating, setCreating] = useState(false);
@@ -81,22 +58,40 @@ export function EventsView() {
     return map;
   }, [feedQuery.data]);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+  // Правила повтора того же заведения. Без них 18 дат «Greek Party» —
+  // 18 одинаковых карточек: сгруппировать их можно и по `recurrence_id` одному,
+  // но название серии, её расписание и статус на главной живут на правиле.
+  const recurrencesQuery = useQuery({
+    queryKey: recurrencesKey,
+    queryFn: () => apiClient.listEventRecurrences(restaurantId, { per_page: 100 }),
+  });
+
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({ queryKey: recurrencesKey }),
+    ]);
 
   const statusMutation = useMutation({
     mutationFn: ({ event, status }: { event: AdminEvent; status: AdminEvent["status"] }) =>
       apiClient.updateEvent(event.id, eventToInput(event, status)),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
     onError: () => setActionError(t.admin.common.saveFailed),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (event: AdminEvent) => apiClient.deleteEvent(event.id),
-    onSuccess: invalidate,
+    onSuccess: () => void invalidate(),
     onError: () => setActionError(t.admin.common.deleteFailed),
   });
 
   const items = listQuery.data?.items ?? [];
+
+  // Свёртка списка: даты одной серии — одна строка, разовые события как были.
+  const rows = useMemo(
+    () => groupEventsIntoSeries(listQuery.data?.items ?? [], recurrencesQuery.data?.items ?? []),
+    [listQuery.data, recurrencesQuery.data],
+  );
 
   return (
     <section className="mx-auto flex max-w-[1100px] flex-col gap-lg">
@@ -122,9 +117,20 @@ export function EventsView() {
         />
       ) : (
         <>
-          <p className="text-sm text-text-muted">{t.admin.events.total(listQuery.data.total)}</p>
+          <p className="text-sm text-text-muted">{t.admin.events.total(rows.length)}</p>
           <ul className="flex flex-col gap-sm">
-            {items.map((e) => {
+            {rows.map((row) => {
+              if (row.kind === "series") {
+                return (
+                  <EventSeriesCard
+                    key={row.recurrenceId}
+                    row={row}
+                    onEdit={setEditing}
+                    onInvalidate={() => void invalidate()}
+                  />
+                );
+              }
+              const e = row.event;
               const busy =
                 (statusMutation.isPending && statusMutation.variables?.event.id === e.id) ||
                 (deleteMutation.isPending && deleteMutation.variables?.id === e.id);

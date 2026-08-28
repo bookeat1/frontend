@@ -415,8 +415,102 @@ export interface AdminEvent {
   /** Галерея БЕЗ обложки, в порядке редактора (migration 0070). Контракт всегда
    * присылает массив; поле опционально здесь на случай старой сборки сервера. */
   images?: string[];
+  /** Правило повтора, СГЕНЕРИРОВАВШЕЕ это событие (migration 0074,
+   * `events.recurrence_id`). Отсутствует у разового события — и только у него.
+   *
+   * Кабинет группирует список по этому полю: восемнадцать «Greek Party» — это
+   * не восемнадцать событий, а одна серия с восемнадцатью датами. Читать надо
+   * именно «есть ключ / нет ключа»: сервер шлёт поле с `omitempty`. */
+  recurrence_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Как часто правило порождает даты (event_recurrences.frequency). */
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly";
+
+/** Правило повтора — ГЕНЕРАТОР событий, а не событие
+ * (events.recurrenceResponseBody, migrations 0074/0075).
+ *
+ * Хранит настенное время (`start_time` = "HH:MM") и календарные даты
+ * ("YYYY-MM-DD"), а НЕ мгновения: «каждую среду в 19:00» означает 19:00 на
+ * часах, и перевод часов не должен сдвигать серию. */
+export interface AdminEventRecurrence {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  title_i18n?: Record<string, string>;
+  description: string;
+  description_i18n?: Record<string, string>;
+  venue?: string;
+  cover_image_url?: string | null;
+  tags: string[];
+  /** Статус, с которым РОЖДАЕТСЯ каждая новая дата серии. */
+  occurrence_status: EventStatus;
+  ticketed: boolean;
+  ticket_price_minor?: number | null;
+  /** Вместимость ОДНОЙ даты, а не всей серии. */
+  capacity?: number | null;
+  tickets_refundable: boolean;
+  ticket_refund_cutoff_minutes: number;
+
+  frequency: RecurrenceFrequency;
+  /** ISO-дни недели: 1 = понедельник … 7 = воскресенье. Осмысленны только при
+   * frequency = "weekly", иначе пустой массив (сервер всегда шлёт массив). */
+  weekdays: number[];
+  /** День месяца 1..31 для frequency = "monthly". */
+  month_day?: number | null;
+  /** Настенное время начала, "HH:MM". */
+  start_time: string;
+  duration_minutes: number;
+  /** Переопределение зоны заведения. Пусто — серия идёт по зоне заведения. */
+  timezone?: string;
+  starts_on: string;
+  until_date?: string | null;
+  /** false — правило больше НЕ порождает новые даты. Уже созданные остаются. */
+  is_active: boolean;
+
+  /** Решение платформы о показе СЕРИИ на главной. Модерация умышленно живёт на
+   * правиле, а не на каждой дате: восьминедельная ежедневная серия — это ~56
+   * одинаковых карточек в очереди на одно редакторское решение (migration
+   * 0075). */
+  occurrence_feed_status: FeedStatus;
+  feed_submitted_at?: string | null;
+  feed_reviewed_at?: string | null;
+  feed_rejection_reason?: string | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+/** Тело POST/PUT правила повтора (events.recurrenceRequest).
+ *
+ * PUT — ПОЛНАЯ ЗАМЕНА, как и у события: поле, которого нет в теле, не
+ * «остаётся как было». Строить payload только через `recurrenceToInput`. */
+export interface EventRecurrenceInput {
+  title: string;
+  title_i18n?: Record<string, string>;
+  description: string;
+  description_i18n?: Record<string, string>;
+  venue: string;
+  cover_image_url: string | null;
+  tags: string[];
+  occurrence_status: EventStatus;
+  ticketed: boolean;
+  ticket_price_minor: number | null;
+  capacity: number | null;
+  tickets_refundable: boolean;
+  ticket_refund_cutoff_minutes: number;
+  frequency: RecurrenceFrequency;
+  weekdays: number[];
+  month_day: number | null;
+  /** "HH:MM" — сервер откажет на "19" или "7pm". */
+  start_time: string;
+  duration_minutes: number;
+  timezone: string;
+  starts_on: string;
+  until_date: string | null;
+  is_active: boolean;
 }
 
 /** Create/update payload for an event (events.eventRequest). starts_at/ends_at

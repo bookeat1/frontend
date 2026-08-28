@@ -6,6 +6,7 @@ import type { VenueFeatureDictionaryEntry, VenueFeatureSaveInput } from "./venue
 import type {
   AdminBooking,
   AdminEvent,
+  AdminEventRecurrence,
   CatalogVenue,
   CatalogVenueInput,
   AdminGuest,
@@ -22,6 +23,7 @@ import type {
   BookingListParams,
   BookingReasonInput,
   EventInput,
+  EventRecurrenceInput,
   FeedItemKind,
   FeedItemState,
   FeedReviewInput,
@@ -668,6 +670,77 @@ export class AdminApiClient {
 
   async deleteEvent(eventId: string): Promise<void> {
     await this.request<unknown>("DELETE", `/admin/events/${encodeURIComponent(eventId)}`);
+  }
+
+  // ---- Правила повтора (серии событий) -------------------------------------
+  //
+  // Правило — ГЕНЕРАТОР дат, а не дата. Гость правил не видит вовсе: он видит
+  // события, которые они породили, через уже существующие публичные ручки.
+  //
+  // DELETE тут нет и не будет (см. events.RecurrenceHandler): у правила уже
+  // есть прошедшие даты с проданными билетами, поэтому серию ВЫКЛЮЧАЮТ
+  // (`deactivateEventRecurrence`), а не уничтожают.
+
+  listEventRecurrences(
+    restaurantId: string,
+    params: AdminListParams = {},
+  ): Promise<ApiPage<AdminEventRecurrence>> {
+    return this.request<ApiPage<AdminEventRecurrence>>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/event-recurrences`,
+      { params: { page: params.page, per_page: params.per_page } },
+    );
+  }
+
+  getEventRecurrence(recurrenceId: string): Promise<AdminEventRecurrence> {
+    return this.request<AdminEventRecurrence>(
+      "GET",
+      `/admin/event-recurrences/${encodeURIComponent(recurrenceId)}`,
+    );
+  }
+
+  /** PUT — ПОЛНАЯ ЗАМЕНА правила. Тело собирать только `recurrenceToInput`. */
+  updateEventRecurrence(
+    recurrenceId: string,
+    input: EventRecurrenceInput,
+  ): Promise<AdminEventRecurrence> {
+    return this.request<AdminEventRecurrence>(
+      "PUT",
+      `/admin/event-recurrences/${encodeURIComponent(recurrenceId)}`,
+      { body: input },
+    );
+  }
+
+  /** Останавливает ГЕНЕРАЦИЮ новых дат. Уже созданные даты не трогает — это
+   * ровно то различие, которое кабинет обязан показать человеку словами. */
+  async deactivateEventRecurrence(recurrenceId: string): Promise<void> {
+    await this.request<unknown>(
+      "POST",
+      `/admin/event-recurrences/${encodeURIComponent(recurrenceId)}/deactivate`,
+    );
+  }
+
+  async activateEventRecurrence(recurrenceId: string): Promise<void> {
+    await this.request<unknown>(
+      "POST",
+      `/admin/event-recurrences/${encodeURIComponent(recurrenceId)}/activate`,
+    );
+  }
+
+  /** Заявка на главную для ВСЕЙ серии (migration 0075): модерируется серия,
+   * даты наследуют вердикт. Ничего не одобряет — одобряет суперадмин. */
+  submitRecurrenceToFeed(recurrenceId: string): Promise<AdminEventRecurrence> {
+    return this.request<AdminEventRecurrence>(
+      "POST",
+      `/admin/event-recurrences/${encodeURIComponent(recurrenceId)}/feed/submit`,
+    );
+  }
+
+  withdrawRecurrenceFromFeed(recurrenceId: string): Promise<AdminEventRecurrence> {
+    return this.request<AdminEventRecurrence>(
+      "POST",
+      `/admin/event-recurrences/${encodeURIComponent(recurrenceId)}/feed/withdraw`,
+    );
   }
 
   // ---- Платформенные события и акции ---------------------------------------
