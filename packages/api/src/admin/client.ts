@@ -289,6 +289,25 @@ export class AdminApiClient {
     });
   }
 
+  /**
+   * GET /admin/restaurants/:id — заведение глазами КАБИНЕТА.
+   *
+   * Зачем отдельно от листинга: сырые карты переводов (`description_i18n`,
+   * `address_i18n`, `opening_hours_i18n`) приходят ТОЛЬКО тому, кто не просил
+   * язык, и только в детальном ответе — `listItemToResponse` их не
+   * прикладывает вовсе (restaurants/response.go: attachRawTranslations).
+   * Редактор переводов обязан видеть то, что он патчит, значит без этого
+   * запроса форма правит вслепую.
+   *
+   * И не через публичный `GET /restaurants/:id`: тот не отдаёт заведения с
+   * `is_active = false`, а править скрытое заведение надо (см.
+   * bugs/bookeat-admin-stale-venue-and-hidden-venue-404). Роут смонтирован на
+   * restScoped: суперадмину и управляющему этого заведения.
+   */
+  getCatalogVenue(id: string): Promise<CatalogVenue> {
+    return this.request<CatalogVenue>("GET", `/admin/restaurants/${encodeURIComponent(id)}`);
+  }
+
   /** POST /restaurants — create a venue. Superadmin only. */
   createVenue(input: CatalogVenueInput): Promise<CatalogVenue> {
     return this.request<CatalogVenue>("POST", "/restaurants", { body: input });

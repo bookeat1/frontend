@@ -2,18 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type {
-  GuideCollection,
-  GuideCollectionInput,
-  GuideCollectionKind,
+import {
+  mergeTranslationMap,
+  translationDraftFrom,
+  type GuideCollection,
+  type GuideCollectionInput,
+  type GuideCollectionKind,
 } from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
 import { useCityDictionary } from "@/lib/use-cities";
 import { Button } from "../ui/Button";
 import { CitySelectField } from "../ui/CitySelectField";
-import { Field, TextArea, TextInput } from "../ui/FormControls";
+import { Field, TextInput } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
+import { TranslatedField, TranslationCoverageNote } from "../ui/TranslatedField";
 import { guideErrorMessage } from "./guide-copy";
 
 const copy = t.admin.gastroguide;
@@ -67,6 +70,22 @@ export function GuideCollectionFormModal({
   const [cover, setCover] = useState(collection?.cover_image_url ?? "");
   const [city, setCity] = useState(collection?.city ?? "");
   const [position, setPosition] = useState(String(collection?.position ?? 0));
+  // Переводы. ВНИМАНИЕ: у гида другой контракт, чем у акций/событий/сторис.
+  // Редактор гида принимает `map[string]string` и ЗАМЕЩАЕТ карту целиком
+  // (usecase/gastroguide.cleanI18n) — частичного патча он не понимает, а
+  // значит «не трогал английский» и «удали английский» на проводе неотличимы.
+  // Поэтому здесь `mergeTranslationMap`, а не `buildTranslationPatch`: уходит
+  // полная карта, собранная из того, что форма прочитала. Следствие, которое
+  // нельзя замолчать: правку перевода, сделанную кем-то другим, пока эта форма
+  // была открыта, такое сохранение затрёт. Чинится только на бэкенде —
+  // переводом ручек гида на domain.I18nPatch.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(collection?.title_i18n));
+  const [subtitleI18n, setSubtitleI18n] = useState(() =>
+    translationDraftFrom(collection?.subtitle_i18n),
+  );
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(collection?.description_i18n),
+  );
   const [formError, setFormError] = useState<string | null>(null);
 
   // Города — из справочника платформы, а не из списка в коде: пока он был
@@ -113,8 +132,11 @@ export function GuideCollectionFormModal({
       slug: cleanSlug,
       kind: effectiveKind,
       title: title.trim(),
+      title_i18n: mergeTranslationMap(titleI18n, collection?.title_i18n),
       subtitle: subtitle.trim(),
+      subtitle_i18n: mergeTranslationMap(subtitleI18n, collection?.subtitle_i18n),
       description: description.trim(),
+      description_i18n: mergeTranslationMap(descriptionI18n, collection?.description_i18n),
       // An empty box means "no cover", not a cover whose address is the empty
       // string — the app would render a broken image for the latter.
       cover_image_url: cover.trim() || null,
@@ -126,14 +148,24 @@ export function GuideCollectionFormModal({
   return (
     <Modal title={isEdit ? kindCopy.editTitle : kindCopy.createTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
-        <Field label={copy.fieldTitle} required htmlFor="guide-form-title">
-          <TextInput
-            id="guide-form-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-          />
-        </Field>
+        <TranslationCoverageNote
+          fields={[
+            { label: copy.fieldTitle, translations: titleI18n },
+            { label: copy.fieldSubtitle, translations: subtitleI18n },
+            { label: copy.fieldDescription, translations: descriptionI18n },
+          ]}
+        />
+        <TranslatedField
+          id="guide-form-title"
+          label={copy.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={collection?.title_i18n}
+        />
         <Field label={copy.fieldSlug} hint={copy.fieldSlugHint} required htmlFor="guide-form-slug">
           <TextInput
             id="guide-form-slug"
@@ -144,21 +176,26 @@ export function GuideCollectionFormModal({
             spellCheck={false}
           />
         </Field>
-        <Field label={copy.fieldSubtitle} htmlFor="guide-form-subtitle">
-          <TextInput
-            id="guide-form-subtitle"
-            value={subtitle}
-            onChange={(e) => setSubtitle(e.target.value)}
-            maxLength={200}
-          />
-        </Field>
-        <Field label={copy.fieldDescription} htmlFor="guide-form-description">
-          <TextArea
-            id="guide-form-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Field>
+        <TranslatedField
+          id="guide-form-subtitle"
+          label={copy.fieldSubtitle}
+          maxLength={200}
+          base={subtitle}
+          onBaseChange={setSubtitle}
+          translations={subtitleI18n}
+          onTranslationsChange={setSubtitleI18n}
+          stored={collection?.subtitle_i18n}
+        />
+        <TranslatedField
+          id="guide-form-description"
+          label={copy.fieldDescription}
+          multiline
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={collection?.description_i18n}
+        />
         <Field label={copy.fieldCover} hint={copy.fieldCoverHint} htmlFor="guide-form-cover">
           <TextInput
             id="guide-form-cover"

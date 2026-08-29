@@ -977,6 +977,31 @@ export const en: LocaleOverride<Dictionary> = {
       previewAlt: (index: number) => `Photo ${index}`,
       limitReached: "The server won't accept more than 20 photos",
     },
+    translations: {
+      localeName: {
+        ru: "Русский",
+        kk: "Қазақша",
+        en: "English",
+      },
+      tablistLabel: (field: string) => `Language of the «${field}» field`,
+      tabMissingLabel: (language: string) => `${language}: no translation`,
+      tabFilledLabel: (language: string) => `${language}: translated`,
+      baseHint: "The base text. Everyone without a translation sees this one.",
+      emptyMeansFallback: (language: string) =>
+        `No translation yet (${language}) — a guest with that language sees the Russian text.`,
+      willRemove: (language: string) =>
+        `The box is empty — saving will delete the translation (${language}).`,
+      filledHint: (language: string) => `A guest using ${language} sees this text.`,
+      missingSummary: (languages: string) => `No translation: ${languages}`,
+      coverageTitle: "Translations",
+      coverageComplete: "Every language is filled in",
+      coverageLine: (language: string, fields: string) => `${language} — missing in: ${fields}`,
+      errorRefused: "The server refused the form. Nothing was saved — check the fields and translations",
+      errorUnauthorized: "Your session has ended — sign in again",
+      errorForbidden: "You do not have the rights to edit this record",
+      errorNotFound: "The record is gone — refresh the list",
+      errorUnknown: "Saving failed and we cannot tell whether it went through. Refresh the list",
+    },
     feed: {
       badgeNotSubmitted: "Not on the home screen",
       badgePending: "In moderation",

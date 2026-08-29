@@ -981,6 +981,33 @@ export const kk: LocaleOverride<Dictionary> = {
       previewAlt: (index: number) => `${index}-фото`,
       limitReached: "Сервер 20 фотодан артығын қабылдамайды",
     },
+    translations: {
+      localeName: {
+        ru: "Русский",
+        kk: "Қазақша",
+        en: "English",
+      },
+      tablistLabel: (field: string) => `«${field}» өрісінің тілі`,
+      tabMissingLabel: (language: string) => `${language}: аудармасы жоқ`,
+      tabFilledLabel: (language: string) => `${language}: аудармасы бар`,
+      baseHint: "Негізгі мәтін. Аудармасы жоқтардың бәрі осыны көреді.",
+      emptyMeansFallback: (language: string) =>
+        `Аудармасы толтырылмаған (${language}) — бұл тілдегі қонақ орыс мәтінін көреді.`,
+      willRemove: (language: string) =>
+        `Өріс бос — сақтағанда аударма өшіріледі (${language}).`,
+      filledHint: (language: string) => `${language} тілін таңдаған қонақ осы мәтінді көреді.`,
+      missingSummary: (languages: string) => `Аудармасы жоқ: ${languages}`,
+      coverageTitle: "Аудармалар",
+      coverageComplete: "Барлық тілде толтырылған",
+      coverageLine: (language: string, fields: string) =>
+        `${language} — мына өрістерде жоқ: ${fields}`,
+      errorRefused:
+        "Сервер форманы қабылдамады. Ештеңе сақталмады — өрістер мен аудармаларды тексеріңіз",
+      errorUnauthorized: "Сеанс аяқталды — қайта кіріңіз",
+      errorForbidden: "Бұл жазбаны өңдеуге құқығыңыз жоқ",
+      errorNotFound: "Жазба табылмады — тізімді жаңартыңыз",
+      errorUnknown: "Сақталмады, жазылған-жазылмағаны белгісіз. Тізімді жаңартыңыз",
+    },
     feed: {
       badgeNotSubmitted: "Басты бетте емес",
       badgePending: "Модерацияда",

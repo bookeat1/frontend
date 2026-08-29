@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   activeVenueFeatures,
+  buildTranslationPatch,
   cuisineIdsOf,
   mergeVenueFeatureOptions,
   parseSocialLinkRows,
   sameCuisineSelection,
   sameVenueFeatureSelection,
   saveVenueWithDictionaries,
+  translationDraftFrom,
   venueFeatureIdsOf,
   type CatalogVenue,
   type CatalogVenueInput,
@@ -37,7 +39,8 @@ import {
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { VenueFilterBar } from "./VenueFilterBar";
 import { Button } from "./ui/Button";
-import { Field, TextArea, TextInput } from "./ui/FormControls";
+import { Field, TextInput } from "./ui/FormControls";
+import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
 import { CitySelectField, cityOptionsFor } from "./ui/CitySelectField";
 import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
 import { VenueFeaturePicker } from "./ui/VenueFeaturePicker";
@@ -338,6 +341,14 @@ function VenueFormModal({
     venue?.price_range?.max != null ? String(venue.price_range.max) : "",
   );
   const [photo, setPhoto] = useState(venue?.primary_image ?? "");
+  // Часы работы — свободнотекстовая легаси-строка карточки («Пн–Вс 10:00–23:00»),
+  // а НЕ расписание из раздела «График». Правится здесь потому, что переводить
+  // её больше негде: у PUT профиля своей формы в панели нет.
+  const [openingHours, setOpeningHours] = useState("");
+  // Черновики переводов. Русский текст остаётся в обычных полях выше.
+  const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
+  const [addressI18n, setAddressI18n] = useState(translationDraftFrom());
+  const [openingHoursI18n, setOpeningHoursI18n] = useState(translationDraftFrom());
   const [socialRows, setSocialRows] = useState<SocialLinkDraft[]>([]);
   const [socialError, setSocialError] = useState<{ index: number; message: string } | null>(null);
 
@@ -373,6 +384,34 @@ function VenueFormModal({
     enabled: Boolean(venue?.id),
   });
   const socialLoaded = venue ? socialQuery.isSuccess : true;
+
+  // Кабинетное чтение заведения. Нужно ровно за двумя вещами, которых НЕТ в
+  // строке листинга: сырые карты переводов (`listItemToResponse` их не
+  // прикладывает вовсе) и свободнотекстовые часы работы. Пока оно не ответило,
+  // ни переводы, ни часы в PATCH не уходят — писать их вслепую значит стереть
+  // то, чего форма не показывала.
+  const detailQuery = useQuery({
+    queryKey: ["venue-detail", venue?.id ?? null],
+    queryFn: () => apiClient.getCatalogVenue(venue!.id),
+    enabled: Boolean(venue?.id),
+    retry: false,
+  });
+  const detail = venue ? detailQuery.data : undefined;
+  const detailLoaded = venue ? detailQuery.isSuccess : true;
+
+  // Синхронизируем ТОЛЬКО когда сервер вправду отдал другой объект: пересборка
+  // состояния на каждый рендер уносила бы поле из-под пальцев (та же грабля,
+  // что стоила часа на строках соцсетей).
+  const syncedDetailRef = useRef<CatalogVenue | undefined>(undefined);
+  useEffect(() => {
+    const data = detailQuery.data;
+    if (!data || syncedDetailRef.current === data) return;
+    syncedDetailRef.current = data;
+    setOpeningHours(data.opening_hours ?? "");
+    setDescriptionI18n(translationDraftFrom(data.description_i18n));
+    setAddressI18n(translationDraftFrom(data.address_i18n));
+    setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
+  }, [detailQuery.data]);
 
   // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
   // набор есть (listItemToResponse кладёт `cuisines`), но на сборке без
@@ -478,6 +517,21 @@ function VenueFormModal({
     if (socialLoaded) {
       input.social_links = social.links;
     }
+    // Переводы и часы работы — только после кабинетного чтения. Патч переводов
+    // уходит С ОДНИМИ ИЗМЕНЁННЫМИ ЯЗЫКАМИ: язык, которого в объекте нет,
+    // сервер оставляет как есть, и правка коллеги не затирается.
+    if (detailLoaded) {
+      input.opening_hours = openingHours.trim();
+      input.description_i18n = buildTranslationPatch(descriptionI18n, detail?.description_i18n);
+      input.address_i18n = buildTranslationPatch(addressI18n, detail?.address_i18n);
+      input.opening_hours_i18n = buildTranslationPatch(
+        openingHoursI18n,
+        detail?.opening_hours_i18n,
+      );
+    }
+    // `cuisine_type_i18n` сервер тоже принимает, но в форме его НЕТ намеренно:
+    // строку кухни собирает сам сервер из справочника кухонь, и ручной перевод
+    // будет перезатёрт следующей же правкой набора.
     // `cuisine_type` больше не поле формы: сервер собирает его сам из набора
     // кухонь, и прислать его отдельно значило бы завести девятнадцатое
     // написание кухни в каталоге.
@@ -570,9 +624,37 @@ function VenueFormModal({
           <TextInput value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
 
-        <Field label="Описание">
-          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-        </Field>
+        {venue && detailQuery.isPending ? (
+          <p className="text-sm text-text-muted" role="status">
+            Загружаем переводы…
+          </p>
+        ) : venue && detailQuery.isError ? (
+          <p className="text-sm text-brand" role="alert">
+            Переводы и часы работы не загрузились — их правка сейчас недоступна, остальное
+            сохранится.
+          </p>
+        ) : (
+          <TranslationCoverageNote
+            fields={[
+              { label: "Описание", translations: descriptionI18n },
+              { label: "Адрес", translations: addressI18n },
+              { label: "Часы работы", translations: openingHoursI18n },
+            ]}
+          />
+        )}
+
+        <TranslatedField
+          id="venue-description"
+          label="Описание"
+          multiline
+          rows={3}
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={detail?.description_i18n}
+          disabled={busy}
+        />
 
         <CitySelectField
           dictionary={cityDictionary}
@@ -618,9 +700,28 @@ function VenueFormModal({
           />
         )}
 
-        <Field label="Адрес">
-          <TextInput value={address} onChange={(e) => setAddress(e.target.value)} />
-        </Field>
+        <TranslatedField
+          id="venue-address"
+          label="Адрес"
+          base={address}
+          onBaseChange={setAddress}
+          translations={addressI18n}
+          onTranslationsChange={setAddressI18n}
+          stored={detail?.address_i18n}
+          disabled={busy}
+        />
+
+        <TranslatedField
+          id="venue-opening-hours"
+          label="Часы работы"
+          hint="Строка на карточке заведения, например «Пн–Вс 10:00–23:00»."
+          base={openingHours}
+          onBaseChange={setOpeningHours}
+          translations={openingHoursI18n}
+          onTranslationsChange={setOpeningHoursI18n}
+          stored={detail?.opening_hours_i18n}
+          disabled={busy || !detailLoaded}
+        />
 
         <div className="grid gap-md sm:grid-cols-2">
           <Field label="Телефон">

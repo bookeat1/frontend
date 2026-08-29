@@ -195,7 +195,13 @@ describe("recurrenceToInput — PUT правила это ПОЛНАЯ заме�
       month_day: null,
     });
 
-    expect(input.title_i18n).toEqual({ en: "Greek Party" });
+    // Переводы — ЕДИНСТВЕННОЕ, что сюда НЕ переносится, и это не пропуск.
+    // Сервер принимает `<поле>_i18n` как ЧАСТИЧНОЕ обновление
+    // (domain.I18nPatch): пропуск ключа сохраняет переводы, а переотправка
+    // всей карты затирает правку, сделанную кем-то другим, пока форма была
+    // открыта. Переводы кладёт форма, и только изменённые языки.
+    expect(input.title_i18n).toBeUndefined();
+    expect(input.description_i18n).toBeUndefined();
     expect(input.cover_image_url).toBe("https://cdn/greek.jpg");
     expect(input.tags).toEqual(["музыка"]);
     expect(input.capacity).toBe(40);

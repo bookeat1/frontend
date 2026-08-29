@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminListParams, AdminPromo, ApiPage, PromoInput } from "@bookeat/api/admin";
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type AdminListParams,
+  type AdminPromo,
+  type ApiPage,
+  type PromoInput,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
@@ -14,7 +21,8 @@ import { useIsPlatformAdmin } from "@/lib/use-venue-catalog";
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 import { Button } from "../ui/Button";
 import { CitySelectField } from "../ui/CitySelectField";
-import { CheckboxRow, Field, TextArea, TextInput } from "../ui/FormControls";
+import { CheckboxRow, Field, TextInput } from "../ui/FormControls";
+import { TranslatedField, TranslationCoverageNote } from "../ui/TranslatedField";
 import { ImageGalleryField } from "../ui/ImageGalleryField";
 import { ImageUploadField } from "../ui/ImageUploadField";
 import { Modal } from "../ui/Modal";
@@ -253,6 +261,12 @@ export function PlatformPromoFormModal({
   const [startsAt, setStartsAt] = useState(isoToLocalInput(promo?.starts_at));
   const [endsAt, setEndsAt] = useState(isoToLocalInput(promo?.ends_at));
   const [terms, setTerms] = useState(promo?.terms ?? "");
+  // Переводы: русский текст остаётся в обычных полях, сюда едут kk/en.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(promo?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(promo?.description_i18n),
+  );
+  const [termsI18n, setTermsI18n] = useState(() => translationDraftFrom(promo?.terms_i18n));
   const [cover, setCover] = useState(promo?.cover_image_url ?? "");
   const [gallery, setGallery] = useState<string[]>(promo?.images ?? []);
   const [discount, setDiscount] = useState(
@@ -307,10 +321,13 @@ export function PlatformPromoFormModal({
 
     mutation.mutate({
       title: title.trim(),
+      title_i18n: buildTranslationPatch(titleI18n, promo?.title_i18n),
       description: description.trim(),
+      description_i18n: buildTranslationPatch(descriptionI18n, promo?.description_i18n),
       starts_at: startsIso,
       ends_at: endsIso,
       terms: terms.trim(),
+      terms_i18n: buildTranslationPatch(termsI18n, promo?.terms_i18n),
       cover_image_url: cover.trim() || null,
       images: gallery,
       discount_percent: discountValue,
@@ -323,21 +340,34 @@ export function PlatformPromoFormModal({
   return (
     <Modal title={isEdit ? copy.editPromoTitle : copy.createPromoTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
-        <Field label={t.admin.promos.fieldTitle} required htmlFor="platform-promo-title">
-          <TextInput
-            id="platform-promo-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-          />
-        </Field>
-        <Field label={t.admin.promos.fieldDescription} htmlFor="platform-promo-description">
-          <TextArea
-            id="platform-promo-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Field>
+        <TranslationCoverageNote
+          fields={[
+            { label: t.admin.promos.fieldTitle, translations: titleI18n },
+            { label: t.admin.promos.fieldDescription, translations: descriptionI18n },
+            { label: t.admin.promos.fieldTerms, translations: termsI18n },
+          ]}
+        />
+        <TranslatedField
+          id="platform-promo-title"
+          label={t.admin.promos.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={promo?.title_i18n}
+        />
+        <TranslatedField
+          id="platform-promo-description"
+          label={t.admin.promos.fieldDescription}
+          multiline
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={promo?.description_i18n}
+        />
         <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
           <Field label={t.admin.promos.fieldStartsAt} required htmlFor="platform-promo-starts">
             <TextInput
@@ -365,17 +395,17 @@ export function PlatformPromoFormModal({
           onChange={setCity}
           emptyOptionLabel={copy.cityAll}
         />
-        <Field
+        <TranslatedField
+          id="platform-promo-terms"
           label={t.admin.promos.fieldTerms}
           hint={t.admin.promos.fieldTermsHint}
-          htmlFor="platform-promo-terms"
-        >
-          <TextArea
-            id="platform-promo-terms"
-            value={terms}
-            onChange={(e) => setTerms(e.target.value)}
-          />
-        </Field>
+          multiline
+          base={terms}
+          onBaseChange={setTerms}
+          translations={termsI18n}
+          onTranslationsChange={setTermsI18n}
+          stored={promo?.terms_i18n}
+        />
         <ImageUploadField
           label={t.admin.promos.fieldCover}
           hint={t.admin.promos.fieldCoverHint}

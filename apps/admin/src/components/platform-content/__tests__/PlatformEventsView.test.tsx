@@ -145,7 +145,11 @@ describe("афиша платформы", () => {
     await openForm();
 
     fireEvent.change(screen.getByLabelText(/Что делает кнопка/), { target: { value: "event" } });
-    fireEvent.change(screen.getByLabelText(/Подпись кнопки/), { target: { value: "Подробнее" } });
+    // `selector` обязателен: у поля с переводами доступное имя есть и у самого
+    // ввода, и у полосы вкладок языка («Язык поля «Подпись кнопки»»).
+    fireEvent.change(screen.getByLabelText(/Подпись кнопки/, { selector: "input" }), {
+      target: { value: "Подробнее" },
+    });
     // Поле ссылки в этом режиме даже не рисуется — интерпретировать нечего.
     expect(screen.queryByLabelText(/^Ссылка/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
@@ -163,7 +167,9 @@ describe("афиша платформы", () => {
     await openForm();
 
     fireEvent.change(screen.getByLabelText(/Что делает кнопка/), { target: { value: "external" } });
-    fireEvent.change(screen.getByLabelText(/Подпись кнопки/), { target: { value: "Купить билет" } });
+    fireEvent.change(screen.getByLabelText(/Подпись кнопки/, { selector: "input" }), {
+      target: { value: "Купить билет" },
+    });
     fireEvent.change(screen.getByLabelText(/^Ссылка/), {
       target: { value: "javascript:alert(1)" },
     });

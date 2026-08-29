@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Story, StoryInput } from "@bookeat/api/admin";
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type Story,
+  type StoryInput,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { formatDateTime, isoToLocalInput, localInputToIso } from "@/lib/format";
@@ -11,10 +16,12 @@ import { useAuth } from "@/lib/auth-context";
 import { t } from "@/lib/i18n";
 import { moveItem } from "@/lib/reorder";
 import { Button } from "./ui/Button";
-import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
+import { CheckboxRow, Field, TextInput } from "./ui/FormControls";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
+import { TranslatedField } from "./ui/TranslatedField";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
+import { translationErrorMessage } from "./translation-copy";
 
 function StoryBadge({ active }: { active: boolean }) {
   return (
@@ -281,6 +288,9 @@ function StoryFormModal({
   const isEdit = !!story;
   const [imageUrl, setImageUrl] = useState(story?.image_url ?? "");
   const [caption, setCaption] = useState(story?.caption ?? "");
+  const [captionI18n, setCaptionI18n] = useState(() =>
+    translationDraftFrom(story?.caption_i18n),
+  );
   // Ссылка ПЕРЕХОДА — отдельное состояние от imageUrl (адрес картинки).
   const [actionUrl, setActionUrl] = useState(story?.action_url ?? "");
   const [isActive, setIsActive] = useState(story?.is_active ?? true);
@@ -303,7 +313,7 @@ function StoryFormModal({
       if (!isEdit) trackEvent("content_created", { type: "story" });
       onSaved();
     },
-    onError: () => setFormError(t.admin.common.saveFailed),
+    onError: (error) => setFormError(translationErrorMessage(error)),
   });
 
   function submit(e: React.FormEvent) {
@@ -342,6 +352,9 @@ function StoryFormModal({
     mutation.mutate({
       image_url: image,
       caption: trimmedCaption || null,
+      // Переводы — ЧАСТИЧНОЕ обновление: ключ уходит только с изменёнными
+      // языками, иначе его нет вовсе и сохранённые переводы не трогаются.
+      caption_i18n: buildTranslationPatch(captionI18n, story?.caption_i18n),
       // Пустое поле снимает ссылку, а не оставляет прежнюю: правка формы
       // отправляет полный набор полей.
       action_url: link || null,
@@ -364,9 +377,18 @@ function StoryFormModal({
           value={imageUrl}
           onChange={setImageUrl}
         />
-        <Field label={t.admin.stories.fieldCaption} hint={t.admin.stories.fieldCaptionHint}>
-          <TextArea value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={200} />
-        </Field>
+        <TranslatedField
+          id="story-caption"
+          label={t.admin.stories.fieldCaption}
+          hint={t.admin.stories.fieldCaptionHint}
+          multiline
+          maxLength={200}
+          base={caption}
+          onBaseChange={setCaption}
+          translations={captionI18n}
+          onTranslationsChange={setCaptionI18n}
+          stored={story?.caption_i18n}
+        />
         {/* Ссылка перехода стоит ОТДЕЛЬНЫМ полем ниже блока «Изображение»: внутри
             того блока есть своя строка «Или вставьте ссылку» — адрес картинки.
             Разные подписи + разъясняющая подсказка — чтобы их не путали. */}

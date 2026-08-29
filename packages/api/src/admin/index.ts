@@ -39,6 +39,23 @@ export {
   type MenuTopPickFailureKind,
 } from "./menu-top-picks";
 export {
+  CONTENT_LOCALES,
+  TRANSLATION_LOCALES,
+  buildTranslationPatch,
+  classifyTranslationFailure,
+  emptyTranslationDraft,
+  mergeTranslationMap,
+  missingTranslations,
+  removedTranslations,
+  translationDraftFrom,
+  translationsChanged,
+  type ContentLocale,
+  type TranslationDraft,
+  type TranslationFailure,
+  type TranslationFailureKind,
+  type TranslationLocale,
+} from "./translations";
+export {
   classifyGuideFailure,
   type GuideFailure,
   type GuideFailureKind,
