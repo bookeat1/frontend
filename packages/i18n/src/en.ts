@@ -922,7 +922,7 @@ export const en: LocaleOverride<Dictionary> = {
     paymentPaidHint: (amount: string) => `${amount} paid. The venue can see your order.`,
     paymentErrorOffline: "No connection to the server. Check the internet and try again.",
     paymentErrorServer: "Could not create the invoice. Try again a bit later.",
-    paymentErrorUnavailable: "This venue has not enabled payments yet.",
+    paymentErrorUnavailable: "Payment is not available right now. Try again later or contact the venue.",
     paymentErrorAlreadyActive: "This booking already has a payment. Refresh the screen.",
     paymentErrorCannotOpen:
       "Could not open Kaspi. Install the Kaspi.kz app or open the link in a browser.",

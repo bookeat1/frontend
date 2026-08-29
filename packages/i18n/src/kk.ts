@@ -929,7 +929,7 @@ export const kk: LocaleOverride<Dictionary> = {
     paymentPaidHint: (amount: string) => `${amount} төленді. Мекеме тапсырысыңызды көреді.`,
     paymentErrorOffline: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
     paymentErrorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
-    paymentErrorUnavailable: "Бұл мекемеде төлем әлі қосылмаған.",
+    paymentErrorUnavailable: "Қазір төлем жасалмады. Кейінірек көріңіз немесе мекемеге хабарласыңыз.",
     paymentErrorAlreadyActive: "Бұл броньда төлем бар. Экранды жаңартыңыз.",
     paymentErrorCannotOpen:
       "Kaspi ашылмады. Kaspi.kz қосымшасын орнатыңыз немесе сілтемені браузерде ашыңыз.",
