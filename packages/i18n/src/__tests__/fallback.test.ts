@@ -27,15 +27,24 @@ describe("getDictionary — deep-merge fallback over ru", () => {
   });
 
   it("falls back to ru for any key the locale has not translated", () => {
-    const en = getDictionary("en");
-    // en (and kk) are now fully translated EXCEPT the two array-typed keys —
-    // `LocaleOverride` cannot widen a readonly tuple, so `admin.schedule.days`
-    // and `booking.whatsNextSteps` are intentionally never overridden and stay
-    // on the Russian base. They are the stable anchor for the fallback contract:
-    // a key a locale does not translate must resolve to ru, and (as a reference,
-    // not a copy) the deep-merge leaves the base array untouched.
-    expect(en.admin.schedule.days).toBe(ru.admin.schedule.days);
-    expect(en.booking.whatsNextSteps).toBe(ru.booking.whatsNextSteps);
+    // en and kk are complete (see completeness.test.ts), so the fallback
+    // contract is pinned on a deliberately PARTIAL locale instead. ko
+    // translates common.back and settings.*, nothing else.
+    const ko = getDictionary("ko");
+    expect(ko.common.back).toBe("뒤로");
+    expect(ko.explore.recommendedTitle).toBe(ru.explore.recommendedTitle);
+    // A subtree the locale never mentions is the base's own object, not a copy.
+    expect(ko.admin.schedule.days).toBe(ru.admin.schedule.days);
+    expect(ko.booking.whatsNextSteps).toBe(ru.booking.whatsNextSteps);
+  });
+
+  it("lets a locale translate the array-typed leaves too", () => {
+    // Regression: `LocaleOverride` used to hand arrays through unwidened, so
+    // ru's `as const` tuple of literals made these two keys impossible to
+    // translate — every locale silently showed Russian weekday names.
+    expect(getDictionary("en").admin.schedule.days[1]).toBe("Monday");
+    expect(getDictionary("kk").admin.schedule.days[1]).toBe("Дүйсенбі");
+    expect(getDictionary("en").booking.whatsNextSteps).not.toBe(ru.booking.whatsNextSteps);
   });
 
   it("keeps function-valued entries callable (they are not deep-merged away)", () => {
