@@ -27,6 +27,8 @@ import type {
   EventRecurrenceInput,
   FeedItemKind,
   FeedItemState,
+  AcquirerAccount,
+  AcquirerAccountInput,
   FeedReviewInput,
   GuideCategory,
   GuideCategoryInput,
@@ -42,6 +44,7 @@ import type {
   GuideRoutePointInput,
   HomePickVenue,
   HomePicksInput,
+  KaspiCompany,
   MyRestaurant,
   Schedule,
   ScheduleOverrideInput,
@@ -1203,6 +1206,53 @@ export class AdminApiClient {
       "DELETE",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/notification-settings/whatsapp`,
     );
+  }
+
+  // ---- Приём оплаты --------------------------------------------------------
+
+  /**
+   * GET /admin/restaurants/:id/payment-settings/acquirer-account?provider=…
+   * — на какой счёт эквайера уходят деньги гостей этого заведения.
+   *
+   * `provider` обязателен: заведение может быть подключено к нескольким
+   * эквайерам, и молчаливый выбор «какого-нибудь» ответил бы про не тот.
+   * Отсутствие привязки — это НЕ ошибка, а обычное состояние заведения,
+   * которое ещё не подключали (`connected: false`).
+   */
+  getAcquirerAccount(restaurantId: string, provider: string): Promise<AcquirerAccount> {
+    return this.request<AcquirerAccount>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/acquirer-account`,
+      { params: { provider } },
+    );
+  }
+
+  /**
+   * PUT того же адреса — привязать заведение к счёту эквайера. ТОЛЬКО
+   * суперадмин: эта строка решает, на чей счёт попадут деньги гостя.
+   *
+   * `is_active: false` не удаляет привязку, а выключает её: следующая оплата
+   * будет отклонена, а не уйдёт не туда.
+   */
+  setAcquirerAccount(restaurantId: string, input: AcquirerAccountInput): Promise<AcquirerAccount> {
+    return this.request<AcquirerAccount>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/acquirer-account`,
+      { body: input },
+    );
+  }
+
+  /**
+   * GET /admin/kaspi/companies — компании в нашем сервисе Kaspi. Только
+   * чтение и только суперадмину.
+   *
+   * `id` компании — это и есть `account_ref` привязки; список нужен, чтобы
+   * его ВЫБИРАЛИ, а не переписывали руками из чужой панели. Сервис Kaspi
+   * недоступен — бэкенд отвечает 503, и это осознанно: пустой список читался
+   * бы как «компаний нет».
+   */
+  listKaspiCompanies(): Promise<KaspiCompany[]> {
+    return this.request<KaspiCompany[]>("GET", "/admin/kaspi/companies");
   }
 
   // ---- Staff roster --------------------------------------------------------
