@@ -30,13 +30,40 @@ export type Locale = "ru" | "kk" | "en" | "ko" | "hi" | "ar" | "zh" | "tr";
  * the whole point of keeping the pluralisation logic in the dictionary. Arrays
  * are replaced wholesale, never deep-merged.
  */
+/**
+ * Widens the string LITERALS inside a value without making anything optional.
+ *
+ * Needed only for the array-typed leaves. `ru` is declared `as const`, so
+ * `days: ["Воскресенье", …]` has the type `readonly ["Воскресенье", …]` — a
+ * tuple of literals. Before this existed, LocaleOverride passed arrays through
+ * untouched and a translator literally could not write the English weekday
+ * names; both array leaves (`admin.schedule.days`, `booking.whatsNextSteps`)
+ * silently stayed Russian in every locale.
+ *
+ * Mapping over `keyof T` keeps the tuple ARITY (seven weekdays stay seven) and
+ * keeps object members inside an array REQUIRED — unlike LocaleOverride, which
+ * makes them optional. That difference is deliberate: `deepMerge` replaces an
+ * array wholesale instead of merging it, so a half-filled element would reach
+ * the screen as `undefined`, not as the Russian fallback.
+ */
+// eslint-disable-next-line @typescript-eslint/ban-types -- same reason as below.
+type Widen<T> = T extends Function
+  ? T
+  : T extends readonly unknown[]
+    ? { [K in keyof T]: Widen<T[K]> }
+    : T extends object
+      ? { [K in keyof T]: Widen<T[K]> }
+      : T extends string
+        ? string
+        : T;
+
 // eslint-disable-next-line @typescript-eslint/ban-types -- `Function` is the
 // only reliable "is this a callable" guard here, and it must be tested BEFORE
 // the object branch (functions are objects in TS). This package is not linted.
 export type LocaleOverride<T> = T extends Function
   ? T
   : T extends readonly unknown[]
-    ? T
+    ? Widen<T>
     : T extends object
       ? { [K in keyof T]?: LocaleOverride<T[K]> }
       : T extends string
