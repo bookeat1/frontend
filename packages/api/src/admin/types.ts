@@ -212,6 +212,53 @@ export interface WhatsAppSettings {
   enabled: boolean;
 }
 
+// ---- Приём оплаты (привязка заведения к компании Kaspi) ---------------------
+
+/**
+ * Куда уходят деньги гостя (transport `acquirerAccountResponse`, GET/PUT
+ * /admin/restaurants/:id/payment-settings/acquirer-account?provider=kaspi).
+ *
+ * `account_ref` — это АДРЕС, а не ключ: для Kaspi это идентификатор компании
+ * внутри нашего сервиса Kaspi. Ключи живут в переменных окружения бэкенда и
+ * по HTTP не передаются.
+ *
+ * `is_active: false` — привязка сохранена, но выключена: оплата через этого
+ * эквайера не пройдёт, при этом видно, куда уходили прошлые платежи.
+ * Читать привязку может владелец заведения, менять — только суперадмин.
+ */
+export interface AcquirerAccount {
+  provider: string;
+  connected: boolean;
+  account_ref: string;
+  is_active: boolean;
+}
+
+/** Что отправляем в PUT: провайдер, адрес счёта и включена ли привязка. */
+export interface AcquirerAccountInput {
+  provider: string;
+  account_ref: string;
+  is_active: boolean;
+}
+
+/**
+ * Компания в нашем сервисе Kaspi (GET /admin/kaspi/companies, суперадмин).
+ * Её `id` и есть `account_ref` привязки.
+ *
+ * `has_active_session` — есть ли живая сессия кассира. Без неё компания
+ * выглядит рабочей, но ссылку на оплату создать не может: Kaspi выкидывает
+ * сессию, как только то же устройство регистрируется заново, и до повторного
+ * входа кассира платежи не пройдут.
+ */
+export interface KaspiCompany {
+  id: string;
+  name: string;
+  status: string;
+  org_name?: string;
+  has_active_session: boolean;
+  active_cashiers: number;
+  last_session_ok_at?: string;
+}
+
 /**
  * Строка персонала заведения (transport `managerResponse`,
  * GET /restaurants/:id/managers).
