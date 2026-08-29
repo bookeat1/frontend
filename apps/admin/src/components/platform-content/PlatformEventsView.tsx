@@ -9,7 +9,11 @@ import type {
   EventActionInput,
   EventInput,
 } from "@bookeat/api/admin";
-import { validateActionUrl } from "@bookeat/api/admin";
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  validateActionUrl,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
@@ -22,7 +26,8 @@ import { useIsPlatformAdmin } from "@/lib/use-venue-catalog";
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 import { Button } from "../ui/Button";
 import { CitySelectField } from "../ui/CitySelectField";
-import { CheckboxRow, Field, Select, TextArea, TextInput } from "../ui/FormControls";
+import { CheckboxRow, Field, Select, TextInput } from "../ui/FormControls";
+import { TranslatedField, TranslationCoverageNote } from "../ui/TranslatedField";
 import { ImageGalleryField } from "../ui/ImageGalleryField";
 import { ImageUploadField } from "../ui/ImageUploadField";
 import { Modal } from "../ui/Modal";
@@ -281,6 +286,16 @@ export function PlatformEventFormModal({
     return event.action.target === "external" ? "external" : "event";
   });
   const [actionLabel, setActionLabel] = useState(event?.action?.label ?? "");
+  // Переводы. Русский текст остаётся в обычных полях; сюда едут только kk/en,
+  // и только те, что человек тронул.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(event?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(event?.description_i18n),
+  );
+  const [venueI18n, setVenueI18n] = useState(() => translationDraftFrom(event?.venue_i18n));
+  const [actionLabelI18n, setActionLabelI18n] = useState(() =>
+    translationDraftFrom(event?.action?.label_i18n),
+  );
   const [actionUrl, setActionUrl] = useState(event?.action?.url ?? "");
   const [publishNow, setPublishNow] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -332,6 +347,9 @@ export function PlatformEventFormModal({
       }
       action = {
         label: actionLabel.trim(),
+        // Переводы подписи едут ОТДЕЛЬНО от самой кнопки и по другим правилам:
+        // кнопка — полная замена, её переводы — патч поверх сохранённых.
+        label_i18n: buildTranslationPatch(actionLabelI18n, event?.action?.label_i18n),
         // «Открывает страницу события» — это ОТСУТСТВИЕ url, а не пустая
         // строка: цель кнопки сервер выводит из наличия поля.
         url: actionMode === "external" ? actionUrl.trim() : null,
@@ -340,10 +358,13 @@ export function PlatformEventFormModal({
 
     mutation.mutate({
       title: title.trim(),
+      title_i18n: buildTranslationPatch(titleI18n, event?.title_i18n),
       description: description.trim(),
+      description_i18n: buildTranslationPatch(descriptionI18n, event?.description_i18n),
       starts_at: startsIso,
       ends_at: endsIso,
       venue: venue.trim(),
+      venue_i18n: buildTranslationPatch(venueI18n, event?.venue_i18n),
       cover_image_url: cover.trim() || null,
       images: gallery,
       status: isEdit ? event!.status : publishNow ? "published" : "draft",
@@ -359,21 +380,37 @@ export function PlatformEventFormModal({
   return (
     <Modal title={isEdit ? copy.editEventTitle : copy.createEventTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
-        <Field label={t.admin.events.fieldTitle} required htmlFor="platform-event-title">
-          <TextInput
-            id="platform-event-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-          />
-        </Field>
-        <Field label={t.admin.events.fieldDescription} htmlFor="platform-event-description">
-          <TextArea
-            id="platform-event-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Field>
+        <TranslationCoverageNote
+          fields={[
+            { label: t.admin.events.fieldTitle, translations: titleI18n },
+            { label: t.admin.events.fieldDescription, translations: descriptionI18n },
+            { label: t.admin.events.fieldVenue, translations: venueI18n },
+            ...(actionMode !== "none"
+              ? [{ label: copy.actionLabel, translations: actionLabelI18n }]
+              : []),
+          ]}
+        />
+        <TranslatedField
+          id="platform-event-title"
+          label={t.admin.events.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={event?.title_i18n}
+        />
+        <TranslatedField
+          id="platform-event-description"
+          label={t.admin.events.fieldDescription}
+          multiline
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={event?.description_i18n}
+        />
         <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
           <Field label={t.admin.events.fieldStartsAt} required htmlFor="platform-event-starts">
             <TextInput
@@ -401,17 +438,16 @@ export function PlatformEventFormModal({
           onChange={setCity}
           emptyOptionLabel={copy.cityAll}
         />
-        <Field
+        <TranslatedField
+          id="platform-event-venue"
           label={t.admin.events.fieldVenue}
           hint={copy.fieldVenueHint}
-          htmlFor="platform-event-venue"
-        >
-          <TextInput
-            id="platform-event-venue"
-            value={venue}
-            onChange={(e) => setVenue(e.target.value)}
-          />
-        </Field>
+          base={venue}
+          onBaseChange={setVenue}
+          translations={venueI18n}
+          onTranslationsChange={setVenueI18n}
+          stored={event?.venue_i18n}
+        />
         <Field
           label={t.admin.events.fieldTags}
           hint={t.admin.events.fieldTagsHint}
@@ -446,19 +482,18 @@ export function PlatformEventFormModal({
             </Select>
           </Field>
           {actionMode !== "none" ? (
-            <Field
+            <TranslatedField
+              id="platform-event-action-label"
               label={copy.actionLabel}
               hint={copy.actionLabelHint}
               required
-              htmlFor="platform-event-action-label"
-            >
-              <TextInput
-                id="platform-event-action-label"
-                value={actionLabel}
-                onChange={(e) => setActionLabel(e.target.value)}
-                maxLength={64}
-              />
-            </Field>
+              maxLength={64}
+              base={actionLabel}
+              onBaseChange={setActionLabel}
+              translations={actionLabelI18n}
+              onTranslationsChange={setActionLabelI18n}
+              stored={event?.action?.label_i18n}
+            />
           ) : null}
           {actionMode === "external" ? (
             <Field

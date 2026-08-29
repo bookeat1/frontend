@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminPromo, FeedItemState, PromoInput } from "@bookeat/api/admin";
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type AdminPromo,
+  type FeedItemState,
+  type PromoInput,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { trackEvent } from "@/lib/analytics";
@@ -11,16 +17,23 @@ import { formatDateTime, isoToLocalInput, localInputToIso } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
 import { FeedControl } from "./ui/FeedControl";
-import { Field, TextArea, TextInput, CheckboxRow } from "./ui/FormControls";
+import { Field, TextInput, CheckboxRow } from "./ui/FormControls";
 import { ImageGalleryField } from "./ui/ImageGalleryField";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
+import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
+import { translationErrorMessage } from "./translation-copy";
 
 /** Полный payload из записи. PUT заменяет акцию ЦЕЛИКОМ, поэтому здесь обязаны
  * быть все её поля: пропущенное не «останется как было», а очистится —
- * `images` и `city` перечислены ровно поэтому. */
+ * `images` и `city` перечислены ровно поэтому.
+ *
+ * Ключей `*_i18n` здесь НЕТ, и это не пропуск: они единственные в этом теле —
+ * ЧАСТИЧНЫЕ (`domain.I18nPatch`), и отсутствие ключа значит «переводы не
+ * трогать». Публикация/скрытие акции переводов не касается, значит и слать их
+ * не должна: полный набор ключей затёр бы правку, сделанную кем-то другим. */
 function promoToInput(p: AdminPromo, status = p.status): PromoInput {
   return {
     title: p.title,
@@ -235,6 +248,13 @@ function PromoFormModal({
   const [startsAt, setStartsAt] = useState(isoToLocalInput(promo?.starts_at));
   const [endsAt, setEndsAt] = useState(isoToLocalInput(promo?.ends_at));
   const [terms, setTerms] = useState(promo?.terms ?? "");
+  // Черновики переводов. Русский текст сюда НЕ входит: он живёт в колонке и
+  // правится полями выше.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(promo?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(promo?.description_i18n),
+  );
+  const [termsI18n, setTermsI18n] = useState(() => translationDraftFrom(promo?.terms_i18n));
   const [coverImageUrl, setCoverImageUrl] = useState(promo?.cover_image_url ?? "");
   const [gallery, setGallery] = useState<string[]>(promo?.images ?? []);
   const [discountPercent, setDiscountPercent] = useState(
@@ -250,7 +270,7 @@ function PromoFormModal({
       if (!isEdit) trackEvent("content_created", { type: "promo" });
       onSaved();
     },
-    onError: () => setFormError(t.admin.common.saveFailed),
+    onError: (error) => setFormError(translationErrorMessage(error)),
   });
 
   function submit(e: React.FormEvent) {
@@ -284,10 +304,15 @@ function PromoFormModal({
     const status = isEdit ? promo!.status : publishNow ? "published" : "draft";
     mutation.mutate({
       title: title.trim(),
+      // Патч переводов уходит ТОЛЬКО с изменёнными языками; ничего не меняли —
+      // ключа в теле не будет вовсе, и сохранённые переводы останутся как были.
+      title_i18n: buildTranslationPatch(titleI18n, promo?.title_i18n),
       description: description.trim(),
+      description_i18n: buildTranslationPatch(descriptionI18n, promo?.description_i18n),
       starts_at: startsIso,
       ends_at: endsIso,
       terms: terms.trim(),
+      terms_i18n: buildTranslationPatch(termsI18n, promo?.terms_i18n),
       cover_image_url: cover || null,
       images: gallery,
       discount_percent: discount,
@@ -301,12 +326,34 @@ function PromoFormModal({
   return (
     <Modal title={isEdit ? t.admin.promos.editTitle : t.admin.promos.createTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
-        <Field label={t.admin.promos.fieldTitle} required>
-          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
-        </Field>
-        <Field label={t.admin.promos.fieldDescription}>
-          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} />
-        </Field>
+        <TranslationCoverageNote
+          fields={[
+            { label: t.admin.promos.fieldTitle, translations: titleI18n },
+            { label: t.admin.promos.fieldDescription, translations: descriptionI18n },
+            { label: t.admin.promos.fieldTerms, translations: termsI18n },
+          ]}
+        />
+        <TranslatedField
+          id="promo-title"
+          label={t.admin.promos.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={promo?.title_i18n}
+        />
+        <TranslatedField
+          id="promo-description"
+          label={t.admin.promos.fieldDescription}
+          multiline
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={promo?.description_i18n}
+        />
         <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
           <Field label={t.admin.promos.fieldStartsAt} required>
             <TextInput
@@ -323,9 +370,17 @@ function PromoFormModal({
             />
           </Field>
         </div>
-        <Field label={t.admin.promos.fieldTerms} hint={t.admin.promos.fieldTermsHint}>
-          <TextArea value={terms} onChange={(e) => setTerms(e.target.value)} />
-        </Field>
+        <TranslatedField
+          id="promo-terms"
+          label={t.admin.promos.fieldTerms}
+          hint={t.admin.promos.fieldTermsHint}
+          multiline
+          base={terms}
+          onBaseChange={setTerms}
+          translations={termsI18n}
+          onTranslationsChange={setTermsI18n}
+          stored={promo?.terms_i18n}
+        />
         <ImageUploadField
           label={t.admin.promos.fieldCover}
           hint={t.admin.promos.fieldCoverHint}

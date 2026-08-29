@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import type {
-  GuideRoutePoint,
-  GuideRoutePointInput,
-  GuideRoutePointKind,
-  VenueSearchResult,
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type GuideRoutePoint,
+  type GuideRoutePointInput,
+  type GuideRoutePointKind,
+  type VenueSearchResult,
 } from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
 import { Button } from "../ui/Button";
-import { Field, TextArea, TextInput } from "../ui/FormControls";
+import { Field, TextInput } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
+import { TranslatedField, TranslationCoverageNote } from "../ui/TranslatedField";
 import { VenuePickerModal, type VenueSearchClient } from "../ui/VenuePickerModal";
 import { coordinateFieldValue, parsePointCoordinates } from "./route-point";
 
@@ -69,6 +72,12 @@ export function GuideRoutePointFormModal({
   const [description, setDescription] = useState(point?.description ?? "");
   const [address, setAddress] = useState(point?.address ?? "");
   const [photo, setPhoto] = useState(point?.photo_url ?? "");
+  // Переводы остановки — тот же частичный патч, что у всего контента.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(point?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(point?.description_i18n),
+  );
+  const [addressI18n, setAddressI18n] = useState(() => translationDraftFrom(point?.address_i18n));
   const [latitude, setLatitude] = useState(coordinateFieldValue(point?.latitude));
   const [longitude, setLongitude] = useState(coordinateFieldValue(point?.longitude));
   const [formError, setFormError] = useState<string | null>(null);
@@ -112,8 +121,11 @@ export function GuideRoutePointFormModal({
       // приедет.
       restaurant_id: kind === "restaurant" && venue ? venue.id : undefined,
       title: title.trim(),
+      title_i18n: buildTranslationPatch(titleI18n, point?.title_i18n),
       description: description.trim(),
+      description_i18n: buildTranslationPatch(descriptionI18n, point?.description_i18n),
       address: address.trim(),
+      address_i18n: buildTranslationPatch(addressI18n, point?.address_i18n),
       photo_url: photo.trim() || null,
       latitude: coords.kind === "ok" ? coords.latitude : null,
       longitude: coords.kind === "ok" ? coords.longitude : null,
@@ -152,34 +164,45 @@ export function GuideRoutePointFormModal({
             </div>
           ) : null}
 
-          <Field
+          <TranslationCoverageNote
+            fields={[
+              { label: copy.pointFieldTitle, translations: titleI18n },
+              { label: copy.pointFieldDescription, translations: descriptionI18n },
+              { label: copy.pointFieldAddress, translations: addressI18n },
+            ]}
+          />
+          <TranslatedField
+            id="route-point-title"
             label={copy.pointFieldTitle}
             hint={copy.pointFieldTitleHint}
             required
-            htmlFor="route-point-title"
-          >
-            <TextInput
-              id="route-point-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={200}
-            />
-          </Field>
-          <Field label={copy.pointFieldDescription} htmlFor="route-point-description">
-            <TextArea
-              id="route-point-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </Field>
-          <Field label={copy.pointFieldAddress} htmlFor="route-point-address">
-            <TextInput
-              id="route-point-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              maxLength={300}
-            />
-          </Field>
+            maxLength={200}
+            base={title}
+            onBaseChange={setTitle}
+            translations={titleI18n}
+            onTranslationsChange={setTitleI18n}
+            stored={point?.title_i18n}
+          />
+          <TranslatedField
+            id="route-point-description"
+            label={copy.pointFieldDescription}
+            multiline
+            base={description}
+            onBaseChange={setDescription}
+            translations={descriptionI18n}
+            onTranslationsChange={setDescriptionI18n}
+            stored={point?.description_i18n}
+          />
+          <TranslatedField
+            id="route-point-address"
+            label={copy.pointFieldAddress}
+            maxLength={300}
+            base={address}
+            onBaseChange={setAddress}
+            translations={addressI18n}
+            onTranslationsChange={setAddressI18n}
+            stored={point?.address_i18n}
+          />
           <Field label={copy.pointFieldPhoto} htmlFor="route-point-photo">
             <TextInput
               id="route-point-photo"

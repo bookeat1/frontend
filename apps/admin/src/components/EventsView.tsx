@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AdminEvent,
-  EventContentField,
-  EventInput,
-  FeedItemState,
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type AdminEvent,
+  type EventContentField,
+  type EventInput,
+  type FeedItemState,
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
@@ -30,12 +32,14 @@ import {
 import { Button } from "./ui/Button";
 import { EventSeriesCard } from "./EventSeriesCard";
 import { FeedControl } from "./ui/FeedControl";
-import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
+import { CheckboxRow, Field, TextInput } from "./ui/FormControls";
 import { ImageGalleryField } from "./ui/ImageGalleryField";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
+import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
+import { translationErrorMessage } from "./translation-copy";
 
 export function EventsView() {
   const { restaurant } = useAuth();
@@ -277,6 +281,12 @@ function EventFormModal({
   const [startsAt, setStartsAt] = useState(isoToLocalInput(event?.starts_at));
   const [endsAt, setEndsAt] = useState(isoToLocalInput(event?.ends_at));
   const [venue, setVenue] = useState(event?.venue ?? "");
+  // Черновики переводов: русский текст остаётся в полях выше, здесь только kk/en.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(event?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(event?.description_i18n),
+  );
+  const [venueI18n, setVenueI18n] = useState(() => translationDraftFrom(event?.venue_i18n));
   const [cover, setCover] = useState(event?.cover_image_url ?? "");
   const [gallery, setGallery] = useState<string[]>(event?.images ?? []);
   const [ticketed, setTicketed] = useState(event?.ticketed ?? false);
@@ -304,7 +314,7 @@ function EventFormModal({
       if (!isEdit) trackEvent("content_created", { type: "event" });
       onSaved();
     },
-    onError: () => setFormError(t.admin.common.saveFailed),
+    onError: (error) => setFormError(translationErrorMessage(error)),
   });
 
   function submit(e: React.FormEvent) {
@@ -329,10 +339,15 @@ function EventFormModal({
     const capNum = Number(capacity);
     mutation.mutate({
       title: title.trim(),
+      // Патчи переводов — единственные ЧАСТИЧНЫЕ поля этого тела: уходят только
+      // изменённые языки, не тронули ничего — ключа не будет вовсе.
+      title_i18n: buildTranslationPatch(titleI18n, event?.title_i18n),
       description: description.trim(),
+      description_i18n: buildTranslationPatch(descriptionI18n, event?.description_i18n),
       starts_at: startsIso,
       ends_at: endsIso,
       venue: venue.trim(),
+      venue_i18n: buildTranslationPatch(venueI18n, event?.venue_i18n),
       cover_image_url: cover.trim() || null,
       images: gallery,
       status,
@@ -345,6 +360,9 @@ function EventFormModal({
       // разные вещи: второе стёрло бы город и кнопку. Правятся они на экране
       // «Афиша платформы» и в API.
       city: event?.city ?? null,
+      // Кнопка — полная замена, а её переводы — патч поверх сохранённых.
+      // Подпись кнопки правится на экране «Афиша платформы», сюда она едет как
+      // была; патч переводов здесь не строим, чтобы не переписать чужую правку.
       action: event?.action ? { label: event.action.label, url: event.action.url ?? null } : null,
     });
   }
@@ -396,9 +414,24 @@ function EventFormModal({
           </div>
         ) : null}
 
-        <Field label={t.admin.events.fieldTitle} required>
-          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
-        </Field>
+        <TranslationCoverageNote
+          fields={[
+            { label: t.admin.events.fieldTitle, translations: titleI18n },
+            { label: t.admin.events.fieldDescription, translations: descriptionI18n },
+            { label: t.admin.events.fieldVenue, translations: venueI18n },
+          ]}
+        />
+        <TranslatedField
+          id="event-title"
+          label={t.admin.events.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={event?.title_i18n}
+        />
         <SeriesFieldNote
           field="title"
           inSeries={inSeries}
@@ -409,9 +442,16 @@ function EventFormModal({
             resetMutation.mutate([f]);
           }}
         />
-        <Field label={t.admin.events.fieldDescription}>
-          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} />
-        </Field>
+        <TranslatedField
+          id="event-description"
+          label={t.admin.events.fieldDescription}
+          multiline
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={event?.description_i18n}
+        />
         <SeriesFieldNote
           field="description"
           inSeries={inSeries}
@@ -438,9 +478,16 @@ function EventFormModal({
             />
           </Field>
         </div>
-        <Field label={t.admin.events.fieldVenue} hint={t.admin.events.fieldVenueHint}>
-          <TextInput value={venue} onChange={(e) => setVenue(e.target.value)} />
-        </Field>
+        <TranslatedField
+          id="event-venue"
+          label={t.admin.events.fieldVenue}
+          hint={t.admin.events.fieldVenueHint}
+          base={venue}
+          onBaseChange={setVenue}
+          translations={venueI18n}
+          onTranslationsChange={setVenueI18n}
+          stored={event?.venue_i18n}
+        />
         <SeriesFieldNote
           field="venue"
           inSeries={inSeries}

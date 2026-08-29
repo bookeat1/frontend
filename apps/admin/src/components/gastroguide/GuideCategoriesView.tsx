@@ -3,13 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { GuideCategory, GuideCategoryInput } from "@bookeat/api/admin";
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type GuideCategory,
+  type GuideCategoryInput,
+} from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { Button } from "../ui/Button";
 import { CheckboxRow, Field, TextInput } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
+import { TranslatedField } from "../ui/TranslatedField";
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 import { guideErrorMessage } from "./guide-copy";
 
@@ -132,6 +138,7 @@ function CategoryFormModal({
   const isEdit = !!category;
   const [slug, setSlug] = useState(category?.slug ?? "");
   const [title, setTitle] = useState(category?.title ?? "");
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(category?.title_i18n));
   const [position, setPosition] = useState(String(category?.position ?? 0));
   const [isActive, setIsActive] = useState(category?.is_active ?? true);
   const [formError, setFormError] = useState<string | null>(null);
@@ -160,6 +167,9 @@ function CategoryFormModal({
     mutation.mutate({
       slug: cleanSlug,
       title: title.trim(),
+      // Патч переводов: только изменённые языки, `ru` в него не попадает
+      // никогда — русское название рубрики это поле выше.
+      title_i18n: buildTranslationPatch(titleI18n, category?.title_i18n),
       position: Number.parseInt(position, 10) || 0,
       is_active: isActive,
     });
@@ -168,14 +178,17 @@ function CategoryFormModal({
   return (
     <Modal title={copy.categoryEditTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
-        <Field label={copy.fieldTitle} required htmlFor="guide-cat-title">
-          <TextInput
-            id="guide-cat-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-          />
-        </Field>
+        <TranslatedField
+          id="guide-cat-title"
+          label={copy.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={category?.title_i18n}
+        />
         <Field label={copy.fieldSlug} hint={copy.fieldSlugHint} required htmlFor="guide-cat-slug">
           <TextInput
             id="guide-cat-slug"

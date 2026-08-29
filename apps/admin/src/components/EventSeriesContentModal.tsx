@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { buildTranslationPatch, translationDraftFrom } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { recurrenceToInput, seriesContentDiff, type EventSeriesRow } from "@/lib/event-series";
 import { t } from "@/lib/i18n";
 import { formatTags, parseTags } from "@/lib/tags";
 import { Button } from "./ui/Button";
-import { Field, TextArea, TextInput } from "./ui/FormControls";
+import { Field, TextInput } from "./ui/FormControls";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
+import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
+import { translationErrorMessage } from "./translation-copy";
 
 /**
  * Общий контент СЕРИИ: название, описание, место, обложка, метки — один раз на
@@ -43,6 +46,13 @@ export function EventSeriesContentModal({
   const [title, setTitle] = useState(rule?.title ?? row.title);
   const [description, setDescription] = useState(rule?.description ?? "");
   const [venue, setVenue] = useState(rule?.venue ?? "");
+  // Переводы общего контента серии: правило разливает их по всем своим датам
+  // (SyncOccurrenceContent), поэтому правятся они здесь, а не на каждой дате.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(rule?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(rule?.description_i18n),
+  );
+  const [venueI18n, setVenueI18n] = useState(() => translationDraftFrom(rule?.venue_i18n));
   const [cover, setCover] = useState(rule?.cover_image_url ?? "");
   const [tags, setTags] = useState(formatTags(rule?.tags));
   const [formError, setFormError] = useState<string | null>(null);
@@ -55,14 +65,19 @@ export function EventSeriesContentModal({
         rule!.id,
         recurrenceToInput(rule!, {
           title: title.trim(),
+          // Переводы — патч поверх сохранённых: только изменённые языки.
+          // `recurrenceToInput` их намеренно не переносит (см. его комментарий).
+          title_i18n: buildTranslationPatch(titleI18n, rule!.title_i18n),
           description: description.trim(),
+          description_i18n: buildTranslationPatch(descriptionI18n, rule!.description_i18n),
           venue: venue.trim(),
+          venue_i18n: buildTranslationPatch(venueI18n, rule!.venue_i18n),
           cover_image_url: cover.trim() || null,
           tags: parseTags(tags),
         }),
       ),
     onSuccess: onSaved,
-    onError: () => setFormError(t.admin.events.series.contentSaveFailed),
+    onError: (error) => setFormError(translationErrorMessage(error)),
   });
 
   function submit(e: React.FormEvent) {
@@ -80,8 +95,19 @@ export function EventSeriesContentModal({
       cover_image_url: cover.trim() || null,
       tags: parseTags(tags),
     });
+    // Правка ПЕРЕВОДА — тоже правка контента: сервер сравнивает поля через
+    // `domain.I18nRenderEqual`, то есть по тому, что прочитает гость на любом
+    // языке, и снимает одобренные даты с главной точно так же. Молча пропустить
+    // предупреждение здесь значило бы соврать о последствиях.
+    const translationsChangedHere =
+      buildTranslationPatch(titleI18n, rule.title_i18n) !== undefined ||
+      buildTranslationPatch(descriptionI18n, rule.description_i18n) !== undefined ||
+      buildTranslationPatch(venueI18n, rule.venue_i18n) !== undefined;
     // Ничего не изменилось — не пугаем человека последствиями, которых не будет.
-    if (changed.length > 0 && !window.confirm(t.admin.events.series.contentConfirm(row.title))) {
+    if (
+      (changed.length > 0 || translationsChangedHere) &&
+      !window.confirm(t.admin.events.series.contentConfirm(row.title))
+    ) {
       return;
     }
     mutation.mutate();
@@ -102,15 +128,44 @@ export function EventSeriesContentModal({
         <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
           <p className="text-[13px] text-text-muted">{t.admin.events.series.contentHint}</p>
 
-          <Field label={t.admin.events.fieldTitle} required>
-            <TextInput value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
-          </Field>
-          <Field label={t.admin.events.fieldDescription}>
-            <TextArea value={description} onChange={(e) => setDescription(e.target.value)} />
-          </Field>
-          <Field label={t.admin.events.fieldVenue} hint={t.admin.events.fieldVenueHint}>
-            <TextInput value={venue} onChange={(e) => setVenue(e.target.value)} />
-          </Field>
+          <TranslationCoverageNote
+            fields={[
+              { label: t.admin.events.fieldTitle, translations: titleI18n },
+              { label: t.admin.events.fieldDescription, translations: descriptionI18n },
+              { label: t.admin.events.fieldVenue, translations: venueI18n },
+            ]}
+          />
+          <TranslatedField
+            id="series-title"
+            label={t.admin.events.fieldTitle}
+            required
+            maxLength={200}
+            base={title}
+            onBaseChange={setTitle}
+            translations={titleI18n}
+            onTranslationsChange={setTitleI18n}
+            stored={rule.title_i18n}
+          />
+          <TranslatedField
+            id="series-description"
+            label={t.admin.events.fieldDescription}
+            multiline
+            base={description}
+            onBaseChange={setDescription}
+            translations={descriptionI18n}
+            onTranslationsChange={setDescriptionI18n}
+            stored={rule.description_i18n}
+          />
+          <TranslatedField
+            id="series-venue"
+            label={t.admin.events.fieldVenue}
+            hint={t.admin.events.fieldVenueHint}
+            base={venue}
+            onBaseChange={setVenue}
+            translations={venueI18n}
+            onTranslationsChange={setVenueI18n}
+            stored={rule.venue_i18n}
+          />
           <Field label={t.admin.events.fieldTags} hint={t.admin.events.fieldTagsHint}>
             <TextInput value={tags} onChange={(e) => setTags(e.target.value)} maxLength={300} />
           </Field>

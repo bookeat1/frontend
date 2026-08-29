@@ -299,9 +299,13 @@ export interface SetManagerWhatsAppInput {
 export interface RestaurantProfile {
   id: string;
   name: string;
+  name_i18n?: I18nMap;
   description: string;
+  description_i18n?: I18nMap;
   address: string;
+  address_i18n?: I18nMap;
   opening_hours: string;
+  opening_hours_i18n?: I18nMap;
   phone: string;
   email: string;
   city: string;
@@ -356,9 +360,25 @@ export interface MyRestaurantsResponse {
 export interface CatalogVenue {
   id: string;
   name: string;
+  name_i18n?: I18nMap;
   description: string;
+  /** Сырые карты переводов. Приходят ТОЛЬКО у того, кто НЕ просил язык, то
+   * есть в кабинетных чтениях (`GET /admin/restaurants/:id`, ответы
+   * POST/PATCH). В ЛИСТИНГЕ каталога (`GET /admin/restaurants`) их нет вовсе —
+   * `listItemToResponse` их не прикладывает, — поэтому `undefined` здесь
+   * значит «не знаем», а не «переводов нет». */
+  description_i18n?: I18nMap;
   cuisine_type: string;
+  /** Переводы типа кухни. В интерфейс НЕ выводятся: строку собирает сервер из
+   * справочника кухонь, и ручной перевод будет перезатёрт следующей правкой
+   * набора кухонь. */
+  cuisine_type_i18n?: I18nMap;
   address: string;
+  address_i18n?: I18nMap;
+  /** Свободнотекстовые часы работы (легаси-строка, не расписание из
+   * `/schedule`). Приходит в детальном ответе. */
+  opening_hours?: string;
+  opening_hours_i18n?: I18nMap;
   city: string;
   price_category: string;
   price_range?: { min: number; max: number } | null;
@@ -402,9 +422,18 @@ export interface CatalogVenue {
  * `[]` clears it. */
 export interface CatalogVenueInput {
   name?: string;
+  /** ЧАСТИЧНЫЕ обновления переводов (`domain.I18nPatch`). В отличие от
+   * скалярных полей рядом, ключ здесь НЕ значит «заменить карту»: он значит
+   * «примени эти языки». Ключа нет — переводы поля не трогаем. */
+  name_i18n?: I18nPatch;
   description?: string;
+  description_i18n?: I18nPatch;
   cuisine_type?: string;
   address?: string;
+  address_i18n?: I18nPatch;
+  /** Свободнотекстовые часы работы. */
+  opening_hours?: string;
+  opening_hours_i18n?: I18nPatch;
   city?: string;
   price_category?: string;
   price_min?: number;
@@ -448,6 +477,9 @@ export interface AdminEvent {
   starts_at: string;
   ends_at: string;
   venue?: string;
+  /** Сырая карта переводов площадки (migration 0101), только в кабинетном
+   * ответе. */
+  venue_i18n?: I18nMap;
   cover_image_url?: string | null;
   status: EventStatus;
   ticketed: boolean;
@@ -509,10 +541,11 @@ export interface AdminEventRecurrence {
   id: string;
   restaurant_id: string;
   title: string;
-  title_i18n?: Record<string, string>;
+  title_i18n?: I18nMap;
   description: string;
-  description_i18n?: Record<string, string>;
+  description_i18n?: I18nMap;
   venue?: string;
+  venue_i18n?: I18nMap;
   cover_image_url?: string | null;
   tags: string[];
   /** Статус, с которым РОЖДАЕТСЯ каждая новая дата серии. */
@@ -559,10 +592,16 @@ export interface AdminEventRecurrence {
  * «остаётся как было». Строить payload только через `recurrenceToInput`. */
 export interface EventRecurrenceInput {
   title: string;
-  title_i18n?: Record<string, string>;
+  /** ЧАСТИЧНОЕ обновление переводов. РАНЬШЕ ЗДЕСЬ БЫЛА ПОЛНАЯ КАРТА, и
+   * `recurrenceToInput` переотправлял её целиком, чтобы её не стёрло; с
+   * переходом сервера на `domain.I18nPatch` (коммит 588c177) это стало
+   * наоборот вредно — полный набор ключей затирает правку, сделанную кем-то
+   * другим, пока форма была открыта. Ключа нет = переводы не трогаем. */
+  title_i18n?: I18nPatch;
   description: string;
-  description_i18n?: Record<string, string>;
+  description_i18n?: I18nPatch;
   venue: string;
+  venue_i18n?: I18nPatch;
   cover_image_url: string | null;
   tags: string[];
   occurrence_status: EventStatus;
@@ -587,10 +626,15 @@ export interface EventRecurrenceInput {
  * must be RFC3339. ticket_price_minor is integer minor units. */
 export interface EventInput {
   title: string;
+  /** ЧАСТИЧНОЕ обновление переводов: ключа нет — переводы не трогаем. Всё
+   * остальное в этом теле — полная замена, не перепутать. */
+  title_i18n?: I18nPatch;
   description: string;
+  description_i18n?: I18nPatch;
   starts_at: string;
   ends_at: string;
   venue: string;
+  venue_i18n?: I18nPatch;
   cover_image_url: string | null;
   status: EventStatus;
   ticketed: boolean;
@@ -616,6 +660,9 @@ export type EventActionTarget = "event" | "external";
 /** Кнопка события в ответе сервера (events.eventActionResponse). */
 export interface AdminEventAction {
   label: string;
+  /** Сырые переводы подписи (migration 0101). Их видит только кабинет:
+   * гостевой ответ отдаёт разрешённую подпись и карту обнуляет. */
+  label_i18n?: I18nMap;
   target: EventActionTarget;
   /** Внешний адрес. Отсутствует, когда кнопка ведёт на страницу самого
    * события. */
@@ -626,6 +673,10 @@ export interface AdminEventAction {
  * намеренно — он выводится из `url`. */
 export interface EventActionInput {
   label: string;
+  /** ЧАСТИЧНОЕ обновление переводов подписи. Переводы кнопки едут ОТДЕЛЬНО от
+   * самой кнопки: сама кнопка — полная замена (нет объекта `action` = кнопки
+   * нет), а её переводы — патч поверх сохранённых. */
+  label_i18n?: I18nPatch;
   /** `null` или отсутствие → кнопка открывает страницу самого события.
    * Строка → внешняя ссылка; сервер проверяет её строго (только http/https,
    * с хостом, без учётных данных, до 2048 символов). */
@@ -650,6 +701,10 @@ export interface AdminPromo {
   starts_at: string;
   ends_at: string;
   terms?: string;
+  /** Сырая карта переводов условий (migration 0101). Приходит ТОЛЬКО в
+   * кабинетном ответе: гостю сервер отдаёт уже разрешённый текст и карту не
+   * шлёт вовсе. */
+  terms_i18n?: I18nMap;
   cover_image_url?: string | null;
   discount_percent?: number | null;
   status: PromoStatus;
@@ -665,10 +720,16 @@ export interface AdminPromo {
 /** Create/update payload for a promo (promos.promoRequest). */
 export interface PromoInput {
   title: string;
+  /** ЧАСТИЧНОЕ обновление переводов заголовка — единственное поле этого тела,
+   * которое не заменяется целиком. Ключа нет = переводы не трогаем. Собирать
+   * только через `buildTranslationPatch`. */
+  title_i18n?: I18nPatch;
   description: string;
+  description_i18n?: I18nPatch;
   starts_at: string;
   ends_at: string;
   terms: string;
+  terms_i18n?: I18nPatch;
   cover_image_url?: string | null;
   discount_percent?: number | null;
   status: PromoStatus;
@@ -687,6 +748,10 @@ export interface Story {
   /** Адрес САМОЙ КАРТИНКИ сторис. */
   image_url: string;
   caption: string | null;
+  /** Сырая карта переводов подписи (migration 0101). Приходит ТОЛЬКО в
+   * кабинетном ответе (`adminStoryResponse`): гостевой отдаёт разрешённый
+   * текст. */
+  caption_i18n?: I18nMap;
   /**
    * ВНЕШНЯЯ ссылка, куда уходит гость по тапу на сторис. Это НЕ `image_url`:
    * `image_url` — где лежит картинка, `action_url` — куда ведёт тап. `null` =
@@ -723,6 +788,9 @@ export interface Story {
 export interface StoryInput {
   image_url: string;
   caption?: string | null;
+  /** ЧАСТИЧНОЕ обновление переводов подписи. Ключа нет = переводы не трогаем;
+   * язык со строкой записывается, язык с `null` удаляется. */
+  caption_i18n?: I18nPatch;
   /**
    * Внешняя ссылка перехода (http/https), НЕ адрес картинки. Пустая строка или
    * `null` снимает ссылку; сервер проверяет схему и отвечает 422 на всё, что не
@@ -1198,6 +1266,25 @@ export type GuideCollectionStatus = "draft" | "published" | "archived";
  * so an empty string here is never sent — it would make the app render blank. */
 export type I18nMap = Record<string, string>;
 
+/**
+ * Тело `<поле>_i18n` в ЗАПИСИ — ЧАСТИЧНОЕ обновление карты переводов
+ * (`domain.I18nPatch`), единственное поле запроса, которое не является полной
+ * заменой:
+ *
+ *   ключ со строкой → язык записывается;
+ *   ключ с `null`   → язык удаляется;
+ *   ключа нет       → язык остаётся как был;
+ *   объекта нет     → поле переводов не трогается совсем.
+ *
+ * Ключ `ru` сюда НЕ КЛАДУТ: русский текст живёт в обычной колонке рядом, она же
+ * выигрывает при конфликте, а удалить `ru` сервер отвечает 422. Собирать патч —
+ * только через `buildTranslationPatch` (./translations).
+ *
+ * С 2026-08-29 (бэкенд `1252c4c`) формат ОДИН на весь админский контент,
+ * включая редактор гастрогида: полной замены карты переводов не осталось нигде.
+ */
+export type I18nPatch = Record<string, string | null>;
+
 /** A guide rubric as the editor sees it (GET /admin/gastroguide/categories).
  * Unlike the guest read this includes switched-off rubrics. */
 export interface GuideCategory {
@@ -1213,7 +1300,9 @@ export interface GuideCategory {
 export interface GuideCategoryInput {
   slug: string;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНОЕ обновление переводов (`domain.I18nPatch`). Ключа нет — переводы
+   * не трогаем. Собирать только через `buildTranslationPatch`. */
+  title_i18n?: I18nPatch;
   position: number;
   is_active: boolean;
 }
@@ -1299,11 +1388,13 @@ export interface GuideCollectionInput {
    * то. */
   kind?: GuideCollectionKind;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНЫЕ обновления переводов. Остальные поля тела — полная замена,
+   * не перепутать. */
+  title_i18n?: I18nPatch;
   subtitle: string;
-  subtitle_i18n?: I18nMap;
+  subtitle_i18n?: I18nPatch;
   description: string;
-  description_i18n?: I18nMap;
+  description_i18n?: I18nPatch;
   cover_image_url: string | null;
   city: string | null;
   position: number;
@@ -1429,12 +1520,13 @@ export interface GuideRouteDetail extends GuideRoute {
 export interface GuideRouteInput {
   slug: string;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНЫЕ обновления переводов. */
+  title_i18n?: I18nPatch;
   description: string;
-  description_i18n?: I18nMap;
+  description_i18n?: I18nPatch;
   cover_image_url: string | null;
   duration_label: string;
-  duration_label_i18n?: I18nMap;
+  duration_label_i18n?: I18nPatch;
   city: string | null;
   position: number;
 }
@@ -1449,12 +1541,13 @@ export interface GuideRoutePointInput {
   /** Обязателен для `restaurant` и должен отсутствовать у `place`. */
   restaurant_id?: string;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНЫЕ обновления переводов. */
+  title_i18n?: I18nPatch;
   description: string;
-  description_i18n?: I18nMap;
+  description_i18n?: I18nPatch;
   photo_url: string | null;
   address: string;
-  address_i18n?: I18nMap;
+  address_i18n?: I18nPatch;
   latitude: number | null;
   longitude: number | null;
 }

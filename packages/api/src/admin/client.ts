@@ -44,6 +44,7 @@ import type {
   GuideRoutePointInput,
   HomePickVenue,
   HomePicksInput,
+  I18nPatch,
   KaspiCompany,
   MyRestaurant,
   Schedule,
@@ -287,6 +288,25 @@ export class AdminApiClient {
         per_page: params.perPage,
       },
     });
+  }
+
+  /**
+   * GET /admin/restaurants/:id — заведение глазами КАБИНЕТА.
+   *
+   * Зачем отдельно от листинга: сырые карты переводов (`description_i18n`,
+   * `address_i18n`, `opening_hours_i18n`) приходят ТОЛЬКО тому, кто не просил
+   * язык, и только в детальном ответе — `listItemToResponse` их не
+   * прикладывает вовсе (restaurants/response.go: attachRawTranslations).
+   * Редактор переводов обязан видеть то, что он патчит, значит без этого
+   * запроса форма правит вслепую.
+   *
+   * И не через публичный `GET /restaurants/:id`: тот не отдаёт заведения с
+   * `is_active = false`, а править скрытое заведение надо (см.
+   * bugs/bookeat-admin-stale-venue-and-hidden-venue-404). Роут смонтирован на
+   * restScoped: суперадмину и управляющему этого заведения.
+   */
+  getCatalogVenue(id: string): Promise<CatalogVenue> {
+    return this.request<CatalogVenue>("GET", `/admin/restaurants/${encodeURIComponent(id)}`);
   }
 
   /** POST /restaurants — create a venue. Superadmin only. */
@@ -1588,17 +1608,25 @@ export class AdminApiClient {
     );
   }
 
+  /**
+   * Заметка редактора под заведением внутри подборки.
+   *
+   * `noteI18n` — ЧАСТИЧНОЕ обновление переводов заметки, как и везде в этом
+   * API: ключа нет — язык не трогаем, `null` — удаляем. `undefined` не
+   * попадает в JSON, то есть карта переводов остаётся нетронутой.
+   */
   async setGuideVenueNote(
     collectionId: string,
     restaurantId: string,
     note: string,
+    noteI18n?: I18nPatch,
   ): Promise<void> {
     await this.request<unknown>(
       "PUT",
       `/admin/gastroguide/collections/${encodeURIComponent(
         collectionId,
       )}/venues/${encodeURIComponent(restaurantId)}/note`,
-      { body: { note } },
+      { body: { note, note_i18n: noteI18n } },
     );
   }
 

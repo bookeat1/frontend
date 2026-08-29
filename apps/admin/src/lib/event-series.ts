@@ -226,6 +226,13 @@ export function formatDurationMinutes(minutes: number): string {
  * см. EventsFullReplace.test.tsx): поле, которого нет в теле, не «остаётся как
  * было», а стирается. Поэтому здесь перечислено ВСЁ, что есть в ответе, а не
  * только то, что правит экран.
+ *
+ * ИСКЛЮЧЕНИЕ — `*_i18n`. Раньше карты переводов переотправлялись здесь же,
+ * вместе со всем остальным, и это было правильно: сервер принимал полную карту
+ * и пропуск ключа её стирал. С переходом на `domain.I18nPatch` (бэкенд, коммит
+ * 588c177) правило перевернулось: пропуск ключа СОХРАНЯЕТ переводы, а полный
+ * набор ключей ЗАТИРАЕТ правку, которую кто-то сделал, пока форма была открыта.
+ * Поэтому переводы отсюда убраны — их кладёт форма, и только изменённые языки.
  */
 export function recurrenceToInput(
   rule: AdminEventRecurrence,
@@ -233,9 +240,7 @@ export function recurrenceToInput(
 ): EventRecurrenceInput {
   return {
     title: rule.title,
-    title_i18n: rule.title_i18n,
     description: rule.description,
-    description_i18n: rule.description_i18n,
     venue: rule.venue ?? "",
     cover_image_url: rule.cover_image_url ?? null,
     tags: rule.tags ?? [],
