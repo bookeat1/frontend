@@ -66,6 +66,7 @@ import type {
   BookingPayment,
   CancelBookingInput,
   CreateBookingInput,
+  CreateBookingPaymentInput,
   Cuisine,
   DayAvailability,
   EventPage,
@@ -830,6 +831,43 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     try {
       const api = await this.client.get<ApiPayment>(
         `/bookings/${encodeURIComponent(bookingId)}/payment`,
+        undefined,
+        { auth: true },
+      );
+      return mapPayment(api);
+    } catch (error) {
+      if (error instanceof RepositoryError && error.isNotFound) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * POST /bookings/:id/payment. The retry token travels in the
+   * `Idempotency-Key` header, exactly like `createBooking` — see the interface
+   * doc for what the backend does with a repeat.
+   */
+  async createBookingPayment(
+    bookingId: string,
+    input: CreateBookingPaymentInput,
+    idempotencyKey: string,
+  ): Promise<BookingPayment> {
+    const api = await this.client.post<ApiPayment>(
+      `/bookings/${encodeURIComponent(bookingId)}/payment`,
+      { return_url: input.returnUrl },
+      { auth: true, headers: { "Idempotency-Key": idempotencyKey } },
+    );
+    return mapPayment(api);
+  }
+
+  /**
+   * GET /payments/:id — the payment in whatever status it is actually in.
+   * 404 becomes `null` for the same reason as `getBookingPayment`: "gone" and
+   * "the request failed" must stay distinguishable at the call site.
+   */
+  async getPayment(paymentId: string): Promise<BookingPayment | null> {
+    try {
+      const api = await this.client.get<ApiPayment>(
+        `/payments/${encodeURIComponent(paymentId)}`,
         undefined,
         { auth: true },
       );

@@ -902,6 +902,30 @@ export const en: LocaleOverride<Dictionary> = {
     openMenu: "Menu",
     cancelWindowClosed:
       "Less than two hours before the visit — cancelling in the app is no longer possible. Call the venue if your plans changed.",
+    /* --- Kaspi pre-order payment --- */
+
+    paymentSectionTitle: "Pre-order payment",
+    paymentIntro: "Pay in advance and the kitchen starts cooking for your arrival.",
+    paymentPayWithKaspi: "Pay with Kaspi",
+    paymentPayWithKaspiAmount: (amount: string) => `Pay ${amount} with Kaspi`,
+    paymentOpensExternally: "Opens the Kaspi app or a browser",
+    paymentAwaitingTitle: "Waiting for the payment",
+    paymentCountdown: (left: string) => `The link is valid for another ${left}`,
+    paymentOpenAgain: "Open the payment again",
+    paymentCheckAgain: "I have paid, check",
+    paymentSettlingTitle: "Payment went through, confirming",
+    paymentDeadTitle: "This payment link no longer works",
+    paymentDeadHint:
+      "That happens when a payment fails or too much time passes. The amount stays the same — create a new link.",
+    paymentRenew: "Create a new link",
+    paymentPaidTitle: "Pre-order paid",
+    paymentPaidHint: (amount: string) => `${amount} paid. The venue can see your order.`,
+    paymentErrorOffline: "No connection to the server. Check the internet and try again.",
+    paymentErrorServer: "Could not create the invoice. Try again a bit later.",
+    paymentErrorUnavailable: "This venue has not enabled payments yet.",
+    paymentErrorAlreadyActive: "This booking already has a payment. Refresh the screen.",
+    paymentErrorCannotOpen:
+      "Could not open Kaspi. Install the Kaspi.kz app or open the link in a browser.",
     cancelSectionTitle: "Want to cancel?",
     cancelBooking: "Cancel",
     cancelDialogTitle: "Cancel booking?",

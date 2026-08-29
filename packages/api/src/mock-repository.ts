@@ -25,6 +25,8 @@ import type {
   Booking,
   BookingPage,
   BookingPayment,
+  CreateBookingPaymentInput,
+  PaymentStatus,
   CancelBookingInput,
   CreateBookingInput,
   Cuisine,
@@ -114,6 +116,19 @@ export interface MockRepositoryOptions {
  * backend later means writing a sibling class (e.g. HttpRestaurantRepository)
  * that implements the same interface — no caller code changes.
  */
+/**
+ * The statuses `GET /bookings/:id/payment` can answer with — a mirror of
+ * `liveStatuses` in internal/infrastructure/postgres/payment/payments.go and
+ * of `domain.PaymentStatus.HoldsMoney`. `created`, `expired` and `failed` are
+ * deliberately absent: the server answers 404 for all three.
+ */
+const LIVE_PAYMENT_STATUSES: PaymentStatus[] = [
+  "authorized",
+  "capturing",
+  "voiding",
+  "captured",
+];
+
 export class MockRestaurantRepository implements RestaurantRepository {
   constructor(private readonly options: MockRepositoryOptions = {}) {}
 
@@ -370,6 +385,10 @@ export class MockRestaurantRepository implements RestaurantRepository {
   private readonly bookings = new Map<string, Booking>();
   private readonly bookingsByKey = new Map<string, string>();
   private readonly preorders = new Map<string, Preorder>();
+  /** Mock payments, by their own id, plus the booking+key index the
+   * idempotent replay is served from. */
+  private readonly payments = new Map<string, BookingPayment>();
+  private readonly paymentsByKey = new Map<string, BookingPayment>();
 
   async createBooking(input: CreateBookingInput, idempotencyKey: string): Promise<Booking> {
     await this.simulateNetwork();
@@ -659,14 +678,62 @@ export class MockRestaurantRepository implements RestaurantRepository {
     return cancelled;
   }
 
-  /** The mock has no payments at all, which is also the common live case: the
-   * endpoint answers 404 for a booking with no deposit. */
+  /**
+   * The booking's LIVE payment — mirroring `GetLiveByBookingID`, which only
+   * matches authorized/capturing/voiding/captured. A link that is merely
+   * `created` (or has since expired) is a 404 → `null` here too, exactly as on
+   * the server; getting that wrong in the mock would hide the very reason the
+   * checkout screen polls `getPayment` instead.
+   */
   async getBookingPayment(bookingId: string): Promise<BookingPayment | null> {
     await this.simulateNetwork();
     if (!this.bookings.has(bookingId)) {
       throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
     }
+    for (const payment of this.payments.values()) {
+      if (payment.bookingId !== bookingId) continue;
+      if (LIVE_PAYMENT_STATUSES.includes(payment.status)) return payment;
+    }
     return null;
+  }
+
+  /**
+   * A fake payment link. Nothing here talks to Kaspi — Kaspi has NO sandbox,
+   * so the only honest mock is one that never leaves the process. The link
+   * points at `example.invalid` on purpose: a reserved TLD that can never
+   * resolve, so a mock build cannot accidentally open a real payment page.
+   *
+   * Idempotent on the key, like the server: a repeat returns the same payment.
+   */
+  async createBookingPayment(
+    bookingId: string,
+    _input: CreateBookingPaymentInput,
+    idempotencyKey: string,
+  ): Promise<BookingPayment> {
+    await this.simulateNetwork();
+    if (!this.bookings.has(bookingId)) {
+      throw new RepositoryError(`Booking ${bookingId} not found`, undefined, 404);
+    }
+    const replayed = this.paymentsByKey.get(`${bookingId}:${idempotencyKey}`);
+    if (replayed) return replayed;
+    const payment: BookingPayment = {
+      id: `pay-${this.payments.size + 1}`,
+      bookingId,
+      purpose: "preorder",
+      status: "created",
+      amountMinor: 1_200_000,
+      currency: "KZT",
+      paymentUrl: `https://pay.example.invalid/mock/${bookingId}`,
+      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    };
+    this.payments.set(payment.id, payment);
+    this.paymentsByKey.set(`${bookingId}:${idempotencyKey}`, payment);
+    return payment;
+  }
+
+  async getPayment(paymentId: string): Promise<BookingPayment | null> {
+    await this.simulateNetwork();
+    return this.payments.get(paymentId) ?? null;
   }
 
   /**

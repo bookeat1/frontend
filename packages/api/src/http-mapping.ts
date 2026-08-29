@@ -574,6 +574,11 @@ export interface ApiPayment {
   status: string;
   amount_minor: number;
   currency: string;
+  /** Optional in the Go struct (`*string` / `*time.Time`) and therefore
+   * nullable here: a payment can exist without a link (never normally
+   * observable) and an old server build may omit the keys entirely. */
+  payment_url?: string | null;
+  expires_at?: string | null;
 }
 
 const PAYMENT_STATUSES: PaymentStatus[] = [
@@ -604,6 +609,10 @@ export function mapPayment(api: ApiPayment): BookingPayment {
     status: PAYMENT_STATUSES.find((s) => s === status) ?? "created",
     amountMinor: typeof api.amount_minor === "number" ? api.amount_minor : 0,
     currency: text(api.currency) || "KZT",
+    // A blank string is the same as absent: an empty href would render a
+    // tappable button that opens nothing.
+    paymentUrl: text(api.payment_url).trim() || null,
+    expiresAt: text(api.expires_at).trim() || null,
   };
 }
 

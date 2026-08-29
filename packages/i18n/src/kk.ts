@@ -909,6 +909,30 @@ export const kk: LocaleOverride<Dictionary> = {
     openMenu: "Мәзір",
     cancelWindowClosed:
       "Келуге екі сағаттан аз қалды — қолданбада болдырмау мүмкін емес. Жоспарыңыз өзгерсе, мейрамханаға қоңырау шалыңыз.",
+    /* --- Kaspi арқылы алдын ала тапсырысты төлеу --- */
+
+    paymentSectionTitle: "Алдын ала тапсырысты төлеу",
+    paymentIntro: "Алдын ала төлеңіз — ас үй сіз келгенге дейін дайындай бастайды.",
+    paymentPayWithKaspi: "Kaspi арқылы төлеу",
+    paymentPayWithKaspiAmount: (amount: string) => `Kaspi арқылы ${amount} төлеу`,
+    paymentOpensExternally: "Kaspi қосымшасы немесе браузер ашылады",
+    paymentAwaitingTitle: "Төлемді күтудеміз",
+    paymentCountdown: (left: string) => `Сілтеме тағы ${left} жарамды`,
+    paymentOpenAgain: "Төлемді қайта ашу",
+    paymentCheckAgain: "Төледім, тексеру",
+    paymentSettlingTitle: "Төлем өтті, растап жатырмыз",
+    paymentDeadTitle: "Бұл төлем сілтемесі енді жарамсыз",
+    paymentDeadHint:
+      "Төлем өтпесе немесе тым көп уақыт өтсе осылай болады. Сома өзгермейді — жаңа сілтеме жасаңыз.",
+    paymentRenew: "Жаңа сілтеме жасау",
+    paymentPaidTitle: "Алдын ала тапсырыс төленді",
+    paymentPaidHint: (amount: string) => `${amount} төленді. Мекеме тапсырысыңызды көреді.`,
+    paymentErrorOffline: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
+    paymentErrorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
+    paymentErrorUnavailable: "Бұл мекемеде төлем әлі қосылмаған.",
+    paymentErrorAlreadyActive: "Бұл броньда төлем бар. Экранды жаңартыңыз.",
+    paymentErrorCannotOpen:
+      "Kaspi ашылмады. Kaspi.kz қосымшасын орнатыңыз немесе сілтемені браузерде ашыңыз.",
     cancelSectionTitle: "Болдырмағыңыз келе ме?",
     cancelBooking: "Бронды бас тарту",
     cancelDialogTitle: "Бронды бас тарту керек пе?",

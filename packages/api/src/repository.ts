@@ -8,6 +8,7 @@ import type {
   BookingPayment,
   CancelBookingInput,
   CreateBookingInput,
+  CreateBookingPaymentInput,
   Cuisine,
   DayAvailability,
   EventPage,
@@ -343,6 +344,44 @@ export interface RestaurantRepository {
    * Requires a session for a booking that belongs to an account.
    */
   getBookingPayment(bookingId: string): Promise<BookingPayment | null>;
+
+  /**
+   * Starts (or replays) the booking's payment — `POST /bookings/:id/payment`.
+   *
+   * `idempotencyKey` is the `Idempotency-Key` header, and it is what stops a
+   * double tap from creating two payable links: the backend scopes it to the
+   * booking AND the actor and REPLAYS the stored payment for a repeated key
+   * (`CreateForBooking` in internal/usecase/payments/create.go), answering 201
+   * with the original payload. Reuse the key for every retry of the SAME
+   * attempt; mint a new one only when the guest deliberately asks for a fresh
+   * link after the old one expired.
+   *
+   * Known refusals, all of which the caller must render differently:
+   *   409 — the booking already has a live payment (authorized/captured);
+   *   422 — payments are not enabled for this restaurant, or the booking is in
+   *         a status no payment can be taken for, or there is nothing to pay.
+   */
+  createBookingPayment(
+    bookingId: string,
+    input: CreateBookingPaymentInput,
+    idempotencyKey: string,
+  ): Promise<BookingPayment>;
+
+  /**
+   * One payment by its OWN id — `GET /payments/:id`.
+   *
+   * This, not `getBookingPayment`, is what a checkout screen polls. The
+   * booking-scoped read answers only the booking's LIVE payment
+   * (`GetLiveByBookingID`, whose status set is authorized/capturing/voiding/
+   * captured — see internal/infrastructure/postgres/payment/payments.go), so a
+   * link that is still `created`, and one that has since `expired` or
+   * `failed`, are all indistinguishable 404s there. Reading the payment by id
+   * returns it in EVERY status, which is the only way to tell "not paid yet"
+   * from "this link is dead".
+   *
+   * `null` on 404 — the payment is gone or was never visible to this session.
+   */
+  getPayment(paymentId: string): Promise<BookingPayment | null>;
 
   /* --- push notifications --- */
 

@@ -16,6 +16,7 @@ import { CancelBookingDialog } from "../../../src/components/booking/CancelBooki
 import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
+import { PreorderPaymentCard } from "../../../src/components/booking/PreorderPaymentCard";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
@@ -30,9 +31,12 @@ import {
   usePreorder,
 } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { useKaspiPaymentFlow } from "../../../src/hooks/useKaspiPayment";
 import { trackEvent } from "../../../src/lib/analytics";
 import { useAuth } from "../../../src/lib/auth";
+import { openWebsite } from "../../../src/lib/external-links";
 import { formatMoneyMinor, formatRelativeDay, formatTime } from "../../../src/lib/format";
+import { paymentReturnUrl } from "../../../src/lib/kaspi-payment";
 
 const t = getDictionary();
 
@@ -76,8 +80,50 @@ export default function ReservationScreen() {
   // Статус ещё позволяет отмену (бронь жива), даже если двухчасовое окно уже
   // закрылось: от этого зависит, показывать ли блок отмены вообще.
   const cancellable = booking.data ? isCancellableBookingStatus(booking.data.status) : false;
-  const payment = useBookingPayment(id, canCancel);
+  // Предзаказ, за который можно заплатить. Блок оплаты появляется только у
+  // живой брони с уже собранным предзаказом: платить за пустую корзину нечего,
+  // а у отменённой и прошедшей брони сервер платёж всё равно не примет
+  // (`CreateForBooking` отказывает всему, что не pending/confirmed).
+  const preorderItemsCount = preorder.data?.items.length ?? 0;
+  const paymentEnabled = cancellable && preorderItemsCount > 0;
+  // Та же ручка, что кормит диалог отмены (`GET /bookings/:id/payment`), и
+  // тот же ключ кэша — один запрос на оба потребителя. Она отдаёт ТОЛЬКО
+  // «живой» платёж, то есть для предзаказа — уже оплаченный; именно поэтому
+  // она годится как стартовое «оплачено» и не годится как опрос.
+  const payment = useBookingPayment(id, canCancel || paymentEnabled);
   const cancel = useCancelBooking();
+
+  const paymentFlow = useKaspiPaymentFlow({
+    bookingId: id ?? "",
+    returnUrl: paymentReturnUrl(id ?? ""),
+    existing: payment.isError ? null : payment.data,
+    enabled: paymentEnabled && Boolean(id),
+  });
+  const [openFailed, setOpenFailed] = React.useState(false);
+
+  const paymentUrl = paymentFlow.payment?.paymentUrl ?? null;
+  const openPaymentLink = React.useCallback(async () => {
+    if (!paymentUrl) return;
+    // `openWebsite` никогда не бросает: устройство без браузера и без Kaspi —
+    // это реальная конфигурация, и падать на ней экран брони не должен.
+    const opened = await openWebsite(paymentUrl);
+    setOpenFailed(!opened);
+  }, [paymentUrl]);
+
+  // Счёт создан — гостя надо сразу увести в Kaspi, а не заставлять нажимать
+  // вторую кнопку: он уже нажал «Оплатить». Открываем РОВНО ОДИН РАЗ на счёт
+  // (`autoOpened`), иначе любой повторный рендер (тик отсчёта — раз в секунду)
+  // выкидывал бы человека из приложения снова и снова.
+  const autoOpened = React.useRef<string | null>(null);
+  const paymentIdForOpen = paymentFlow.payment?.id ?? null;
+  const paymentStatus = paymentFlow.payment?.status ?? null;
+  React.useEffect(() => {
+    if (!paymentIdForOpen || !paymentUrl || paymentStatus !== "created") return;
+    if (autoOpened.current === paymentIdForOpen) return;
+    autoOpened.current = paymentIdForOpen;
+    setOpenFailed(false);
+    void openPaymentLink();
+  }, [paymentIdForOpen, paymentStatus, paymentUrl, openPaymentLink]);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
@@ -373,6 +419,23 @@ export default function ReservationScreen() {
               </Text>
             </View>
           </BookingCard>
+        ) : null}
+
+        {/* Оплата предзаказа через Kaspi. Стоит СРАЗУ под составом заказа —
+            человек только что увидел сумму, и следующий естественный вопрос
+            «как заплатить». Блока нет, пока предзаказ пуст: платить не за что.
+
+            ⚠️ У Kaspi НЕТ ПЕСОЧНИЦЫ. Каждое успешное создание счёта — живая
+            ссылка на живые деньги, поэтому этот блок нельзя «просто потыкать»
+            на настоящем заведении. */}
+        {paymentEnabled ? (
+          <PreorderPaymentCard
+            flow={paymentFlow}
+            onOpenLink={() => void openPaymentLink()}
+            onCheck={paymentFlow.check}
+            fallbackAmountMinor={preorder.data?.totalMinor ?? null}
+            openFailed={openFailed}
+          />
         ) : null}
 
         {restaurant.data && hasAnyContact(restaurant.data) ? (

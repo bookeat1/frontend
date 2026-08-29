@@ -48,6 +48,8 @@ function payment(overrides: Partial<BookingPayment> = {}): BookingPayment {
     status: "authorized",
     amountMinor: 500_000,
     currency: "KZT",
+    paymentUrl: null,
+    expiresAt: null,
     ...overrides,
   };
 }

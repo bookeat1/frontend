@@ -666,6 +666,36 @@ export interface BookingPayment {
   /** Minor units (tiyn). Never a float, never formatted server-side. */
   amountMinor: number;
   currency: string;
+  /**
+   * The acquirer's hosted payment page (`https://pay.kaspi.kz/pay/…` for
+   * Kaspi). Present once the acquirer answered Authorize; `null` on a payment
+   * that never got one, and on any payment the link no longer applies to.
+   * NEVER built on the client — a payment link is the acquirer's to issue.
+   */
+  paymentUrl: string | null;
+  /**
+   * RFC3339 deadline after which the link is dead, as the ACQUIRER set it.
+   * The backend prefers the acquirer's own value over its configured HoldTTL
+   * (`CreateForBooking` in internal/usecase/payments/create.go), so this is
+   * the only honest thing to run a countdown against — a Kaspi link lives
+   * minutes, not hours, and a longer client-side guess would put a live timer
+   * on a dead link. `null` when the server sent none: show no countdown
+   * rather than invent a deadline.
+   */
+  expiresAt: string | null;
+}
+
+/**
+ * Body of `POST /bookings/:id/payment` (createPaymentRequest in
+ * internal/transport/rest/payments/request.go). `return_url` is REQUIRED and
+ * validated server-side; the acquirer webhook URL is built by the backend and
+ * is deliberately not accepted from a client.
+ */
+export interface CreateBookingPaymentInput {
+  /** Where the guest lands after the hosted payment page — our own deep link
+   * back into the booking screen. Kaspi ignores it (its adapter never reads
+   * ReturnURL), but the endpoint refuses an empty one. */
+  returnUrl: string;
 }
 
 export interface CreateBookingInput {

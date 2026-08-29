@@ -49,6 +49,8 @@ const heldDeposit: BookingPayment = {
   status: "authorized",
   amountMinor: 500_000,
   currency: "KZT",
+  paymentUrl: null,
+  expiresAt: null,
 };
 
 function open(consequence: string, overrides: Partial<React.ComponentProps<typeof CancelBookingDialog>> = {}) {

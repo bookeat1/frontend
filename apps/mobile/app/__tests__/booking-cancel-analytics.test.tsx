@@ -1,5 +1,6 @@
 import type { Booking, Restaurant } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,6 +91,19 @@ let booking: Booking;
 
 const { default: ReservationScreen } = await import("../booking/[id]/index");
 
+/**
+ * Экран брони теперь содержит блок оплаты предзаказа, а он живёт на
+ * react-query (создание счёта + опрос состояния). Поэтому рендер экрана
+ * требует провайдера — в приложении он стоит в `app/_layout.tsx`, здесь его
+ * приходится поднимать вручную.
+ */
+function withQueryClient(ui: React.ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
+}
+
 beforeEach(() => {
   trackEvent.mockClear();
   mutate.mockClear();
@@ -111,7 +125,7 @@ beforeEach(() => {
 });
 
 async function cancelFromScreen() {
-  render(<ReservationScreen />);
+  render(withQueryClient(<ReservationScreen />));
   fireEvent.click(await screen.findByRole("button", { name: t.booking.cancelBooking }));
   fireEvent.click(await screen.findByRole("button", { name: t.booking.cancelConfirm }));
   await waitFor(() => expect(mutate).toHaveBeenCalled());

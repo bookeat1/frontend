@@ -1,5 +1,6 @@
 import type { Booking, BookingStatus, Restaurant } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -108,6 +109,19 @@ function bookingWith(status: BookingStatus, when: "future" | "past" = "future"):
   };
 }
 
+/**
+ * Экран брони теперь содержит блок оплаты предзаказа, а он живёт на
+ * react-query (создание счёта + опрос состояния). Поэтому рендер экрана
+ * требует провайдера — в приложении он стоит в `app/_layout.tsx`, здесь его
+ * приходится поднимать вручную.
+ */
+function withQueryClient(ui: React.ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
+}
+
 beforeEach(() => {
   push.mockClear();
   replace.mockClear();
@@ -115,7 +129,7 @@ beforeEach(() => {
 
 function renderScreen(status: BookingStatus, when: "future" | "past" = "future") {
   booking = bookingWith(status, when);
-  return render(<ReservationScreen />);
+  return render(withQueryClient(<ReservationScreen />));
 }
 
 describe("экран брони: кнопка «Меню»", () => {
