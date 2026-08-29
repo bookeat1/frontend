@@ -2,14 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type { GuideRoute, GuideRouteInput } from "@bookeat/api/admin";
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type GuideRoute,
+  type GuideRouteInput,
+} from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
 import { useCityDictionary } from "@/lib/use-cities";
 import { Button } from "../ui/Button";
 import { CitySelectField } from "../ui/CitySelectField";
-import { Field, TextArea, TextInput } from "../ui/FormControls";
+import { Field, TextInput } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
+import { TranslatedField, TranslationCoverageNote } from "../ui/TranslatedField";
 import { guideErrorMessage } from "./guide-copy";
 
 const copy = t.admin.gastroRoutes;
@@ -51,6 +57,15 @@ export function GuideRouteFormModal({
   const [cover, setCover] = useState(route?.cover_image_url ?? "");
   const [city, setCity] = useState(route?.city ?? "");
   const [position, setPosition] = useState(String(route?.position ?? 0));
+  // Переводы — частичный патч, как у остального контента: уходят только
+  // изменённые языки, `ru` не уходит никогда.
+  const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(route?.title_i18n));
+  const [descriptionI18n, setDescriptionI18n] = useState(() =>
+    translationDraftFrom(route?.description_i18n),
+  );
+  const [durationI18n, setDurationI18n] = useState(() =>
+    translationDraftFrom(route?.duration_label_i18n),
+  );
   const [formError, setFormError] = useState<string | null>(null);
 
   // Города — из справочника платформы, а не из списка в коде: тот же урок, что
@@ -89,8 +104,11 @@ export function GuideRouteFormModal({
     mutation.mutate({
       slug: cleanSlug,
       title: title.trim(),
+      title_i18n: buildTranslationPatch(titleI18n, route?.title_i18n),
       description: description.trim(),
+      description_i18n: buildTranslationPatch(descriptionI18n, route?.description_i18n),
       duration_label: duration.trim(),
+      duration_label_i18n: buildTranslationPatch(durationI18n, route?.duration_label_i18n),
       // Пустое поле — «обложки нет», а не обложка с пустым адресом: на второе
       // приложение отрисует битую картинку.
       cover_image_url: cover.trim() || null,
@@ -102,14 +120,24 @@ export function GuideRouteFormModal({
   return (
     <Modal title={isEdit ? copy.editTitle : copy.createTitle} onClose={onClose}>
       <form className="flex flex-col gap-md" onSubmit={submit} noValidate>
-        <Field label={copy.fieldTitle} required htmlFor="route-form-title">
-          <TextInput
-            id="route-form-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-          />
-        </Field>
+        <TranslationCoverageNote
+          fields={[
+            { label: copy.fieldTitle, translations: titleI18n },
+            { label: copy.fieldDescription, translations: descriptionI18n },
+            { label: copy.fieldDuration, translations: durationI18n },
+          ]}
+        />
+        <TranslatedField
+          id="route-form-title"
+          label={copy.fieldTitle}
+          required
+          maxLength={200}
+          base={title}
+          onBaseChange={setTitle}
+          translations={titleI18n}
+          onTranslationsChange={setTitleI18n}
+          stored={route?.title_i18n}
+        />
         <Field label={copy.fieldSlug} hint={copy.fieldSlugHint} required htmlFor="route-form-slug">
           <TextInput
             id="route-form-slug"
@@ -120,25 +148,27 @@ export function GuideRouteFormModal({
             spellCheck={false}
           />
         </Field>
-        <Field label={copy.fieldDescription} htmlFor="route-form-description">
-          <TextArea
-            id="route-form-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </Field>
-        <Field
+        <TranslatedField
+          id="route-form-description"
+          label={copy.fieldDescription}
+          multiline
+          base={description}
+          onBaseChange={setDescription}
+          translations={descriptionI18n}
+          onTranslationsChange={setDescriptionI18n}
+          stored={route?.description_i18n}
+        />
+        <TranslatedField
+          id="route-form-duration"
           label={copy.fieldDuration}
           hint={copy.fieldDurationHint}
-          htmlFor="route-form-duration"
-        >
-          <TextInput
-            id="route-form-duration"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            maxLength={60}
-          />
-        </Field>
+          maxLength={60}
+          base={duration}
+          onBaseChange={setDuration}
+          translations={durationI18n}
+          onTranslationsChange={setDurationI18n}
+          stored={route?.duration_label_i18n}
+        />
         <Field label={copy.fieldCover} hint={copy.fieldCoverHint} htmlFor="route-form-cover">
           <TextInput
             id="route-form-cover"

@@ -44,6 +44,7 @@ import type {
   GuideRoutePointInput,
   HomePickVenue,
   HomePicksInput,
+  I18nPatch,
   KaspiCompany,
   MyRestaurant,
   Schedule,
@@ -1607,17 +1608,25 @@ export class AdminApiClient {
     );
   }
 
+  /**
+   * Заметка редактора под заведением внутри подборки.
+   *
+   * `noteI18n` — ЧАСТИЧНОЕ обновление переводов заметки, как и везде в этом
+   * API: ключа нет — язык не трогаем, `null` — удаляем. `undefined` не
+   * попадает в JSON, то есть карта переводов остаётся нетронутой.
+   */
   async setGuideVenueNote(
     collectionId: string,
     restaurantId: string,
     note: string,
+    noteI18n?: I18nPatch,
   ): Promise<void> {
     await this.request<unknown>(
       "PUT",
       `/admin/gastroguide/collections/${encodeURIComponent(
         collectionId,
       )}/venues/${encodeURIComponent(restaurantId)}/note`,
-      { body: { note } },
+      { body: { note, note_i18n: noteI18n } },
     );
   }
 

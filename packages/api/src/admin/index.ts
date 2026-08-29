@@ -44,7 +44,6 @@ export {
   buildTranslationPatch,
   classifyTranslationFailure,
   emptyTranslationDraft,
-  mergeTranslationMap,
   missingTranslations,
   removedTranslations,
   translationDraftFrom,

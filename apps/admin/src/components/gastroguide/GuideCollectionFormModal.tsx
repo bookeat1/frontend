@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
-  mergeTranslationMap,
+  buildTranslationPatch,
   translationDraftFrom,
   type GuideCollection,
   type GuideCollectionInput,
@@ -70,15 +70,10 @@ export function GuideCollectionFormModal({
   const [cover, setCover] = useState(collection?.cover_image_url ?? "");
   const [city, setCity] = useState(collection?.city ?? "");
   const [position, setPosition] = useState(String(collection?.position ?? 0));
-  // Переводы. ВНИМАНИЕ: у гида другой контракт, чем у акций/событий/сторис.
-  // Редактор гида принимает `map[string]string` и ЗАМЕЩАЕТ карту целиком
-  // (usecase/gastroguide.cleanI18n) — частичного патча он не понимает, а
-  // значит «не трогал английский» и «удали английский» на проводе неотличимы.
-  // Поэтому здесь `mergeTranslationMap`, а не `buildTranslationPatch`: уходит
-  // полная карта, собранная из того, что форма прочитала. Следствие, которое
-  // нельзя замолчать: правку перевода, сделанную кем-то другим, пока эта форма
-  // была открыта, такое сохранение затрёт. Чинится только на бэкенде —
-  // переводом ручек гида на domain.I18nPatch.
+  // Переводы. Ручки гида принимают тот же ЧАСТИЧНЫЙ формат, что и остальной
+  // контент (бэкенд `1252c4c`): уходят только изменённые языки, чужие локали
+  // (`ko`/`zh` из старого импорта) в патч не попадают вовсе, и сервер сохраняет
+  // их сам.
   const [titleI18n, setTitleI18n] = useState(() => translationDraftFrom(collection?.title_i18n));
   const [subtitleI18n, setSubtitleI18n] = useState(() =>
     translationDraftFrom(collection?.subtitle_i18n),
@@ -132,11 +127,11 @@ export function GuideCollectionFormModal({
       slug: cleanSlug,
       kind: effectiveKind,
       title: title.trim(),
-      title_i18n: mergeTranslationMap(titleI18n, collection?.title_i18n),
+      title_i18n: buildTranslationPatch(titleI18n, collection?.title_i18n),
       subtitle: subtitle.trim(),
-      subtitle_i18n: mergeTranslationMap(subtitleI18n, collection?.subtitle_i18n),
+      subtitle_i18n: buildTranslationPatch(subtitleI18n, collection?.subtitle_i18n),
       description: description.trim(),
-      description_i18n: mergeTranslationMap(descriptionI18n, collection?.description_i18n),
+      description_i18n: buildTranslationPatch(descriptionI18n, collection?.description_i18n),
       // An empty box means "no cover", not a cover whose address is the empty
       // string — the app would render a broken image for the latter.
       cover_image_url: cover.trim() || null,

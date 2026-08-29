@@ -1280,8 +1280,8 @@ export type I18nMap = Record<string, string>;
  * выигрывает при конфликте, а удалить `ru` сервер отвечает 422. Собирать патч —
  * только через `buildTranslationPatch` (./translations).
  *
- * ВНИМАНИЕ: редактор гастрогида этого формата НЕ понимает — там по-прежнему
- * `I18nMap` с полной заменой. Не путать.
+ * С 2026-08-29 (бэкенд `1252c4c`) формат ОДИН на весь админский контент,
+ * включая редактор гастрогида: полной замены карты переводов не осталось нигде.
  */
 export type I18nPatch = Record<string, string | null>;
 
@@ -1300,7 +1300,9 @@ export interface GuideCategory {
 export interface GuideCategoryInput {
   slug: string;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНОЕ обновление переводов (`domain.I18nPatch`). Ключа нет — переводы
+   * не трогаем. Собирать только через `buildTranslationPatch`. */
+  title_i18n?: I18nPatch;
   position: number;
   is_active: boolean;
 }
@@ -1386,11 +1388,13 @@ export interface GuideCollectionInput {
    * то. */
   kind?: GuideCollectionKind;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНЫЕ обновления переводов. Остальные поля тела — полная замена,
+   * не перепутать. */
+  title_i18n?: I18nPatch;
   subtitle: string;
-  subtitle_i18n?: I18nMap;
+  subtitle_i18n?: I18nPatch;
   description: string;
-  description_i18n?: I18nMap;
+  description_i18n?: I18nPatch;
   cover_image_url: string | null;
   city: string | null;
   position: number;
@@ -1516,12 +1520,13 @@ export interface GuideRouteDetail extends GuideRoute {
 export interface GuideRouteInput {
   slug: string;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНЫЕ обновления переводов. */
+  title_i18n?: I18nPatch;
   description: string;
-  description_i18n?: I18nMap;
+  description_i18n?: I18nPatch;
   cover_image_url: string | null;
   duration_label: string;
-  duration_label_i18n?: I18nMap;
+  duration_label_i18n?: I18nPatch;
   city: string | null;
   position: number;
 }
@@ -1536,12 +1541,13 @@ export interface GuideRoutePointInput {
   /** Обязателен для `restaurant` и должен отсутствовать у `place`. */
   restaurant_id?: string;
   title: string;
-  title_i18n?: I18nMap;
+  /** ЧАСТИЧНЫЕ обновления переводов. */
+  title_i18n?: I18nPatch;
   description: string;
-  description_i18n?: I18nMap;
+  description_i18n?: I18nPatch;
   photo_url: string | null;
   address: string;
-  address_i18n?: I18nMap;
+  address_i18n?: I18nPatch;
   latitude: number | null;
   longitude: number | null;
 }

@@ -4,7 +4,6 @@ import {
   buildTranslationPatch,
   classifyTranslationFailure,
   emptyTranslationDraft,
-  mergeTranslationMap,
   missingTranslations,
   removedTranslations,
   translationDraftFrom,
@@ -95,23 +94,26 @@ describe("что человеку показать до нажатия «Сох�
   });
 });
 
-describe("mergeTranslationMap — полная карта для ручек без патча (гастрогид)", () => {
-  it("собирает карту из черновика и выбрасывает пустые языки", () => {
-    expect(mergeTranslationMap({ kk: "Тізім", en: "" }, { kk: "Ескі", en: "List" })).toEqual({
+describe("чужие локали старого импорта (ko/zh) — не наше дело", () => {
+  it("в черновик они не попадают: кабинет их не правит", () => {
+    expect(translationDraftFrom({ ko: "목록", zh: "合集", kk: "Тізім" })).toEqual({
       kk: "Тізім",
+      en: "",
     });
   });
 
-  it("сохраняет языки, которыми кабинет не управляет (в старых данных есть ko/zh)", () => {
-    expect(mergeTranslationMap({ kk: "", en: "" }, { ko: "목록", ru: "Подборка" })).toEqual({
-      ko: "목록",
-      ru: "Подборка",
-    });
+  it("в патч они не попадают ни значением, ни удалением", () => {
+    // Пустой английский рядом с чужими локалями не должен превратиться в
+    // попытку что-то из них стереть.
+    const patch = buildTranslationPatch({ kk: "Жаңа", en: "" }, { ko: "목록", zh: "合集" });
+    expect(patch).toEqual({ kk: "Жаңа" });
+    expect(Object.keys(patch ?? {})).toEqual(["kk"]);
   });
 
-  it("не осталось ничего — ключ в тело не кладём вовсе", () => {
-    expect(mergeTranslationMap({ kk: "", en: "" }, {})).toBeUndefined();
-    expect(mergeTranslationMap({ kk: " ", en: "" })).toBeUndefined();
+  it("правка только русского текста вообще не рождает патча — чужие языки в покое", () => {
+    // Сервер отвергает неподдерживаемый язык с 422, а нетронутые ключи
+    // сохраняет сам, поэтому единственно верное поведение — молчать про них.
+    expect(buildTranslationPatch({ kk: "", en: "" }, { ko: "목록", zh: "合集" })).toBeUndefined();
   });
 });
 

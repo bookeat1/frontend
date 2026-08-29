@@ -151,7 +151,9 @@ describe("экран гастропрогулки", () => {
     await renderDetail(client);
 
     fireEvent.click(screen.getByRole("button", { name: "Остановка — место" }));
-    fireEvent.change(screen.getByLabelText(/Заголовок остановки/), {
+    // `selector` обязателен: у поля с переводами доступное имя есть и у ввода,
+    // и у полосы вкладок языка («Язык поля «Заголовок остановки»»).
+    fireEvent.change(screen.getByLabelText(/Заголовок остановки/, { selector: "input" }), {
       target: { value: "Парк Первого Президента" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
@@ -172,7 +174,9 @@ describe("экран гастропрогулки", () => {
     await renderDetail(client);
 
     fireEvent.click(screen.getByRole("button", { name: "Остановка — заведение" }));
-    fireEvent.change(screen.getByLabelText(/Заголовок остановки/), {
+    // `selector` обязателен: у поля с переводами доступное имя есть и у ввода,
+    // и у полосы вкладок языка («Язык поля «Заголовок остановки»»).
+    fireEvent.change(screen.getByLabelText(/Заголовок остановки/, { selector: "input" }), {
       target: { value: "Ужин" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));

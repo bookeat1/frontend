@@ -3,20 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  GuideCategory,
-  GuideCollection,
-  GuideCollectionDetail,
-  GuideCollectionInput,
-  GuideCollectionVenue,
-  VenueSearchResult,
+import {
+  buildTranslationPatch,
+  translationDraftFrom,
+  type GuideCategory,
+  type GuideCollection,
+  type GuideCollectionDetail,
+  type GuideCollectionInput,
+  type GuideCollectionVenue,
+  type I18nPatch,
+  type VenueSearchResult,
 } from "@bookeat/api/admin";
 
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { Button } from "../ui/Button";
-import { CheckboxRow, Field, TextArea } from "../ui/FormControls";
+import { CheckboxRow } from "../ui/FormControls";
 import { Modal } from "../ui/Modal";
+import { TranslatedField } from "../ui/TranslatedField";
 import { ErrorState, LoadingState } from "../StateViews";
 import { GuideCollectionFormModal } from "./GuideCollectionFormModal";
 import { GUIDE_KIND_ROUTE } from "./GuideCollectionsView";
@@ -41,7 +45,12 @@ export interface GuideDetailClient {
   setGuideCollectionCategories(id: string, categoryIds: string[]): Promise<void>;
   attachGuideVenue(id: string, restaurantId: string, note?: string): Promise<void>;
   detachGuideVenue(id: string, restaurantId: string): Promise<void>;
-  setGuideVenueNote(id: string, restaurantId: string, note: string): Promise<void>;
+  setGuideVenueNote(
+    id: string,
+    restaurantId: string,
+    note: string,
+    noteI18n?: I18nPatch,
+  ): Promise<void>;
   reorderGuideVenues(id: string, restaurantIds: string[]): Promise<void>;
   searchVenues(query: string, perPage?: number): Promise<{ items: VenueSearchResult[] }>;
 }
@@ -137,8 +146,15 @@ export function GuideCollectionDetailView({
   });
 
   const noteMutation = useMutation({
-    mutationFn: ({ restaurantId, note }: { restaurantId: string; note: string }) =>
-      client.setGuideVenueNote(collectionId, restaurantId, note),
+    mutationFn: ({
+      restaurantId,
+      note,
+      noteI18n,
+    }: {
+      restaurantId: string;
+      note: string;
+      noteI18n?: I18nPatch;
+    }) => client.setGuideVenueNote(collectionId, restaurantId, note, noteI18n),
     onSuccess: () => {
       setActionError(null);
       setNotingVenue(null);
@@ -362,8 +378,8 @@ export function GuideCollectionDetailView({
           venue={notingVenue}
           saving={noteMutation.isPending}
           onClose={() => setNotingVenue(null)}
-          onSave={(note) =>
-            noteMutation.mutate({ restaurantId: notingVenue.restaurant_id, note })
+          onSave={(note, noteI18n) =>
+            noteMutation.mutate({ restaurantId: notingVenue.restaurant_id, note, noteI18n })
           }
         />
       ) : null}
@@ -379,10 +395,11 @@ function VenueNoteModal({
 }: {
   venue: GuideCollectionVenue;
   saving: boolean;
-  onSave: (note: string) => void;
+  onSave: (note: string, noteI18n?: I18nPatch) => void;
   onClose: () => void;
 }) {
   const [note, setNote] = useState(venue.note);
+  const [noteI18n, setNoteI18n] = useState(() => translationDraftFrom(venue.note_i18n));
   return (
     <Modal title={venue.name} onClose={onClose}>
       <form
@@ -390,19 +407,23 @@ function VenueNoteModal({
         onSubmit={(e) => {
           e.preventDefault();
           if (saving) return;
-          onSave(note.trim());
+          // Патч переводов: только изменённые языки, `ru` не уходит никогда.
+          onSave(note.trim(), buildTranslationPatch(noteI18n, venue.note_i18n));
         }}
         noValidate
       >
-        <Field label={copy.venueNote} htmlFor="guide-venue-note">
-          <TextArea
-            id="guide-venue-note"
-            value={note}
-            placeholder={copy.venueNotePlaceholder}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={300}
-          />
-        </Field>
+        <TranslatedField
+          id="guide-venue-note"
+          label={copy.venueNote}
+          multiline
+          maxLength={300}
+          placeholder={copy.venueNotePlaceholder}
+          base={note}
+          onBaseChange={setNote}
+          translations={noteI18n}
+          onTranslationsChange={setNoteI18n}
+          stored={venue.note_i18n}
+        />
         <div className="flex justify-end gap-sm">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t.admin.common.cancel}
