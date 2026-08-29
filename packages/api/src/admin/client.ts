@@ -1222,8 +1222,8 @@ export class AdminApiClient {
   getAcquirerAccount(restaurantId: string, provider: string): Promise<AcquirerAccount> {
     return this.request<AcquirerAccount>(
       "GET",
-      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/acquirer-account` +
-        `?provider=${encodeURIComponent(provider)}`,
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/acquirer-account`,
+      { params: { provider } },
     );
   }
 
