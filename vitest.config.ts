@@ -79,6 +79,11 @@ export default defineConfig({
       // apps/admin/tsconfig.json ("@/*" -> "./src/*"). Without it every admin
       // component is unimportable from a test.
       { find: /^@\//, replacement: `${here("./apps/admin/src")}/` },
+      // Псевдоним ДЕСКТОПНОГО веба. Он намеренно другой (`@web/`, не `@/`):
+      // два приложения в одном прогоне тестов не могут делить один префикс —
+      // `@/components/ui/Button` разрешался бы в кабинет независимо от того,
+      // кто его импортировал, и тест веба молча проверял бы чужую кнопку.
+      { find: /^@web\//, replacement: `${here("./apps/web/src")}/` },
     ],
   },
   test: {
