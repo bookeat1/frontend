@@ -3,8 +3,11 @@
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { CityProvider } from "@web/lib/city";
+import { LocaleProvider } from "@web/lib/locale";
+
 /**
- * Единственный провайдер веба на этом этапе — кэш запросов.
+ * Провайдеры сайта: кэш запросов, язык интерфейса и выбранный город.
  *
  * Он стоит здесь заранее и намеренно: данные веб берёт через `@bookeat/api`,
  * тем же клиентом, что мобилка и кабинет, и своего слоя запросов у него не
@@ -29,5 +32,13 @@ export function Providers({ children }: { children: ReactNode }) {
       }),
   );
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      {/* Язык ВЫШЕ города: город приходит запросом, а у запроса заголовок
+          `Accept-Language` берётся из выбранного языка. */}
+      <LocaleProvider>
+        <CityProvider>{children}</CityProvider>
+      </LocaleProvider>
+    </QueryClientProvider>
+  );
 }

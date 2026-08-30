@@ -2,7 +2,7 @@
 
 import { Container } from "@web/components/layout/Container";
 import { cx } from "@web/lib/cx";
-import { t } from "@web/lib/i18n";
+import { useT, type WebLocale } from "@web/lib/locale";
 
 /**
  * Подвал сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, «Web / Footer» (узел 3256:77):
@@ -18,13 +18,13 @@ import { t } from "@web/lib/i18n";
  * доступные было бы обещанием, которого веб пока не держит.
  */
 export interface SiteFooterProps {
-  /** Активный язык. Переключение появится вместе с экранами. */
-  locale?: "ru" | "kk" | "en";
-  onLocaleChange?: (locale: "ru" | "kk" | "en") => void;
+  /** Активный язык. Меняется здесь же, в нижней строке подвала. */
+  locale?: WebLocale;
+  onLocaleChange?: (locale: WebLocale) => void;
   className?: string;
 }
 
-const LOCALES: ReadonlyArray<{ code: "ru" | "kk" | "en"; label: string }> = [
+const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
   // Собственное имя языка не переводится: «Қазақша» читается одинаково в
   // любой локали. Поэтому подписи стоят здесь, а не в словаре.
   { code: "kk", label: "Қазақша" },
@@ -33,6 +33,7 @@ const LOCALES: ReadonlyArray<{ code: "ru" | "kk" | "en"; label: string }> = [
 ];
 
 export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFooterProps) {
+  const t = useT();
   const columns = [t.web.footer.guests, t.web.footer.restaurants, t.web.footer.company, t.web.footer.help];
 
   return (

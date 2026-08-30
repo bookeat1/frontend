@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, type ReactNode } from "react";
 
 import { cx } from "@web/lib/cx";
-import { t } from "@web/lib/i18n";
+import { useT } from "@web/lib/locale";
 
 /**
  * Модальное окно. Figma 3z0f6dgev4HMwBAHPjTjPo, узел 3272:6 (вход и
@@ -37,6 +37,7 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({ title, description, onClose, children, className }: ModalProps) {
+  const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const pressedOnScrim = useRef(false);
   const id = useId();

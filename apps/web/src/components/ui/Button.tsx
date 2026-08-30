@@ -3,7 +3,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cx } from "@web/lib/cx";
-import { t } from "@web/lib/i18n";
+import { useT } from "@web/lib/locale";
 
 /**
  * Кнопка десктопного веба. Единственная — второй, «чуть другой», быть не
@@ -84,6 +84,7 @@ export function Button({
 /** Кружок-крутилка. `aria-hidden`, потому что состояние уже озвучено
  * атрибутом `aria-busy` на самой кнопке. */
 function Spinner() {
+  const t = useT();
   return (
     <span
       aria-hidden="true"

@@ -20,10 +20,21 @@ describe("VenueCard", () => {
     expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 
-  it("без свободного времени говорит об этом словами, а не пустотой", () => {
-    render(<VenueCard name="Flour Demi" meta="Европейская" />);
+  it("спросили и не нашли — говорит об этом словами, а не пустотой", () => {
+    render(<VenueCard name="Flour Demi" meta="Европейская" slots={[]} />);
 
     expect(screen.getByText("Свободного времени нет")).toBeTruthy();
+    expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  it("не спрашивали — не утверждает ничего: блока времени просто нет", () => {
+    // Разница принципиальная: `[]` это ответ сервера «свободного времени
+    // нет», а отсутствие пропа — «мы не спрашивали». Раньше оба случая
+    // выглядели одинаково, и карточка выдачи заявляла про каждое заведение
+    // то, чего никто не проверял.
+    render(<VenueCard name="Flour Demi" meta="Европейская" />);
+
+    expect(screen.queryByText("Свободного времени нет")).toBeNull();
     expect(screen.queryByRole("list")).toBeNull();
   });
 

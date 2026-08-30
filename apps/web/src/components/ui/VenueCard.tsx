@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 
 import { Card } from "@web/components/ui/Card";
+import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { cx } from "@web/lib/cx";
-import { t } from "@web/lib/i18n";
+import { useT } from "@web/lib/locale";
 
 /**
  * Карточка заведения — единственная карточка, полностью размеченная в
@@ -18,6 +19,13 @@ import { t } from "@web/lib/i18n";
  *
  * Данные приходят пропсами. Своего запроса у карточки нет — сеть живёт в
  * `@bookeat/api`, и экран передаёт сюда уже разобранный ответ.
+ *
+ * `slots` РАЗЛИЧАЕТ два случая, которые легко перепутать:
+ *   • `undefined` — свободное время не спрашивали (сайт не делает запрос
+ *     доступности на каждую карточку выдачи), и блок не рисуется вовсе;
+ *   • `[]` — спросили, и свободного времени нет; тогда это сказано словами.
+ * Раньше оба случая выглядели как «Свободного времени нет», то есть карточка
+ * утверждала про заведение то, чего никто не проверял.
  */
 export interface VenueCardProps {
   name: string;
@@ -26,7 +34,9 @@ export interface VenueCardProps {
   imageUrl?: string | null;
   /** Плашка поверх фотографии, например «Столики сегодня». */
   tag?: string;
-  /** Подсказки свободного времени. Пусто — блок не рисуется вовсе. */
+  /** Куда ведёт карточка. Есть — вся карточка становится ссылкой. */
+  href?: string;
+  /** Подсказки свободного времени. См. комментарий выше о `undefined` и `[]`. */
   slots?: readonly string[];
   favorite?: boolean;
   onToggleFavorite?: () => void;
@@ -39,36 +49,25 @@ export function VenueCard({
   meta,
   imageUrl,
   tag,
-  slots = [],
+  href,
+  slots,
   favorite = false,
   onToggleFavorite,
   onSelectSlot,
   className,
 }: VenueCardProps) {
-  const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
-  const src = imageUrl?.trim() ? imageUrl.trim() : null;
-  const showImage = src !== null && src !== brokenUrl;
+  const t = useT();
 
   return (
-    <Card className={cx("flex w-full flex-col", className)}>
+    <Card className={cx("relative flex w-full flex-col", className)}>
       <div className="relative h-card-image w-full bg-muted">
-        {showImage ? (
-          // ПОЧЕМУ обычный <img>, а не next/image: адреса картинок приходят из
-          // БД (боевой бакет R2 `pub-…r2.dev`, старые ссылки на Supabase
-          // Storage, вставленные вручную URL). Домены заранее не известны, а
-          // next/image требует перечислить их в `images.remotePatterns` — любая
-          // новая ссылка ломалась бы молча. Ровно то же решение и по той же
-          // причине принято в apps/admin/src/components/ui/ImageThumb.tsx.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt={name}
-            loading="lazy"
-            decoding="async"
-            onError={() => setBrokenUrl(src)}
-            className="h-full w-full object-cover"
-          />
-        ) : null}
+        <RemoteImage
+          src={imageUrl}
+          alt={name}
+          // Ширина карточки из макета — 282 при контейнере 1200 в четыре
+          // колонки; ниже 1024 колонок меньше, поэтому доля вьюпорта больше.
+          sizes="(min-width: 1280px) 282px, (min-width: 1024px) 25vw, 50vw"
+        />
 
         {tag ? (
           <span className="absolute left-4 top-4 inline-flex items-center rounded-sm bg-photo-badge px-2.5 py-1.5 text-[12px] font-semibold leading-4 text-ink-on-brand">
@@ -82,7 +81,7 @@ export function VenueCard({
             onClick={onToggleFavorite}
             aria-pressed={favorite}
             aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-photo-control text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-photo-control text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <HeartIcon filled={favorite} />
           </button>
@@ -94,12 +93,29 @@ export function VenueCard({
           {/* Название заведения переносится, а не режется многоточием:
               «Ресторан-кофейня Дастархан» на 282 px в одну строку не влезает,
               и обрезанное имя гость не узнает. */}
-          <h3 className="break-words text-[18px] font-semibold leading-6 text-ink">{name}</h3>
+          <h3 className="break-words text-[18px] font-semibold leading-6 text-ink">
+            {href ? (
+              // Ссылкой становится ЗАГОЛОВОК, а не вся карточка: внутри
+              // карточки живут кнопки (избранное, слоты), а кнопка внутри
+              // ссылки — невалидная разметка, которую браузеры и скринридеры
+              // разбирают каждый по-своему. `after:absolute` растягивает
+              // область нажатия ссылки на всю карточку, оставляя кнопки
+              // кликабельными поверх неё.
+              <Link
+                href={href}
+                className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                {name}
+              </Link>
+            ) : (
+              name
+            )}
+          </h3>
           <p className="break-words text-[14px] leading-5 text-ink-secondary">{meta}</p>
         </div>
 
-        {slots.length > 0 ? (
-          <ul aria-label={t.web.ui.slotsLabel} className="flex flex-wrap gap-2">
+        {slots === undefined ? null : slots.length > 0 ? (
+          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex flex-wrap gap-2">
             {slots.map((time, index) => (
               <li key={time}>
                 <button
