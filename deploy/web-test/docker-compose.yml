@@ -1,0 +1,83 @@
+# Desktop site preview (apps/web) on the TEST server — one Node container that
+# runs the Next.js standalone server behind the EXISTING Caddy.
+#
+# Deliberately a separate compose project ("webpreview"), not a service added to
+# /opt/bookeat/deploy/docker-compose.yml: `docker compose up` on this file can
+# never restart, recreate or otherwise disturb the backend stack (app, worker,
+# postgres, caddy). It only joins their network so Caddy can resolve it by name.
+#
+# Usage on the server:
+#   docker compose -f /opt/bookeat/web-preview/docker-compose.yml up -d
+#   docker compose -f /opt/bookeat/web-preview/docker-compose.yml logs -f
+#   docker compose -f /opt/bookeat/web-preview/docker-compose.yml down
+
+name: webpreview
+
+services:
+  web-preview:
+    # Pinned to a patch version on purpose: "node:22-alpine" would silently
+    # change the runtime under a release that was verified against another one.
+    image: node:22.21.1-alpine
+    container_name: webpreview-web-preview-1
+    restart: unless-stopped
+
+    # /srv/web/current is a RELATIVE symlink to releases/<name>. Docker resolves
+    # working_dir inside the container at start, so the symlink is followed
+    # there — the host path never leaks into the container.
+    working_dir: /srv/web/current/apps/web
+    command: ["node", "server.js"]
+
+    environment:
+      NODE_ENV: production
+      # The port is internal to the compose network; nothing is published to the
+      # host, so the site is reachable only through Caddy.
+      PORT: "3100"
+      HOSTNAME: "0.0.0.0"
+
+    volumes:
+      # Read-only: releases are written over SSH by the deploy pipeline as the
+      # `ubuntu` user on the host, never by this container.
+      - /opt/bookeat/web-preview:/srv/web:ro
+
+    # Next writes its ISR/fetch cache under .next/cache. The release tree is
+    # read-only, so give it throwaway memory instead of a writable release.
+    tmpfs:
+      - /srv/web/current/apps/web/.next/cache:size=32m
+      - /tmp:size=16m
+
+    healthcheck:
+      # basePath is /web-preview, so "/" is a 404 by design — check the real
+      # entry point. busybox wget ships in the node:alpine image.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3100/web-preview"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+    # The test box has ~4 GB total and already runs Postgres, two Go services
+    # and Caddy. A Next server for three read-only pages fits well under this.
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+    # Least privilege: the process only reads its own release and speaks HTTP.
+    read_only: false
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      - backend
+
+networks:
+  backend:
+    # Created by /opt/bookeat/deploy/docker-compose.yml. `external: true` means
+    # this file will never create or delete it.
+    name: deploy_default
+    external: true
