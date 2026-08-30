@@ -41,6 +41,12 @@ for required in apps/web/server.js apps/web/.next/BUILD_ID node_modules/next/pac
 done
 [ -d "$incoming/apps/web/.next/static" ] || { echo "upload is incomplete: .next/static missing" >&2; exit 2; }
 
+# The release tree is bind-mounted READ-ONLY, and Docker cannot create a
+# mountpoint inside a read-only mount. The tmpfs that gives Next a writable
+# .next/cache therefore needs the directory to exist in the release already.
+# Created here rather than in CI so any artifact, however assembled, boots.
+mkdir -p "$incoming/apps/web/.next/cache"
+
 previous="$(readlink "$LINK" 2>/dev/null | sed 's|^releases/||' || true)"
 
 rm -rf "$target"
