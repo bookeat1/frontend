@@ -11,7 +11,8 @@ import { useT } from "@web/lib/locale";
  * Шапка сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, компонент «Web / Header»
  * (узел 3367:10653): высота 80, паддинг 18/120, белый фон, нижняя граница
  * #DADADA, слева логотип и меню с просветом 28, справа селектор города,
- * ссылка «Для бизнеса», вторичная кнопка «Войти» и главная «Регистрация».
+ * ссылка «Для бизнеса» (сейчас скрыта, см. SHOW_FOR_BUSINESS), вторичная
+ * кнопка «Войти» и главная «Регистрация».
  *
  * Активный пункт меню в макете — фирменный цвет и подчёркивание 4 px
  * (узел 3280:4350), остальные — #7D7D7D Medium.
@@ -49,6 +50,14 @@ export interface SiteHeaderProps {
  * будущие адреса. Убирать пункты из шапки нельзя (макет рисует пять), но и
  * обещать работающую страницу мы не можем: до её появления ссылка вернёт 404
  * Next, а не молчаливое «ничего не произошло». */
+/**
+ * ВРЕМЕННО: пункт «Для бизнеса» убран из шапки по решению владельца
+ * (30.08.2026) — страницы `/business` ещё нет, и ссылка вела в 404 Next.
+ * Возврат — ОДНА строка: поставить здесь `true`. Ни разметку, ни словарь
+ * (`t.web.header.forBusiness` во всех трёх языках) для этого трогать не надо.
+ */
+export const SHOW_FOR_BUSINESS: boolean = false;
+
 export const HEADER_NAV: readonly NavItem[] = [
   { key: "home", href: "/" },
   { key: "venues", href: "/venues" },
@@ -143,12 +152,14 @@ export function SiteHeader({
               {city}
             </button>
           ) : null}
-          <Link
-            href="/business"
-            className="px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            {t.web.header.forBusiness}
-          </Link>
+          {SHOW_FOR_BUSINESS ? (
+            <Link
+              href="/business"
+              className="px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {t.web.header.forBusiness}
+            </Link>
+          ) : null}
           <Button size="m" variant="secondary" onClick={onSignIn}>
             {t.web.header.signIn}
           </Button>

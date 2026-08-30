@@ -3189,6 +3189,9 @@ export const ru = {
         `${count} ${count % 10 === 1 && count % 100 !== 11 ? "гость" : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? "гостя" : "гостей"}`,
       priceRange: (min: string, max: string) => `${min}–${max} ₸`,
       discount: (percent: number) => `−${percent}%`,
+      /** «Сегодня, 25 авг» в поле даты панели поиска (узел 3253:43). Запятую
+       * ставит словарь: в казахском и английском порядок слов свой. */
+      dateToday: (dayMonth: string) => `Сегодня, ${dayMonth}`,
       /** «Кухня · ₸₸ · адрес» — точки-разделители ставит словарь, а не вёрстка. */
       metaSeparator: " · ",
     },

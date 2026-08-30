@@ -2282,6 +2282,7 @@ export const en: LocaleOverride<Dictionary> = {
       guests: (count: number) => `${count} ${count === 1 ? "guest" : "guests"}`,
       priceRange: (min: string, max: string) => `${min}–${max} ₸`,
       discount: (percent: number) => `−${percent}%`,
+      dateToday: (dayMonth: string) => `Today, ${dayMonth}`,
       metaSeparator: " · ",
     },
     home: {

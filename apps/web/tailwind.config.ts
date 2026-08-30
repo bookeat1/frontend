@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 import {
   webColors,
   webControls,
+  webCuisineTile,
   webLayout,
   webRadius,
   webShadow,
@@ -110,6 +111,9 @@ const config: Config = {
         "input-x": px(webControls.input.paddingX),
         "badge-x": px(webControls.badge.paddingX),
         "card-body": px(webVenueCard.bodyPadding),
+        "cuisine-gap": px(webCuisineTile.gap),
+        "cuisine-row-x": px(webCuisineTile.rowGapX),
+        "cuisine-row-y": px(webCuisineTile.rowGapY),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -120,6 +124,13 @@ const config: Config = {
         badge: px(webControls.badge.height),
         header: px(webLayout.headerHeight),
         "card-image": px(webVenueCard.imageHeight),
+        cuisine: px(webCuisineTile.size),
+      },
+      width: {
+        cuisine: px(webCuisineTile.size),
+      },
+      minWidth: {
+        cuisine: px(webCuisineTile.size),
       },
       maxWidth: {
         container: px(webLayout.containerWidth),

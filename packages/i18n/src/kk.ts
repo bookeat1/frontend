@@ -2289,6 +2289,7 @@ export const kk: LocaleOverride<Dictionary> = {
       guests: (count: number) => `${count} қонақ`,
       priceRange: (min: string, max: string) => `${min}–${max} ₸`,
       discount: (percent: number) => `−${percent}%`,
+      dateToday: (dayMonth: string) => `Бүгін, ${dayMonth}`,
       metaSeparator: " · ",
     },
     home: {

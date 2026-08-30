@@ -4,11 +4,11 @@ import Link from "next/link";
 
 import { Section, SectionHeader } from "@web/components/home/SectionHeader";
 import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
+import { CuisineTile } from "@web/components/home/CuisineTile";
 import { SearchPanel } from "@web/components/home/SearchPanel";
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
-import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { VenueCard } from "@web/components/ui/VenueCard";
 import { useCity } from "@web/lib/city";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
@@ -87,31 +87,21 @@ export function HomeScreen() {
             query={cuisines}
             emptyText={t.web.home.cuisines.empty}
             skeleton={
-              <ul className="flex flex-wrap gap-6">
+              <ul className={CUISINE_ROW}>
                 {PLACEHOLDERS.slice(0, 8).map((key) => (
-                  <li key={key} className="flex w-[104px] flex-col items-center gap-3">
-                    <Skeleton className="h-[104px] w-[104px] rounded-full" />
-                    <Skeleton className="h-4 w-20" />
+                  <li key={key} className="flex min-w-cuisine flex-col items-center gap-cuisine-gap">
+                    <Skeleton className="h-cuisine w-cuisine rounded-full" />
+                    <Skeleton className="h-[18px] w-20" />
                   </li>
                 ))}
               </ul>
             }
           >
             {(items) => (
-              <ul className="flex flex-wrap gap-6">
+              <ul className={CUISINE_ROW}>
                 {items.map((cuisine) => (
                   <li key={cuisine.id}>
-                    <Link
-                      href={`/venues?cuisine=${encodeURIComponent(cuisine.id)}`}
-                      className="flex w-[104px] flex-col items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                    >
-                      <span className="relative h-[104px] w-[104px] overflow-hidden rounded-full bg-muted">
-                        <RemoteImage src={cuisine.imageUrl} alt="" sizes="104px" />
-                      </span>
-                      <span className="text-center text-[16px] font-medium leading-[18px] text-ink">
-                        {cuisine.name}
-                      </span>
-                    </Link>
+                    <CuisineTile cuisine={cuisine} />
                   </li>
                 ))}
               </ul>
@@ -275,6 +265,15 @@ export function HomeScreen() {
 
 /** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
 const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h"];
+
+/**
+ * Ряд кухонь (Figma 3254:6). В макете десять ячеек разложены `space-between`
+ * по ширине 1200 — из координат выходит просвет 14,89, он и лежит в токене
+ * `webCuisineTile.rowGapX` округлённым до 15. Здесь именно ПРОСВЕТ, а не
+ * `justify-between`: справочник отдаёт четырнадцать кухонь, ряд переносится,
+ * и `space-between` растянул бы последнюю строку на всю ширину.
+ */
+const CUISINE_ROW = "flex flex-wrap gap-x-cuisine-row-x gap-y-cuisine-row-y";
 
 function VenueGridSkeleton() {
   return (

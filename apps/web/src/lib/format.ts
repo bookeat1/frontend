@@ -82,6 +82,44 @@ export function eventDateParts(startsAt: string, locale: WebLocale) {
   };
 }
 
+/**
+ * Подпись выбранной даты в панели поиска — «Сегодня, 25 авг» / «6 сент»
+ * (макет 3253:41, узел «Field / Дата»).
+ *
+ * Нативное `<input type="date">` рисует значение в формате ОС и браузера, а
+ * не страницы: на русской странице в англоязычном Chrome это `mm/dd/yyyy`.
+ * Изменить это нельзя ни атрибутом `lang`, ни `Intl` — поэтому значение
+ * рисуем сами поверх поля, а само поле остаётся нативным ради календаря и
+ * клавиатуры.
+ *
+ * @param today «YYYY-MM-DD» сегодняшнего дня; передавать его надо ТОЛЬКО
+ * после гидратации (см. SearchPanel): на сервере часовой пояс другой, и
+ * «Сегодня», посчитанное в разметке, разошлось бы с браузерным.
+ */
+export function searchDateLabel(
+  iso: string,
+  locale: WebLocale,
+  t: Dictionary,
+  today?: string | null,
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!match) return null;
+  const [, year, month, day] = match;
+  // UTC-полночь и `timeZone: "UTC"` в форматтере: иначе дата, разобранная в
+  // поясе браузера, при печати в другом поясе съезжает на сутки.
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (Number.isNaN(date.getTime())) return null;
+  const dayMonth = new Intl.DateTimeFormat(INTL_TAG[locale], {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
+    .format(date)
+    // «25 авг.» → «25 авг»: точка в макете не нарисована, а Intl её ставит.
+    .replace(/\.$/, "");
+  return iso.trim() === today ? t.web.format.dateToday(dayMonth) : dayMonth;
+}
+
 /** «YYYY-MM-DD» сегодняшнего дня — значение по умолчанию для поля даты. */
 export function todayIso(now: Date = new Date()): string {
   const year = now.getFullYear();

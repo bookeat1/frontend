@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { Button } from "@web/components/ui/Button";
 import { cx } from "@web/lib/cx";
 import { serializeCatalogParams, type CatalogState } from "@web/lib/catalog-params";
-import { useT } from "@web/lib/locale";
+import { searchDateLabel, todayIso } from "@web/lib/format";
+import { useLocale } from "@web/lib/locale";
 
 /**
  * Панель поиска. Один компонент на два места макета:
@@ -29,12 +30,20 @@ export function SearchPanel({
   state: CatalogState;
   variant?: "hero" | "bar";
 }) {
-  const t = useT();
+  const { locale, t } = useLocale();
   const router = useRouter();
   const [text, setText] = useState(state.text);
   const [date, setDate] = useState(state.date ?? "");
   const [time, setTime] = useState(state.time ?? "");
   const [guests, setGuests] = useState(state.guests ?? 2);
+  // «Сегодня» знает только браузер: на сервере другой часовой пояс, и дата,
+  // посчитанная в разметке, у гостя вечером разошлась бы с его собственной.
+  // Поэтому сегодняшний день появляется ПОСЛЕ гидратации — расхождения
+  // первой отрисовки нет по построению.
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => setToday(todayIso()), []);
+
+  const dateLabel = date ? searchDateLabel(date, locale, t, today) : null;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,6 +64,20 @@ export function SearchPanel({
   const label = "text-[12px] font-medium leading-4 tracking-[0.1px] text-ink-tertiary";
   const input =
     "w-full bg-transparent text-[16px] font-semibold leading-6 text-ink outline-none placeholder:font-normal placeholder:text-ink-tertiary";
+  // Нативные поля даты и времени печатают значение в формате БРАУЗЕРА:
+  // «mm/dd/yyyy» и «--:-- --» вместо «Сегодня, 25 авг» и «19:30» из макета.
+  // Ни `lang`, ни `Intl` на это не влияют. Поэтому текст самого поля делаем
+  // прозрачным и кладём поверх свою подпись, а поле остаётся нативным —
+  // календарь, клавиатура и системный список часов достаются бесплатно.
+  // Пока поле в фокусе, показываем родное содержимое: иначе гость правил бы
+  // невидимые для себя цифры.
+  const nativeValue = "peer col-start-1 row-start-1 text-transparent focus:text-ink";
+  // `pr-7` — место под родную кнопку календаря/часов, которая живёт у правого
+  // края поля: без него «Любое время» заезжает прямо на значок.
+  const shownValue =
+    "pointer-events-none col-start-1 row-start-1 self-center truncate pr-7 text-[16px] leading-6 peer-focus:invisible";
+  const filled = "font-semibold text-ink";
+  const placeholder = "font-normal text-ink-tertiary";
 
   return (
     <form
@@ -80,18 +103,22 @@ export function SearchPanel({
 
       <span aria-hidden="true" className="hidden h-10 w-px bg-line-strong lg:block" />
 
-      <div className={cx(field, "min-w-[170px] flex-1")}>
+      <div className={cx(field, "min-w-[190px] flex-1")}>
         <label className={label} htmlFor="catalog-search-date">
           {t.web.home.hero.dateLabel}
         </label>
-        <input
-          id="catalog-search-date"
-          type="date"
-          value={date}
-          onChange={(event) => setDate(event.target.value)}
-          aria-label={`${t.web.home.hero.dateLabel} — ${t.web.home.hero.anyDate}`}
-          className={input}
-        />
+        <div className="grid">
+          <input
+            id="catalog-search-date"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            className={cx(input, nativeValue)}
+          />
+          <span aria-hidden="true" className={cx(shownValue, date ? filled : placeholder)}>
+            {dateLabel ?? t.web.home.hero.anyDate}
+          </span>
+        </div>
       </div>
 
       <span aria-hidden="true" className="hidden h-10 w-px bg-line-strong lg:block" />
@@ -100,14 +127,18 @@ export function SearchPanel({
         <label className={label} htmlFor="catalog-search-time">
           {t.web.home.hero.timeLabel}
         </label>
-        <input
-          id="catalog-search-time"
-          type="time"
-          value={time}
-          onChange={(event) => setTime(event.target.value)}
-          aria-label={`${t.web.home.hero.timeLabel} — ${t.web.home.hero.anyTime}`}
-          className={input}
-        />
+        <div className="grid">
+          <input
+            id="catalog-search-time"
+            type="time"
+            value={time}
+            onChange={(event) => setTime(event.target.value)}
+            className={cx(input, nativeValue)}
+          />
+          <span aria-hidden="true" className={cx(shownValue, time ? filled : placeholder)}>
+            {time || t.web.home.hero.anyTime}
+          </span>
+        </div>
       </div>
 
       <span aria-hidden="true" className="hidden h-10 w-px bg-line-strong lg:block" />
