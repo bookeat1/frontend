@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cx } from "@web/lib/cx";
@@ -28,6 +29,16 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
   /** Растянуть на всю ширину — так кнопка стоит в модалке (узел 3272:19). */
   block?: boolean;
+  /**
+   * Кнопка, которая на самом деле ПЕРЕХОД. Так выглядят «Войти» и
+   * «Регистрация» в шапке: по макету это кнопки, но ведут они на страницу,
+   * и `<button onClick={router.push}>` отнял бы у гостя всё, что даёт ссылка
+   * — открыть в новой вкладке, скопировать адрес, увидеть его в строке
+   * состояния. Второй компонент «кнопка-ссылка» заводить нельзя: он неминуемо
+   * разъедется с этой кнопкой в первую же правку макета.
+   */
+  asLink?: boolean;
+  href?: string;
   children: ReactNode;
 }
 
@@ -61,19 +72,31 @@ export function Button({
   size = "l",
   loading = false,
   block = false,
+  asLink = false,
+  href,
   disabled,
   children,
   className,
   type = "button",
   ...rest
 }: ButtonProps) {
+  const look = cx(base, sizes[size], variants[variant], disabledLook, block && "w-full", className);
+
+  if (asLink && href) {
+    return (
+      <Link href={href} className={look}>
+        {children}
+      </Link>
+    );
+  }
+
   return (
     <button
       {...rest}
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cx(base, sizes[size], variants[variant], disabledLook, block && "w-full", className)}
+      className={look}
     >
       {loading ? <Spinner /> : null}
       {children}

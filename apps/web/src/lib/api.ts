@@ -1,4 +1,11 @@
-import { HttpRestaurantRepository, type RestaurantRepository } from "@bookeat/api/client";
+import {
+  HttpAuthRepository,
+  HttpRestaurantRepository,
+  type AuthRepository,
+  type RestaurantRepository,
+} from "@bookeat/api/client";
+
+import { browserStorage, readAccessToken } from "@web/lib/session-store";
 
 /**
  * Единственная точка, где веб получает доступ к данным.
@@ -31,8 +38,45 @@ export function setApiLanguage(language: string): void {
   currentLanguage = language;
 }
 
+/**
+ * Обработчик 401 на защищённом запросе. Ставится ОДИН раз при создании
+ * провайдера сессии (`lib/auth.tsx`): репозитории собираются на уровне модуля,
+ * а обновление токена умеет только он, потому что только он знает про
+ * состояние React.
+ *
+ * Модульная ячейка, а не параметр конструктора, по той же причине, что и язык:
+ * репозиторий создаётся один раз, а обработчик появляется позже.
+ */
+let onUnauthorized: ((staleToken: string) => Promise<string | undefined>) | null = null;
+
+export function setUnauthorizedHandler(
+  handler: ((staleToken: string) => Promise<string | undefined>) | null,
+): void {
+  onUnauthorized = handler;
+}
+
+/** Токен для защищённых запросов. Читается из хранилища на КАЖДОМ запросе:
+ * гость может войти или выйти в соседней вкладке. */
+function currentToken(): string | undefined {
+  return readAccessToken(browserStorage()) ?? undefined;
+}
+
 /** Репозиторий один на вкладку: у него нет состояния, кроме базового адреса. */
 export const repository: RestaurantRepository = new HttpRestaurantRepository({
   baseUrl: API_URL,
   getLanguage: () => currentLanguage,
+  getToken: currentToken,
+  onUnauthorized: (stale) => (onUnauthorized ? onUnauthorized(stale) : Promise.resolve(undefined)),
+});
+
+/**
+ * Вход и профиль. Отдельный репозиторий, потому что в `@bookeat/api` это
+ * отдельный интерфейс: у каталога и у авторизации разные ручки и разные
+ * дедлайны (запрос кода ждёт 20 секунд — сервер шлёт код синхронно).
+ */
+export const authRepository: AuthRepository = new HttpAuthRepository({
+  baseUrl: API_URL,
+  getLanguage: () => currentLanguage,
+  getToken: currentToken,
+  onUnauthorized: (stale) => (onUnauthorized ? onUnauthorized(stale) : Promise.resolve(undefined)),
 });

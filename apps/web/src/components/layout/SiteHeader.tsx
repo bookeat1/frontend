@@ -17,6 +17,10 @@ import { useT } from "@web/lib/locale";
  * Активный пункт меню в макете — фирменный цвет и подчёркивание 4 px
  * (узел 3280:4350), остальные — #7D7D7D Medium.
  *
+ * «Войти» и «Регистрация» ведут на `/login` (Figma 3272:2). Вошедшему гостю
+ * на их месте показывается имя и «Выйти»: этого состояния в макете нет вовсе
+ * — там нарисован только гость без сессии.
+ *
  * Подписи пунктов берутся из словаря ПО КЛЮЧУ, а не передаются строкой:
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
  * и заранее посчитанная подпись осталась бы на прежнем языке.
@@ -38,8 +42,10 @@ export interface SiteHeaderProps {
   cities?: readonly string[];
   onCityChange?: (city: string) => void;
   onCityClick?: () => void;
-  onSignIn?: () => void;
-  onSignUp?: () => void;
+  /** Кто вошёл. `undefined` — сессия ещё читается из хранилища, и до этого
+   * момента шапка не должна мигать кнопкой «Войти» тому, кто уже вошёл. */
+  account?: { name: string } | null;
+  onSignOut?: () => void;
   className?: string;
 }
 
@@ -73,8 +79,8 @@ export function SiteHeader({
   cities,
   onCityChange,
   onCityClick,
-  onSignIn,
-  onSignUp,
+  account,
+  onSignOut,
   className,
 }: SiteHeaderProps) {
   const t = useT();
@@ -160,12 +166,32 @@ export function SiteHeader({
               {t.web.header.forBusiness}
             </Link>
           ) : null}
-          <Button size="m" variant="secondary" onClick={onSignIn}>
-            {t.web.header.signIn}
-          </Button>
-          <Button size="m" variant="primary" onClick={onSignUp}>
-            {t.web.header.signUp}
-          </Button>
+          {account === undefined ? (
+            // Сессия ещё читается из localStorage. Место под кнопки держим,
+            // чтобы шапка не дёрнулась, когда состояние станет известно.
+            <span aria-hidden="true" className="h-btn-m w-[220px]" />
+          ) : account ? (
+            <>
+              <span className="max-w-[180px] truncate text-[14px] font-medium leading-5 text-ink">
+                {account.name}
+              </span>
+              <Button size="m" variant="secondary" onClick={onSignOut}>
+                {t.web.header.signOut}
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Обе кнопки макета ведут на ОДИН экран: у бэкенда нет
+                  отдельной регистрации — `POST /auth/otp/verify` создаёт
+                  учётную запись, если номер новый. */}
+              <Button size="m" variant="secondary" asLink href="/login">
+                {t.web.header.signIn}
+              </Button>
+              <Button size="m" variant="primary" asLink href="/login">
+                {t.web.header.signUp}
+              </Button>
+            </>
+          )}
         </div>
       </Container>
     </header>

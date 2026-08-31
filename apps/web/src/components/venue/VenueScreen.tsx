@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import { WEEKDAY_BY_DAY_OF_WEEK, type Restaurant, type ScheduleDay } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Badge } from "@web/components/ui/Badge";
+import { Button } from "@web/components/ui/Button";
 import { Card } from "@web/components/ui/Card";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { repository } from "@web/lib/api";
@@ -109,7 +111,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
       <Gallery photos={photos} name={venue.name} />
 
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3.5">
             <h1 className="text-h1 tracking-[-0.8px] text-ink">{venue.name}</h1>
             <Badge tone={status.tone === "success" ? "success" : "neutral"}>{status.label}</Badge>
@@ -123,6 +125,11 @@ function VenueBody({ venue }: { venue: Restaurant }) {
             </p>
           ) : null}
         </div>
+        {/* В макете рядом стоят «Сохранить» и «Поделиться». «Сохранить» —
+            избранное, а этого у сайта нет ни в модели заведения
+            (`Restaurant` без `isFavorite`), ни в экранах; кнопка-обманка хуже
+            её отсутствия. «Поделиться» работает по-настоящему. */}
+        <ShareButton name={venue.name} />
       </header>
 
       <div className="flex flex-col gap-8 lg:flex-row">
@@ -139,7 +146,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
             {venue.menuHighlights.length === 0 ? (
               <StateMessage text={t.web.venue.menu.empty} />
             ) : (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {venue.menuHighlights.slice(0, 6).map((dish) => (
                   <li key={dish.id}>
                     <Card className="flex h-full flex-col">
@@ -173,7 +180,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           {venue.promoBanners.length > 0 ? (
             <section className="flex flex-col gap-5">
               <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.promos.title}</h2>
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {venue.promoBanners.map((promo) => (
                   <li
                     key={promo.id}
@@ -194,12 +201,6 @@ function VenueBody({ venue }: { venue: Restaurant }) {
               оставаться перед глазами, как карточка брони в макете. */}
           <div className="flex flex-col gap-4 lg:sticky lg:top-6">
             <Hours venue={venue} />
-            <Card className="flex flex-col gap-2 border border-line p-6 shadow-none">
-              <h2 className="text-[21px] font-bold leading-7 tracking-[-0.2px] text-ink">
-                {t.web.venue.booking.title}
-              </h2>
-              <p className="text-bodyM text-ink-secondary">{t.web.venue.booking.text}</p>
-            </Card>
           </div>
         </aside>
       </div>
@@ -208,9 +209,13 @@ function VenueBody({ venue }: { venue: Restaurant }) {
 }
 
 /**
- * Мозаика фотографий: большая слева (788×460) и четыре по 198×226 справа —
- * ровно раскладка макета. Фотографий может быть меньше четырёх и может не
- * быть вовсе: тогда сетка сжимается, а не оставляет серые дыры.
+ * Мозаика фотографий — Figma 3261:2: большая слева (788×460) и четыре по
+ * 198×226 справа сеткой 2×2. Счётчик «Все фото · 48» в макете лежит ПЛАШКОЙ
+ * поверх последнего снимка, а не строкой под мозаикой (как было раньше).
+ *
+ * Фотографий может быть меньше четырёх и может не быть вовсе: тогда правая
+ * колонка сжимается, а не оставляет серые дыры. Плашка появляется только
+ * когда есть на чём её рисовать.
  */
 function Gallery({
   photos,
@@ -228,34 +233,55 @@ function Gallery({
   const grid = rest.slice(0, 4);
 
   return (
-    <section aria-label={t.web.venue.gallery.label} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2 overflow-hidden rounded-xl md:flex-row">
+    <section aria-label={t.web.venue.gallery.label} className="flex flex-col gap-2 md:flex-row">
+      <div
+        className={cx(
+          "relative h-[300px] overflow-hidden rounded-xl bg-muted md:h-[460px]",
+          grid.length > 0 ? "md:w-2/3" : "md:w-full",
+        )}
+      >
+        <RemoteImage
+          src={main.uri}
+          alt={main.alt || name}
+          sizes="(min-width: 1280px) 788px, 100vw"
+          priority
+        />
+      </div>
+      {grid.length > 0 ? (
+        // Правая колонка ОБЯЗАНА заполняться целиком. В макете снимков ровно
+        // четыре и сетка 2×2, а у настоящего заведения их бывает один, два или
+        // три — и «2×2 всегда» оставляло бы рядом с большим фото серую дыру
+        // в половину колонки (увидено на стенде). Поэтому число колонок и
+        // высота плитки считаются от количества:
+        //   1 — одна плитка во всю высоту большого снимка;
+        //   2 — колонка из двух по 226 (226 + 8 + 226 = 460, ровно в высоту);
+        //   3 — 2×2, где третья растянута на обе колонки;
+        //   4 — сетка макета.
         <div
           className={cx(
-            "relative h-[300px] bg-muted md:h-[460px]",
-            grid.length > 0 ? "md:w-2/3" : "md:w-full",
+            "grid gap-2 md:w-1/3",
+            grid.length >= 3 ? "grid-cols-2" : "grid-cols-1",
           )}
         >
-          <RemoteImage
-            src={main.uri}
-            alt={main.alt || name}
-            sizes="(min-width: 1280px) 788px, 100vw"
-            priority
-          />
+          {grid.map((photo, index) => (
+            <div
+              key={photo.id}
+              className={cx(
+                "relative overflow-hidden rounded-lg bg-muted",
+                grid.length === 1 ? "h-[200px] md:h-[460px]" : "h-[110px] md:h-[226px]",
+                grid.length === 3 && index === 2 ? "col-span-2" : "",
+              )}
+            >
+              <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="198px" />
+              {index === grid.length - 1 ? (
+                <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center rounded-full bg-photo-badge px-3 py-1.5 text-[13px] font-medium leading-[18px] text-ink-on-inverse">
+                  {t.web.venue.gallery.count(photos.length)}
+                </span>
+              ) : null}
+            </div>
+          ))}
         </div>
-        {grid.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2 md:w-1/3">
-            {grid.map((photo) => (
-              <div key={photo.id} className="relative h-[110px] bg-muted md:h-[226px]">
-                <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="198px" />
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <p className="text-[14px] leading-5 text-ink-tertiary">
-        {t.web.venue.gallery.count(photos.length)}
-      </p>
+      ) : null}
     </section>
   );
 }
@@ -293,58 +319,166 @@ function Contacts({ venue }: { venue: Restaurant }) {
       )}
 
       {hasAnything ? (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        // Три плашки со значком слева — раскладка макета 3261:2. Значок несёт
+        // `aria-hidden`: смысл уже сказан подписью строки.
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {venue.address.trim() ? (
-            <li className="flex flex-col gap-0.5 rounded-field bg-subtle px-4 py-4">
-              <span className="text-[12px] leading-4 text-ink-tertiary">
-                {t.web.venue.contacts.address}
-              </span>
-              <span className="break-words text-[14px] font-semibold leading-5 text-ink">
-                {venue.address}
-              </span>
-              {venue.addressNote ? (
-                <span className="break-words text-[12px] leading-4 text-ink-tertiary">
-                  {venue.addressNote}
-                </span>
-              ) : null}
-            </li>
+            <ContactCard icon={<PinIcon />} title={venue.address} note={venue.addressNote} />
           ) : null}
           {venue.phone ? (
-            <li className="flex flex-col gap-0.5 rounded-field bg-subtle px-4 py-4">
-              <span className="text-[12px] leading-4 text-ink-tertiary">
-                {t.web.venue.contacts.phone}
-              </span>
-              <a
-                href={`tel:${venue.phone.replace(/[^\d+]/g, "")}`}
-                className="break-words text-[14px] font-semibold leading-5 text-ink underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                {venue.phone}
-              </a>
-            </li>
+            <ContactCard
+              icon={<PhoneIcon />}
+              title={venue.phone}
+              href={`tel:${venue.phone.replace(/[^\d+]/g, "")}`}
+              note={t.web.venue.contacts.phone}
+            />
           ) : null}
           {links.length > 0 ? (
-            <li className="flex flex-col gap-0.5 rounded-field bg-subtle px-4 py-4">
-              <span className="text-[12px] leading-4 text-ink-tertiary">
-                {t.web.venue.contacts.social}
-              </span>
-              {links.map((link) => (
-                <a
-                  key={link.key}
-                  href={link.href}
-                  rel="noreferrer nofollow"
-                  target="_blank"
-                  className="break-words text-[14px] font-semibold leading-5 text-ink underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </li>
+            <ContactCard
+              icon={<LinkIcon />}
+              title={links[0].label}
+              href={links[0].href}
+              external
+              note={t.web.venue.contacts.social}
+            />
           ) : null}
         </ul>
       ) : (
         <p className="text-bodyM text-ink-tertiary">{t.web.venue.contacts.empty}</p>
       )}
     </section>
+  );
+}
+
+/** Плашка контакта (узел 3261:2): круглый значок, крупная строка и подпись. */
+function ContactCard({
+  icon,
+  title,
+  note,
+  href,
+  external = false,
+}: {
+  icon: ReactNode;
+  title: string;
+  note?: string;
+  href?: string;
+  external?: boolean;
+}) {
+  const body = (
+    <>
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-canvas text-ink-secondary"
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="break-words text-[14px] font-semibold leading-5 text-ink">{title}</span>
+        {note ? (
+          <span className="break-words text-[12px] leading-4 text-ink-tertiary">{note}</span>
+        ) : null}
+      </span>
+    </>
+  );
+
+  return (
+    <li className="rounded-field bg-subtle">
+      {href ? (
+        <a
+          href={href}
+          {...(external ? { target: "_blank", rel: "noreferrer nofollow" } : {})}
+          className="flex items-center gap-3 rounded-field p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {body}
+        </a>
+      ) : (
+        <span className="flex items-center gap-3 p-4">{body}</span>
+      )}
+    </li>
+  );
+}
+
+/**
+ * «Поделиться» (узел 3261:2). Делает ровно то, что обещает: системное окно
+ * там, где оно есть (`navigator.share` — мобильные браузеры и Safari), иначе
+ * копирование адреса в буфер с подтверждением. Молчаливой кнопки нет: если
+ * не сработало ни то, ни другое, ничего не показываем как «скопировано».
+ */
+function ShareButton({ name }: { name: string }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: name, url });
+        return;
+      } catch {
+        // Гость закрыл системное окно — это не ошибка и не повод копировать.
+        return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Буфер недоступен (не-https, запрет политикой). Обещать «скопировано»
+      // в этом случае нельзя.
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {copied ? (
+        <span role="status" className="text-[13px] leading-[18px] text-ink-secondary">
+          {t.web.venue.shareCopied}
+        </span>
+      ) : null}
+      <Button size="m" variant="secondary" onClick={() => void share()}>
+        <ShareIcon />
+        {t.web.venue.share}
+      </Button>
+    </div>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10Z" strokeLinejoin="round" />
+      <circle cx="12" cy="11" r="2.2" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path
+        d="M5 4h3.2l1.4 3.5-2 1.3a12 12 0 0 0 5.6 5.6l1.3-2L18 13.8V17a2 2 0 0 1-2.2 2A14.5 14.5 0 0 1 5 6.2 2 2 0 0 1 7 4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M10.5 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1.2 1.2" strokeLinecap="round" />
+      <path d="M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1.2-1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <path d="M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" strokeLinecap="round" />
+    </svg>
   );
 }
 

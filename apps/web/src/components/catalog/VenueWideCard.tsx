@@ -13,6 +13,13 @@ import { useT } from "@web/lib/locale";
  * 880×229, фото 268 слева, тело с паддингом 20/24, название 21/28 SemiBold,
  * подпись 14/20 и описание 14/22 на три строки.
  *
+ * ЛОВУШКА, на которой карточка стояла плашмя: у веба СВОЙ набор брейкпоинтов
+ * (`screens` в tailwind.config заменён, а не расширен, — там только
+ * md/lg/xl/2xl из макета). Префикса `sm:` в этой теме НЕТ, и все классы с ним
+ * молча выбрасывались: карточка никогда не становилась горизонтальной, фото
+ * всегда лежало сверху во всю ширину. Здесь и на странице заведения теперь
+ * `md:`.
+ *
  * Ряда слотов из макета здесь нет: свободное время считает ручка доступности
  * ОТДЕЛЬНЫМ запросом на заведение и на конкретную дату, а выдача — это до ста
  * карточек. Показывать пять кнопок времени, за которыми нет запроса, значит
@@ -23,8 +30,8 @@ export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
   const t = useT();
 
   return (
-    <Card className="relative flex w-full flex-col overflow-hidden sm:flex-row">
-      <div className="relative h-[200px] w-full shrink-0 bg-muted sm:h-auto sm:w-[268px]">
+    <Card className="relative flex w-full flex-col overflow-hidden md:flex-row">
+      <div className="relative h-[200px] w-full shrink-0 bg-muted md:h-auto md:w-[268px]">
         <RemoteImage
           src={venue.coverPhoto?.uri}
           alt={venue.name}
@@ -32,7 +39,7 @@ export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 sm:p-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 md:p-6">
         <div className="flex flex-col gap-1">
           <h3 className="break-words text-[21px] font-semibold leading-7 tracking-[-0.2px] text-ink">
             <Link

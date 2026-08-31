@@ -30,15 +30,37 @@ describe("SiteHeader", () => {
     expect(screen.getByRole("button", { name: "Выбрать город" }).textContent).toContain("Алматы");
   });
 
-  it("кнопки входа и регистрации зовут свои обработчики", () => {
-    const onSignIn = vi.fn();
-    const onSignUp = vi.fn();
-    render(<SiteHeader onSignIn={onSignIn} onSignUp={onSignUp} />);
+  /**
+   * Кнопка «Войти» ДОЛЖНА вести на существующую страницу. Раньше она звала
+   * обработчик, которого никто не передавал, и не делала ничего — ровно то
+   * замечание, из-за которого появился экран `/login`. Проверяем адрес, а не
+   * вызов колбэка: обе кнопки макета ведут на один и тот же экран, потому что
+   * отдельной регистрации у бэкенда нет.
+   */
+  it("вход и регистрация ведут на /login, пока гость не вошёл", () => {
+    render(<SiteHeader account={null} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Войти" }));
-    fireEvent.click(screen.getByRole("button", { name: "Регистрация" }));
+    expect(screen.getByRole("link", { name: "Войти" }).getAttribute("href")).toBe("/login");
+    expect(screen.getByRole("link", { name: "Регистрация" }).getAttribute("href")).toBe("/login");
+  });
 
-    expect(onSignIn).toHaveBeenCalledTimes(1);
-    expect(onSignUp).toHaveBeenCalledTimes(1);
+  it("вошедшему гостю показывает имя и «Выйти»", () => {
+    const onSignOut = vi.fn();
+    render(<SiteHeader account={{ name: "Дамир" }} onSignOut={onSignOut} />);
+
+    expect(screen.getByText("Дамир")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Войти" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Выйти" }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  /** Пока сессия читается из localStorage, шапка не должна мигать «Войти»
+   * тому, кто уже вошёл. */
+  it("не показывает ни вход, ни имя, пока сессия неизвестна", () => {
+    render(<SiteHeader />);
+
+    expect(screen.queryByRole("link", { name: "Войти" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Выйти" })).toBeNull();
   });
 });

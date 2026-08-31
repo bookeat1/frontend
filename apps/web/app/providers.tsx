@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { AuthProvider } from "@web/lib/auth";
 import { CityProvider } from "@web/lib/city";
 import { LocaleProvider } from "@web/lib/locale";
 
@@ -14,9 +15,9 @@ import { LocaleProvider } from "@web/lib/locale";
  * будет. Настройки повторяют apps/admin, чтобы поведение при ошибке и
  * возврате во вкладку было одинаковым во всём монорепозитории.
  *
- * Обработчика 401 здесь пока нет — авторизации в вебе тоже пока нет, а
- * выдумывать перенаправление на несуществующий /login значит заранее
- * зашить неверный маршрут.
+ * `AuthProvider` держит сессию гостя и обработчик 401 (обновление пары по
+ * refresh-токену). Он ВЫШЕ города и языка: обработчик ставится на общий
+ * репозиторий один раз, до первого запроса.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -36,9 +37,11 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {/* Язык ВЫШЕ города: город приходит запросом, а у запроса заголовок
           `Accept-Language` берётся из выбранного языка. */}
-      <LocaleProvider>
-        <CityProvider>{children}</CityProvider>
-      </LocaleProvider>
+      <AuthProvider>
+        <LocaleProvider>
+          <CityProvider>{children}</CityProvider>
+        </LocaleProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

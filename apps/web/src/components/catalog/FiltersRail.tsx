@@ -217,7 +217,10 @@ function CheckboxRow({
         checked={checked}
         onChange={onChange}
         className={cx(
-          "h-5 w-5 shrink-0 appearance-none rounded-sm border transition-colors",
+          // Радиус 4 из макета (узел «Card / Filters» кадра 3258:2), а не
+          // `rounded-sm` кита: у того 8, и на квадрате 20 это уже почти круг —
+          // галочка читалась как переключатель.
+          "h-5 w-5 shrink-0 appearance-none rounded-checkbox border transition-colors",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           checked
             ? "border-brand bg-brand bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 20 20%22><path d=%22M5 10.5l3.2 3.2L15 7%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>')] bg-center bg-no-repeat"

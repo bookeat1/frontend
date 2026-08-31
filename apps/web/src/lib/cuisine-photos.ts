@@ -1,3 +1,5 @@
+import { assetUrl } from "@web/lib/asset";
+
 /**
  * ЗАПАСНЫЕ снимки для кругов «Выберите кухню».
  *
@@ -22,18 +24,12 @@
  * не стали.
  *
  * Ключи — коды справочника: `mapCuisine` кладёт в `Cuisine.id` именно `code`
- * (латиница). Своего снимка нет у четырёх кодов справочника — `pan_asian`,
- * `georgian`, `authors`, `japanese`: их нет ни в макете, ни в R2. Им достаётся
- * монограмма.
+ * (латиница). Своего снимка нет у ДВУХ кодов справочника — `georgian` и
+ * `authors`: их нет ни в макете (кадр 3253:2 рисует десять кухонь, этих двух
+ * среди них нет), ни в R2, ни в мобильных ассетах. Им достаётся монограмма, и
+ * это вопрос к дизайнеру, а не забытый случай. Ещё двум — `japanese` и
+ * `pan_asian` — снимки нашлись в макете и добавлены 31.08.2026.
  */
-
-/**
- * Префикс, под которым раздаётся сайт. Нужен руками: `next/image` со СВОИМ
- * загрузчиком (`images.loader: "custom"`) отдаёт адрес как есть и basePath к
- * нему не приписывает — на стенде `/web-preview` ссылка `/cuisines/…`
- * вернула бы 404 бэкенда.
- */
-const ASSET_PREFIX = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
 
 /** Имя файла отличается от кода только у «Восточной»: `oriental` → eastern. */
 const FILES: Record<string, string> = {
@@ -47,6 +43,11 @@ const FILES: Record<string, string> = {
   greek: "greek",
   oriental: "eastern",
   vegan: "vegan",
+  // Добавлено 31.08.2026: снимки этих двух кухонь В МАКЕТЕ ЕСТЬ (узлы 3254:16
+  // и 3254:19 кадра 3253:2), просто раньше их не экспортировали — и оба круга
+  // показывали монограмму. Экспорт из тех же заливок, что и остальные.
+  japanese: "japanese",
+  pan_asian: "pan_asian",
   // Кода `bakery` в справочнике нет, но файл из макета есть: заведению со
   // старой текстовой кухней «Пекарня» id считается как casefold названия.
   bakery: "bakery",
@@ -55,5 +56,6 @@ const FILES: Record<string, string> = {
 
 export function cuisinePhoto(cuisineId: string): string | undefined {
   const file = FILES[cuisineId.trim().toLowerCase()];
-  return file ? `${ASSET_PREFIX}/cuisines/${file}.webp` : undefined;
+  // Префикс раздачи приписывает `assetUrl` — см. комментарий там.
+  return file ? assetUrl(`/cuisines/${file}.webp`) : undefined;
 }

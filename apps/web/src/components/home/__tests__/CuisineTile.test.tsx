@@ -57,12 +57,24 @@ describe("CuisineTile", () => {
   });
 
   it("кухня без картинки вовсе показывает монограмму, а не серый круг", () => {
-    // У `japanese` снимка нет ни в макете, ни в R2 — как и у georgian,
-    // pan_asian, authors.
-    const { container } = render(<CuisineTile cuisine={{ id: "japanese", name: "Японская" }} />);
+    // Снимка нет ни в макете, ни в R2, ни в мобильных ассетах ровно у двух
+    // кодов справочника — `georgian` и `authors`. 31.08.2026 к вшитым
+    // снимкам добавились `japanese` и `pan_asian`: их круги В МАКЕТЕ
+    // нарисованы (узлы 3254:16 и 3254:19), просто раньше не были
+    // экспортированы, и оба показывали монограмму на стенде.
+    const { container } = render(<CuisineTile cuisine={{ id: "georgian", name: "Грузинская" }} />);
 
     expect(container.querySelector("img")).toBeNull();
-    expect(screen.getByText("Я")).toBeTruthy();
+    expect(screen.getByText("Г")).toBeTruthy();
+  });
+
+  it("у японской и паназиатской кухни есть вшитый снимок из макета", () => {
+    const japanese = render(<CuisineTile cuisine={{ id: "japanese", name: "Японская" }} />);
+    expect(photoSrc(japanese.container)).toContain("/cuisines/japanese.webp");
+    japanese.unmount();
+
+    const panAsian = render(<CuisineTile cuisine={{ id: "pan_asian", name: "Паназиатская" }} />);
+    expect(photoSrc(panAsian.container)).toContain("/cuisines/pan_asian.webp");
   });
 
   it("ведёт в каталог с фильтром по этой кухне", () => {

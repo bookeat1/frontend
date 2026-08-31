@@ -27,7 +27,7 @@ import {
   type CatalogSort,
   type CatalogState,
 } from "@web/lib/catalog-params";
-import { INTL_TAG } from "@web/lib/format";
+import { INTL_TAG, searchDateLabel } from "@web/lib/format";
 import { useLocale, useT } from "@web/lib/locale";
 import { useAmenities, useCatalog, useCuisines } from "@web/lib/queries";
 
@@ -162,8 +162,12 @@ export function CatalogScreen() {
               ) : null}
               {state.date ? (
                 <li>
+                  {/* «31 авг», а не «2026-08-31»: в чипе стоит то же, что
+                      гость видел в поле. Слово «Сегодня» здесь НЕ считаем —
+                      для этого нужен браузерный «сегодня», а чип рисуется и
+                      на сервере (см. searchDateLabel). */}
                   <ActiveChip
-                    label={state.date}
+                    label={searchDateLabel(state.date, locale, t) ?? state.date}
                     onClear={() => update({ ...state, date: undefined, page: 1 })}
                   />
                 </li>
