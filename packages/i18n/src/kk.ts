@@ -2444,6 +2444,7 @@ export const kk: LocaleOverride<Dictionary> = {
       breadcrumbVenues: "Орындар",
       share: "Бөлісу",
       shareCopied: "Сілтеме көшірілді",
+      amenitiesLabel: "Орынның ыңғайлылықтары",
       notFound: {
         title: "Орын табылмады",
         text: "Сілтеме ескірген немесе орын жарияланымнан алынған сияқты.",
@@ -2478,6 +2479,7 @@ export const kk: LocaleOverride<Dictionary> = {
         social: "Әлеуметтік желілер",
         mapAlt: (name: string) => `Карта: ${name} қай жерде`,
         noMap: "Орын координаттарын көрсетпеген.",
+        mapUnavailable: "Карта қазір қолжетімсіз.",
         empty: "Байланыс көрсетілмеген.",
       },
       hours: {

@@ -21,7 +21,18 @@ import { useT } from "@web/lib/locale";
  * повторный клик по ней безвреден.
  */
 type Variant = "primary" | "secondary" | "danger";
-type Size = "l" | "m";
+/**
+ * `l` и `m` — размеры кита (узел 3274:6). `submit` в ките не нарисован, но
+ * дважды нарисован на ЭКРАНАХ: «Получить код» в модалке входа (3272:19) и
+ * «Найти» в панели поиска (3253:52) — оба 48 высотой с радиусом 14. Это
+ * отдельная ступень, а не «почти L»: 54 и радиус 16 в этих местах заметно
+ * крупнее макета.
+ *
+ * `action` — обводочная кнопка в шапке страницы заведения («Сохранить» и
+ * «Поделиться», узлы 3261:69 и 3261:72): 46 высотой, радиус 12, паддинг 16,
+ * просвет 8, кегль 14/20 SemiBold. Тоже не «почти M» (42 и паддинг 20).
+ */
+type Size = "l" | "m" | "submit" | "action";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -51,6 +62,8 @@ const base =
 const sizes: Record<Size, string> = {
   l: "h-btn-l px-btn-l-x rounded-lg text-[16px] leading-6",
   m: "h-btn-m px-btn-m-x rounded-md text-[14px] leading-5",
+  submit: "h-login-submit px-btn-l-x rounded-field text-[16px] leading-6",
+  action: "h-venue-action px-venue-action-x rounded-md text-[14px] leading-5",
 };
 
 /**

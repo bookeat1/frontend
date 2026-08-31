@@ -2437,6 +2437,7 @@ export const en: LocaleOverride<Dictionary> = {
       breadcrumbVenues: "Venues",
       share: "Share",
       shareCopied: "Link copied",
+      amenitiesLabel: "Venue amenities",
       notFound: {
         title: "Venue not found",
         text: "The link is probably out of date, or the venue has been unpublished.",
@@ -2471,6 +2472,7 @@ export const en: LocaleOverride<Dictionary> = {
         social: "Social",
         mapAlt: (name: string) => `Map: where ${name} is`,
         noMap: "The venue has not provided coordinates.",
+        mapUnavailable: "The map is unavailable right now.",
         empty: "No contacts provided.",
       },
       hours: {

@@ -6,11 +6,13 @@ import {
   webCuisineTile,
   webHero,
   webLayout,
+  webLoginModal,
   webRadius,
   webSearchPanel,
   webShadow,
   webTypography,
   webVenueCard,
+  webVenuePage,
 } from "@bookeat/design-tokens";
 
 /**
@@ -72,6 +74,7 @@ const config: Config = {
         success: {
           DEFAULT: webColors.background.success,
           text: webColors.text.success,
+          dot: webColors.text.successDot,
         },
         warning: {
           DEFAULT: webColors.background.warning,
@@ -90,6 +93,7 @@ const config: Config = {
         "on-photo-chip": webColors.overlay.onPhotoChip,
         "on-photo-chip-border": webColors.overlay.onPhotoChipBorder,
         "on-brand-muted": webColors.overlay.onBrandMutedText,
+        "photo-action": webVenuePage.galleryButton.background,
       },
       fontSize,
       borderRadius: {
@@ -105,15 +109,20 @@ const config: Config = {
         store: px(webAppSection.storeButton.radius),
         full: px(webRadius.full),
         slot: px(webVenueCard.slot.radius),
+        tag: px(webVenuePage.tag.radius),
+        promo: px(webVenuePage.promoCard.radius),
       },
       boxShadow: {
         card: webShadow.card,
         modal: webShadow.modal,
         panel: webSearchPanel.shadow,
+        aside: webVenuePage.asideCard.shadow,
+        "photo-action": webVenuePage.galleryButton.shadow,
       },
       backgroundImage: {
         "hero-scrim": webHero.scrim,
         "app-section": webAppSection.gradient,
+        "promo-scrim": webVenuePage.promoCard.scrim,
       },
       spacing: {
         gutter: px(webLayout.gutter),
@@ -136,6 +145,18 @@ const config: Config = {
         "panel-gap": px(webSearchPanel.gap),
         "quick-gap": px(webSearchPanel.quickFilterGap),
         "app-y": px(webAppSection.paddingY),
+        "login-field-x": px(webLoginModal.field.paddingX),
+        "login-field-gap": px(webLoginModal.field.gap),
+        "venue-tag-x": px(webVenuePage.tag.paddingX),
+        "venue-action-x": px(webVenuePage.actionButton.paddingX),
+        "venue-contact-x": px(webVenuePage.contactCard.paddingX),
+        "venue-contact-gap": px(webVenuePage.contactCard.gap),
+        "venue-name-gap": px(webVenuePage.nameRowGap),
+        "venue-mosaic-gap": px(webVenuePage.mosaic.gap),
+        "venue-mosaic-inset": px(webVenuePage.galleryButton.inset),
+        "venue-promo-p": px(webVenuePage.promoCard.padding),
+        "venue-dish-x": px(webVenuePage.dishCard.bodyPaddingX),
+        "venue-dish-y": px(webVenuePage.dishCard.bodyPaddingY),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -150,6 +171,16 @@ const config: Config = {
         panel: px(webSearchPanel.height),
         submit: px(webSearchPanel.submit.height),
         store: px(webAppSection.storeButton.height),
+        "login-field": px(webLoginModal.field.height),
+        "login-submit": px(webLoginModal.submit.height),
+        "venue-tag": px(webVenuePage.tag.height),
+        "venue-action": px(webVenuePage.actionButton.height),
+        "login-divider": px(webLoginModal.field.dividerHeight),
+        "venue-mosaic": px(webVenuePage.mosaic.height),
+        "venue-tile": px(webVenuePage.mosaic.tileHeight),
+        "venue-gallery-btn": px(webVenuePage.galleryButton.height),
+        "venue-dish-image": px(webVenuePage.dishCard.imageHeight),
+        "venue-contact-icon": px(webVenuePage.contactCard.iconSize),
       },
       width: {
         cuisine: px(webCuisineTile.size),
@@ -157,9 +188,23 @@ const config: Config = {
         "search-time": px(webSearchPanel.timeWidth),
         "search-guests": px(webSearchPanel.guestsWidth),
         submit: px(webSearchPanel.submit.width),
+        "venue-aside": px(webVenuePage.asideWidth),
+        "venue-contact-icon": px(webVenuePage.contactCard.iconSize),
       },
       minWidth: {
         cuisine: px(webCuisineTile.size),
+      },
+      minHeight: {
+        "venue-promo": px(webVenuePage.promoCard.minHeight),
+      },
+      gridTemplateColumns: {
+        /** Мозаика 3261:33: 788 к 404 при просвете 8 — это НЕ 2/3 к 1/3.
+         * Дроби держат пропорцию макета на любой ширине контейнера. */
+        mosaic: `${webVenuePage.mosaic.mainWidth}fr ${webVenuePage.mosaic.sideWidth}fr`,
+      },
+      aspectRatio: {
+        /** Карта в контактах (3264:69): 788×280. */
+        "venue-map": `${webVenuePage.map.width} / ${webVenuePage.map.height}`,
       },
       maxWidth: {
         container: px(webLayout.containerWidth),

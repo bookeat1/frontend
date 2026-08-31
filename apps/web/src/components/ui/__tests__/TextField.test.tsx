@@ -53,6 +53,44 @@ describe("TextField", () => {
     expect((screen.getByLabelText("Имя") as HTMLInputElement).value).toBe("Камила");
   });
 
+  /**
+   * Именно это увидел владелец: поле на экране входа было собрано размером
+   * КИТА (радиус 12, высота 48), а макет входа (узел 3272:13) рисует 14 и 52.
+   * Проверяем классы, а не «выглядит похоже»: другой источник правды тут
+   * взять негде, а расхождение молчаливое — ни tsc, ни линтер про него не
+   * скажут.
+   */
+  it("размер l — это поле модалки входа: радиус 14 и высота 52", () => {
+    render(<TextField label="Номер телефона" size="l" />);
+    const box = screen.getByLabelText("Номер телефона").parentElement as HTMLElement;
+
+    expect(box.className).toContain("rounded-field");
+    expect(box.className).toContain("h-login-field");
+    expect(box.className).not.toContain("rounded-md");
+  });
+
+  it("размер по умолчанию — поле кита: радиус 12 и высота 48", () => {
+    render(<TextField label="Имя" />);
+    const box = screen.getByLabelText("Имя").parentElement as HTMLElement;
+
+    expect(box.className).toContain("rounded-md");
+    expect(box.className).toContain("h-input");
+  });
+
+  it("фокус и ошибка не меняют толщину рамки — иначе содержимое прыгает", () => {
+    const { rerender } = render(<TextField label="Имя" />);
+    const rest = (screen.getByLabelText("Имя").parentElement as HTMLElement).className;
+
+    expect(rest).toContain("border");
+    expect(rest).not.toContain("border-2");
+
+    rerender(<TextField label="Имя" error="Введите имя" />);
+    const invalid = (screen.getByLabelText("Имя").parentElement as HTMLElement).className;
+
+    expect(invalid).not.toContain("border-2");
+    expect(invalid).toContain("ring-inset");
+  });
+
   it("у двух полей на странице разные идентификаторы", () => {
     render(
       <>

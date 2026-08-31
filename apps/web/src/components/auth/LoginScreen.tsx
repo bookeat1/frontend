@@ -47,10 +47,16 @@ import { useT } from "@web/lib/locale";
  *    нарисовано. Гость с иностранным номером на сайте войти не сможет —
  *    см. lib/phone.ts.
  *
- * ВРЕМЕННО: подложка — снимок ГЕРОЯ (`/brand/hero.webp`, скопирован в
- * `/brand/login.webp`). В макете 3272:2 своя фотография, но её заливку не
- * удалось выгрузить: Figma API держал 429 больше часа. Файл подменяется одним
- * `cp`, разметку это не трогает. ЗАДОЛЖЕННОСТЬ, названа в отчёте.
+ * Подложка — РОДНАЯ фотография макета: заливка кадра 3272:2
+ * (`imageRef c42841878fce…`, 941×1672), выгружена 31.08.2026 и лежит в
+ * `public/brand/login.webp`. Прежняя копия снимка героя убрана. Поверх —
+ * заливка #1B1B1B с прозрачностью 0,72 (`bg-scrim`), ровно как во втором
+ * слое заливки кадра.
+ *
+ * Размеры блоков: модалка 380 с радиусом 24 и паддингом 32, просвет между
+ * блоками 20, заголовок и подпись в 4 друг от друга, поле 52 высотой с
+ * радиусом 14, кнопка 48 с радиусом 14, оферта 12/18 — всё из узлов
+ * 3272:6…3272:32, токены в `webLoginModal`.
  */
 export function LoginScreen() {
   const t = useT();
@@ -145,13 +151,15 @@ export function LoginScreen() {
         ) : step === "phone" ? (
           <form onSubmit={submitPhone} className="flex flex-col gap-5" noValidate>
             <BrandMark />
-            <div className="flex flex-col gap-2">
-              <h1 className="text-h3 text-ink">{t.web.auth.title}</h1>
+            {/* Просвет «заголовок → подпись» в макете 4, а не 8 (узел 3272:8). */}
+            <div className="flex flex-col gap-1">
+              <h1 className="text-h3 tracking-[-0.4px] text-ink">{t.web.auth.title}</h1>
               <p className="text-bodyM text-ink-secondary">{t.web.auth.subtitle}</p>
             </div>
 
             <TextField
               label={t.web.auth.phoneLabel}
+              size="l"
               type="tel"
               inputMode="tel"
               autoComplete="tel"
@@ -163,19 +171,15 @@ export function LoginScreen() {
               }}
               placeholder={t.web.auth.phonePlaceholder}
               error={error ?? undefined}
-              leadingSlot={
-                <span className="flex shrink-0 items-center gap-2 border-r border-line-strong pr-3 text-[15px] font-semibold leading-[22px] text-ink">
-                  {t.web.auth.country}
-                  <span className="text-ink-secondary">+7</span>
-                </span>
-              }
+              leadingSlot={<CountryPrefix />}
             />
 
-            <Button type="submit" block loading={busy}>
+            <Button type="submit" size="submit" block loading={busy}>
               {busy ? t.web.auth.requesting : t.web.auth.requestCode}
             </Button>
 
-            <p className="text-center text-[13px] leading-[18px] text-ink-tertiary">
+            {/* Оферта в макете 12/18 (узел 3272:32), а не 13/18. */}
+            <p className="text-center text-[12px] leading-[18px] text-ink-tertiary">
               {t.web.auth.terms}
             </p>
           </form>
@@ -266,6 +270,33 @@ function BrandMark() {
     >
       {t.web.header.brand}
     </Link>
+  );
+}
+
+/**
+ * Блок кода страны слева в поле — узлы 3272:14 (сам блок), 3272:15 («KZ  +7»,
+ * 16/24 SemiBold цветом text/primary) и 3272:17 (разделитель).
+ *
+ * Разделитель в макете — ПРЯМОУГОЛЬНИК 1×24, а не рамка во всю высоту поля:
+ * раньше здесь стоял `border-r` на самом блоке, и линия шла от края до края
+ * внутренней области. Просвет 12 с обеих сторон даёт сам ряд поля
+ * (`gap-login-field-gap`), поэтому оба узла отданы одним фрагментом.
+ *
+ * Стрелка «▾» (узел 3272:16) НЕ нарисована здесь намеренно: выбора страны у
+ * сайта нет — `lib/phone.ts` понимает только казахстанский номер, — а
+ * стрелка, которая ничего не раскрывает, обещает несуществующий список.
+ * Расхождение названо в отчёте, а не спрятано.
+ */
+function CountryPrefix() {
+  const t = useT();
+  return (
+    <>
+      <span className="flex shrink-0 items-center gap-1.5 text-[16px] font-semibold leading-6 text-ink">
+        {t.web.auth.country}
+        <span>+7</span>
+      </span>
+      <span aria-hidden="true" className="h-login-divider w-px shrink-0 bg-line-strong" />
+    </>
   );
 }
 
@@ -371,9 +402,13 @@ function CodeInput({
             className={cx(
               "h-[56px] w-full min-w-0 rounded-field bg-canvas text-center text-[22px] font-semibold leading-7 text-ink",
               "focus:outline-none",
+              // Кольцо, а не смена толщины рамки: `border-2` в фокусе сдвигал
+              // бы цифру внутри клетки на пиксель. То же решение, что в
+              // `TextField`.
+              "border",
               invalid
-                ? "border-2 border-danger-text"
-                : "border border-line-control focus:border-2 focus:border-brand",
+                ? "border-danger-text ring-1 ring-inset ring-danger-text"
+                : "border-line-control focus:border-brand focus:ring-1 focus:ring-inset focus:ring-brand",
             )}
           />
         ))}

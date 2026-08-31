@@ -52,4 +52,32 @@ describe("RemoteImage", () => {
 
     expect(screen.queryByRole("img")).toBeNull();
   });
+
+  /**
+   * Одиночный крупный блок (карта 788×280 на странице заведения) без подписи
+   * читается как дырка в странице, а не как «не загрузилось». Сетке плиток
+   * подпись не нужна — поэтому это проп, а не поведение по умолчанию.
+   */
+  it("с `fallback` вместо картинки показывается объяснение", () => {
+    render(
+      <RemoteImage
+        src={remote}
+        alt="Карта"
+        sizes="788px"
+        fallback={<span>Карта сейчас недоступна.</span>}
+      />,
+    );
+
+    fireEvent.error(screen.getByRole("img", { name: "Карта" }));
+
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByText("Карта сейчас недоступна.")).toBeTruthy();
+  });
+
+  it("без `fallback` подложка остаётся молчаливой", () => {
+    const { container } = render(<RemoteImage src={null} alt="Flour Demi" sizes="282px" />);
+
+    expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.textContent).toBe("");
+  });
 });

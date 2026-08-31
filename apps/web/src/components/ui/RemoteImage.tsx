@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { cx } from "@web/lib/cx";
 
@@ -25,16 +25,43 @@ export interface RemoteImageProps {
   sizes: string;
   /** Первый экран — грузим сразу, остальное лениво. */
   priority?: boolean;
+  /**
+   * Что показать вместо картинки, когда её нет или она не загрузилась.
+   *
+   * По умолчанию — пустая подложка: подпись на месте каждой отсутствующей
+   * фотографии в сетке из двадцати карточек это шум. Но у ОДИНОЧНОГО крупного
+   * блока (карта в контактах — 788×280) пустая подложка читается как дырка в
+   * странице, и там объяснение нужно. Поэтому это проп, а не поведение по
+   * умолчанию.
+   */
+  fallback?: ReactNode;
   className?: string;
 }
 
-export function RemoteImage({ src, alt, sizes, priority = false, className }: RemoteImageProps) {
+export function RemoteImage({
+  src,
+  alt,
+  sizes,
+  priority = false,
+  fallback,
+  className,
+}: RemoteImageProps) {
   const [broken, setBroken] = useState(false);
   const url = src?.trim() ? src.trim() : null;
 
   if (!url || broken) {
-    // Пустая подложка, а не «нет фото» словами: подпись на месте каждой
-    // отсутствующей картинки в сетке из двадцати карточек — это шум.
+    if (fallback) {
+      return (
+        <div
+          className={cx(
+            "flex h-full w-full items-center justify-center bg-muted p-4 text-center",
+            className,
+          )}
+        >
+          {fallback}
+        </div>
+      );
+    }
     return <div aria-hidden="true" className={cx("h-full w-full bg-muted", className)} />;
   }
 
