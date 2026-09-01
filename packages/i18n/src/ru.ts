@@ -689,6 +689,14 @@ export const ru = {
     menuTitle: "Меню",
     menuLoading: "Загружаем меню…",
     menuErrorTitle: "Меню не загрузилось",
+    /**
+     * Поиск по меню (Figma 49Zk9oEV3ZCiCdh6Cz9dE2, node 3563:7055) — поле над
+     * строкой категорий на экране меню. Подпись ровно та, что нарисована:
+     * искать умеем и по названию блюда, и по его составу (описанию).
+     */
+    menuSearchPlaceholder: "Название блюда или ингредиента",
+    menuSearchEmptyTitle: "Ничего не нашли",
+    menuSearchEmptyDescription: "Попробуйте другое слово или очистите поиск",
     menuOtherSection: "Другое",
     menuDishUnavailable: "Сейчас нет в наличии",
     menuDishNoPrice: "Цену уточняйте в ресторане",

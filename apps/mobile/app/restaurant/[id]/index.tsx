@@ -2,7 +2,7 @@ import type { Restaurant } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft } from "../../../src/components/icons";
@@ -20,6 +20,7 @@ import { ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { VenueScheduleCard } from "../../../src/components/VenueScheduleCard";
 import { useRestaurant, useRestaurantRefresh } from "../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../src/lib/analytics";
+import { highlightsWithPhoto } from "../../../src/lib/menu-highlights";
 
 const t = getDictionary();
 
@@ -34,6 +35,15 @@ export default function RestaurantDetailScreen() {
   // Потянуть карточку = переспросить и профиль заведения, и ленту сторис;
   // кружок гаснет, когда ответили оба (см. useRestaurantRefresh).
   const { refreshing, onRefresh } = useRestaurantRefresh(id);
+
+  // «Лучшие позиции» — только блюда с фотографией: карточка ленты это прежде
+  // всего снимок, а ряд серых плашек читается как поломка (правка владельца,
+  // на его экране так выглядели «Айран 1 л» и «Айран 200 мл»). Отбор тот же
+  // делает сервер; здесь он повторён страховкой, см. lib/menu-highlights.
+  const highlights = useMemo(
+    () => highlightsWithPhoto(restaurant?.menuHighlights ?? []),
+    [restaurant?.menuHighlights],
+  );
 
   // `restaurant_open` once per venue id: keyed on the route param, not the
   // fetched payload, so it fires as soon as the screen has an id (a re-render
@@ -137,26 +147,40 @@ export default function RestaurantDetailScreen() {
               />
             </View>
 
-            {/* Меню целиком — заголовок, лента и кнопка — есть ТОЛЬКО у
-                заведения, у которого в API действительно есть позиции
-                (правка владельца 2026-08-24). Признака «меню нет» бэкенд не
-                присылает: GET /restaurants/:id/menu отдаёт либо список, либо
-                пустой массив, либо не отвечает вовсе — во всех трёх случаях
-                `menuHighlights` пуст, и показывать нечего. Кнопка
-                «Посмотреть меню» уходит вместе с блоком осознанно: экран
-                меню читает ТУ ЖЕ ручку и открылся бы пустым. */}
+            {/* Блок меню есть ТОЛЬКО у заведения, у которого в API
+                действительно есть позиции (правка владельца 2026-08-24).
+                Признака «меню нет» бэкенд не присылает: GET
+                /restaurants/:id/menu отдаёт либо список, либо пустой массив,
+                либо не отвечает вовсе — во всех трёх случаях `menuHighlights`
+                пуст, и показывать нечего; кнопка «Посмотреть меню» уходит
+                вместе с блоком осознанно, экран меню читает ТУ ЖЕ ручку и
+                открылся бы пустым.
+
+                ЛЕНТА И КНОПКА РАЗВЕДЕНЫ (2026-09-01). Из ленты выкидываются
+                блюда БЕЗ фотографии (`highlightsWithPhoto`) — ряд серых
+                плашек читается как поломка. Заголовок «Лучшие позиции» и сама
+                лента при пустом отборе исчезают целиком, а КНОПКА остаётся:
+                меню у заведения есть, просто у его блюд нет снимков, и
+                спрятать вход в меню значило бы сделать его недостижимым — тот
+                самый баг, который здесь уже чинили. На боевом каталоге фото
+                есть примерно у трети блюд, так что заведение вообще без
+                снимков — не редкость. */}
             {restaurant.menuHighlights.length > 0 ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
-                <ScrollableMenu
-                  items={restaurant.menuHighlights}
-                  onOpenDish={(dishId) =>
-                    router.push({
-                      pathname: "/restaurant/[id]/menu",
-                      params: { id: restaurant.id, dish: dishId },
-                    })
-                  }
-                />
+                {highlights.length > 0 ? (
+                  <>
+                    <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
+                    <ScrollableMenu
+                      items={highlights}
+                      onOpenDish={(dishId) =>
+                        router.push({
+                          pathname: "/restaurant/[id]/menu",
+                          params: { id: restaurant.id, dish: dishId },
+                        })
+                      }
+                    />
+                  </>
+                ) : null}
                 {/* Кнопка ведёт на отдельный экран меню — только чтение, без
                     корзины. Раньше она была disabled, потому что единственный
                     экран меню жил внутри флоу брони и складывал блюда в его
