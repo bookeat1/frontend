@@ -19,6 +19,7 @@ import {
 } from "../../src/components/explore/use-explore-data";
 import { usePullToRefresh } from "../../src/hooks/usePullToRefresh";
 import { EmptyState, LoadingState } from "../../src/components/StateViews";
+import { OCEAN_BASKET_SLUG } from "../../src/components/ocean/ocean-basket-content";
 
 const t = getDictionary();
 
@@ -107,7 +108,22 @@ export default function GastroguideScreen() {
    * `/articles/:slug` — это статья, и с этого экрана туда не ведёт ничего.
    */
   const openCollection = useCallback(
-    (slug: string) => router.push(`/gastroguide/collections/${slug}`),
+    (slug: string) => {
+      // У Ocean Basket есть СВОЯ страница, собранная по фирменному макету
+      // (`/brand/ocean-basket`): её содержимое зашито в код, потому что у
+      // подборки в API нет ни блюд, ни глав истории, ни фирменной графики.
+      // Общая страница подборки при этом не тронута — сюда попадает только
+      // один слаг.
+      //
+      // Сегодня эта ветка НЕ СРАБАТЫВАЕТ: подборки со слагом `ocean-basket`
+      // в базе нет (404 на тесте 2026-09-01). Она включится сама, как только
+      // редакция такую подборку заведёт.
+      if (slug === OCEAN_BASKET_SLUG) {
+        router.push("/brand/ocean-basket");
+        return;
+      }
+      router.push(`/gastroguide/collections/${slug}`);
+    },
     [router],
   );
 

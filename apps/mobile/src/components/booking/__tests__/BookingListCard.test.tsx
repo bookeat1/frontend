@@ -28,6 +28,7 @@ const VENUE: RestaurantSummary = {
   rating: 4.8,
   reviewsCount: 120,
   address: "проспект Аль-Фараби, 128В",
+  city: "Алматы",
   description: "",
   schedule: null,
   acceptsOnlineBookings: true,

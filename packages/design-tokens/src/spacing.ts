@@ -504,6 +504,96 @@ export const brandPageLayout = {
   ctaHeight: 150,
 } as const;
 
+/**
+ * ФИРМЕННАЯ СТРАНИЦА OCEAN BASKET — макет 3z0f6dgev4HMwBAHPjTjPo,
+ * node 3424:3927 («Ocean Basket / Mobile / 390»).
+ *
+ * Отдельная группа, а не добавка к `brandPageLayout`: тот описывает ОБЩУЮ
+ * страницу подборки гастрогида, которая рисуется для любого слага, а здесь
+ * лежат размеры блоков, которых у общей страницы нет вовсе (карта-иллюстрация,
+ * блюда, главы истории, блок инстаграма). Кадр макета — 390 шириной, поэтому
+ * всё, что тянется по ширине, в коде считается от окна, а числа ниже — это
+ * ВЫСОТЫ, скругления и просветы, которые от ширины не зависят.
+ */
+export const oceanPageLayout = {
+  /** Шапка (node 3425:3926) — 357 при статус-баре 0, как у `brandPageLayout`. */
+  heroHeight: 357,
+  /** Свечение за надписью (node 3425:3927) — круг 210, левый край на 90,
+   * верхний на 145 от верха шапки. */
+  heroGlowSize: 210,
+  heroGlowLeft: 90,
+  heroGlowTop: 145,
+  /** Пилюля «КАРТА ПРИКЛЮЧЕНИЙ» (node 3425:3935) — 268×36, скругление 19,
+   * верх на 104. */
+  heroPillWidth: 268,
+  heroPillHeight: 36,
+  heroPillRadius: 19,
+  heroPillTop: 104,
+  /** Надписи «Seafood» и «Expedition» (узлы 3425:3940, 3425:3941) — размеры
+   * НАРИСОВАННОГО (absoluteRenderBounds), потому что в коде это картинки, а не
+   * текст: шрифта Lobster в приложении нет. */
+  heroSeafoodWidth: 134,
+  heroSeafoodHeight: 43,
+  heroSeafoodTop: 174.5,
+  heroExpeditionWidth: 185,
+  heroExpeditionHeight: 48,
+  heroExpeditionTop: 215,
+  /** Плашка «WELCOME DRINK» (node 3425:3942) — 342×48, скругление 24, верх
+   * на 285, кружок значка 30, разделитель 1×18. */
+  welcomeWidth: 342,
+  welcomeHeight: 48,
+  welcomeRadius: 24,
+  welcomeTop: 285,
+  welcomeIconCircle: 30,
+  welcomeDividerHeight: 18,
+  /** Карта-иллюстрация (node 3426:9633) — 240 высотой, скругление 22. */
+  mapHeight: 240,
+  mapRadius: 22,
+  /** Карточка точки (node 3441:12289) — 292×291, фотография 215, скругление
+   * 16, просвет ленты 14; кружок номера 27, пилюля «Welcome drink» 138×30
+   * (скругление 15), круглая кнопка с рыбой 30. */
+  venueCardWidth: 292,
+  venueCardHeight: 291,
+  venueCardPhotoHeight: 215,
+  venueCardRadius: 16,
+  venueCardGap: 14,
+  venueBadgeSize: 27,
+  venueTagHeight: 30,
+  venueTagRadius: 15,
+  venueFishButton: 30,
+  /** Карточка блюда (узлы 3441:12384, 3441:12389) — 175 шириной (вторая 177,
+   * разница нарисована случайно), фотография 108, скругление 14, просвет 12. */
+  dishCardWidth: 175,
+  dishPhotoHeight: 108,
+  dishCardRadius: 14,
+  dishCardGap: 12,
+  /** Глава истории (узлы 3443:12468, 3443:12480) — скругление 16, шапка с
+   * полями 16, свёрнутая карточка 82 высотой (поля 18/16), раскрытая часть
+   * 173, кружок значка 42. */
+  storyCardRadius: 16,
+  storyHeaderPadding: 16,
+  storyCollapsedPaddingVertical: 18,
+  storyCollapsedHeight: 82,
+  storyBodyHeight: 173,
+  storyIconCircle: 42,
+  storyGap: 12,
+  /** Замыкающая связка (узлы 3443:12562…3443:12587): круг с якорем 66,
+   * блок инстаграма 76 высотой со скруглением 16, значок 42 со скруглением 12,
+   * блок брони 150 высотой со скруглением 22, кнопка со скруглением 22 и
+   * полями 16/12. */
+  anchorCircle: 66,
+  anchorRingWidth: 6,
+  instagramHeight: 76,
+  instagramRadius: 16,
+  instagramIconSize: 42,
+  instagramIconRadius: 12,
+  ctaHeight: 150,
+  ctaRadius: 22,
+  ctaButtonRadius: 22,
+  ctaButtonPaddingHorizontal: 16,
+  ctaButtonPaddingVertical: 12,
+} as const;
+
 /** Stroke widths from the design. */
 export const borderWidth = {
   /** Time-slot pill outline — 1.5px, grey when idle, brand when chosen

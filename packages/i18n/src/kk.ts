@@ -180,6 +180,56 @@ export const kk: LocaleOverride<Dictionary> = {
     rubricNotFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Гастрогидке оралып, басқасын таңдаңыз.",
   },
+  /** Ocean Basket фирмалық беті (макет 3424:3927). Мәтіндер кодқа тігілген —
+   * бэкендте мұндай өріс жоқ, тек мекеме карточкалары ғана тірі. */
+  oceanBasket: {
+    heroEyebrow: "ШЫТЫРМАН ОҚИҒА КАРТАСЫ",
+    welcomeDrink: "WELCOME DRINK",
+    welcomeDrinkAction: "Толығырақ",
+    welcomeDrinkA11y: "Welcome drink, толығырақ — нүктелер тізіміне өту",
+    mapTitle: "Өз олжаңды тап",
+    mapAlt: "Алматыдағы Ocean Basket нүктелерінің салынған картасы",
+    pointsTitle: "Барлық нүктелер",
+    pointsLoading: "Нүктелерді жүктеп жатырмыз…",
+    pointsErrorTitle: "Нүктелер жүктелмеді",
+    pointsErrorDescription: "Байланысты тексеріп, қайта көріңіз",
+    pointsEmptyTitle: "Әзірге нүкте жоқ",
+    pointsEmptyDescription: "Ocean Basket каталогтан табылмады. Кейінірек көріңіз.",
+    venueTag: "Welcome drink",
+    pointNumber: (index: number) => String(index + 1).padStart(2, "0"),
+    dishesTitle: "Фирмалық олжа",
+    dishesNote: "мәзір хиттері",
+    dishes: [
+      { name: "Full Deck Platter", price: "37\u00A0990 ₸ · компанияға" },
+      { name: "King Асшаяндар", price: "15\u00A0090 ₸ бастап · 6 дана" },
+    ],
+    storyEyebrow: "БРЕНД ТАРИХЫ",
+    storyTitleLead: "ОАР жағажайынан",
+    storyTitleTail: "Алматы мен Астанаға дейін",
+    chapters: [
+      {
+        label: "1-ТАРАУ · КЕЙПТАУН · ОАР",
+        title: "Бәрі неден басталды",
+        body:
+          "Мұхит жағасындағы шағын дүкен. Балғын балық, зәйтүн майы, лимон және " +
+          "жерорта теңізі дәмдеуіштері — 30 жыл бойы жұмыс істеп келе жатқан формула.",
+      },
+      { label: "2-ТАРАУ · ӘЛЕМНІҢ 14 ЕЛІ", title: "Шекарасыз мұхит", body: "" },
+      { label: "3-ТАРАУ · АЛМАТЫ · ҚАЗАҚСТАН", title: "ҚР-дағы алғашқы нүкте", body: "" },
+      { label: "4-ТАРАУ · 3 НҮКТЕ · АЛМАТЫ", title: "Әр ауданда мұхит", body: "" },
+    ],
+    chapterExpand: (title: string) => `«${title}» тарауын ашу`,
+    chapterCollapse: (title: string) => `«${title}» тарауын жабу`,
+    closingEyebrow: "ЖАЛҒАСЫ БАР",
+    closingTitle: "…сенің тәрелкеңде",
+    instagramHandle: "@oceanbasketkz",
+    instagramNote: "Олжаңды көрсет · #BookEatOcean",
+    instagramA11y: "Ocean Basket инстаграмын ашу",
+    ctaEyebrow: "ОЛЖАҒА ДАЙЫНСЫҢ БА?",
+    ctaTitle: "Картадан нүкте таңдаңыз",
+    ctaAction: "Брондау",
+    ctaA11y: "Брондау — нүктелер тізіміне өту",
+  },
   notifications: {
     title: "Хабарламалар",
     filterAll: "Барлығы",

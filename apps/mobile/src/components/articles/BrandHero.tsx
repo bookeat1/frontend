@@ -81,12 +81,12 @@ export function BrandHero({
       <View style={styles.coverScrim} pointerEvents="none" />
 
       <View style={[styles.controls, { paddingTop: insets.top + spacing.xxl }]}>
-        <HeroControl
+        <BrandHeroControl
           accessibilityLabel={t.a11y.backButton}
           onPress={onBack}
           icon={<ArrowLeft size={24} color={colors.brand2.onNavy} weight="regular" />}
         />
-        <HeroControl
+        <BrandHeroControl
           accessibilityLabel={t.a11y.shareButton}
           onPress={onShare}
           icon={<Export size={24} color={colors.brand2.onNavy} weight="regular" />}
@@ -109,8 +109,12 @@ export function BrandHero({
 /** Круглая кнопка 40 поверх шапки (node 3427:12226): подложка белая 30 %,
  * скругление 20. Своя, а не общий `IconButton`: тот делает 44 с чёрным
  * затемнением, а макет здесь рисует 40 с белым. Зона касания добирается
- * `hitSlop`, поэтому правило 44 pt соблюдено. */
-function HeroControl({
+ * `hitSlop`, поэтому правило 44 pt соблюдено.
+ *
+ * ЭКСПОРТИРУЕТСЯ: ровно эта кнопка стоит и в шапке фирменной страницы
+ * Ocean Basket (`components/ocean/OceanHero.tsx`). Второй такой же кнопки в
+ * приложении быть не должно — макет рисует одну. */
+export function BrandHeroControl({
   icon,
   accessibilityLabel,
   onPress,
