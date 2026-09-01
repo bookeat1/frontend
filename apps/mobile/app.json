@@ -3,7 +3,6 @@
     "name": "BookEat",
     "slug": "bookeat-mobile",
     "scheme": "bookeat",
-    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -61,7 +60,7 @@
     },
     "owner": "book-eat-team",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/455677ea-310b-4fa5-841f-676498838fd9"
