@@ -88,6 +88,9 @@ export default defineConfig({
     include: [
       "apps/**/src/**/*.test.{ts,tsx}",
       "apps/**/app/**/*.test.{ts,tsx}",
+      // Config-плагины Expo — тоже код, который ломается молча: он влияет на
+      // сгенерированный AndroidManifest, а не на экран.
+      "apps/**/plugins/**/*.test.{ts,tsx}",
       "packages/**/src/**/*.test.{ts,tsx}",
     ],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
