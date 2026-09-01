@@ -391,6 +391,9 @@ export const typography = {
     fontFamily: fontFamilies.montserratMedium,
     fontSize: 12,
     lineHeight: 20,
+    // Разрядка 1.2 из макета. Её здесь не было, пока подпись главы никто не
+    // рисовал: токен завели по узлу, но значение letterSpacing потеряли.
+    letterSpacing: 1.2,
   },
   /** Обычный текст страницы бренда (узлы 3427:12240, 3443:12580) —
    * Montserrat Regular 14/17. */
@@ -412,6 +415,88 @@ export const typography = {
     fontFamily: fontFamilies.montserratSemiBold,
     fontSize: 14,
     lineHeight: 17,
+  },
+
+  /* --- Фирменная страница Ocean Basket (node 3424:3927) --- */
+
+  /** «WELCOME DRINK» в шапке (node 3425:3946) — Montserrat SemiBold 13/15.85
+   * с разрядкой 1.56. */
+  brandPromoLabel: {
+    fontFamily: fontFamilies.montserratSemiBold,
+    fontSize: 13,
+    lineHeight: 16,
+    letterSpacing: 1.56,
+  },
+  /** «Подробнее» рядом с ней (node 3425:3948) — Montserrat Regular 13/15.85. */
+  brandPromoAction: {
+    fontFamily: fontFamilies.montserratRegular,
+    fontSize: 13,
+    lineHeight: 16,
+  },
+  /** Название блюда «Фирменного улова» (node 3441:12387) — Montserrat
+   * SemiBold 14/18. */
+  brandDishName: {
+    fontFamily: fontFamilies.montserratSemiBold,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  /** Цена под ним (node 3441:12388) — Montserrat Regular 12.5/19. Кегль
+   * дробный именно так и нарисован. */
+  brandDishPrice: {
+    fontFamily: fontFamilies.montserratRegular,
+    fontSize: 12.5,
+    lineHeight: 19,
+  },
+  /** Разряженная надпись «ИСТОРИЯ БРЕНДА» (node 3443:12463) — Montserrat
+   * Medium 16/19.5. Разрядка в макете набрана ПРОБЕЛАМИ внутри строки, а не
+   * `letterSpacing`; в коде её делает `spacedOut`, см. ocean-basket-content. */
+  brandStoryHeading: {
+    fontFamily: fontFamilies.montserratMedium,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  /** Текст раскрытой главы (node 3443:12605) — Noto Sans Regular 16/21.8.
+   * Гарнитура здесь ДРУГАЯ, чем у остального экрана, и это макет, а не
+   * недосмотр: главу набрали основным шрифтом приложения. */
+  brandStoryBody: {
+    fontFamily: fontFamilies.notoSansRegular,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  /** Номер точки на карточке (node 3441:12295) — Montserrat Bold 14/17. */
+  brandVenueBadge: {
+    fontFamily: fontFamilies.montserratBold,
+    fontSize: 14,
+    lineHeight: 17,
+  },
+  /** Пилюля «Welcome drink» на карточке точки (node 3441:12299) — Montserrat
+   * SemiBold 12/14.6. */
+  brandVenueTag: {
+    fontFamily: fontFamilies.montserratSemiBold,
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  /** Мелкая подпись с ПЛОТНЫМ интервалом — «хиты меню» (node 3441:12381) и
+   * строка под ником инстаграма (node 3443:12580): Montserrat Regular
+   * 12/14.6. Это НЕ `brandCaption`: там тот же кегль, но интервал 22,
+   * заданный в макете отдельно (node 3441:12382). */
+  brandCaptionTight: {
+    fontFamily: fontFamilies.montserratRegular,
+    fontSize: 12,
+    lineHeight: 15,
+  },
+  /** «…в твоей тарелке» (node 3443:12572) — Cormorant Garamond Bold 20/24. */
+  brandClosingTitle: {
+    fontFamily: fontFamilies.cormorantGaramondBold,
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  /** Разряженная надпись замыкающего блока и «ПРОДОЛЖЕНИЕ СЛЕДУЕТ»
+   * (узлы 3443:12584, 3443:12571) — Montserrat Medium 13/15.85. */
+  brandSpacedLabel: {
+    fontFamily: fontFamilies.montserratMedium,
+    fontSize: 13,
+    lineHeight: 16,
   },
 
   /** Promo banner caption over the photo — the one place the design uses Inter. */

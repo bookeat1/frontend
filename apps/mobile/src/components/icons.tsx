@@ -1,5 +1,7 @@
 import {
+  Anchor,
   ArrowLeft,
+  ArrowRight,
   Bell,
   BellSimple,
   BookOpen,
@@ -16,8 +18,10 @@ import {
   Compass,
   Export,
   FadersHorizontal,
+  Fish,
   ForkKnife,
   GearSix,
+  Gift,
   GlobeSimple,
   Heart,
   Info,
@@ -33,6 +37,7 @@ import {
   SealPercent,
   Shield,
   SignOut,
+  Spiral,
   ThumbsUp,
   Trash,
   User,
@@ -42,6 +47,7 @@ import {
   WarningCircle,
   WhatsappLogo,
   WifiSlash,
+  Wine,
   Wrench,
   X,
   XCircle,
@@ -100,10 +106,22 @@ import {
  * Wrench → «Идут технические работы», BellSimple → notifications «Все» empty,
  * SealPercent → notifications «Акции» empty. CalendarBlank, Clock, Heart and
  * MagnifyingGlass (the remaining state icons) already existed. Same set.
+ *
+ * Anchor, ArrowRight, Fish, Gift, Spiral и Wine добавлены для фирменной
+ * страницы Ocean Basket (макет 3424:3927). ЭТО ПОДБОР ПО СМЫСЛУ, а не по
+ * имени слоя: дизайнер нарисовал там СВОИ значки («icon/anchor»,
+ * «icon/gift», «icon/fish», «icon/chapter-1…4») — якорь, подарок, рыба,
+ * рыба-с-лучами, спираль-ракушка и бокал. Их векторный экспорт из Figma
+ * 2026-09-01 не открылся (REST отвечал 429 весь день), поэтому взяты
+ * ближайшие глифы того же набора, а расхождение вынесено в отчёт и в описание
+ * PR. Когда экспорт откроется — эти шесть можно заменить настоящими
+ * контурами, не трогая экраны.
  */
 export type { IconProps };
 export {
+  Anchor,
   ArrowLeft,
+  ArrowRight,
   Bell,
   BellSimple,
   BookOpen,
@@ -120,8 +138,10 @@ export {
   Compass,
   Export,
   FadersHorizontal,
+  Fish,
   ForkKnife,
   GearSix,
+  Gift,
   GlobeSimple,
   Heart,
   Info,
@@ -137,6 +157,7 @@ export {
   SealPercent,
   Shield,
   SignOut,
+  Spiral,
   ThumbsUp,
   Trash,
   User,
@@ -146,6 +167,7 @@ export {
   WarningCircle,
   WhatsappLogo,
   WifiSlash,
+  Wine,
   Wrench,
   X,
   XCircle,

@@ -177,6 +177,56 @@ export const en: LocaleOverride<Dictionary> = {
     rubricNotFoundDescription:
       "It may have been unpublished. Go back to the guide and pick another one.",
   },
+  /** Ocean Basket brand page (design node 3424:3927). The copy is hardcoded —
+   * the backend has no field for it; only the venue cards are live data. */
+  oceanBasket: {
+    heroEyebrow: "ADVENTURE MAP",
+    welcomeDrink: "WELCOME DRINK",
+    welcomeDrinkAction: "Learn more",
+    welcomeDrinkA11y: "Welcome drink, learn more — jump to the list of locations",
+    mapTitle: "Find your catch",
+    mapAlt: "Illustrated map of Ocean Basket locations in Almaty",
+    pointsTitle: "All locations",
+    pointsLoading: "Loading locations…",
+    pointsErrorTitle: "Locations didn't load",
+    pointsErrorDescription: "Check your connection and try again",
+    pointsEmptyTitle: "No locations yet",
+    pointsEmptyDescription: "Ocean Basket isn't in the catalogue. Please check back later.",
+    venueTag: "Welcome drink",
+    pointNumber: (index: number) => String(index + 1).padStart(2, "0"),
+    dishesTitle: "Signature catch",
+    dishesNote: "menu hits",
+    dishes: [
+      { name: "Full Deck Platter", price: "37\u00A0990 ₸ · for the table" },
+      { name: "King Prawns", price: "from 15\u00A0090 ₸ · 6 pcs" },
+    ],
+    storyEyebrow: "BRAND STORY",
+    storyTitleLead: "From a beach in South Africa",
+    storyTitleTail: "to Almaty and Astana",
+    chapters: [
+      {
+        label: "CHAPTER 1 · CAPE TOWN · SOUTH AFRICA",
+        title: "How it all started",
+        body:
+          "A small shop by the ocean. Fresh fish, olive oil, lemon and " +
+          "Mediterranean spices — a formula that has worked for 30 years.",
+      },
+      { label: "CHAPTER 2 · 14 COUNTRIES", title: "An ocean without borders", body: "" },
+      { label: "CHAPTER 3 · ALMATY · KAZAKHSTAN", title: "The first spot in Kazakhstan", body: "" },
+      { label: "CHAPTER 4 · 3 SPOTS · ALMATY", title: "An ocean in every district", body: "" },
+    ],
+    chapterExpand: (title: string) => `Expand the "${title}" chapter`,
+    chapterCollapse: (title: string) => `Collapse the "${title}" chapter`,
+    closingEyebrow: "TO BE CONTINUED",
+    closingTitle: "…on your plate",
+    instagramHandle: "@oceanbasketkz",
+    instagramNote: "Show us your catch · #BookEatOcean",
+    instagramA11y: "Open the Ocean Basket Instagram",
+    ctaEyebrow: "READY FOR THE CATCH?",
+    ctaTitle: "Pick a spot on the map",
+    ctaAction: "Book a table",
+    ctaA11y: "Book a table — jump to the list of locations",
+  },
   notifications: {
     title: "Notifications",
     filterAll: "All",

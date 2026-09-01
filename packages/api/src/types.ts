@@ -272,6 +272,13 @@ export interface RestaurantSummary {
   rating: number;
   reviewsCount: number;
   address: string;
+  /**
+   * City exactly as the catalogue spells it ("Алматы"). The listing/search
+   * endpoint carries it next to the address (verified against the test API
+   * 2026-09-01), so a card that shows the city no longer needs the four-request
+   * detail read. Empty when the venue has none recorded.
+   */
+  city: string;
   /** Plain-text venue description. The listing/search endpoint carries the same
    * `description` field the detail read does (only images/features/tags/social
    * are detail-only — see http-mapping ApiRestaurant). Used as a 2-line muted

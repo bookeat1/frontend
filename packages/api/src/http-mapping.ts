@@ -978,6 +978,7 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     rating: 0,
     reviewsCount: 0,
     address: text(api.address),
+    city: text(api.city),
     // Descriptions come from the old CMS as HTML — same field, same cleanup as
     // the detail read (see mapRestaurantDetail).
     description: plainText(api.description),
