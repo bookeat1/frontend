@@ -1,0 +1,228 @@
+name: Deploy desktop site (test)
+
+# Builds apps/web and publishes it on the test server under /web-preview, next
+# to the venue panel at /admin-preview. Production is deliberately not reachable
+# from here — the only host this workflow can talk to is the one in the
+# TEST_SSH_HOST secret.
+#
+# Unlike the panel, the site is NOT a static export: /venues/[id] is a dynamic
+# route and every page renders through a Node server. The artifact is therefore
+# a Next standalone build, and the server runs in its own container behind the
+# existing Caddy (see deploy/web-test/docker-compose.yml).
+#
+# The build is gated on the same checks that run on every pull request: the
+# `checks` job calls .github/workflows/ci.yml, so a red typecheck, lint or test
+# run stops the deploy before anything is uploaded.
+
+on:
+  push:
+    # apps/web does not exist on develop yet; the site lives on its feature
+    # branches. Both are listed so the deploy keeps working after the merge.
+    branches: [develop, "feat/web-**"]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/deploy-web-test.yml"
+      - ".github/workflows/ci.yml"
+      - "deploy/web-test/**"
+  workflow_dispatch:
+
+concurrency:
+  # Never cancel a deploy that is mid-swap; queue instead. A separate group from
+  # deploy-admin-test so the two previews do not block each other.
+  group: deploy-web-test
+  cancel-in-progress: false
+
+env:
+  # Not secrets: this value ends up verbatim in the shipped JavaScript bundle.
+  # Pinning it here means the artifact is reproducible from the repository alone
+  # instead of from whatever the person deploying happened to export — and, more
+  # to the point, it guarantees the preview reads the TEST backend and never
+  # production.
+  NEXT_PUBLIC_API_URL: https://test.backend.book-eat.com/api/v1
+  # Read at BUILD time by next.config.mjs and baked into every asset URL; it
+  # cannot be injected when the container starts.
+  NEXT_PUBLIC_BASE_PATH: /web-preview
+  PUBLIC_URL: https://test.backend.book-eat.com
+  WEB_ROOT: /opt/bookeat/web-preview
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Fail early if the deploy secrets are missing
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          TEST_SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          TEST_SSH_USER: ${{ secrets.TEST_SSH_USER }}
+        run: |
+          missing=""
+          for name in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS TEST_SSH_HOST TEST_SSH_USER; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — the same set the admin deploy uses."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Name this release
+        id: release
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the standalone server
+        run: pnpm --filter @bookeat/web build
+
+      - name: Assemble the deployable artifact
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          std=apps/web/.next/standalone
+          [ -f "$std/apps/web/server.js" ] || {
+            echo "::error::No $std/apps/web/server.js — apps/web/next.config.mjs lost output: \"standalone\"."
+            exit 1
+          }
+          # next build leaves these two out of .next/standalone on purpose; the
+          # server reads them from disk at runtime, so a release without them
+          # boots and then serves pages with no CSS and no JavaScript.
+          cp -r apps/web/.next/static "$std/apps/web/.next/static"
+          # `public/` is empty today and git does not track empty directories,
+          # so create it unconditionally instead of guarding the copy.
+          mkdir -p "$std/apps/web/public"
+          if [ -d apps/web/public ]; then
+            cp -r apps/web/public/. "$std/apps/web/public/"
+          fi
+
+          # Prove the two build-time values actually landed in the bundle,
+          # before anything is uploaded. Both are compiled in and cannot be
+          # fixed on the server.
+          grep -rq "$NEXT_PUBLIC_API_URL" "$std/apps/web/.next/static" || {
+            echo "::error::The API base URL is not baked into the bundle; every page would show the 'API not configured' state."
+            exit 1
+          }
+          grep -rq "$NEXT_PUBLIC_BASE_PATH/_next/" "$std/apps/web/.next/static" \
+            || grep -q '"basePath":"/web-preview"' "$std/apps/web/server.js" || {
+            echo "::error::basePath was not applied; assets would be requested from the domain root and hit the backend."
+            exit 1
+          }
+          # Served as /web-preview/release.txt so the verification step below can
+          # prove the swap took effect, not merely that something is up.
+          printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$std/apps/web/public/release.txt"
+          du -sh "$std"
+
+      - name: Set up the SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload the release next to the live one
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          incoming="$WEB_ROOT/releases/.incoming-$RELEASE"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "mkdir -p '$WEB_ROOT/releases' '$WEB_ROOT/bin' && rm -rf '$incoming'"
+          rsync -az --delete -e "ssh $ssh_opts" apps/web/.next/standalone/ "$SSH_USER@$SSH_HOST:$incoming/"
+          rsync -az -e "ssh $ssh_opts" deploy/web-test/release.sh deploy/web-test/rollback.sh \
+            "$SSH_USER@$SSH_HOST:$WEB_ROOT/bin/"
+          rsync -az -e "ssh $ssh_opts" deploy/web-test/docker-compose.yml \
+            "$SSH_USER@$SSH_HOST:$WEB_ROOT/docker-compose.yml"
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "chmod 755 '$WEB_ROOT/bin/release.sh' '$WEB_ROOT/bin/rollback.sh'"
+
+      - name: Swap the symlink and recreate the container
+        id: swap
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "WEB_ROOT='$WEB_ROOT' DEPLOY_ACTOR='$GITHUB_ACTOR' '$WEB_ROOT/bin/release.sh' '$RELEASE'"
+
+      - name: Verify the site is actually up and actually new
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -uo pipefail
+          fail=0
+          for path in /web-preview /web-preview/venues; do
+            code=""
+            for attempt in 1 2 3 4 5 6; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL$path" || echo 000)
+              [ "$code" = "200" ] && break
+              sleep 5
+            done
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::$PUBLIC_URL$path returned $code, expected 200"; fail=1; }
+          done
+          # A 200 with an empty shell is still a broken deploy: assert the page
+          # was really rendered by this app and links to this basePath.
+          html=$(curl -s --max-time 20 "$PUBLIC_URL/web-preview" || true)
+          printf '%s' "$html" | grep -q '/web-preview/_next/static' || {
+            echo "::error::The home page does not reference /web-preview/_next/static — wrong basePath or wrong upstream."
+            fail=1
+          }
+          served=$(curl -s --max-time 20 "$PUBLIC_URL/web-preview/release.txt" | head -1 || true)
+          echo "release.txt -> ${served:-<empty>} (expected $RELEASE)"
+          if [ "$served" != "$RELEASE" ]; then
+            echo "::error::The server is not serving this release. Expected $RELEASE, got '${served:-nothing}'."
+            fail=1
+          fi
+          # The panel must survive every site deploy: they share one Caddy.
+          admin=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL/admin-preview/" || echo 000)
+          api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL/health" || echo 000)
+          echo "/admin-preview/ -> $admin ; /health -> $api"
+          [ "$admin" = "200" ] || { echo "::error::The venue panel stopped answering ($admin)."; fail=1; }
+          [ "$api" = "200" ] || { echo "::error::The backend stopped answering ($api)."; fail=1; }
+          [ "$fail" = "0" ] || exit 1
+          echo "Site is up and serving $RELEASE"
+
+      - name: Roll back to the previous release
+        if: failure() && steps.swap.outcome == 'success'
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          echo "::warning::Verification failed; rolling back to the previous release."
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "WEB_ROOT='$WEB_ROOT' '$WEB_ROOT/bin/rollback.sh'" || \
+            echo "::warning::Nothing to roll back to — this was the first release."
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL/web-preview" || echo 000)
+          echo "after rollback /web-preview -> $code"
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

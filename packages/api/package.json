@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./admin": "./src/admin/index.ts"
+    "./admin": "./src/admin/index.ts",
+    "./client": "./src/client.ts"
   },
   "peerDependencies": {
     "react-native": "*"

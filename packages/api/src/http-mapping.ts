@@ -16,6 +16,7 @@
  * of a screen, never throw inside a mapper and blank the whole screen.
  */
 import type {
+  Amenity,
   AuthSession,
   AuthUser,
   Booking,
@@ -83,6 +84,14 @@ export interface ApiImage {
 }
 export interface ApiFeature {
   id: string;
+  /**
+   * Код записи справочника (`terrace`, `wifi`) — то же значение, что понимает
+   * фильтр `?features=`. Отмечен необязательным, потому что в описании ручки
+   * его нет, а в ответе он есть (проверено curl'ом на тестовом бэкенде
+   * 31.08.2026): без кода удобство остаётся подписью, но перестаёт быть
+   * ссылкой в каталог.
+   */
+  code?: string;
   name: string;
   name_i18n?: Record<string, string>;
 }
@@ -1063,7 +1072,34 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     tables: stubTables(),
     description: plainText(api.description),
     acceptsOnlineBookings: api.accepts_online_bookings === true,
+    // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
+    // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
+    // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб
+    // считал, что таких данных у модели нет вовсе. Поле необязательное:
+    // список у большинства заведений пустой, а отсутствие ключа отличает
+    // «сервер их не прислал» от «их нет».
+    amenities: mapVenueAmenities(api.features),
   };
+}
+
+/**
+ * `features` детального ответа → `Amenity[]`.
+ *
+ * `id` — это КОД записи (значение фильтра `?features=`), как и у справочника
+ * `GET /venue-features`; когда сервер кода не прислал, остаётся UUID, и
+ * подпись всё равно можно показать. Записи без имени выбрасываются: пустой
+ * ярлык — это дырка в ряду.
+ */
+export function mapVenueAmenities(features: ApiFeature[] | null | undefined): Amenity[] | undefined {
+  // Ключа в ответе нет — это «сервер не сказал», и оно не то же самое, что
+  // пустой список: экран показывает ряд ярлыков только во втором случае.
+  if (!features) return undefined;
+  return features
+    .map((feature) => ({
+      id: (feature.code ?? "").trim() || feature.id,
+      name: (feature.name ?? "").trim(),
+    }))
+    .filter((amenity) => amenity.name !== "");
 }
 
 /* ------------------------------------------------------------------------ *

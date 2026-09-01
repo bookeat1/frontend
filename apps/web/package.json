@@ -1,0 +1,32 @@
+{
+  "name": "@bookeat/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3100",
+    "build": "next build",
+    "start": "next start --port 3100",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@bookeat/api": "workspace:*",
+    "@bookeat/design-tokens": "workspace:*",
+    "@bookeat/i18n": "workspace:*",
+    "@tanstack/react-query": "^5.59.0",
+    "next": "^15.4.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "~19.2.2",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^15.4.6",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~6.0.3"
+  }
+}

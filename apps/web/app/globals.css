@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: theme("colors.canvas");
+  color: theme("colors.ink.DEFAULT");
+  /* Noto Sans подключает next/font в layout.tsx и отдаёт сюда переменной.
+     Запасная цепочка держит вёрстку, пока шрифт не приехал. */
+  font-family: var(--font-noto-sans), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/**
+ * Фокус с клавиатуры обязан быть виден — правило доступности, не украшение.
+ *
+ * ЛЕЖИТ В СЛОЕ `base` НАМЕРЕННО. Раньше это правило стояло голым текстом
+ * ПОСЛЕ `@tailwind utilities`, и при равной специфичности (0,1,0 у `:focus-visible`
+ * и у `.outline-none`) побеждало по порядку — то есть отменяло `outline-none`
+ * на любом элементе, который рисует свой фокус сам. На поле телефона это
+ * давало ДВЕ красные рамки: 2 px на обёртке из макета и ещё 2 px кольцом
+ * вокруг самого `input` (видно на скриншоте стенда 31.08.2026). В слое `base`
+ * утилиты Tailwind перекрывают его независимо от порядка строк в файле.
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid theme("colors.brand.DEFAULT");
+    outline-offset: 2px;
+  }
+}
+
+/**
+ * Родная кнопка календаря и часов в полях панели поиска.
+ *
+ * В макете (3253:41 и 3253:45) её нет вовсе, а места она отнимает столько,
+ * что «Сегодня, 31 авг» в поле шириной 190 уже не помещается и обрезается
+ * многоточием (увидено на скриншоте, не в теории). Прячем её ВИДИМОСТЬ, но
+ * не убираем: `opacity: 0` оставляет элемент на месте и кликабельным, а
+ * `display: none` отняло бы у мыши единственный штатный способ открыть
+ * календарь в Chrome. Плюс сам input открывает выбор по клику
+ * (`showPicker()` в SearchPanel) — так поле кликабельно целиком.
+ */
+.search-native-picker::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  cursor: pointer;
+}

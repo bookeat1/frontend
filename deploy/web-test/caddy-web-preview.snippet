@@ -1,0 +1,27 @@
+# ---------------------------------------------------------------------------
+# Reference copy of the block added to the TEST server's Caddyfile, which lives
+# in the BACKEND repository (bookeat1/backend, deploy/Caddyfile) and on the host
+# at /opt/bookeat/deploy/Caddyfile.
+#
+# It is kept here so the frontend deploy is reproducible from this repository
+# alone; the authoritative copy is the backend one, and this snippet has to be
+# merged there so the next backend deploy does not overwrite it.
+#
+# Inserted INSIDE the existing `{$SITE_ADDRESS}` site block, after the
+# /admin-preview handler and before the catch-all `reverse_proxy app:8080`.
+#
+# `handle`, NOT `handle_path`: the site is built with basePath=/web-preview, so
+# Next expects to RECEIVE the prefix. Stripping it would 404 every page.
+# ---------------------------------------------------------------------------
+
+	# Preview of the desktop guest site (apps/web in bookeat1/frontend). Unlike
+	# /preview and /admin-preview this one is not a pile of files: it is a
+	# Next.js server rendering on demand, so Caddy proxies instead of serving.
+	#
+	# The upstream is a container from a SEPARATE compose project
+	# ("webpreview", /opt/bookeat/web-preview/docker-compose.yml) that joins
+	# this stack's network. If it is down, only /web-preview answers 502; the
+	# backend and the panel are unaffected.
+	handle /web-preview* {
+		reverse_proxy web-preview:3100
+	}
