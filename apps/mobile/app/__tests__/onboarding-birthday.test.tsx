@@ -17,6 +17,10 @@ import { getDictionary } from "@bookeat/i18n";
  *      подсказки человек получит непонятную ошибку сохранения.
  *   3. Нормальная дата уходит в формате «YYYY-MM-DD» — том, который принимает
  *      PATCH /users/me.
+ *   4. Отказ ОБЪЯСНЯЕТСЯ. Раньше неверная дата просто гасила кнопку, и почему
+ *      она не нажимается, не было сказано нигде (правка владельца
+ *      2026-09-01). Теперь кнопка живая и печатает причину — именно её и
+ *      проверяем: на старом поведении этих строк на экране нет.
  */
 
 const t = getDictionary("ru");
@@ -82,6 +86,39 @@ describe("шаг «дата рождения»", () => {
     await fill(user, "01", "01", String(new Date().getFullYear() + 1));
     await user.click(screen.getByText(t.onboarding.birthday.save));
 
+    expect(updateMe).not.toHaveBeenCalled();
+  });
+
+  it("на 31 февраля называет причину, а не молча гасит кнопку", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await fill(user, "31", "02", "1992");
+    await user.click(screen.getByText(t.onboarding.birthday.save));
+
+    expect(screen.getByText(t.profile.edit.errors.birth_date_format)).toBeDefined();
+    expect(updateMe).not.toHaveBeenCalled();
+  });
+
+  it("на дате из будущего называет именно эту причину", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await fill(user, "01", "01", String(new Date().getFullYear() + 1));
+    await user.click(screen.getByText(t.onboarding.birthday.save));
+
+    expect(screen.getByText(t.profile.edit.errors.birth_date_not_past)).toBeDefined();
+    expect(updateMe).not.toHaveBeenCalled();
+  });
+
+  it("на недописанной дате просит дописать, а не говорит «неверный формат»", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await fill(user, "18", "05", "19");
+    await user.click(screen.getByText(t.onboarding.birthday.save));
+
+    expect(screen.getByText(t.profile.edit.errors.birth_date_incomplete)).toBeDefined();
     expect(updateMe).not.toHaveBeenCalled();
   });
 

@@ -1986,6 +1986,8 @@ export const en: LocaleOverride<Dictionary> = {
       cityHint: "A free-form field — the profile has no city list",
       birthDateLabel: "Date of birth",
       birthDatePlaceholder: "Pick a date",
+      birthDateTypeLabel: "Or type the digits",
+      birthDateTypePlaceholder: "DD.MM.YYYY",
       birthDateEmpty: "not set",
       birthDateHint: "Format DD.MM.YYYY. You can't clear the date later — only change it",
       birthDateDialogTitle: "Date of birth",
@@ -1997,7 +1999,8 @@ export const en: LocaleOverride<Dictionary> = {
       saved: "Saved",
       errors: {
         name_required: "Enter a name — it's filled into your bookings",
-        birth_date_format: "Pick a date on the calendar",
+        birth_date_incomplete: "Enter the full date: day, month and year",
+        birth_date_format: "There is no such date — check the day and the month",
         birth_date_not_past: "The date of birth must be earlier than today",
         birth_date_too_old: "Check the year: this date looks like a typo",
         birth_date_cannot_clear: "You can change the date of birth, but not clear it",

@@ -157,6 +157,21 @@ export const typography = {
     fontSize: 14,
     lineHeight: 20,
   },
+  /**
+   * Заголовок карточки брони в новом списке — «Flour Demi · 9 июня, 10:30»
+   * (Figma 3z0f6dgev4HMwBAHPjTjPo, узлы 3589:8247 и I3589:8529;3589:8488:
+   * Noto Sans Medium 18/24.52).
+   *
+   * НЕ `displayCard`: там 18 той же высоты, но засечным курсивом Playfair —
+   * так набрано ИМЯ МЕСТА на карточке каталога. Здесь в строке имя вместе с
+   * датой, и макет ставит основную гарнитуру. Межстрочный округлён до целого,
+   * как и у остальных токенов.
+   */
+  bookingCardTitle: {
+    fontFamily: fontFamilies.notoSansMedium,
+    fontSize: 18,
+    lineHeight: 25,
+  },
   /** Search-chip small labels ("Казахская кухня", "12 000–20 000 ₸"). */
   captionMedium: {
     fontFamily: fontFamilies.notoSansMedium,

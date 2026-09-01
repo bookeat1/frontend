@@ -30,8 +30,13 @@ interface StubIconProps {
 }
 
 const icon = (name: string) =>
-  function StubIcon({ size, color }: StubIconProps) {
-    return <span data-testid={`icon-${name}`} data-size={size} data-color={color} />;
+  function StubIcon({ size, color, weight }: StubIconProps) {
+    // `weight` выносится наружу, потому что у ОДНОЙ иконки он несёт смысл:
+    // сердечко избранного отличает сохранённое от несохранённого именно
+    // начертанием (`fill` против `regular`), а не только цветом.
+    return (
+      <span data-testid={`icon-${name}`} data-size={size} data-color={color} data-weight={weight} />
+    );
   };
 
 export const ArrowLeft = icon("ArrowLeft");
