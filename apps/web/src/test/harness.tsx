@@ -54,6 +54,10 @@ export function venueSummary(overrides: Partial<RestaurantSummary> = {}): Restau
     rating: 4.6,
     reviewsCount: 312,
     address: "Проспект Аль-Фараби, 128В",
+    // Город обязателен у RestaurantSummary с 01.09.2026: карточка подборки
+    // Ocean Basket печатает его над названием. Без него typecheck красный на
+    // всём монорепозитории, а не только в тесте, который эту заглушку читает.
+    city: "Алматы",
     description: "Современный ресторан с авторской кухней.",
     schedule: null,
     acceptsOnlineBookings: true,
