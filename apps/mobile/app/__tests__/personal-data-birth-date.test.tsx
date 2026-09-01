@@ -111,7 +111,7 @@ describe("«Персональные данные»: день рождения",
     expect(row.textContent).toContain(t.profile.personalData.birthDateEmpty);
   });
 
-  it("открывает тот же календарь и сохраняет ТЕМ ЖЕ полем, что и «О себе»", async () => {
+  it("открывает набор цифрами и сохраняет ТЕМ ЖЕ полем, что и «О себе»", async () => {
     updateMe.mockImplementation(async (patch: { birthDate?: string }) =>
       user({ birthDate: patch.birthDate ?? null }),
     );
@@ -123,11 +123,16 @@ describe("«Персональные данные»: день рождения",
     });
     fireEvent.click(row);
 
-    // Тот самый календарь из формы «О себе»: заголовок диалога общий.
     expect(await screen.findByText(t.profile.edit.birthDateDialogTitle)).toBeTruthy();
 
-    // Открылся на мае 1990 — на сохранённой дате, а не на «сегодня».
-    fireEvent.click(screen.getByRole("button", { name: "17" }));
+    // КАЛЕНДАРЯ ЗДЕСЬ БОЛЬШЕ НЕТ (правка владельца 2026-09-01, вечер): раньше
+    // этот тест выбирал дату нажатием на день «17» в месячной сетке.
+    expect(screen.queryByRole("button", { name: "17" })).toBeNull();
+
+    const input = screen.getByLabelText(t.profile.edit.birthDateTypeLabel);
+    // Поле открылось на сохранённой дате, а не пустым.
+    expect((input as HTMLInputElement).value).toBe("04.05.1990");
+    fireEvent.change(input, { target: { value: "17051990" } });
     fireEvent.click(screen.getByRole("button", { name: t.profile.edit.birthDateApply }));
 
     await waitFor(() => expect(updateMe).toHaveBeenCalledTimes(1));
@@ -158,12 +163,17 @@ describe("«Персональные данные»: день рождения",
     fireEvent.click(
       await screen.findByRole("button", { name: t.profile.personalData.editBirthDateA11y }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "17" }));
+    fireEvent.change(screen.getByLabelText(t.profile.edit.birthDateTypeLabel), {
+      target: { value: "17051990" },
+    });
     fireEvent.click(screen.getByRole("button", { name: t.profile.edit.birthDateApply }));
 
     expect(await screen.findByText(t.profile.edit.failure.rejected)).toBeTruthy();
-    // Календарь остался открытым на выбранном дне — выбор не потерян.
+    // Диалог остался открытым на набранной дате — ввод не потерян.
     expect(screen.getByText(t.profile.edit.birthDateDialogTitle)).toBeTruthy();
+    expect(
+      (screen.getByLabelText(t.profile.edit.birthDateTypeLabel) as HTMLInputElement).value,
+    ).toBe("17.05.1990");
     // И ряд по-прежнему показывает то, что реально лежит на сервере.
     expect(
       screen.getByRole("button", { name: t.profile.personalData.editBirthDateA11y }).textContent,

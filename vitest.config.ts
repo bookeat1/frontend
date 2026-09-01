@@ -50,6 +50,7 @@ export default defineConfig({
       { find: /^expo-secure-store$/, replacement: here("./test/stubs/expo-secure-store.ts") },
       { find: /^expo-updates$/, replacement: here("./test/stubs/expo-updates.ts") },
       { find: /^expo-image$/, replacement: here("./test/stubs/expo-image.tsx") },
+      { find: /^expo-haptics$/, replacement: here("./test/stubs/expo-haptics.ts") },
       { find: /^phosphor-react-native$/, replacement: here("./test/stubs/phosphor-react-native.tsx") },
       // The Amplitude RN SDK's default entry is untranspiled TS that links a
       // native module — unloadable in jsdom. analytics.ts is a guarded no-op

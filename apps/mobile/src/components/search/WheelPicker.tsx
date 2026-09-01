@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { hapticSelectionTick } from "../../lib/haptics";
 
 /**
  * Колесо выбора — «Гости» и «Дата» в макетах 918:12428 и 918:12317.
@@ -21,6 +22,18 @@ import {
  * прокруткой на длинном списке дат тяжело, а тап по видимой строке — самый
  * короткий путь. Скроллом и тапом управляет один и тот же обработчик, так что
  * два способа не могут разойтись в том, что считается выбранным.
+ *
+ * ТАКТИЛЬНЫЙ ЩЕЛЧОК НА КАЖДОЕ СМЕНИВШЕЕСЯ ЗНАЧЕНИЕ (правка владельца
+ * 2026-09-01: «добавь микровибрацию как в нативках при скроле даты и
+ * количества гостей»). Отклик привязан не к касанию и не к отпусканию, а к
+ * тому, что под центром колеса встала ДРУГАЯ строка, — то есть щёлкает всю
+ * прокрутку, а не один раз в конце, как это делает `onChange`.
+ *
+ * Почему нельзя было просто повесить вибрацию на `onChange`: наверх значение
+ * уходит только когда колесо ОСТАНОВИЛОСЬ (`onMomentumScrollEnd`), и на
+ * пролистывании двадцати дат гость получил бы ровно один щелчок вместо
+ * двадцати. Системный барабан щёлкает каждое проехавшее значение — за ним и
+ * идём.
  */
 
 export const WHEEL_ROW_HEIGHT = 48;
@@ -50,11 +63,48 @@ export function WheelPicker({
     options.findIndex((o) => o.value === value),
   );
 
+  /**
+   * Строка, которая стояла под центром в момент прошлого щелчка.
+   *
+   * Ref, а не состояние: от неё ничего не рисуется, а перерисовка на каждом
+   * кадре прокрутки — ровно то, чего колесо себе позволить не может.
+   */
+  const tickedAt = useRef(index);
+
   // Держим колесо на выбранном значении: при открытии шторки и когда выбор
   // меняют снаружи (например, сменили дату и число гостей стало недоступным).
+  //
+  // Отметка щелчка двигается ВМЕСТЕ с колесом. Иначе программная прокрутка
+  // (открытие шторки, тап по строке) прилетела бы обратно событием прокрутки
+  // и щёлкнула бы вибромотором за то, чего человек пальцем не делал.
   useEffect(() => {
+    tickedAt.current = index;
     ref.current?.scrollTo({ y: index * WHEEL_ROW_HEIGHT, animated: false });
   }, [index]);
+
+  /** Строка под центром колеса при данном смещении прокрутки. */
+  const rowUnderCentre = useCallback(
+    (offsetY: number) =>
+      Math.min(Math.max(Math.round(offsetY / WHEEL_ROW_HEIGHT), 0), options.length - 1),
+    [options.length],
+  );
+
+  /**
+   * Щелчок — ровно тогда, когда под центром встала ДРУГАЯ строка.
+   *
+   * Здесь нарочно не вызывается `onChange`: значение по-прежнему уходит наверх
+   * только когда колесо остановилось. Иначе каждый кадр прокрутки перезапускал
+   * бы поиск (см. WheelSheet), а «черновой выбор» перестал бы быть черновым.
+   */
+  const tick = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const centred = rowUnderCentre(e.nativeEvent.contentOffset.y);
+      if (centred === tickedAt.current) return;
+      tickedAt.current = centred;
+      hapticSelectionTick();
+    },
+    [rowUnderCentre],
+  );
 
   const settle = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -80,6 +130,11 @@ export function WheelPicker({
         showsVerticalScrollIndicator={false}
         snapToInterval={WHEEL_ROW_HEIGHT}
         decelerationRate="fast"
+        onScroll={tick}
+        // Без этого RN присылает событие прокрутки раз в секунду, и щелчки
+        // отстанут от колеса настолько, что перестанут читаться как отклик на
+        // него. 16 мс — кадр при 60 Гц.
+        scrollEventThrottle={16}
         onMomentumScrollEnd={settle}
         // Медленное «дотягивание» пальцем не даёт momentum-события, и без этого
         // колесо молча оставалось бы на старом значении.
@@ -92,7 +147,18 @@ export function WheelPicker({
             accessibilityRole="button"
             accessibilityState={{ selected: i === index }}
             accessibilityLabel={option.label}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              // Тап — это тоже смена значения, и колесо обязано отозваться так
+              // же, как если бы до этой строки его докрутили. Условие ровно то
+              // же, что у прокрутки: под центром встала ДРУГАЯ строка. Сам
+              // переезд колеса щелчка уже не даст — отметку двигает эффект
+              // выше.
+              if (i !== tickedAt.current) {
+                tickedAt.current = i;
+                hapticSelectionTick();
+              }
+              onChange(option.value);
+            }}
             style={styles.row}
           >
             <Text style={[styles.label, i === index && styles.labelSelected]} numberOfLines={1}>

@@ -5,7 +5,6 @@ import React, { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { formatStoredPhoneForDisplay } from "../../lib/phone";
 import {
-  birthDateBounds,
   classifyProfileSaveFailure,
   draftFromUser,
   profilePatch,
@@ -103,12 +102,6 @@ export function ProfileForm({
   // and can answer out of order.
   const inFlight = useRef(false);
 
-  // Recomputed on every render rather than memoised on mount: they are two
-  // strings, so there is nothing to save, and a form left open across midnight
-  // would otherwise hand the calendar a "latest" day the validator has already
-  // started refusing.
-  const bounds = birthDateBounds(new Date());
-
   const patchField = useCallback((field: keyof ProfileDraft, value: string) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -197,16 +190,17 @@ export function ProfileForm({
         />
       )}
 
-      {/* The draft still holds "YYYY-MM-DD"; the field only changes how the
-          guest reads and enters it, so `profilePatch` and the wire are
-          untouched. Bounds come from the same function the validator uses —
-          the calendar cannot offer a day this form would then reject. */}
+      {/* Дату НАБИРАЮТ цифрами — календарь убран (правка владельца
+          2026-09-01, вечер). Пока набранное складывается в настоящую дату,
+          черновик держит «YYYY-MM-DD» и провод не меняется; пока не
+          складывается — черновик держит саму набранную строку, и
+          `validateProfileDraft` называет причину по «Сохранить». Пустая
+          строка на её месте означала бы «даты нет», и недопечатанная дата
+          молча сохранилась бы как отсутствие даты. */}
       <BirthDateField
         label={copy.birthDateLabel}
         value={draft.birthDate}
         onChange={(value) => patchField("birthDate", value)}
-        earliest={bounds.earliest}
-        latest={bounds.latest}
         disabled={saving}
         hint={copy.birthDateHint}
         error={errors.birthDate ? copy.errors[errors.birthDate] : undefined}

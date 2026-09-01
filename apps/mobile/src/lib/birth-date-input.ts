@@ -101,3 +101,17 @@ export function parseBirthDateInput(text: string, now: Date): BirthDateInputResu
 
   return { status: "ok", dateKey };
 }
+
+/**
+ * Разбор ЧЕРНОВИКА даты рождения — значения, которое бывает в ДВУХ видах:
+ * ключом «1990-05-04» (пришло сверху или уже разобрано) и набранной строкой
+ * «04.05.19» (человек ещё печатает).
+ *
+ * Нужен потому, что `parseBirthDateInput` читает цифры в порядке дд.мм.гггг:
+ * ключ «1990-05-04» она разобрала бы как 19-е число 90-го месяца и объявила
+ * несуществующей уже сохранённую дату. Ошибка тихая и обидная — гость
+ * открывает диалог со своей датой и получает «такой даты не существует».
+ */
+export function parseBirthDateDraft(value: string, now: Date): BirthDateInputResult {
+  return parseBirthDateInput(birthDateInputFromDateKey(value) || value, now);
+}
