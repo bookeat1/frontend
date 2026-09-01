@@ -9,6 +9,16 @@ const t = getDictionary();
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
+  /**
+   * Подпись пустого поля. По умолчанию — общий поиск по заведениям; экран
+   * меню передаёт свою («Название блюда или ингредиента», node 3563:7055),
+   * потому что ищет он по другому. Второй компонент поля ради одной строки
+   * заводить нельзя: у него сразу разъедутся высота, радиус и крестик.
+   *
+   * Она же — метка для скринридера: поле без видимой подписи должно
+   * называть себя само.
+   */
+  placeholder?: string;
   onSubmit?: () => void;
   autoFocus?: boolean;
   /** Fires when the field takes focus — the search screen shows its suggestions then. */
@@ -23,6 +33,7 @@ export function SearchBar({
   autoFocus,
   onFocus,
   onBlur,
+  placeholder = t.search.placeholder,
 }: SearchBarProps) {
   return (
     <View style={styles.container}>
@@ -34,12 +45,12 @@ export function SearchBar({
         onSubmitEditing={onSubmit}
         onFocus={onFocus}
         onBlur={onBlur}
-        placeholder={t.search.placeholder}
+        placeholder={placeholder}
         placeholderTextColor={colors.text.muted}
         autoFocus={autoFocus}
         autoCorrect={false}
         returnKeyType="search"
-        accessibilityLabel={t.search.placeholder}
+        accessibilityLabel={placeholder}
         clearButtonMode="never"
       />
       {value.length > 0 ? (

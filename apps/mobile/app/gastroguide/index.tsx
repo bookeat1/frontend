@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { GuideEditorialCard } from "../../src/components/articles/GuideEditorialCard";
-import { GuideRubricRail } from "../../src/components/articles/GuideRubricRail";
+import { GuideRubricGrid } from "../../src/components/articles/GuideRubricGrid";
 import { GuideSectionHeader } from "../../src/components/articles/GuideSectionHeader";
 import { splitGuideCollections } from "../../src/components/articles/guide-collections";
 import { GUIDE_HERO_CONTENT_HEIGHT, GuideHero } from "../../src/components/articles/GuideHero";
@@ -39,7 +39,8 @@ const t = getDictionary();
  *     Раньше содержимое лежало двумя белыми карточками на сером листе — в
  *     новом макете секции стоят прямо на кремовом фоне, а «карточкой»
  *     становится сама фотография;
- *   • секций стало три вместо двух: «Рубрики» (горизонтальная лента плиток),
+ *   • секций стало три вместо двух: «Рубрики» (сетка плиток в две колонки,
+ *     до 2026-09-01 — горизонтальная лента),
  *     «Выбор редакции» и «Гастропрогулки»;
  *   • подписи переехали НА фотографию: и у плитки, и у большой карточки текст
  *     лежит поверх затемнения, а не под кадром;
@@ -179,7 +180,7 @@ export default function GastroguideScreen() {
             />
 
             {rubrics.length > 0 ? (
-              <GuideRubricRail collections={rubrics} onPress={openRubric} />
+              <GuideRubricGrid collections={rubrics} onPress={openRubric} />
             ) : null}
 
             {/* Загрузка, отказ и пустой ответ живут в ПЕРВОЙ секции: она

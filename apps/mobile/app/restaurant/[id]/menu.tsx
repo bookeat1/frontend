@@ -7,6 +7,7 @@ import { Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "reac
 import type { SectionListData, ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../src/components/FlowHeader";
+import { SearchBar } from "../../../src/components/SearchBar";
 import { Plus } from "../../../src/components/icons";
 import { PhotoView } from "../../../src/components/PhotoView";
 import { DishDetailSheet } from "../../../src/components/restaurant/DishDetailSheet";
@@ -15,6 +16,7 @@ import { EmptyState, ErrorState, LoadingState } from "../../../src/components/St
 import { useMenuSections } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { formatMoneyMinor } from "../../../src/lib/format";
+import { filterMenuSections } from "../../../src/lib/menu-search";
 
 const t = getDictionary();
 
@@ -49,7 +51,9 @@ export default function RestaurantMenuScreen() {
   // разворачивает на телефон.
   const canPreorder = restaurant?.acceptsOnlineBookings ?? false;
 
-  const sections = useMemo<Section[]>(
+  // Всё меню, как его прислал сервер (разделы без блюд не рисуем никогда —
+  // пустой заголовок читается как потеря данных).
+  const allSections = useMemo<Section[]>(
     () =>
       (menu.data ?? [])
         .map((section) => ({
@@ -59,6 +63,12 @@ export default function RestaurantMenuScreen() {
         .filter((section) => section.data.length > 0),
     [menu.data],
   );
+
+  // Поиск по меню (макет 918:11948, поле 3563:7051 над строкой категорий).
+  // Отбор ЛОКАЛЬНЫЙ: меню уже целиком в руках (`useMenuSections`), ходить за
+  // ним второй раз с параметром `q` значило бы придумать ручку, которой нет.
+  const [search, setSearch] = useState("");
+  const sections = useMemo(() => filterMenuSections(allSections, search), [allSections, search]);
 
   // Блюдо, открытое в шторке деталей (тап по строке). null — шторка закрыта.
   const [openedDish, setOpenedDish] = useState<MenuDish | null>(null);
@@ -226,64 +236,97 @@ export default function RestaurantMenuScreen() {
           description={t.search.errorDescription}
           action={{ label: t.common.retry, onPress: () => void menu.refetch(), variant: "button" }}
         />
-      ) : sections.length === 0 ? (
+      ) : allSections.length === 0 ? (
+        // Меню пустое у самого заведения — искать нечего, поля тоже нет.
         <EmptyState title={t.restaurant.menuEmpty} description={t.restaurant.menuPreorderNote} />
       ) : (
         <>
-          <CategoryBar
-            titles={sections.map((s) => s.title)}
-            activeIndex={activeIndex}
-            onSelect={jumpToSection}
-          />
-          <SectionList
-            ref={listRef}
-            sections={sections}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            renderSectionHeader={({ section }) => (
-              <Text style={styles.sectionHeader}>{section.title}</Text>
-            )}
-            renderSectionFooter={() => <View style={styles.sectionFooter} />}
-            ListFooterComponent={<Text style={styles.footerNote}>{t.restaurant.menuPreorderNote}</Text>}
-            stickySectionHeadersEnabled
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            onViewableItemsChanged={onViewable}
-            viewabilityConfig={viewabilityConfig}
-            // Реальные метрики для промотки к разделу (см. stepJump).
-            onScroll={(e) => {
-              scrollYRef.current = e.nativeEvent.contentOffset.y;
-            }}
-            // Как только гость сам потянул список — отменяем программный прыжок
-            // от тапа по категории. Иначе, пока долистывание к цели не сошлось
-            // (до ~5 c), подсветка держится на цели и не следует за пальцем —
-            // именно этот рассинхрон («подсветка не там, потом догоняет») и был
-            // виден. С отменой подсветка сразу отдаётся onViewable и идёт за
-            // реально видимым разделом.
-            onScrollBeginDrag={() => {
-              if (jumpTargetRef.current !== null) {
+          {/* Поле поиска стоит между шапкой и строкой категорий и остаётся на
+              экране, даже когда по запросу ничего не нашлось: иначе гость,
+              опечатавшийся в одном слове, теряет и запрос, и способ его
+              исправить. */}
+          <View style={styles.searchBlock}>
+            <SearchBar
+              value={search}
+              onChangeText={(text) => {
+                setSearch(text);
+                // Список пересобрался — прежний индекс раздела указывает уже
+                // не туда, а незавершённая промотка к нему тянула бы список
+                // по чужим координатам.
                 jumpTargetRef.current = null;
-                jumpStepsRef.current = 0;
-                setActiveIndex(visibleTopRef.current);
-              }
-            }}
-            scrollEventThrottle={16}
-            onContentSizeChange={(_, h) => {
-              contentHRef.current = h;
-            }}
-            onLayout={(e) => {
-              layoutHRef.current = e.nativeEvent.layout.height;
-            }}
-            // Соседний раздел мог ещё не отрисоваться к точной scrollToLocation —
-            // следующий шаг долистывания доберёт.
-            onScrollToIndexFailed={() => {
-              if (jumpTargetRef.current !== null) setTimeout(stepJump, 150);
-            }}
-            // Меню живого заведения — до ~300 блюд: список остаётся оконным.
-            initialNumToRender={12}
-            windowSize={7}
-            removeClippedSubviews
-          />
+                visibleTopRef.current = 0;
+                setActiveIndex(0);
+              }}
+              placeholder={t.restaurant.menuSearchPlaceholder}
+            />
+          </View>
+
+          {sections.length === 0 ? (
+            <EmptyState
+              title={t.restaurant.menuSearchEmptyTitle}
+              description={t.restaurant.menuSearchEmptyDescription}
+            />
+          ) : (
+            <>
+            <CategoryBar
+              titles={sections.map((s) => s.title)}
+              activeIndex={activeIndex}
+              onSelect={jumpToSection}
+            />
+            <SectionList
+              ref={listRef}
+              sections={sections}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              renderSectionHeader={({ section }) => (
+                <Text style={styles.sectionHeader}>{section.title}</Text>
+              )}
+              renderSectionFooter={() => <View style={styles.sectionFooter} />}
+              ListFooterComponent={<Text style={styles.footerNote}>{t.restaurant.menuPreorderNote}</Text>}
+              stickySectionHeadersEnabled
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              onViewableItemsChanged={onViewable}
+              viewabilityConfig={viewabilityConfig}
+              // Реальные метрики для промотки к разделу (см. stepJump).
+              onScroll={(e) => {
+                scrollYRef.current = e.nativeEvent.contentOffset.y;
+              }}
+              // Как только гость сам потянул список — отменяем программный прыжок
+              // от тапа по категории. Иначе, пока долистывание к цели не сошлось
+              // (до ~5 c), подсветка держится на цели и не следует за пальцем —
+              // именно этот рассинхрон («подсветка не там, потом догоняет») и был
+              // виден. С отменой подсветка сразу отдаётся onViewable и идёт за
+              // реально видимым разделом.
+              onScrollBeginDrag={() => {
+                if (jumpTargetRef.current !== null) {
+                  jumpTargetRef.current = null;
+                  jumpStepsRef.current = 0;
+                  setActiveIndex(visibleTopRef.current);
+                }
+              }}
+              scrollEventThrottle={16}
+              onContentSizeChange={(_, h) => {
+                contentHRef.current = h;
+              }}
+              onLayout={(e) => {
+                layoutHRef.current = e.nativeEvent.layout.height;
+              }}
+              // Соседний раздел мог ещё не отрисоваться к точной scrollToLocation —
+              // следующий шаг долистывания доберёт.
+              onScrollToIndexFailed={() => {
+                if (jumpTargetRef.current !== null) setTimeout(stepJump, 150);
+              }}
+              // Меню живого заведения — до ~300 блюд: список остаётся оконным.
+              initialNumToRender={12}
+              windowSize={7}
+              removeClippedSubviews
+              // Тап по блюду при открытой клавиатуре должен открывать блюдо, а
+              // не просто прятать клавиатуру.
+              keyboardShouldPersistTaps="handled"
+            />
+            </>
+          )}
 
           {/* Детали блюда по тапу на строку — фото, описание, цена и, если блюдо
               можно заказать, счётчик количества + «Добавить». */}
@@ -442,6 +485,15 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: spacing.xxxl,
   },
+  // Поле поиска: белая полоса с полями 16 по бокам и 12 сверху/снизу
+  // (макет 918:11948, контейнер 3563:7048). Само поле — общий `SearchBar`:
+  // высота 48, радиус pill, заливка #F3F2F2, значок 24 — ровно то, что
+  // нарисовано в 3563:7051.
+  searchBlock: {
+    backgroundColor: colors.background.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
   categoryBar: {
     backgroundColor: colors.background.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -521,9 +573,19 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.muted,
   },
+  /**
+   * Цена в строке меню — Noto Sans Regular 14/20, #1B1B1B (макет 918:11948,
+   * узлы 918:11986, 918:11995, 918:12006 и ещё семь; в том же начертании она
+   * нарисована и в соседнем кадре 918:11820).
+   *
+   * БЫЛО `labelSemiBold` + `text.strong` (SemiBold 14/20, чистый чёрный) —
+   * цена весила столько же, сколько название блюда над ней. КЕГЕЛЬ в макете
+   * тот же, 14: «мельче» здесь означает начертание и тон, а не пункты. Если
+   * нужны именно меньшие пункты — это правка макета, а не подгонка на глаз.
+   */
   dishPrice: {
-    ...typography.labelSemiBold,
-    color: colors.text.strong,
+    ...typography.body,
+    color: colors.text.primary,
   },
   dishMuted: {
     color: colors.text.muted,
