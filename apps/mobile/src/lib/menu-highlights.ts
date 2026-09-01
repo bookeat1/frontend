@@ -20,8 +20,11 @@ import type { MenuHighlight } from "@bookeat/api";
  * (см. `mapMenuHighlights`). Отбор только выкидывает, не пересортировывает.
  *
  * Признак «фотография есть» — `photo`, а не сама ссылка: маппер уже отличил
- * пустую строку от адреса и кладёт `undefined`, когда снимка нет.
+ * пустую строку от адреса и кладёт `undefined`, когда снимка нет. Проверка
+ * через `Boolean`, а не `!== undefined`: `photo` необязателен, и из чужого
+ * кода (тест, будущий маппер, ответ старой сборки) сюда может приехать `null`
+ * — «нет фотографии» должно означать одно и то же во всех трёх видах.
  */
 export function highlightsWithPhoto(highlights: readonly MenuHighlight[]): MenuHighlight[] {
-  return highlights.filter((item) => item.photo !== undefined);
+  return highlights.filter((item) => Boolean(item.photo));
 }

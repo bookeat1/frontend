@@ -20,10 +20,18 @@ import type { MenuDish } from "@bookeat/api";
  * 4. Порядок разделов и порядок блюд внутри раздела не трогаем: он приходит с
  *    сервера и означает витрину заведения.
  *
- * Регистр складывается `toLowerCase()` — он корректен и для кириллицы, и для
- * казахских букв (ә, ө, ұ, і). Название раздела в поиск НЕ входит: иначе
- * запрос «мангал» вернул бы весь раздел, включая блюда, где этого слова нет,
- * и гость не понял бы, почему.
+ * 5. **Ё и Е — одна буква.** Русские клавиатуры телефонов ё почти не дают
+ *    (её нет на основном ряду), а редакция пишет меню «как правильно»: на
+ *    боевом «Мёд, грецкий орех» запрос «мед» не находил НИЧЕГО. Свёртка
+ *    делается с ОБЕИХ сторон — и запрос, и блюдо, — иначе симметрии нет и
+ *    «мёд» перестанет находить «Мед».
+ *
+ * Регистр складывается `toLocaleLowerCase("ru-RU")` — той же формой, что
+ * `cuisineIdFor` в `packages/api/src/http-mapping.ts`, чтобы одно и то же
+ * приложение не складывало регистр двумя разными способами. Казахские буквы
+ * (ә, ө, ұ, і) она обрабатывает корректно. Название раздела в поиск НЕ
+ * входит: иначе запрос «мангал» вернул бы весь раздел, включая блюда, где
+ * этого слова нет, и гость не понял бы, почему.
  */
 export interface MenuSearchSection {
   title: string;
@@ -34,7 +42,7 @@ export function filterMenuSections<S extends MenuSearchSection>(
   sections: readonly S[],
   query: string,
 ): S[] {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = fold(query).split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [...sections];
 
   return sections
@@ -46,6 +54,15 @@ export function filterMenuSections<S extends MenuSearchSection>(
 }
 
 function matchesDish(dish: MenuDish, terms: readonly string[]): boolean {
-  const haystack = `${dish.name} ${dish.description}`.toLowerCase();
+  const haystack = fold(`${dish.name} ${dish.description}`);
   return terms.every((term) => haystack.includes(term));
+}
+
+/**
+ * Приводит строку к форме, в которой её сравнивают: складывает регистр и
+ * приравнивает ё к е. Одна функция на запрос и на блюдо — разойтись двум
+ * копиям проще, чем кажется, а разошедшись, они дадут несимметричный поиск.
+ */
+function fold(value: string): string {
+  return value.toLocaleLowerCase("ru-RU").replace(/ё/g, "е");
 }

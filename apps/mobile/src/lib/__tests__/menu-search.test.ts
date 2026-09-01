@@ -64,6 +64,20 @@ describe("filterMenuSections", () => {
     expect(filterMenuSections(sections, "мангал")).toEqual([]);
   });
 
+  it("ё и е — одна буква, свёртка симметричная", () => {
+    // Баг с ревью PR #102: на русской клавиатуре телефона ё нет на основном
+    // ряду, а редакция пишет «Мёд, грецкий орех». Запрос «мед» не находил
+    // ничего.
+    expect(filterMenuSections(sections, "мед").flatMap((s) => s.data).map((d) => d.id)).toEqual([
+      "3",
+    ]);
+    // Обратное направление тоже: «ё» в запросе против «е» в данных.
+    const withE = [{ title: "Десерты", data: [dish("9", "Мед горный")] }];
+    expect(filterMenuSections(withE, "мёд")).toHaveLength(1);
+    // И заглавная Ё.
+    expect(filterMenuSections(sections, "МЁД").flatMap((s) => s.data)).toHaveLength(1);
+  });
+
   it("ничего не совпало — пустой список, а не исходное меню", () => {
     expect(filterMenuSections(sections, "суши")).toEqual([]);
   });
