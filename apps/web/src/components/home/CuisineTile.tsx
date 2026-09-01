@@ -3,15 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { webCuisineTile, webLayout } from "@bookeat/design-tokens";
+import { webCuisineTile } from "@bookeat/design-tokens";
 import type { Cuisine } from "@bookeat/api/client";
 
 import { cuisinePhoto } from "@web/lib/cuisine-photos";
 import { cx } from "@web/lib/cx";
 
 /** Круг рисуется ровно в размер токена, поэтому `sizes` — тоже из токенов. */
-const DESIGN_IMAGE_SIZES = `${webCuisineTile.size}px`;
-const COMPACT_IMAGE_SIZES = `(min-width: ${webLayout.breakpoints[1]}px) ${webCuisineTile.sizeCompact}px, ${webCuisineTile.size}px`;
+const IMAGE_SIZES = `${webCuisineTile.size}px`;
 
 /**
  * Ячейка ряда «Выберите кухню» — Figma 3254:7 (кадр 3253:2).
@@ -29,18 +28,14 @@ const COMPACT_IMAGE_SIZES = `(min-width: ${webLayout.breakpoints[1]}px) ${webCui
  * Многоточия здесь тоже быть не может: обрезанное название кухни ничего не
  * значит.
  *
- * В тесном ряду (четырнадцать кухонь против десяти нарисованных) уменьшается
- * и подпись, и круг — 11/14 вместо 16/18 и 64 вместо 104. Числа посчитаны из
- * реальных ширин Noto Sans 500, разбор — в комментарии к `webCuisineTile`.
- * Мельче делаем ТОЛЬКО с `xl` (1280), и это не «на глаз». Ужимать подпись
- * имеет смысл ровно там, где это ПОМОГАЕТ уместить ряд. Контейнер отдаёт
- * 1200 только шире 1440, между 1024 и 1440 у него ещё поля `px-6`, и на 1024
- * ряду достаётся 976 при нужных 1127 — то есть на 1024 прокрутка всё равно
- * будет, и мелкий кегль там просто портит чтение. На 1280 доступно 1152, и
- * ряд помещается целиком.
+ * РАЗМЕР ОДИН НА ВСЕ ШИРИНЫ — тот, что в макете: круг 104, подпись 16/18
+ * Medium. Уменьшенного варианта (64 и 11/14) больше нет: он существовал
+ * 01.09.2026 несколько часов, пока от ряда требовали уместиться в 1200 без
+ * прокрутки. Прокрутка эту причину сняла — см. `CuisineRow`.
  *
  * В макете в круге фотография. Справочник картинку присылает не всегда (на
- * тестовом стенде — ни у одной из 14 кухонь), поэтому источников три: ссылка
+ * тестовом стенде 01.09.2026 — ни у одной из 15 кухонь), поэтому источников
+ * три: ссылка
  * справочника → снимок из макета в `public/cuisines` → монограмма. Битый адрес
  * приравнен к отсутствующему.
  *
@@ -48,7 +43,7 @@ const COMPACT_IMAGE_SIZES = `(min-width: ${webLayout.breakpoints[1]}px) ${webCui
  * дизайнера. Альтернатива («не показывать кухню без картинки») хуже: кухня
  * это вход в фильтр каталога, и пропавший вход гость никак не восстановит.
  */
-export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; compact?: boolean }) {
+export function CuisineTile({ cuisine }: { cuisine: Cuisine }) {
   // Помним УПАВШИЕ адреса, а не булев флаг: адресов два, и «сломался
   // справочник» не должно означать «сломался и запасной снимок».
   const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set());
@@ -67,7 +62,6 @@ export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; co
         className={cx(
           "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full",
           "h-cuisine w-cuisine",
-          compact && "xl:h-cuisine-compact xl:w-cuisine-compact",
           // Под фотографией — обычная приглушённая подложка (у части снимков
           // прозрачный фон). Под монограммой — фирменная светлая.
           src ? "bg-muted" : "bg-brand-subtle",
@@ -78,7 +72,7 @@ export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; co
             src={src}
             alt=""
             fill
-            sizes={compact ? COMPACT_IMAGE_SIZES : DESIGN_IMAGE_SIZES}
+            sizes={IMAGE_SIZES}
             // Тот же довод, что в RemoteImage: наш загрузчик отдаёт один адрес
             // на любую ширину, без флага Next печатает srcSet из шестнадцати
             // одинаковых ссылок.
@@ -93,13 +87,7 @@ export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; co
           </span>
         )}
       </span>
-      <span
-        className={cx(
-          "w-full text-center text-ink [hyphens:none] [overflow-wrap:normal]",
-          "text-cuisine-label",
-          compact && "xl:text-cuisine-label-compact",
-        )}
-      >
+      <span className="w-full text-center text-cuisine-label text-ink [hyphens:none] [overflow-wrap:normal]">
         {cuisine.name}
       </span>
     </Link>

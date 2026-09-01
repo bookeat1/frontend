@@ -6,7 +6,7 @@ import { webAppSection } from "@bookeat/design-tokens";
 
 import { Section, SectionHeader } from "@web/components/home/SectionHeader";
 import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
-import { CuisineRow } from "@web/components/home/CuisineRow";
+import { CuisineRow, CuisineRowSkeleton } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -76,19 +76,7 @@ export function HomeScreen() {
           <AsyncBlock
             query={cuisines}
             emptyText={t.web.home.cuisines.empty}
-            skeleton={
-              <ul className="flex list-none items-start gap-x-cuisine-row-x overflow-hidden lg:grid lg:grid-cols-10">
-                {PLACEHOLDERS.slice(0, 10).map((key) => (
-                  <li
-                    key={key}
-                    className="flex w-cuisine shrink-0 flex-col items-center gap-cuisine-gap lg:w-full lg:min-w-0"
-                  >
-                    <Skeleton className="aspect-square w-full max-w-cuisine rounded-full" />
-                    <Skeleton className="h-[18px] w-full" />
-                  </li>
-                ))}
-              </ul>
-            }
+            skeleton={<CuisineRowSkeleton />}
           >
             {(items) => <CuisineRow items={items} />}
           </AsyncBlock>

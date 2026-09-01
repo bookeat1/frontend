@@ -38,20 +38,12 @@ const fontSize: Record<string, FontSizeEntry> = {
       ],
     ]),
   ),
-  /** Подпись кухни. Своей строки в ките у неё нет — кегль снят с самой ячейки
-   * (узел 3254:7), поэтому и утилита собрана из `webCuisineTile`. */
+  /** Подпись кухни. Своей строки в ките у неё нет — кегль снят с самого
+   * текстового узла (3254:9), поэтому утилита собрана из `webCuisineTile`. */
   "cuisine-label": [
     px(webCuisineTile.labelFontSize),
     {
       lineHeight: px(webCuisineTile.labelLineHeight),
-      fontWeight: String(webCuisineTile.labelFontWeight),
-    },
-  ],
-  /** Она же в тесном ряду: четырнадцать кухонь в 1200 без переноса слова. */
-  "cuisine-label-compact": [
-    px(webCuisineTile.labelFontSizeCompact),
-    {
-      lineHeight: px(webCuisineTile.labelLineHeightCompact),
       fontWeight: String(webCuisineTile.labelFontWeight),
     },
   ],
@@ -161,7 +153,6 @@ const config: Config = {
         "card-body": px(webVenueCard.bodyPadding),
         "cuisine-gap": px(webCuisineTile.gap),
         "cuisine-row-x": px(webCuisineTile.rowGapX),
-        "cuisine-row-x-compact": px(webCuisineTile.rowGapXCompact),
         "header-y": px(webHeader.paddingY),
         "header-brand-gap": px(webHeader.brandGap),
         "header-nav-gap": px(webHeader.navGap),
@@ -210,7 +201,10 @@ const config: Config = {
         header: px(webLayout.headerHeight),
         "card-image": px(webVenueCard.imageHeight),
         cuisine: px(webCuisineTile.size),
-        "cuisine-compact": px(webCuisineTile.sizeCompact),
+        /** Строка подписи кухни — чтобы скелетон ряда был ровно той же
+         * высоты, что и настоящая ячейка (104 + 12 + 18), и страница при
+         * появлении данных не прыгала. */
+        "cuisine-label": px(webCuisineTile.labelLineHeight),
         panel: px(webSearchPanel.height),
         submit: px(webSearchPanel.submit.height),
         store: px(webAppSection.storeButton.height),
@@ -228,7 +222,6 @@ const config: Config = {
       },
       width: {
         cuisine: px(webCuisineTile.size),
-        "cuisine-compact": px(webCuisineTile.sizeCompact),
         logo: px(webHeader.logo.width),
         "card-favorite": px(webVenueCard.favorite.size),
         "store-app": px(webAppSection.storeButton.appStoreWidth),
@@ -255,9 +248,6 @@ const config: Config = {
       maxWidth: {
         container: px(webLayout.containerWidth),
         modal: px(webLayout.modalWidth),
-        /** Потолок кружка кухни: в тесном ряду он ужимается, крупнее макета
-         * не растёт. */
-        cuisine: px(webCuisineTile.size),
       },
     },
   },

@@ -55,3 +55,34 @@ body {
   opacity: 0;
   cursor: pointer;
 }
+
+/**
+ * Тонкая полоса прокрутки для горизонтальных рядов (сейчас — «Выберите кухню»).
+ *
+ * Полосу НЕ прячем совсем: кнопок-стрелок макет не рисует, и на десктопе с
+ * мышью полоса — единственный признак, что справа есть ещё содержимое. Но
+ * системная полоса Chromium под рядом высотой 15 px откровенно груба, поэтому
+ * ужимаем до 6 px и красим в цвет обводки контролов.
+ *
+ * Правила продублированы намеренно: `scrollbar-width`/`scrollbar-color` —
+ * стандарт (Firefox, Chrome 121+, Safari 18.2+), `::-webkit-scrollbar` —
+ * запасной путь для WebKit постарше. Браузер, который не понимает ни того ни
+ * другого, покажет обычную полосу: прокрутка не ломается, она просто толще.
+ */
+.row-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.line.control") transparent;
+}
+
+.row-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.row-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.row-scrollbar::-webkit-scrollbar-thumb {
+  background-color: theme("colors.line.control");
+  border-radius: theme("borderRadius.full");
+}

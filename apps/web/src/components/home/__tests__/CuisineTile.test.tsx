@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { webCuisineTile, webLayout } from "@bookeat/design-tokens";
+import { webCuisineTile } from "@bookeat/design-tokens";
 
 import { CuisineTile } from "@web/components/home/CuisineTile";
 
@@ -19,7 +19,7 @@ function photoSrc(container: HTMLElement): string | null {
  */
 describe("CuisineTile", () => {
   it("длинное название не рвётся внутри слова и не обрезается", () => {
-    render(<CuisineTile cuisine={{ id: "mediterranean", name: "Средиземноморская" }} compact />);
+    render(<CuisineTile cuisine={{ id: "mediterranean", name: "Средиземноморская" }} />);
 
     const label = screen.getByText("Средиземноморская");
     // Владелец 01.09.2026: «Средизем-номорская» и «Море-продукты» — баг.
@@ -35,86 +35,42 @@ describe("CuisineTile", () => {
     expect(label.className).not.toContain("text-ellipsis");
   });
 
-  /** Тесный ряд (14 кухонь против 10 нарисованных) уменьшает и подпись, и
-   * круг — но ТОЛЬКО с `xl`: уже 1280 ряд не помещается ни при каком читаемом
-   * кегле, там он прокручивается вбок, и мельчить незачем. */
-  it("в тесном ряду подпись и круг мельче, и только на десктопе", () => {
-    const wide = render(<CuisineTile cuisine={{ id: "european", name: "Европейская" }} />);
-    expect(screen.getByText("Европейская").className).toContain("text-cuisine-label");
-    expect(screen.getByText("Европейская").className).not.toContain("cuisine-label-compact");
-    expect(wide.container.querySelector("span")?.className).toContain("w-cuisine");
-    expect(wide.container.querySelector("span")?.className).not.toContain("cuisine-compact");
-    wide.unmount();
-
-    const tight = render(<CuisineTile cuisine={{ id: "european", name: "Европейская" }} compact />);
-    expect(screen.getByText("Европейская").className).toContain("xl:text-cuisine-label-compact");
-    expect(tight.container.querySelector("span")?.className).toContain("xl:w-cuisine-compact");
-    // Базовый размер остаётся размером макета — компакт навешан брейкпоинтом.
-    expect(tight.container.querySelector("span")?.className).toContain("w-cuisine");
+  /**
+   * ЗНАЧЕНИЯ МАКЕТА, а не «что смотрелось лучше». Сняты из Figma REST
+   * 01.09.2026: файл 49Zk9oEV3ZCiCdh6Cz9dE2, кадр 3253:2, ряд 3254:6.
+   *
+   *   круг 3254:8      104×104, cornerRadius 999
+   *   itemSpacing 3254:7   12 (круг → подпись)
+   *   подпись 3254:9   Noto Sans 16/18, weight 500, по центру
+   *   просвет ряда     238,89 − 120 − 104 = 14,89 → 15
+   *
+   * Тест стоит здесь потому, что эти четыре числа уже один раз уезжали:
+   * 01.09.2026 их ужали до 64 и 11/14, чтобы пятнадцать кухонь влезли в одну
+   * строку без прокрутки. Прокрутка вернула размеры макета, и следующая
+   * попытка «немного уменьшить, чтобы влезло» обязана упасть здесь.
+   */
+  it("держит размеры макета", () => {
+    expect(webCuisineTile).toEqual({
+      size: 104,
+      gap: 12,
+      labelFontSize: 16,
+      labelLineHeight: 18,
+      labelFontWeight: 500,
+      rowGapX: 15,
+    });
   });
 
-  /**
-   * Числа, на которых держится вся правка. Если кто-то поднимет кегль или
-   * диаметр «чтобы было виднее», ряд из четырнадцати названий вылезет за
-   * 1200 — и это должно упасть здесь, а не на стенде.
-   *
-   * Как получены em'ы: ширина САМОГО ДЛИННОГО СЛОВА каждого названия,
-   * снятая в Chromium на Noto Sans 500 при кегле 100 (тот же шрифт, которым
-   * рисует сайт), делённая на 100. Именно самое длинное слово, а не всё
-   * название: ячейка это `width: min-content`, многословные названия
-   * переносятся по пробелу. Названия — живой `GET /cuisines` тестового
-   * стенда на 01.09.2026, все три языка справочника.
-   */
-  const LONGEST_WORD_EM: Record<string, readonly number[]> = {
-    // Европейская, Средиземноморская, Морепродукты, Казахская, Паназиатская,
-    // Итальянская, Французская, Грузинская, Турецкая, Греческая, Восточная,
-    // Веганская, Авторская, Японская
-    ru: [6.74, 10.8, 7.86, 5.41, 7.35, 6.78, 6.91, 6.02, 4.94, 5.43, 5.49, 5.46, 5.45, 4.96],
-    // Еуропалық, Жерорта, өнімдері, асханасы, Паназиялық, Итальяндық,
-    // асханасы, Грузин, асханасы, асханасы, асханасы, Веган, Авторлық, Жапон
-    kk: [5.75, 4.76, 4.51, 4.96, 6.43, 6.5, 4.96, 3.66, 4.96, 4.96, 4.96, 3.1, 5.12, 3.6],
-    // European, Mediterranean, Seafood, Kazakh, Pan-Asian, Italian, French,
-    // Georgian, Turkish, Greek, Oriental, Vegan, Signature, Japanese
-    en: [4.75, 7.3, 4.06, 3.59, 4.86, 3.1, 3.33, 4.54, 3.51, 2.98, 4.01, 3.09, 4.81, 4.54],
-  };
+  it("рисует круг и подпись размера макета на любой ширине", () => {
+    const { container } = render(<CuisineTile cuisine={{ id: "european", name: "Европейская" }} />);
 
-  /**
-   * Целевая ширина — НЕ 1200. Контейнер шире 1440 отдаёт ровно 1200, но между
-   * 1024 и 1440 у него ещё `px-6` с каждой стороны (`Container.tsx`), и на
-   * 1280 ряду достаётся 1152. Считаем по 1152: мелкий кегль включается с `xl`,
-   * то есть ровно с 1280, и обязан там помещаться, иначе он включается зря.
-   */
-  const ROW_WIDTH_AT_LG = webLayout.containerWidth - 2 * 24;
-
-  /** Ширина ряда: ячейка = max(круг, самое длинное слово), плюс просветы. */
-  function tightRowWidth(ems: readonly number[]): number {
-    const cells = ems.map((em) =>
-      Math.max(webCuisineTile.sizeCompact, em * webCuisineTile.labelFontSizeCompact),
-    );
-    return (
-      cells.reduce((sum, width) => sum + width, 0) +
-      (ems.length - 1) * webCuisineTile.rowGapXCompact
-    );
-  }
-
-  it.each(Object.keys(LONGEST_WORD_EM))(
-    "тесный ряд из 14 кухонь укладывается в контейнер: %s",
-    (lang) => {
-      expect(tightRowWidth(LONGEST_WORD_EM[lang])).toBeLessThanOrEqual(ROW_WIDTH_AT_LG);
-    },
-  );
-
-  /** Кегль выбран НЕ с запасом «на глазок»: он и есть максимальный, который
-   * ещё помещается. Шаг вверх обязан ломать ряд — иначе подпись зря мельче,
-   * чем могла бы быть. */
-  it("кегль подписи выбран впритык: на пункт больше ряд уже не влезает", () => {
-    const ru = LONGEST_WORD_EM.ru;
-    const step = webCuisineTile.labelFontSizeCompact + 1;
-    const cells = ru.map((em) => Math.max(webCuisineTile.sizeCompact, em * step));
-    const width =
-      cells.reduce((sum, w) => sum + w, 0) + (ru.length - 1) * webCuisineTile.rowGapXCompact;
-
-    expect(width).toBeGreaterThan(ROW_WIDTH_AT_LG);
+    const circle = container.querySelector("span");
+    expect(circle?.className).toContain("h-cuisine");
+    expect(circle?.className).toContain("w-cuisine");
+    expect(screen.getByText("Европейская").className).toContain("text-cuisine-label");
+    // Ни размера, ни кегля, навешанного брейкпоинтом: ряд прокручивается,
+    // ужимать его под ширину окна больше незачем.
+    expect(container.innerHTML).not.toContain("compact");
+    expect(container.innerHTML).not.toMatch(/(md|lg|xl|2xl):(w|h|text)-cuisine/);
   });
 
   it("без ссылки в справочнике берёт снимок из макета", () => {
