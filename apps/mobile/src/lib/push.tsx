@@ -5,6 +5,7 @@ import { useRootNavigationState, useRouter } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "./auth";
+import { readNotificationsPref, writeNotificationsPref } from "./notifications-pref";
 import {
   GuestPushRegistrar,
   type PushGateway,
@@ -142,8 +143,13 @@ interface PushContextValue {
    * runtime, so a caller that only checks this cannot show a dead card. */
   permission(): Promise<PushPermission>;
   /** Prompts and registers. Safe to call twice — concurrent calls share one
-   * result. */
+   * result. Also records the guest's «Уведомления» preference as ON, so the
+   * settings switch and the post-booking card can never contradict each
+   * other. */
   enable(): Promise<PushOutcome>;
+  /** The settings switch turned OFF: unregister this device server-side. The
+   * OS permission is untouched — it cannot be revoked from inside the app. */
+  disable(): Promise<void>;
 }
 
 const PushContext = createContext<PushContextValue | null>(null);
@@ -167,6 +173,9 @@ export function PushProvider({ children }: { children: React.ReactNode }) {
       backend: repository,
       support,
       platform: platform ?? "web",
+      // The silent sync obeys the settings switch: a guest who turned
+      // notifications off must not be re-registered on the next cold start.
+      preference: { enabled: () => readNotificationsPref() },
     });
   }, [platform, repository, support]);
 
@@ -256,10 +265,28 @@ export function PushProvider({ children }: { children: React.ReactNode }) {
       supported: support.supported,
       permission: () => registrar.permission(),
       enable: async () => {
-        if (!userId) return { state: "permission-undetermined" } as const;
-        const outcome = await registrar.enable(userId);
+        // No account yet (`/users/me` still in flight): the permission is
+        // still worth asking for — the token goes out on the sign-in sync.
+        const outcome = userId
+          ? await registrar.enable(userId)
+          : await registrar.requestPermissionOnly();
+        // Both entry points — the settings switch and the post-booking card —
+        // mean the same thing, so both record the preference. Without this a
+        // guest who switched notifications off and later tapped «Включить» on
+        // the card would be registered now and silently dropped on the next
+        // launch by the sync gate.
+        if (
+          outcome.state === "registered" ||
+          outcome.state === "unchanged" ||
+          outcome.state === "permission-granted"
+        ) {
+          await writeNotificationsPref(true);
+        }
         logOutcome("enable", outcome);
         return outcome;
+      },
+      disable: async () => {
+        await registrar.disable();
       },
     }),
     [registrar, support.supported, userId],

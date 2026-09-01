@@ -7,11 +7,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmSheet } from "../../src/components/ConfirmSheet";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { Bell, type IconProps, Info, Shield, Trash } from "../../src/components/icons";
+import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ToggleRow } from "../../src/components/ToggleRow";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
 import { SETTINGS_SECURITY_ROW_ENABLED } from "../../src/lib/feature-flags";
-import { useNotificationsPref } from "../../src/lib/notifications-pref";
+import { usePushNotificationsSetting } from "../../src/hooks/usePushNotificationsSetting";
 
 /**
  * «Настройки» — the entry point reached from the gear/row on «Профиль».
@@ -32,8 +33,13 @@ import { useNotificationsPref } from "../../src/lib/notifications-pref";
  * и строка стояла неинтерактивной с подписью «Скоро» — обещание, за которым
  * ничего не открывается. Разметка строки оставлена на месте: появится экран —
  * флаг в `true`, а `InfoRow` меняется на строку с переходом. The
- * version row is pure info. The notifications toggle is a genuinely stored
- * client preference (see useNotificationsPref), not a server switch.
+ * version row is pure info.
+ *
+ * Тумблер «Уведомления» показывает СИСТЕМНОЕ разрешение вместе с сохранённым
+ * выбором гостя, а не одно только булево (см. notification-settings.ts): до
+ * 01.09.2026 он показывал «включено» телефону, у которого уведомления
+ * запрещены. Вся логика — в usePushNotificationsSetting, экран только рисует
+ * исходы: обычная подпись, объяснение с кнопкой в системные настройки и ошибка.
  *
  * Strings come from the CURRENT locale via useLocale, so the screen re-renders
  * in the chosen language.
@@ -69,7 +75,19 @@ export default function SettingsScreen() {
       setDeleting(false);
     }
   };
-  const { enabled: notificationsEnabled, setEnabled: setNotificationsEnabled } = useNotificationsPref();
+  const notifications = usePushNotificationsSetting();
+
+  // Подпись под тумблером объясняет ровно текущее положение. Порядок ветвей —
+  // от самой конкретной причины к самой общей.
+  const notificationsDescription = notifications.unsupported
+    ? t.settings.notificationsUnavailable
+    : notifications.failed
+      ? t.settings.notificationsError
+      : notifications.blocked
+        ? t.settings.notificationsBlocked
+        : notifications.value
+          ? t.settings.notificationsOn
+          : t.settings.notificationsOff;
 
   // Build/version read off the compiled app config, not hardcoded, so it stays
   // truthful across releases. iOS carries buildNumber (string), Android
@@ -89,9 +107,23 @@ export default function SettingsScreen() {
         <ToggleRow
           icon={Bell}
           label={t.settings.notifications}
-          value={notificationsEnabled}
-          onValueChange={setNotificationsEnabled}
+          value={notifications.value}
+          onValueChange={notifications.setEnabled}
+          description={notifications.loading ? undefined : notificationsDescription}
+          descriptionIsError={notifications.failed}
+          disabled={notifications.loading || notifications.working || notifications.unsupported}
         />
+        {notifications.blocked ? (
+          // Выключить разрешение изнутри приложения нельзя, включить обратно —
+          // тоже: только системные настройки. Кнопка ведёт ровно туда.
+          <View style={styles.notificationsAction}>
+            <PrimaryButton
+              label={t.settings.notificationsOpenSettings}
+              variant="secondary"
+              onPress={notifications.openSystemSettings}
+            />
+          </View>
+        ) : null}
 
         {SETTINGS_SECURITY_ROW_ENABLED ? (
           <InfoRow icon={Shield} label={t.settings.security} hint={t.settings.comingSoon} />
@@ -181,6 +213,10 @@ const styles = StyleSheet.create({
   dangerLabel: {
     ...typography.labelMedium,
     color: colors.brand.primary,
+  },
+  notificationsAction: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
   infoRow: {
     minHeight: hitSlop.minTouchTarget + spacing.lg,

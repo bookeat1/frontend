@@ -8,6 +8,17 @@ interface ToggleRowProps {
   label: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  /**
+   * Строка под подписью: что означает текущее положение или почему переключить
+   * нельзя. Нужна там, где положение зависит не только от нас (системное
+   * разрешение на уведомления), — иначе выключенный тумблер выглядит поломкой.
+   */
+  description?: string;
+  /** Подпись — сообщение об ошибке: красная и объявляется скринридером сразу. */
+  descriptionIsError?: boolean;
+  /** Переключатель недоступен: настройка ещё читается, идёт запрос или пуши
+   * в этой сборке невозможны. */
+  disabled?: boolean;
 }
 
 /**
@@ -17,19 +28,43 @@ interface ToggleRowProps {
  * right — the whole row is a real on/off control, not a link to a screen. Used
  * for genuinely stored preferences (e.g. push notifications).
  */
-export function ToggleRow({ icon: Icon, label, value, onValueChange }: ToggleRowProps) {
+export function ToggleRow({
+  icon: Icon,
+  label,
+  value,
+  onValueChange,
+  description,
+  descriptionIsError = false,
+  disabled = false,
+}: ToggleRowProps) {
   return (
     <View style={styles.root}>
       <Icon size={24} color={colors.text.primary} weight="regular" />
       {/* A long Russian label ("Уведомления") wraps to two lines rather than
-          shoving the switch off a 360px screen. */}
-      <Text style={styles.label} numberOfLines={2}>
-        {label}
-      </Text>
+          shoving the switch off a 360px screen. Подпись занимает ту же
+          колонку и переносится сколько нужно — на 360px она в две-три строки. */}
+      <View style={styles.text}>
+        <Text style={styles.label} numberOfLines={2}>
+          {label}
+        </Text>
+        {description ? (
+          <Text
+            style={[styles.description, descriptionIsError && styles.descriptionError]}
+            accessibilityRole={descriptionIsError ? "alert" : "text"}
+          >
+            {description}
+          </Text>
+        ) : null}
+      </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
+        disabled={disabled}
         accessibilityLabel={label}
+        // Скринридеру нужна та же причина, что видит зрячий гость строкой
+        // ниже: иначе выключенный переключатель без объяснения.
+        accessibilityHint={description}
+        accessibilityState={{ disabled }}
         trackColor={{ false: colors.background.secondaryButton, true: colors.brand.primary }}
         thumbColor={colors.background.surface}
         ios_backgroundColor={colors.background.secondaryButton}
@@ -51,10 +86,21 @@ const styles = StyleSheet.create({
     // соседние (макет 906:10384).
     backgroundColor: colors.background.surface,
   },
+  text: {
+    // Takes the free space so the switch pins to the right edge.
+    flex: 1,
+    gap: spacing.xs,
+  },
   label: {
     ...typography.labelMedium,
     color: colors.text.primary,
-    // Takes the free space so the switch pins to the right edge.
-    flex: 1,
+  },
+  description: {
+    ...typography.caption,
+    color: colors.text.muted,
+  },
+  descriptionError: {
+    // Единственный красный в палитре — тот же, что у остальных ошибок.
+    color: colors.brand.primary,
   },
 });

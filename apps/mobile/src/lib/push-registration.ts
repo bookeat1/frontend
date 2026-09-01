@@ -42,11 +42,32 @@ export interface PushBackend {
   unregisterPushToken(token: string): Promise<void>;
 }
 
+/**
+ * The guest's «Уведомления» switch, as the registrar sees it.
+ *
+ * Only the SILENT path (`sync`) consults it: a guest who turned the switch off
+ * must stay off across restarts, and re-registering the token on the next cold
+ * start is exactly how a switch becomes decorative. `enable` deliberately does
+ * NOT consult it — that call IS the guest turning it on.
+ */
+export interface PushPreference {
+  /** False when the guest switched notifications off. Never throws: an
+   * unreadable store answers with the default, not with a crash. */
+  enabled(): Promise<boolean>;
+}
+
 export type PushOutcome =
   /** This runtime cannot do push at all. Never surfaced to the guest. */
   | { state: "unsupported"; reason: PushUnsupportedReason }
   /** Permission has not been granted and we did not ask (sync path). */
   | { state: "permission-undetermined" }
+  /** The guest switched notifications off in Settings, so the silent sync did
+   * nothing. Not an error and never shown as one. */
+  | { state: "disabled-by-guest" }
+  /** Permission was granted, but there is no account to register it against
+   * yet (the settings toggle can be reached before `/users/me` answers). The
+   * token goes out on the next sign-in sync. */
+  | { state: "permission-granted" }
   /** The guest said no — now or at some earlier point. */
   | { state: "denied" }
   /** Permission is granted but the provider gave us no token. */
@@ -68,6 +89,7 @@ export interface PushRegistrarOptions {
   backend: PushBackend;
   support: PushSupport;
   platform: DevicePlatform;
+  preference: PushPreference;
 }
 
 export class GuestPushRegistrar {
@@ -75,6 +97,7 @@ export class GuestPushRegistrar {
   private readonly backend: PushBackend;
   private readonly support: PushSupport;
   private readonly platform: DevicePlatform;
+  private readonly preference: PushPreference;
 
   /**
    * What the SERVER is believed to know, for this process only. Deliberately
@@ -87,13 +110,14 @@ export class GuestPushRegistrar {
 
   /** De-duplicates concurrent calls (opt-in card tapped twice, a token-change
    * event arriving while the sign-in sync is still in flight). */
-  private inFlight: Promise<PushOutcome> | null = null;
+  private inFlight: Promise<unknown> | null = null;
 
   constructor(options: PushRegistrarOptions) {
     this.gateway = options.gateway;
     this.backend = options.backend;
     this.support = options.support;
     this.platform = options.platform;
+    this.preference = options.preference;
   }
 
   /**
@@ -113,6 +137,31 @@ export class GuestPushRegistrar {
    */
   enable(userId: string): Promise<PushOutcome> {
     return this.run(userId, true);
+  }
+
+  /**
+   * Ask for permission with NO account to register against.
+   *
+   * The settings toggle can be tapped before `/users/me` has answered, and a
+   * switch that silently does nothing in that window is the defect this file
+   * exists to prevent. The permission is real; the token goes out on the next
+   * sign-in sync.
+   */
+  requestPermissionOnly(): Promise<PushOutcome> {
+    return this.enqueue(() => this.requestExclusive());
+  }
+
+  /**
+   * The settings toggle turned OFF: stop this device receiving pushes.
+   *
+   * Unlike `unregister` (the sign-out path) this does not rely on a belief
+   * formed in THIS process. The guest may have registered on an earlier
+   * launch, so when the belief is empty the token is re-read from the
+   * provider — otherwise turning the switch off after a restart would silence
+   * nothing at all.
+   */
+  disable(): Promise<void> {
+    return this.enqueue(() => this.disableExclusive());
   }
 
   /** Current permission, for deciding whether the opt-in card is worth
@@ -152,12 +201,17 @@ export class GuestPushRegistrar {
   }
 
   private run(userId: string, prompt: boolean): Promise<PushOutcome> {
-    // Serialise rather than reject: the second caller gets the first call's
-    // answer, which is the truth by the time it resolves.
-    const next = (this.inFlight ?? Promise.resolve()).then(
-      () => this.runExclusive(userId, prompt),
-      () => this.runExclusive(userId, prompt),
-    );
+    return this.enqueue(() => this.runExclusive(userId, prompt));
+  }
+
+  /**
+   * One job at a time, in order. Serialise rather than reject: the second
+   * caller gets the first call's answer, which is the truth by the time it
+   * resolves. A failed job must not wedge the queue, hence the same task on
+   * both branches of `then`.
+   */
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const next = (this.inFlight ?? Promise.resolve()).then(task, task);
     this.inFlight = next;
     void next.finally(() => {
       if (this.inFlight === next) this.inFlight = null;
@@ -168,6 +222,13 @@ export class GuestPushRegistrar {
   private async runExclusive(userId: string, prompt: boolean): Promise<PushOutcome> {
     if (!this.support.supported) {
       return { state: "unsupported", reason: this.support.reason };
+    }
+
+    // The silent path obeys the switch. Asked BEFORE the permission read so a
+    // guest who turned notifications off is not even touched — no permission
+    // probe, no token, no request.
+    if (!prompt && !(await this.readPreference())) {
+      return { state: "disabled-by-guest" };
     }
 
     let permission: PushPermission;
@@ -206,5 +267,59 @@ export class GuestPushRegistrar {
     }
     this.registered = { userId, token };
     return { state: "registered", token };
+  }
+
+  private async requestExclusive(): Promise<PushOutcome> {
+    if (!this.support.supported) {
+      return { state: "unsupported", reason: this.support.reason };
+    }
+    let permission: PushPermission;
+    try {
+      permission = await this.gateway.getPermission();
+      if (permission !== "granted") {
+        permission = await this.gateway.requestPermission();
+      }
+    } catch (error) {
+      return { state: "failed", error };
+    }
+    if (permission === "granted") return { state: "permission-granted" };
+    if (permission === "denied") return { state: "denied" };
+    return { state: "permission-undetermined" };
+  }
+
+  private async disableExclusive(): Promise<void> {
+    const believed = this.registered;
+    this.registered = null;
+    let token = believed?.token ?? null;
+    if (!token) {
+      if (!this.support.supported) return;
+      try {
+        // No permission means no token to ask for — and nothing this app can
+        // do about a token the server may still hold from before the guest
+        // revoked permission in the system settings.
+        if ((await this.gateway.getPermission()) !== "granted") return;
+        token = await this.gateway.getToken();
+      } catch {
+        return;
+      }
+    }
+    if (!token) return;
+    try {
+      await this.backend.unregisterPushToken(token);
+    } catch {
+      // Same as sign-out: the token stays active server-side until Expo
+      // reports the device gone. The local switch is off either way, so the
+      // next sync will not put it back.
+    }
+  }
+
+  /** Never lets an unreadable store look like a refusal: the default is the
+   * same "yes" the settings screen shows. */
+  private async readPreference(): Promise<boolean> {
+    try {
+      return await this.preference.enabled();
+    } catch {
+      return true;
+    }
   }
 }

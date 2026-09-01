@@ -32,6 +32,23 @@ export function openWebsite(url: string): Promise<boolean> {
 }
 
 /**
+ * Страница приложения в системных настройках телефона.
+ *
+ * Единственный путь назад для гостя, которому система запретила уведомления:
+ * диалог она показывает один раз, и после отказа `requestPermissionsAsync`
+ * возвращает «нет», ничего не показав. Как и всё в этом файле — best-effort:
+ * на устройстве без такой страницы возвращается false, а не исключение.
+ */
+export async function openAppSettings(): Promise<boolean> {
+  try {
+    await Linking.openSettings();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * WhatsApp. The stored value may be a full wa.me link or a bare phone number,
  * so a number is normalised to digits and turned into the documented
  * https://wa.me/<digits> form, which both the app and the web client handle.

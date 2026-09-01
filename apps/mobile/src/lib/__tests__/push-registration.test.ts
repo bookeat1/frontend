@@ -4,6 +4,7 @@ import {
   type PushBackend,
   type PushGateway,
   type PushPermission,
+  type PushPreference,
 } from "../push-registration";
 import { describePushSupport } from "../push-support";
 
@@ -39,16 +40,23 @@ const SUPPORTED = describePushSupport({
 interface Fakes {
   gateway: PushGateway;
   backend: PushBackend;
+  preference: PushPreference;
   register: ReturnType<typeof vi.fn>;
   unregister: ReturnType<typeof vi.fn>;
   getToken: ReturnType<typeof vi.fn>;
   requestPermission: ReturnType<typeof vi.fn>;
   setPermission(next: PushPermission): void;
   setToken(next: string | null): void;
+  setPreference(next: boolean): void;
 }
 
-function fakes(initial: { permission?: PushPermission; token?: string | null } = {}): Fakes {
+function fakes(
+  initial: { permission?: PushPermission; token?: string | null; pref?: boolean } = {},
+): Fakes {
   let permission: PushPermission = initial.permission ?? "granted";
+  // The settings switch, as the registrar sees it. Default ON — that is what
+  // a guest who never touched it has.
+  let pref = initial.pref ?? true;
   // `??` would be wrong here: `null` is a meaningful value (the provider
   // refused to mint a token), not "unset".
   let token: string | null = "token" in initial ? (initial.token ?? null) : "ExponentPushToken[aaa]";
@@ -69,6 +77,7 @@ function fakes(initial: { permission?: PushPermission; token?: string | null } =
       getToken,
     },
     backend: { registerPushToken: register, unregisterPushToken: unregister },
+    preference: { enabled: async () => pref },
     register,
     unregister,
     getToken,
@@ -79,6 +88,9 @@ function fakes(initial: { permission?: PushPermission; token?: string | null } =
     setToken: (next) => {
       token = next;
     },
+    setPreference: (next) => {
+      pref = next;
+    },
   };
 }
 
@@ -86,6 +98,7 @@ function registrar(f: Fakes, support = SUPPORTED) {
   return new GuestPushRegistrar({
     gateway: f.gateway,
     backend: f.backend,
+    preference: f.preference,
     support,
     platform: "ios",
   });
@@ -301,5 +314,171 @@ describe("a runtime that cannot do push", () => {
     const f = fakes();
     await expect(registrar(f, unsupported).unregister()).resolves.toBeUndefined();
     expect(f.unregister).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * НИ ОДНОГО ТОКЕНА НА СЕРВЕР БЕЗ РАЗРЕШЕНИЯ.
+ *
+ * Проверка по прямому вопросу владельца: в боевой `device_push_tokens`
+ * копятся получатели, которым ничего не доходит. Здесь закрывается клиентская
+ * половина — ни один путь регистратора не отправляет `registerPushToken`,
+ * пока система не сказала «granted», и ни один даже не спрашивает токен
+ * (сам вызов `getExpoPushTokenAsync` на iOS запускает регистрацию в APNs).
+ */
+describe("токен не уходит на сервер без системного разрешения", () => {
+  const withoutPermission: PushPermission[] = ["denied", "undetermined"];
+
+  for (const permission of withoutPermission) {
+    it(`не отправляет ничего при permission=${permission} ни одним из путей`, async () => {
+      const f = fakes({ permission });
+      const r = registrar(f);
+
+      await r.sync("user-1");
+      await r.enable("user-1");
+      await r.requestPermissionOnly();
+
+      expect(f.register).not.toHaveBeenCalled();
+      expect(f.getToken).not.toHaveBeenCalled();
+      expect(r.registration).toBeNull();
+    });
+  }
+
+  it("отправляет ровно тогда, когда разрешение появилось", async () => {
+    const f = fakes({ permission: "undetermined" });
+    const r = registrar(f);
+
+    await r.sync("user-1");
+    expect(f.register).not.toHaveBeenCalled();
+
+    f.setPermission("granted");
+    expect(await r.sync("user-1")).toEqual({
+      state: "registered",
+      token: "ExponentPushToken[aaa]",
+    });
+    expect(f.register).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * ТУМБЛЕР «УВЕДОМЛЕНИЯ» УПРАВЛЯЕТ ТИХОЙ СИНХРОНИЗАЦИЕЙ.
+ *
+ * Без этого выключение живёт до первого перезапуска: `sync` на старте
+ * регистрирует токен заново, и гость снова получает пуши, которые выключал.
+ */
+describe("гость выключил уведомления в настройках", () => {
+  it("тихая синхронизация не регистрирует и даже не трогает систему", async () => {
+    const f = fakes({ pref: false });
+    const r = registrar(f);
+
+    expect(await r.sync("user-1")).toEqual({ state: "disabled-by-guest" });
+    expect(f.getToken).not.toHaveBeenCalled();
+    expect(f.register).not.toHaveBeenCalled();
+  });
+
+  it("а включение тумблера регистрирует сразу — оно и есть согласие", async () => {
+    // Сохранённый выбор ещё «выключено» (его пишет экран настроек), но нажатие
+    // на тумблер идёт через enable, и оно не должно упереться в собственный
+    // флаг: иначе включить уведомления было бы невозможно.
+    const f = fakes({ pref: false });
+
+    expect(await registrar(f).enable("user-1")).toEqual({
+      state: "registered",
+      token: "ExponentPushToken[aaa]",
+    });
+    expect(f.register).toHaveBeenCalledTimes(1);
+  });
+
+  it("нечитаемое хранилище не выдаётся за отказ гостя", async () => {
+    const f = fakes();
+    f.preference.enabled = async () => {
+      throw new Error("keychain locked");
+    };
+
+    expect((await registrar(f).sync("user-1")).state).toBe("registered");
+  });
+});
+
+/**
+ * ВЫКЛЮЧЕНИЕ ТУМБЛЕРА СНИМАЕТ РЕГИСТРАЦИЮ.
+ *
+ * Отдельно от `unregister` (выход из аккаунта): тот опирается на память
+ * процесса, а тумблер жмут и на второй день после установки, когда память
+ * процесса пуста, а токен на сервере лежит с прошлого запуска.
+ */
+describe("выключение уведомлений тумблером", () => {
+  it("снимает регистрацию токена, зарегистрированного в этом же запуске", async () => {
+    const f = fakes();
+    const r = registrar(f);
+    await r.sync("user-1");
+
+    await r.disable();
+
+    expect(f.unregister).toHaveBeenCalledWith("ExponentPushToken[aaa]");
+    expect(r.registration).toBeNull();
+  });
+
+  it("снимает регистрацию и после перезапуска, когда процесс ничего не помнит", async () => {
+    const f = fakes();
+    const r = registrar(f);
+
+    // Ничего не синхронизировали: свежий процесс, токен на сервере с прошлого
+    // раза. Токен перечитывается у провайдера.
+    await r.disable();
+
+    expect(f.getToken).toHaveBeenCalledTimes(1);
+    expect(f.unregister).toHaveBeenCalledWith("ExponentPushToken[aaa]");
+  });
+
+  it("без системного разрешения не запрашивает токен и не шлёт запрос", async () => {
+    const f = fakes({ permission: "denied" });
+
+    await registrar(f).disable();
+
+    expect(f.getToken).not.toHaveBeenCalled();
+    expect(f.unregister).not.toHaveBeenCalled();
+  });
+
+  it("упавший запрос не оставляет процесс с верой в регистрацию", async () => {
+    const f = fakes();
+    f.unregister.mockRejectedValueOnce(new Error("offline"));
+    const r = registrar(f);
+    await r.sync("user-1");
+
+    await expect(r.disable()).resolves.toBeUndefined();
+    expect(r.registration).toBeNull();
+  });
+});
+
+/**
+ * РАЗРЕШЕНИЕ БЕЗ АККАУНТА.
+ *
+ * Экран настроек открывается раньше, чем отвечает `/users/me`; тумблер,
+ * который в этом окне молча ничего не делает, — тот же дефект, только тише.
+ */
+describe("запрос разрешения без аккаунта", () => {
+  it("спрашивает систему и сообщает о согласии, ничего не отправляя", async () => {
+    const f = fakes({ permission: "undetermined" });
+    const r = registrar(f);
+    // Согласие даётся именно в системном диалоге.
+    f.requestPermission.mockImplementationOnce(async () => {
+      f.setPermission("granted");
+      return "granted";
+    });
+
+    expect(await r.requestPermissionOnly()).toEqual({ state: "permission-granted" });
+    expect(f.requestPermission).toHaveBeenCalledTimes(1);
+    expect(f.register).not.toHaveBeenCalled();
+
+    // Токен уходит на сервер при первой же синхронизации после входа.
+    expect(await r.sync("user-1")).toEqual({
+      state: "registered",
+      token: "ExponentPushToken[aaa]",
+    });
+  });
+
+  it("отказ остаётся отказом", async () => {
+    const f = fakes({ permission: "denied" });
+    expect(await registrar(f).requestPermissionOnly()).toEqual({ state: "denied" });
   });
 });
