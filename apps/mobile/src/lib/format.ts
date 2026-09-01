@@ -23,21 +23,6 @@ const MONTHS_GENITIVE = [
   "декабря",
 ];
 
-const MONTHS_NOMINATIVE = [
-  "Январь",
-  "Февраль",
-  "Март",
-  "Апрель",
-  "Май",
-  "Июнь",
-  "Июль",
-  "Август",
-  "Сентябрь",
-  "Октябрь",
-  "Ноябрь",
-  "Декабрь",
-];
-
 /** Short uppercase month names for the «Афиша» date block ("18 МАЙ"). */
 const MONTHS_SHORT_UPPER = [
   "ЯНВ",
@@ -117,11 +102,6 @@ export function addDays(date: Date, days: number): Date {
 /** "28 июля" */
 export function formatDayMonth(date: Date): string {
   return `${date.getDate()} ${MONTHS_GENITIVE[date.getMonth()]}`;
-}
-
-/** "Июль 2026" — calendar header. */
-export function formatMonthYear(date: Date): string {
-  return `${MONTHS_NOMINATIVE[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /**

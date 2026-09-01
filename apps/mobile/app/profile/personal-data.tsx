@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../src/components/FlowHeader";
-import { BirthDatePickerDialog } from "../../src/components/profile/BirthDatePickerDialog";
+import { BirthDateDialog } from "../../src/components/profile/BirthDateDialog";
 import { FieldEditorSheet } from "../../src/components/profile/FieldEditorSheet";
 import { PersonalDataRow } from "../../src/components/profile/PersonalDataRow";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
@@ -14,13 +14,14 @@ import { useAuth } from "../../src/lib/auth";
 import { formatDateKeyDayFirst } from "../../src/lib/format";
 import { useLocale } from "../../src/lib/locale";
 import { formatStoredPhoneForDisplay } from "../../src/lib/phone";
-import { birthDateBounds, classifyProfileSaveFailure } from "../../src/lib/profile-edit";
+import { classifyProfileSaveFailure } from "../../src/lib/profile-edit";
 
 /**
  * «Персональные данные» — the list half of the account edit flow (Figma
  * node 977-7001): three rows — «Имя», «Номер телефона» and «День рождения» —
  * each showing the current value. «Имя» opens a bottom-sheet editor and
- * «День рождения» the calendar dialog; both save through the SAME PATCH
+ * «День рождения» a dialog with the date typed in digits (no calendar since
+ * 2026-09-01); both save through the SAME PATCH
  * /users/me the profile edit form uses (repository.updateMe), so this screen
  * and «О себе» cannot end up holding two different birth dates: there is one
  * field (`AuthUser.birthDate` → `birth_date`), one endpoint and one cache
@@ -120,9 +121,9 @@ export default function PersonalDataScreen() {
    * `updateMe({ birthDate })` → `birth_date` в теле PATCH. Никакого второго
    * пути хранения у этого экрана нет.
    *
-   * Границы календаря — `birthDateBounds`, та же функция, что проверяет дату
-   * в форме: календарь не должен предлагать день, который сервер откажется
-   * принять.
+   * Границы даты держит `parseBirthDateInput` внутри поля — та же функция,
+   * что проверяет набранную дату на регистрации и в форме «О себе». Своей
+   * копии правила у этого экрана нет.
    *
    * В патче ровно одно поле. Город сюда не попадает даже пустым — иначе
    * сохранение дня рождения молча переписало бы город профиля (а на экране
@@ -142,7 +143,7 @@ export default function PersonalDataScreen() {
       queryClient.setQueryData(["me"], updated);
       setEditing(null);
     } catch (error) {
-      // Диалог остаётся открытым на выбранной дате — выбор не теряется.
+      // Диалог остаётся открытым на набранной дате — ввод не теряется.
       const reason = classifyProfileSaveFailure(error);
       const f = t.profile.edit.failure;
       setServerError(
@@ -160,8 +161,6 @@ export default function PersonalDataScreen() {
       setSaving(false);
     }
   };
-
-  const bounds = birthDateBounds(new Date());
 
   return (
     <View style={styles.root}>
@@ -243,13 +242,12 @@ export default function PersonalDataScreen() {
         onCancel={closeEditor}
       />
 
-      {/* Тот же календарь, что и в форме «О себе» — один компонент на два
-          экрана, а не вторая реализация выбора даты. */}
-      <BirthDatePickerDialog
+      {/* Внутри диалога стоит то же `BirthDateField`, что и в форме «О себе»,
+          — один набор даты на два экрана, а не вторая реализация. Календаря
+          больше нет ни здесь, ни там. */}
+      <BirthDateDialog
         visible={editing === "birthDate"}
         value={account?.birthDate ?? ""}
-        earliest={bounds.earliest}
-        latest={bounds.latest}
         saving={saving}
         error={serverError}
         onApply={(dateKey) => void submitBirthDate(dateKey)}

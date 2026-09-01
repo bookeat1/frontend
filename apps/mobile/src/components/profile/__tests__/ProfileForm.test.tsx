@@ -105,26 +105,26 @@ describe("сессия закончилась посреди правки", () =
 });
 
 /**
- * REGRESSION GUARD — дату рождения набирали руками, и приложение говорило с
- * гостем на формате своего API.
+ * REGRESSION GUARD — форматы даты рождения не должны смешиваться.
  *
- * Поле было свободным текстом с подсказкой «ГГГГ-ММ-ДД». Гость, который писал
- * дату так, как её пишут в Казахстане («04.05.1990»), получал красную строку
- * после того, как всё набрал, и должен был догадаться переставить числа и
- * сменить разделитель. Календарь физически не умеет отдать ни неверный
- * формат, ни несуществующий день, ни будущее.
- *
- * Разделение форматов — то, ради чего этот describe написан: на экране
- * ДД.ММ.ГГГГ, в теле PATCH — «YYYY-MM-DD», потому что сервер разбирает
+ * На экране ДД.ММ.ГГГГ, в теле PATCH «YYYY-MM-DD»: сервер разбирает
  * `birth_date` через time.Parse("2006-01-02") и ничего другого не принимает.
  * Тест, который проверил бы только экран, пропустил бы поломку контракта.
+ *
+ * ИСТОРИЯ ПОЛЯ. Сначала это был свободный текст с подсказкой «ГГГГ-ММ-ДД» —
+ * гость писал «04.05.1990», как пишут в Казахстане, и получал красную строку.
+ * Потом (2026-08) поле стало кнопкой, открывающей календарь: набрать неверное
+ * стало нельзя, зато до 1990 года приходилось листать. 2026-09-01 владелец
+ * попросил убрать календарь совсем — дату НАБИРАЮТ цифрами, точки ставит
+ * маска, а формат провода по-прежнему не виден никому.
+ *
+ * НЕДОПЕЧАТАННАЯ ДАТА НЕ СОХРАНЯЕТСЯ МОЛЧА — отдельный тест ниже. Это самая
+ * дорогая ошибка перехода: если бы поле отдавало черновику пустую строку, пока
+ * дата не собралась, гость увидел бы «Сохранено» над своим «04.05.19», а даты
+ * бы не было.
  */
-describe("дата рождения — календарь, а не поле ввода", () => {
+describe("дата рождения — набор цифрами, без календаря", () => {
   /**
-   * Календарь открывается на СЕГОДНЯШНЕМ месяце, поэтому «два раза назад» — это
-   * май только в июле. Без фиксированного «сейчас» этот тест сломался бы сам
-   * собой в августе, и чинил бы его тот, кто ни при чём.
-   *
    * `shouldAdvanceTime` обязателен: `waitFor` ниже опрашивает DOM по таймеру,
    * и с полностью замороженными таймерами он ждал бы вечно.
    */
@@ -136,38 +136,32 @@ describe("дата рождения — календарь, а не поле в�
     vi.useRealTimers();
   });
 
-  it("набрать дату руками негде: поля ввода нет", () => {
+  const birthField = () => screen.getByLabelText(/^Дата рождения/) as HTMLInputElement;
+
+  it("это поле ввода, а не кнопка, открывающая календарь", () => {
     render(<ProfileForm user={user()} onSave={vi.fn()} />);
 
-    const control = screen.getByLabelText(/^Дата рождения/);
-    // Свободное поле было <input>. Теперь это кнопка, открывающая календарь.
-    expect(control.tagName).not.toBe("INPUT");
-    expect(control.getAttribute("role")).toBe("button");
+    expect(birthField().tagName).toBe("INPUT");
+    // Ровно то, что убрали: месячная сетка и её управление.
+    expect(screen.queryByRole("button", { name: "Предыдущий месяц" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "1990" })).toBeNull();
   });
 
   it("сохранённая дата читается как ДД.ММ.ГГГГ, а не как её формат на проводе", () => {
     render(<ProfileForm user={user({ birthDate: "1990-05-04" })} onSave={vi.fn()} />);
 
-    expect(screen.getByText("04.05.1990")).toBeTruthy();
+    expect(birthField().value).toBe("04.05.1990");
     expect(screen.queryByText("1990-05-04")).toBeNull();
   });
 
-  it("выбранная в календаре дата уходит на сервер в формате «YYYY-MM-DD»", async () => {
+  it("набранная дата уходит на сервер в формате «YYYY-MM-DD»", async () => {
     const onSave = vi.fn(async () => user({ birthDate: "1990-05-04" }));
     render(<ProfileForm user={user()} onSave={onSave} />);
 
-    // Открываем календарь. Даты нет, поэтому он открывается на списке лет —
-    // иначе до 1990-го пришлось бы пролистать больше четырёхсот месяцев.
-    fireEvent.click(screen.getByLabelText(/^Дата рождения/));
-    fireEvent.click(screen.getByRole("button", { name: "1990" }));
-    // Список лет сменился сеткой дней того же месяца, что был открыт (июль).
-    fireEvent.click(screen.getByRole("button", { name: "Предыдущий месяц" }));
-    fireEvent.click(screen.getByRole("button", { name: "Предыдущий месяц" }));
-    fireEvent.click(screen.getByRole("button", { name: "4" }));
-    fireEvent.click(screen.getByRole("button", { name: "Готово" }));
+    fireEvent.change(birthField(), { target: { value: "04051990" } });
 
-    // На экране — по-человечески.
-    expect(screen.getByText("04.05.1990")).toBeTruthy();
+    // На экране — по-человечески, точки поставила маска.
+    expect(birthField().value).toBe("04.05.1990");
 
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     await waitFor(() => expect(screen.getByText("Сохранено")).toBeTruthy());
@@ -175,13 +169,28 @@ describe("дата рождения — календарь, а не поле в�
     expect(onSave).toHaveBeenCalledWith({ birthDate: "1990-05-04" });
   });
 
-  it("«Отмена» не трогает уже сохранённую дату", () => {
-    render(<ProfileForm user={user({ birthDate: "1990-05-04" })} onSave={vi.fn()} />);
+  it("недописанная дата НЕ сохраняется молча: причина названа, запроса нет", () => {
+    const onSave = vi.fn();
+    render(<ProfileForm user={user()} onSave={onSave} />);
 
-    fireEvent.click(screen.getByLabelText(/^Дата рождения/));
-    fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
+    fireEvent.change(birthField(), { target: { value: "040519" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
-    expect(screen.getByText("04.05.1990")).toBeTruthy();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Введите дату полностью: день, месяц и год")).toBeTruthy();
+    // И набранное на месте — переписывать заново не надо.
+    expect(birthField().value).toBe("04.05.19");
+  });
+
+  it("несуществующий день называется своим именем, а не «не дописано»", () => {
+    const onSave = vi.fn();
+    render(<ProfileForm user={user()} onSave={onSave} />);
+
+    fireEvent.change(birthField(), { target: { value: "31021992" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText("Такой даты не существует — проверьте число и месяц")).toBeTruthy();
   });
 });
 

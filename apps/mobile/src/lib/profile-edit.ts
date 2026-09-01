@@ -30,7 +30,12 @@ import { RepositoryError, type AuthUser, type ProfileUpdate } from "@bookeat/api
 export interface ProfileDraft {
   fullName: string;
   city: string;
-  /** "YYYY-MM-DD" or "". */
+  /**
+   * «YYYY-MM-DD», «» — даты нет, либо ещё не сложившаяся набранная строка
+   * («04.05.19»). Третий случай появился, когда календарь убрали
+   * (2026-09-01): поле, в которое НАБИРАЮТ, обязано уметь быть недописанным,
+   * а «» на его месте означало бы «даты нет» и молча сохранило бы пустоту.
+   */
   birthDate: string;
 }
 
@@ -43,6 +48,7 @@ export type ProfileField = keyof ProfileDraft;
  */
 export type ProfileValidationError =
   | "name_required"
+  | "birth_date_incomplete"
   | "birth_date_format"
   | "birth_date_not_past"
   | "birth_date_too_old"
@@ -52,6 +58,9 @@ export type ProfileErrors = Partial<Record<ProfileField, ProfileValidationError>
 
 /** Maximum age the server tolerates (`maxAgeYears` in the users facade). */
 const MAX_AGE_YEARS = 120;
+
+/** Сколько цифр в полностью набранной дате: 2 + 2 + 4. */
+const FULL_BIRTH_DATE_DIGITS = 8;
 
 export function draftFromUser(user: AuthUser): ProfileDraft {
   return {
@@ -131,7 +140,18 @@ export function validateProfileDraft(
   } else {
     const parsed = parseCalendarDate(birthDate);
     if (!parsed) {
-      errors.birthDate = "birth_date_format";
+      // Не ключ даты — значит в черновике лежит то, что ГОСТЬ НАБРАЛ и что в
+      // дату ещё не сложилось: календаря, который умел отдавать только
+      // готовый день, с 2026-09-01 больше нет.
+      //
+      // «04.05.19» и «31.02.1992» — РАЗНЫЕ случаи, и человеку надо сказать
+      // разное: первое не дописано, второго не существует. Различаем по числу
+      // цифр, потому что маска «дд.мм.гггг» другого способа недобрать не
+      // оставляет.
+      errors.birthDate =
+        birthDate.replace(/\D/g, "").length < FULL_BIRTH_DATE_DIGITS
+          ? "birth_date_incomplete"
+          : "birth_date_format";
     } else {
       // Date keys are compared as strings: "YYYY-MM-DD" sorts chronologically
       // by construction, and comparing the same representation the picker
