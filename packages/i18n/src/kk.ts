@@ -185,8 +185,6 @@ export const kk: LocaleOverride<Dictionary> = {
   oceanBasket: {
     heroEyebrow: "ШЫТЫРМАН ОҚИҒА КАРТАСЫ",
     welcomeDrink: "WELCOME DRINK",
-    welcomeDrinkAction: "Толығырақ",
-    welcomeDrinkA11y: "Welcome drink, толығырақ — нүктелер тізіміне өту",
     mapTitle: "Өз олжаңды тап",
     mapAlt: "Алматыдағы Ocean Basket нүктелерінің салынған картасы",
     pointsTitle: "Барлық нүктелер",
@@ -195,7 +193,6 @@ export const kk: LocaleOverride<Dictionary> = {
     pointsErrorDescription: "Байланысты тексеріп, қайта көріңіз",
     pointsEmptyTitle: "Әзірге нүкте жоқ",
     pointsEmptyDescription: "Ocean Basket каталогтан табылмады. Кейінірек көріңіз.",
-    venueTag: "Welcome drink",
     pointNumber: (index: number) => String(index + 1).padStart(2, "0"),
     dishesTitle: "Фирмалық олжа",
     dishesNote: "мәзір хиттері",

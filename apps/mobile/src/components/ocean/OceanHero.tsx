@@ -3,11 +3,11 @@ import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 import { BrandHeroControl } from "../articles/BrandHero";
-import { Anchor, ArrowLeft, CaretRight, Export, Gift } from "../icons";
+import { Anchor, ArrowLeft, Export, Gift } from "../icons";
 import { oceanAssets } from "./ocean-basket-content";
 import { OceanHeroFish } from "./OceanHeroFish";
 
@@ -30,23 +30,31 @@ const t = getDictionary();
  *   • СЕРДЦЕ (node 3427:12227). Избранное на бэкенде знает заведения, события
  *     и акции; страницы бренда оно не знает. Инертное сердечко из этого
  *     приложения уже убирали однажды — второй раз заводить не будем.
- *   • ничего больше: рыбы, свечение, надпись и плашка на месте.
+ *   • «ПОДРОБНЕЕ» И ШЕВРОН у плашки welcome drink (node 3425:3949) — разбор
+ *     ниже;
+ *   • ничего больше: рыбы, свечение, надпись и сама плашка на месте.
  *
- * Плашка «WELCOME DRINK» — КНОПКА, и ведёт она к списку точек, а не на
- * страницу акции: акции welcome drink в данных не существует (у подборки и у
- * заведения такого поля нет), а нарисованное «Подробнее», которое ничего не
- * делает, — обещание, которого приложение не выполнит. Список точек — то
- * единственное честное место, где про welcome drink что-то есть: пилюля на
- * карточке.
+ * ПЛАШКА «WELCOME DRINK» — ОФОРМЛЕНИЕ, А НЕ ПРЕДЛОЖЕНИЕ (решение владельца
+ * 2026-09-01: «оставляй её картинкой без обещания»). Акции welcome drink в
+ * данных нет: ни у подборки, ни у заведения такого поля не существует, у брони
+ * нет признака напитка, и заведение о ней не знает. Поэтому плашка нарисована
+ * ровно как в макете, но:
+ *
+ *   • не нажимается — это `View` c `pointerEvents="none"`, а не `Pressable`;
+ *   • без «Подробнее» и шеврона (node 3425:3949) вместе с разделителем,
+ *     который их отделял: разделитель существовал ради действия, которого
+ *     больше нет.
+ *
+ * Строка «Welcome drink» остаётся фирменной надписью бренда в шапке. Значок
+ * акции с карточек точек убран совсем (`OceanPointCard`): там он читался как
+ * гарантия по конкретному заведению.
  */
 export function OceanHero({
   onBack,
   onShare,
-  onWelcomeDrink,
 }: {
   onBack: () => void;
   onShare: () => void;
-  onWelcomeDrink: () => void;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -129,15 +137,12 @@ export function OceanHero({
         contentFit="contain"
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t.oceanBasket.welcomeDrinkA11y}
-        onPress={onWelcomeDrink}
-        style={({ pressed }) => [
-          styles.welcome,
-          { top: insets.top + oceanPageLayout.welcomeTop },
-          pressed && styles.pressed,
-        ]}
+      {/* Оформление, а не кнопка: нажать не на что и вести отсюда некуда.
+          `pointerEvents="none"` — чтобы плашка ещё и не перехватывала касание
+          у прокрутки. Скринридер читает надпись как обычный текст. */}
+      <View
+        style={[styles.welcome, { top: insets.top + oceanPageLayout.welcomeTop }]}
+        pointerEvents="none"
       >
         <View style={styles.welcomeIcon}>
           <Gift size={14} color={colors.brand2.navyInk} weight="regular" />
@@ -145,16 +150,7 @@ export function OceanHero({
         <Text style={styles.welcomeLabel} numberOfLines={1}>
           {t.oceanBasket.welcomeDrink}
         </Text>
-        <View style={styles.welcomeDivider} />
-        {/* «Подробнее» и шеврон — своя пара с просветом 6 (в макете 12 стоит
-            только до разделителя, node 3425:3949). */}
-        <View style={styles.welcomeActionRow}>
-          <Text style={styles.welcomeAction} numberOfLines={1}>
-            {t.oceanBasket.welcomeDrinkAction}
-          </Text>
-          <CaretRight size={12} color={colors.brand2.chevronLight} weight="bold" />
-        </View>
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -238,9 +234,6 @@ const styles = StyleSheet.create({
     borderColor: colors.brand2.accentBorder,
     backgroundColor: colors.brand2.welcomeSurface,
   },
-  pressed: {
-    opacity: 0.7,
-  },
   welcomeIcon: {
     width: oceanPageLayout.welcomeIconCircle,
     height: oceanPageLayout.welcomeIconCircle,
@@ -252,26 +245,9 @@ const styles = StyleSheet.create({
   welcomeLabel: {
     ...typography.brandPromoLabel,
     color: colors.brand2.gold,
-    // Название акции занимает всё, что осталось между значком и разделителем:
-    // у казахской и английской строки длина другая, а разделитель в макете
-    // стоит от правого края.
+    // Надпись занимает всё, что осталось справа от значка: у казахской и
+    // английской строки длина своя, а плашка тянется от края до края.
     flexShrink: 1,
     flexGrow: 1,
-  },
-  welcomeDivider: {
-    width: 1,
-    height: oceanPageLayout.welcomeDividerHeight,
-    backgroundColor: colors.brand2.welcomeDivider,
-  },
-  welcomeActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 1,
-  },
-  welcomeAction: {
-    ...typography.brandPromoAction,
-    color: colors.brand2.onNavy,
-    flexShrink: 1,
   },
 });

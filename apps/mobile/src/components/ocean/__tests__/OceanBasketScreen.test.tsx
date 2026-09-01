@@ -21,6 +21,10 @@ const t = getDictionary("ru");
  *   3. Первая глава истории раскрыта (так нарисовано), а главы без текста —
  *      не кнопки: стрелка, открывающая пустоту, хуже её отсутствия.
  *   4. Сердечка в шапке нет: избранного для страниц бренда на бэкенде нет.
+ *   4a. Плашка «WELCOME DRINK» — ОФОРМЛЕНИЕ: не кнопка и без «Подробнее».
+ *      Акции welcome drink нет в данных, у брони нет признака напитка,
+ *      заведение о ней не знает — предлагать её гостю нечем (решение
+ *      владельца 2026-09-01).
  *   5. Живая часть страницы живая: карточка точки открывает экран заведения.
  */
 
@@ -129,6 +133,23 @@ describe("фирменная страница Ocean Basket", () => {
 
     expect(screen.queryByText(first.body)).toBeNull();
     expect(screen.getByLabelText(t.oceanBasket.chapterExpand(first.title))).toBeTruthy();
+  });
+
+  it("плашка welcome drink не нажимается и ничего не предлагает", () => {
+    render(<OceanBasketScreen />);
+
+    // Надпись на месте — плашка осталась оформлением шапки…
+    const plate = screen.getByText(t.oceanBasket.welcomeDrink);
+    expect(plate).toBeTruthy();
+    // …но нажать на неё нельзя: ни сама надпись, ни то, что её окружает, не
+    // объявлено кнопкой или ссылкой.
+    expect(plate.closest('[role="button"]')).toBeNull();
+    expect(plate.closest('[role="link"]')).toBeNull();
+    expect(plate.closest("button")).toBeNull();
+    // И действия рядом с ней нет: ни надписи «Подробнее», ни шеврона,
+    // который её сопровождал (шеврон вправо на этой странице был только там).
+    expect(screen.queryByText(/подробнее/i)).toBeNull();
+    expect(document.querySelector('[data-testid="icon-CaretRight"]')).toBeNull();
   });
 
   it("сердечка в шапке нет — избранного для страниц бренда не существует", () => {
