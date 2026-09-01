@@ -68,6 +68,19 @@ vi.mock("expo-constants", () => ({
 // Загрузка аватара тянет expo-image-picker (нативный модуль).
 vi.mock("../../src/lib/avatar-upload", () => ({ pickAndUploadAvatar: vi.fn() }));
 
+// Тумблер уведомлений в настройках спрашивает системное разрешение через
+// `src/lib/push`, а тот тянет expo-notifications — в jsdom он не поднимается.
+// К спрятанным блокам отношения не имеет; поведение самого тумблера проверяет
+// settings-notifications-toggle.test.tsx.
+vi.mock("../../src/lib/push", () => ({
+  usePush: () => ({
+    supported: false,
+    permission: async () => "denied" as const,
+    enable: vi.fn(),
+    disable: vi.fn(),
+  }),
+}));
+
 const ProfileScreen = (await import("../profile")).default;
 const SettingsScreen = (await import("../settings/index")).default;
 

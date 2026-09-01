@@ -58,8 +58,12 @@ export function PushOptInCard() {
     setState("working");
     void push.enable().then((outcome) => {
       switch (outcome.state) {
+        // «permission-granted» — разрешение есть, но аккаунта ещё нет
+        // (`/users/me` не ответил): для гостя это то же «включено», токен
+        // уйдёт при первой синхронизации после входа.
         case "registered":
         case "unchanged":
+        case "permission-granted":
           setState("enabled");
           return;
         case "denied":
