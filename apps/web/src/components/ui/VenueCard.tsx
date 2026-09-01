@@ -9,7 +9,9 @@ import { useT } from "@web/lib/locale";
 
 /**
  * Карточка заведения — единственная карточка, полностью размеченная в
- * десктопных кадрах (Figma 3z0f6dgev4HMwBAHPjTjPo, узел 3280:5482).
+ * десктопных кадрах (Figma 49Zk9oEV3ZCiCdh6Cz9dE2, узел 3280:5482 в кадре
+ * главной; в блоке «Выбрали для вас» и в «Все заведения» это ОДИН и тот же
+ * компонент, 282×318).
  *
  * Размеры оттуда же: фото 190 высотой, тело с паддингом 16 и просветом 16,
  * название 18/24 SemiBold, подпись 14/20 Regular #595959, слоты-подсказки
@@ -59,8 +61,13 @@ export function VenueCard({
   const t = useT();
 
   return (
-    <Card className={cx("relative flex w-full flex-col", className)}>
-      <div className="relative h-card-image w-full bg-muted">
+    // `h-full` + растущее тело: в макете все карточки ряда одного размера, а в
+    // жизни у одного заведения подпись в строку, у другого в две, и нижние
+    // края разъезжались (замечание владельца 01.09.2026 про «Все заведения»).
+    // Одной высоты мало — её задаёт ячейка сетки; чтобы белая подложка
+    // дотянулась до низа, тело обязано быть `flex-1`.
+    <Card className={cx("relative flex h-full w-full flex-col", className)}>
+      <div className="relative h-card-image w-full shrink-0 bg-muted">
         <RemoteImage
           src={imageUrl}
           alt={name}
@@ -69,8 +76,12 @@ export function VenueCard({
           sizes="(min-width: 1280px) 282px, (min-width: 1024px) 25vw, 50vw"
         />
 
+        {/* Плашка стоит СНИЗУ СЛЕВА, как в макете (узел 3280:4806), а не
+            сверху: сверху справа живёт кружок избранного, и обе метки в одном
+            углу налезали бы друг на друга. Радиус 8, паддинг 6/10, 12/16
+            SemiBold — числа в `webVenueCard.badge`. */}
         {tag ? (
-          <span className="absolute left-4 top-4 inline-flex items-center rounded-sm bg-photo-badge px-2.5 py-1.5 text-[12px] font-semibold leading-4 text-ink-on-brand">
+          <span className="absolute bottom-card-badge-inset-b left-card-badge-inset-x inline-flex items-center rounded-sm bg-photo-badge px-card-badge-x py-card-badge-y text-[12px] font-semibold leading-4 text-ink-on-brand">
             {tag}
           </span>
         ) : null}
@@ -81,14 +92,14 @@ export function VenueCard({
             onClick={onToggleFavorite}
             aria-pressed={favorite}
             aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
-            className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-photo-control text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <HeartIcon filled={favorite} />
           </button>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-card-body p-card-body">
+      <div className="flex flex-1 flex-col gap-card-body p-card-body">
         <div className="flex flex-col gap-1">
           {/* Название заведения переносится, а не режется многоточием:
               «Ресторан-кофейня Дастархан» на 282 px в одну строку не влезает,

@@ -8,20 +8,37 @@ function photoSrc(container: HTMLElement): string | null {
 }
 
 /**
- * Два дефекта, которые здесь заперты:
+ * Три дефекта, которые здесь заперты:
  *   • ряд кухонь превращался в кашу, потому что подпись шире круга, а
  *     «Средиземноморская» — одно слово и переносить его не по чему;
  *   • круги были пустыми и серыми, потому что справочник не присылает
- *     `image_url` (на тестовом стенде — ни у одной из 14 записей).
+ *     `image_url` (на тестовом стенде — ни у одной из 14 записей);
+ *   • название кухни ни при каких условиях не обрезается многоточием: кухня
+ *     это вход в фильтр каталога, и «Средиземномо…» ничего не значит.
  */
 describe("CuisineTile", () => {
-  it("подпись стоит одной строкой и не обрезается", () => {
-    render(<CuisineTile cuisine={{ id: "mediterranean", name: "Средиземноморская" }} />);
+  it("длинное название переносится, а не обрезается", () => {
+    render(<CuisineTile cuisine={{ id: "mediterranean", name: "Средиземноморская" }} compact />);
 
     const label = screen.getByText("Средиземноморская");
-    // Именно `whitespace-nowrap`: без него ячейка шириной с круг снова
-    // отдаст длинное слово соседям.
-    expect(label.className).toContain("whitespace-nowrap");
+    // Ширину ячейке теперь задаёт колонка сетки (CuisineRow), поэтому подпись
+    // больше не обязана стоять одной строкой — она обязана ПОМЕЩАТЬСЯ.
+    // «Средиземноморская» — одно слово, значит нужен перенос внутри слова.
+    expect(label.className).toContain("[overflow-wrap:anywhere]");
+    expect(label.className).not.toContain("truncate");
+    expect(label.className).not.toContain("text-ellipsis");
+  });
+
+  /** Кегль подписи зависит от тесноты ряда, а сам круг — нет: он всегда
+   * тянется на колонку и упирается в 104 из макета. */
+  it("в тесном ряду подпись мельче, круг — тот же", () => {
+    const wide = render(<CuisineTile cuisine={{ id: "european", name: "Европейская" }} />);
+    expect(screen.getByText("Европейская").className).toContain("text-[16px]");
+    expect(wide.container.querySelector("span")?.className).toContain("max-w-cuisine");
+    wide.unmount();
+
+    render(<CuisineTile cuisine={{ id: "european", name: "Европейская" }} compact />);
+    expect(screen.getByText("Европейская").className).toContain("text-[13px]");
   });
 
   it("без ссылки в справочнике берёт снимок из макета", () => {

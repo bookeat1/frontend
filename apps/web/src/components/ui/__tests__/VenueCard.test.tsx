@@ -74,4 +74,31 @@ describe("VenueCard", () => {
 
     expect(screen.queryByRole("img")).toBeNull();
   });
+  /**
+   * Карточки одного ряда обязаны быть одного размера (замечание владельца
+   * 01.09.2026 про «Все заведения»). В jsdom высоты нет, поэтому здесь
+   * проверяется договор, из которого она получается: подложка растянута на
+   * ячейку сетки, а тело внутри неё растёт. Без второго условия белая карточка
+   * заканчивается на короткой подписи и до низа ячейки не доходит.
+   */
+  it("подложка тянется на всю ячейку, а тело внутри растёт", () => {
+    const { container } = render(<VenueCard name="Flour Demi" meta="Европейская" />);
+
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).toContain("h-full");
+    expect(container.querySelector(".flex-1")).not.toBeNull();
+  });
+
+  /**
+   * Плашка поверх фотографии стоит СНИЗУ СЛЕВА (узел 3280:4806), а не сверху:
+   * сверху справа кружок избранного, и в одном углу они налезали бы друг на
+   * друга.
+   */
+  it("плашка над фотографией стоит снизу слева", () => {
+    render(<VenueCard name="Flour Demi" meta="Европейская" tag="Онлайн-бронь" />);
+
+    const badge = screen.getByText("Онлайн-бронь");
+    expect(badge.className).toContain("bottom-card-badge-inset-b");
+    expect(badge.className).toContain("left-card-badge-inset-x");
+  });
 });

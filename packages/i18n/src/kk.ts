@@ -2218,14 +2218,11 @@ export const kk: LocaleOverride<Dictionary> = {
       nav: {
         home: "Басты бет",
         venues: "Орындар",
-        afisha: "Афиша",
         guide: "Гастрогид",
-        articles: "Мақалалар",
       },
       cityLabel: "Қаланы таңдау",
       forBusiness: "Бизнеске",
       signIn: "Кіру",
-      signUp: "Тіркелу",
       signOut: "Шығу",
       account: "Менің профилім",
     },
@@ -2327,7 +2324,8 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       catalog: {
         title: "Барлық орындар",
-        all: "Барлық орындарды көрсету",
+        subtitle: (count: number) => `${count} орын`,
+        more: (count: number) => `Тағы ${count} орынды көрсету`,
         empty: "Бұл қалада әзірге орын жоқ.",
       },
       events: {

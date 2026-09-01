@@ -2,16 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { webAppSection } from "@bookeat/design-tokens";
 
 import { Section, SectionHeader } from "@web/components/home/SectionHeader";
 import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
-import { CuisineTile } from "@web/components/home/CuisineTile";
+import { CuisineRow } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { VenueCard } from "@web/components/ui/VenueCard";
+import { Button } from "@web/components/ui/Button";
 import { assetUrl } from "@web/lib/asset";
 import { useCity } from "@web/lib/city";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
@@ -76,25 +77,20 @@ export function HomeScreen() {
             query={cuisines}
             emptyText={t.web.home.cuisines.empty}
             skeleton={
-              <ul className={CUISINE_ROW}>
-                {PLACEHOLDERS.slice(0, 8).map((key) => (
-                  <li key={key} className="flex min-w-cuisine shrink-0 flex-col items-center gap-cuisine-gap">
-                    <Skeleton className="h-cuisine w-cuisine rounded-full" />
-                    <Skeleton className="h-[18px] w-20" />
+              <ul className="flex list-none items-start gap-x-cuisine-row-x overflow-hidden lg:grid lg:grid-cols-10">
+                {PLACEHOLDERS.slice(0, 10).map((key) => (
+                  <li
+                    key={key}
+                    className="flex w-cuisine shrink-0 flex-col items-center gap-cuisine-gap lg:w-full lg:min-w-0"
+                  >
+                    <Skeleton className="aspect-square w-full max-w-cuisine rounded-full" />
+                    <Skeleton className="h-[18px] w-full" />
                   </li>
                 ))}
               </ul>
             }
           >
-            {(items) => (
-              <ul className={CUISINE_ROW}>
-                {items.map((cuisine) => (
-                  <li key={cuisine.id} className="shrink-0">
-                    <CuisineTile cuisine={cuisine} />
-                  </li>
-                ))}
-              </ul>
-            )}
+            {(items) => <CuisineRow items={items} />}
           </AsyncBlock>
         </Container>
       </Section>
@@ -113,9 +109,12 @@ export function HomeScreen() {
             skeleton={<VenueGridSkeleton />}
           >
             {(items) => (
+              // `h-full` на ячейке — половина решения: сама ячейка сетки и так
+              // растянута, но карточка внутри неё блочная и до низа не доходит.
+              // Вторая половина — `h-full` внутри самой карточки.
               <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
                 {items.map((venue) => (
-                  <li key={venue.id}>
+                  <li key={venue.id} className="h-full">
                     <VenueCard
                       name={venue.name}
                       meta={venueMeta(venue, t)}
@@ -163,11 +162,12 @@ export function HomeScreen() {
 
       <Section>
         <Container className="flex flex-col gap-7">
+          {/* Ссылки «Смотреть все» в шапке этой секции в макете НЕТ (узел
+              3255:27): там подпись со счётчиком, а переход вниз — кнопкой во
+              всю ширину. */}
           <SectionHeader
             title={t.web.home.catalog.title}
-            subtitle={city}
-            linkHref="/venues"
-            linkLabel={t.web.home.catalog.all}
+            subtitle={catalog.data ? t.web.home.catalog.subtitle(catalog.data.total) : undefined}
           />
           <AsyncBlock
             query={catalog}
@@ -176,18 +176,37 @@ export function HomeScreen() {
             skeleton={<VenueGridSkeleton />}
           >
             {(result) => (
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
-                {result.items.slice(0, 8).map((venue) => (
-                  <li key={venue.id}>
-                    <VenueCard
-                      name={venue.name}
-                      meta={venueMeta(venue, t)}
-                      imageUrl={venue.coverPhoto?.uri}
-                      href={`/venues/${venue.id}`}
-                    />
-                  </li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-gutter">
+                <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+                  {result.items.slice(0, HOME_CATALOG_LIMIT).map((venue) => (
+                    <li key={venue.id} className="h-full">
+                      <VenueCard
+                        name={venue.name}
+                        meta={venueMeta(venue, t)}
+                        imageUrl={venue.coverPhoto?.uri}
+                        href={`/venues/${venue.id}`}
+                        tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                {/* Кнопка «Показать ещё N заведений» — узел 3255:219: белая,
+                    во всю ширину, 54 высотой. Число НАСТОЯЩЕЕ: сколько
+                    заведений выдача вернула сверх показанных. Показали всё —
+                    кнопки нет, потому что жать в ней не на что. */}
+                {result.total > HOME_CATALOG_LIMIT ? (
+                  <Button
+                    size="l"
+                    variant="secondary"
+                    block
+                    asLink
+                    href="/venues"
+                    className="rounded-2xl border-transparent shadow-control"
+                  >
+                    {t.web.home.catalog.more(result.total - HOME_CATALOG_LIMIT)}
+                  </Button>
+                ) : null}
+              </div>
             )}
           </AsyncBlock>
         </Container>
@@ -252,24 +271,16 @@ export function HomeScreen() {
   );
 }
 
-/** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
-const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h"];
-
 /**
- * Ряд кухонь (Figma 3254:6) — ОДНА строка с горизонтальной прокруткой.
- *
- * В макете ячеек десять и они умещаются в 1200 `space-between`; просвет из
- * координат — 14,89, округлённый до 15 в токене `webCuisineTile.rowGapX`.
- * Справочник отдаёт ЧЕТЫРНАДЦАТЬ, и раньше ряд переносился на вторую строку —
- * замечание владельца 31.08.2026: переноса быть не должно, лишнее уезжает
- * вбок. Отсюда `flex-nowrap` + `overflow-x-auto`.
- *
- * Полоса прокрутки НЕ прячется: это единственный признак, что вправо есть ещё
- * кухни (кнопок-стрелок макет не рисует, придумывать их не стали). `pb-2` —
- * место под неё, чтобы полоса не наезжала на подписи.
+ * Сколько заведений показывает главная в блоке «Все заведения». Из макета:
+ * подпись кнопки «Показать ещё 120 заведений» при «128 мест» в шапке секции
+ * (узлы 3255:30 и 3255:220) — то есть на главной их восемь, две строки по
+ * четыре.
  */
-const CUISINE_ROW =
-  "flex flex-nowrap gap-x-cuisine-row-x overflow-x-auto pb-2 [scrollbar-width:thin]";
+const HOME_CATALOG_LIMIT = 8;
+
+/** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
+const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
 
 function VenueGridSkeleton() {
   return (
@@ -372,12 +383,25 @@ function QuickFilters() {
  * отправил бы гостя в никуда. Появится приложение — достаточно задать
  * `NEXT_PUBLIC_GOOGLE_PLAY_URL` при сборке, разметка уже готова.
  */
+/**
+ * Адреса витрин магазинов. Оба ПРОВЕРЕНЫ живым запросом 01.09.2026 и оба —
+ * публичные ссылки, а не секреты, поэтому лежат значениями по умолчанию:
+ * переменная окружения, забытая при сборке, не должна стирать кнопку.
+ *
+ *   • iOS  — `itunes.apple.com/lookup?bundleId=com.bookeat.app` (31.08.2026);
+ *   • Android — `play.google.com/store/apps/details?id=kz.bookeat.app`
+ *     отвечает 200, страница принадлежит BookEat Technologies. Прежняя запись
+ *     «в Google Play приложения нет» опиралась на `com.bookeatteam.bookeatapp`
+ *     и `com.bookeat.app` — оба и правда 404, но опубликовано приложение под
+ *     ТРЕТЬИМ именем пакета, и оно же стоит в `apps/mobile/app.config.js`.
+ */
 const APP_STORE_URL_DEFAULT = "https://apps.apple.com/app/id6757542577";
+const GOOGLE_PLAY_URL_DEFAULT = "https://play.google.com/store/apps/details?id=kz.bookeat.app";
 
 function AppSection() {
   const t = useT();
   const appStore = process.env.NEXT_PUBLIC_APP_STORE_URL || APP_STORE_URL_DEFAULT;
-  const googlePlay = process.env.NEXT_PUBLIC_GOOGLE_PLAY_URL;
+  const googlePlay = process.env.NEXT_PUBLIC_GOOGLE_PLAY_URL || GOOGLE_PLAY_URL_DEFAULT;
 
   return (
     <section className="relative w-full overflow-hidden bg-app-section">
@@ -388,27 +412,26 @@ function AppSection() {
           </h2>
           <p className="text-[17px] leading-[26px] text-on-brand-muted">{t.web.home.app.text}</p>
         </div>
-        <ul className="flex flex-wrap gap-3">
+        {/* В макете (узел 3256:66) кнопок ДВЕ, и это была отдельная претензия
+            владельца 01.09.2026: Google Play не рисовался, потому что адрес
+            искали по неверному имени пакета. */}
+        <ul className="flex flex-wrap gap-store-gap">
           <li>
             <StoreLink
               href={appStore}
               label={t.web.home.app.appStore}
-              eyebrow={t.web.home.app.appStoreEyebrow}
-              name={t.web.home.app.appStoreName}
-              icon={<AppleMark />}
+              badge="/brand/app-store.svg"
+              width={webAppSection.storeButton.appStoreWidth}
             />
           </li>
-          {googlePlay ? (
-            <li>
-              <StoreLink
-                href={googlePlay}
-                label={t.web.home.app.googlePlay}
-                eyebrow={t.web.home.app.googlePlayEyebrow}
-                name={t.web.home.app.googlePlayName}
-                icon={<PlayMark />}
-              />
-            </li>
-          ) : null}
+          <li>
+            <StoreLink
+              href={googlePlay}
+              label={t.web.home.app.googlePlay}
+              badge="/brand/google-play.svg"
+              width={webAppSection.storeButton.googlePlayWidth}
+            />
+          </li>
         </ul>
       </Container>
       {/* Снимок телефона. `aria-hidden` и пустой alt: это иллюстрация, весь
@@ -437,20 +460,34 @@ function AppSection() {
   );
 }
 
-/** Кнопка магазина (узлы 3280:4095 и 3280:4251): 46 высотой, радиус 12,
- * белая рамка 1, значок слева и две строки подписи. */
+/**
+ * Кнопка магазина — узлы 3280:4095 (App Store, 161×46) и 3280:4251
+ * (Google Play, 158×46).
+ *
+ * Это цельная картинка ИЗ МАКЕТА вместе с рамкой, а не наша кнопка с
+ * перерисованным значком. Причина не в лени: у Apple и Google есть правила
+ * оформления своих бейджей, а прежний вариант (своя рамка + своя двухстрочная
+ * подпись + значок, нарисованный здесь по памяти) этим правилам не отвечал ни
+ * пропорциями, ни начертанием.
+ *
+ * Кнопки в самом низу страницы, поэтому файлы, а не встроенный SVG: два
+ * запроса на 24 КБ по `loading="lazy"` дешевле, чем те же 24 КБ в куске,
+ * который блокирует первую отрисовку.
+ *
+ * `alt=""` и `aria-label` на ссылке: подпись на картинке уже есть, и озвучить
+ * её дважды — значит заставить скринридер прочитать «Скачать в App Store
+ * Скачать в App Store».
+ */
 function StoreLink({
   href,
   label,
-  eyebrow,
-  name,
-  icon,
+  badge,
+  width,
 }: {
   href: string;
   label: string;
-  eyebrow: string;
-  name: string;
-  icon: ReactNode;
+  badge: string;
+  width: number;
 }) {
   return (
     <a
@@ -458,32 +495,17 @@ function StoreLink({
       target="_blank"
       rel="noreferrer"
       aria-label={label}
-      className="inline-flex h-store items-center gap-3 rounded-store border border-ink-on-inverse px-3 text-ink-on-inverse hover:bg-on-inverse-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className="inline-flex rounded-store focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
-      {icon}
-      <span aria-hidden="true" className="flex flex-col items-start leading-none">
-        <span className="text-[10px] font-medium uppercase tracking-[0.4px]">{eyebrow}</span>
-        <span className="text-[17px] font-semibold leading-[22px]">{name}</span>
-      </span>
+      <Image
+        src={assetUrl(badge)}
+        alt=""
+        width={width}
+        height={webAppSection.storeButton.height}
+        unoptimized
+        loading="lazy"
+        className="h-store w-auto"
+      />
     </a>
-  );
-}
-
-function AppleMark() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
-      <path d="M17.05 12.54c.02 2.4 2.1 3.2 2.13 3.21-.02.06-.34 1.15-1.1 2.27-.66.98-1.35 1.95-2.43 1.97-1.07.02-1.41-.63-2.63-.63-1.22 0-1.6.61-2.61.65-1.05.04-1.84-1.06-2.5-2.03-1.37-1.98-2.41-5.59-1.01-8.03.7-1.21 1.94-1.98 3.29-2 1.03-.02 2 .69 2.63.69.63 0 1.81-.86 3.05-.73.52.02 1.98.21 2.91 1.58-.08.05-1.74 1.02-1.72 3.05M15.15 5.7c.56-.68.93-1.62.83-2.56-.8.03-1.78.54-2.35 1.21-.52.6-.98 1.57-.85 2.48.9.07 1.81-.46 2.37-1.13" />
-    </svg>
-  );
-}
-
-function PlayMark() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
-      <path d="M3.6 2.1c-.24.25-.38.64-.38 1.15v17.5c0 .51.14.9.38 1.15l.06.06 9.8-9.8v-.23l-9.8-9.8-.06.07Z" />
-      <path d="m16.7 15.46-3.24-3.25v-.23l3.24-3.25.07.04 3.84 2.18c1.1.62 1.1 1.64 0 2.27l-3.84 2.18-.07.06Z" />
-      <path d="m16.77 15.4-3.31-3.31-9.86 9.86c.36.39.96.43 1.64.05l11.53-6.6" />
-      <path d="M16.77 8.78 5.24 2.18c-.68-.38-1.28-.34-1.64.05l9.86 9.86 3.31-3.31Z" />
-    </svg>
   );
 }

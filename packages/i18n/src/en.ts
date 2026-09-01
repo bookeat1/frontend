@@ -2211,14 +2211,11 @@ export const en: LocaleOverride<Dictionary> = {
       nav: {
         home: "Home",
         venues: "Restaurants",
-        afisha: "What's on",
         guide: "Gastro guide",
-        articles: "Articles",
       },
       cityLabel: "Choose a city",
       forBusiness: "For business",
       signIn: "Sign in",
-      signUp: "Sign up",
       signOut: "Sign out",
       account: "My account",
     },
@@ -2320,7 +2317,9 @@ export const en: LocaleOverride<Dictionary> = {
       },
       catalog: {
         title: "All venues",
-        all: "Show all venues",
+        subtitle: (count: number) => `${count} ${count === 1 ? "place" : "places"}`,
+        more: (count: number) =>
+          `Show ${count} more ${count === 1 ? "venue" : "venues"}`,
         empty: "There are no venues in this city yet.",
       },
       events: {

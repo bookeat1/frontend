@@ -31,8 +31,12 @@ type Variant = "primary" | "secondary" | "danger";
  * `action` — обводочная кнопка в шапке страницы заведения («Сохранить» и
  * «Поделиться», узлы 3261:69 и 3261:72): 46 высотой, радиус 12, паддинг 16,
  * просвет 8, кегль 14/20 SemiBold. Тоже не «почти M» (42 и паддинг 20).
+ *
+ * `header` — единственная кнопка шапки, «Войти» (узел 3549:6440): 48 высотой,
+ * радиус 12, паддинг 16, просвет 8, кегль 14/20 SemiBold. Ни M (42), ни
+ * `submit` (радиус 14) сюда не попадают.
  */
-type Size = "l" | "m" | "submit" | "action";
+type Size = "l" | "m" | "submit" | "action" | "header";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -64,6 +68,7 @@ const sizes: Record<Size, string> = {
   m: "h-btn-m px-btn-m-x rounded-md text-[14px] leading-5",
   submit: "h-login-submit px-btn-l-x rounded-field text-[16px] leading-6",
   action: "h-venue-action px-venue-action-x rounded-md text-[14px] leading-5",
+  header: "h-btn-header px-btn-header-x rounded-md text-[14px] leading-5",
 };
 
 /**

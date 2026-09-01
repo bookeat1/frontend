@@ -3,29 +3,31 @@
 import Link from "next/link";
 
 import { Container } from "@web/components/layout/Container";
+import { BrandLogo } from "@web/components/layout/BrandLogo";
 import { Button } from "@web/components/ui/Button";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
 
 /**
- * Шапка сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, компонент «Web / Header»
- * (узел 3367:10653): высота 80, паддинг 18/120, белый фон, нижняя граница
- * #DADADA, слева логотип и меню с просветом 28, справа селектор города,
- * ссылка «Для бизнеса» (сейчас скрыта, см. SHOW_FOR_BUSINESS), вторичная
- * кнопка «Войти» и главная «Регистрация».
+ * Шапка сайта — экземпляр «Web» на кадре главной, Figma
+ * 49Zk9oEV3ZCiCdh6Cz9dE2, узел 3549:5823.
  *
- * Активный пункт меню в макете — фирменный цвет и подчёркивание 4 px
- * (узел 3280:4350), остальные — #7D7D7D Medium.
+ * Высота 84 (паддинг 18 вокруг кнопки 48), белый фон, нижняя граница #DADADA.
+ * Слева знак марки и меню через просвет 40, между пунктами 28. Справа через
+ * просвет 12: капсула города, ссылка «Для бизнеса» (сейчас скрыта, см.
+ * SHOW_FOR_BUSINESS) и ОДНА главная кнопка «Войти» со значком гостя.
  *
- * «Войти» и «Регистрация» ведут на `/login` (Figma 3272:2). Вошедшему гостю
- * на их месте показывается имя и «Выйти»: этого состояния в макете нет вовсе
- * — там нарисован только гость без сессии.
+ * Активный пункт — фирменный #B33036 SemiBold с подчёркиванием 4 px
+ * (узел 3280:4348), остальные — #7D7D7D Medium 16/24.
+ *
+ * Вошедшему гостю на месте «Войти» показывается имя и «Выйти»: этого состояния
+ * в макете нет вовсе — там нарисован только гость без сессии.
  *
  * Подписи пунктов берутся из словаря ПО КЛЮЧУ, а не передаются строкой:
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
  * и заранее посчитанная подпись осталась бы на прежнем языке.
  */
-export type NavKey = "home" | "venues" | "afisha" | "guide" | "articles";
+export type NavKey = "home" | "venues" | "guide";
 
 export interface NavItem {
   key: NavKey;
@@ -49,27 +51,30 @@ export interface SiteHeaderProps {
   className?: string;
 }
 
-/** Пункты ровно в порядке макета. Экспортируются, чтобы страницы не
- * пересобирали список заново и он не разъехался между разделами.
- *
- * Разделы «Афиша», «Гастрогид» и «Статьи» веб ещё не собрал — ссылки ведут на
- * будущие адреса. Убирать пункты из шапки нельзя (макет рисует пять), но и
- * обещать работающую страницу мы не можем: до её появления ссылка вернёт 404
- * Next, а не молчаливое «ничего не произошло». */
 /**
  * ВРЕМЕННО: пункт «Для бизнеса» убран из шапки по решению владельца
  * (30.08.2026) — страницы `/business` ещё нет, и ссылка вела в 404 Next.
  * Возврат — ОДНА строка: поставить здесь `true`. Ни разметку, ни словарь
  * (`t.web.header.forBusiness` во всех трёх языках) для этого трогать не надо.
+ *
+ * В макете (узел 3549:5740) ссылка ЕСТЬ — это расхождение сознательное.
  */
 export const SHOW_FOR_BUSINESS: boolean = false;
 
+/**
+ * Пункты ровно в порядке макета (узел 3549:5727) — их ТРИ: «Главная»,
+ * «Заведения», «Гастрогид». Раньше здесь было пять: лишние «Афиша» и «Статьи»
+ * достались от более старого компонента шапки и вели в 404 Next. Замечание
+ * владельца 01.09.2026 «тексты не совпадают с макетом» — про них в том числе.
+ *
+ * «Гастрогид» тоже пока отвечает 404: раздела у сайта нет. Пункт оставлен,
+ * потому что он НАРИСОВАН в макете; убрать его — отдельное решение владельца,
+ * а не догадка вёрстки.
+ */
 export const HEADER_NAV: readonly NavItem[] = [
   { key: "home", href: "/" },
   { key: "venues", href: "/venues" },
-  { key: "afisha", href: "/afisha" },
   { key: "guide", href: "/guide" },
-  { key: "articles", href: "/articles" },
 ];
 
 export function SiteHeader({
@@ -87,16 +92,17 @@ export function SiteHeader({
 
   return (
     <header className={cx("w-full border-b border-line-strong bg-canvas", className)}>
-      <Container className="flex min-h-header flex-wrap items-center justify-between gap-4 py-[18px]">
-        <div className="flex flex-wrap items-center gap-6 lg:gap-10">
+      <Container className="flex min-h-header flex-wrap items-center justify-between gap-4 py-header-y">
+        <div className="flex flex-wrap items-center gap-6 lg:gap-header-brand-gap">
           <Link
             href="/"
-            className="text-[24px] font-bold leading-8 tracking-[-0.4px] text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            aria-label={t.web.header.brand}
+            className="inline-flex items-center rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
-            {t.web.header.brand}
+            <BrandLogo />
           </Link>
           <nav aria-label={t.web.header.navLabel}>
-            <ul className="flex flex-wrap items-center gap-5 lg:gap-7">
+            <ul className="flex flex-wrap items-center gap-5 lg:gap-header-nav-gap">
               {items.map((item) => {
                 const active = item.key === activeKey;
                 return (
@@ -116,7 +122,10 @@ export function SiteHeader({
                           дёргалось бы при переходе. */}
                       <span
                         aria-hidden="true"
-                        className={cx("h-1 w-full rounded-sm", active ? "bg-brand" : "bg-transparent")}
+                        className={cx(
+                          "h-nav-underline w-full rounded-nav-underline",
+                          active ? "bg-brand" : "bg-transparent",
+                        )}
                       />
                     </Link>
                   </li>
@@ -126,13 +135,13 @@ export function SiteHeader({
           </nav>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-header-right-gap">
           {cities && cities.length > 0 ? (
             // Обычный <select>, а не своя выпадашка: список городов короткий,
             // а нативный элемент бесплатно даёт клавиатуру, поиск по первой
             // букве и системный список на любом устройстве. Внешне это та же
-            // капсула из макета (узел 3280:4372).
-            <span className="relative inline-flex h-11 items-center gap-2 rounded-full bg-subtle px-3.5 text-[14px] font-medium leading-5 text-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand">
+            // капсула из макета (узел 3549:5734).
+            <span className="relative inline-flex h-city-pill items-center gap-city-pill-gap rounded-full bg-subtle px-city-pill-x text-[14px] font-medium leading-5 text-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand">
               <PinIcon />
               <select
                 aria-label={t.web.header.cityLabel}
@@ -152,7 +161,7 @@ export function SiteHeader({
               type="button"
               onClick={onCityClick}
               aria-label={t.web.header.cityLabel}
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-subtle px-3.5 text-[14px] font-medium leading-5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="inline-flex h-city-pill items-center gap-city-pill-gap rounded-full bg-subtle px-city-pill-x text-[14px] font-medium leading-5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               <PinIcon />
               {city}
@@ -167,30 +176,27 @@ export function SiteHeader({
             </Link>
           ) : null}
           {account === undefined ? (
-            // Сессия ещё читается из localStorage. Место под кнопки держим,
+            // Сессия ещё читается из localStorage. Место под кнопку держим,
             // чтобы шапка не дёрнулась, когда состояние станет известно.
-            <span aria-hidden="true" className="h-btn-m w-[220px]" />
+            <span aria-hidden="true" className="h-btn-header w-[109px]" />
           ) : account ? (
             <>
               <span className="max-w-[180px] truncate text-[14px] font-medium leading-5 text-ink">
                 {account.name}
               </span>
-              <Button size="m" variant="secondary" onClick={onSignOut}>
+              <Button size="header" variant="secondary" onClick={onSignOut}>
                 {t.web.header.signOut}
               </Button>
             </>
           ) : (
-            <>
-              {/* Обе кнопки макета ведут на ОДИН экран: у бэкенда нет
-                  отдельной регистрации — `POST /auth/otp/verify` создаёт
-                  учётную запись, если номер новый. */}
-              <Button size="m" variant="secondary" asLink href="/login">
-                {t.web.header.signIn}
-              </Button>
-              <Button size="m" variant="primary" asLink href="/login">
-                {t.web.header.signUp}
-              </Button>
-            </>
+            /* В макете кнопка ОДНА — «Войти» со значком гостя (узел 3549:6440).
+               Отдельной «Регистрации» рядом нет и у бэкенда её тоже нет:
+               `POST /auth/otp/verify` создаёт учётную запись, если номер новый,
+               то есть вход и регистрация — это буквально один экран. */
+            <Button size="header" variant="primary" asLink href="/login">
+              <UserIcon />
+              {t.web.header.signIn}
+            </Button>
           )}
         </div>
       </Container>
@@ -198,19 +204,60 @@ export function SiteHeader({
   );
 }
 
-/** Значок города из макета (узел 3280:4372) — контурная булавка 24×24. */
+/**
+ * Значок города — «Linear / Map & Location / Map Point Wave» (узел 3549:5735),
+ * выгружен из макета как SVG. Прежняя булавка была нарисована здесь от руки и
+ * с макетом не совпадала: у знака макета есть третья дуга-«волна» под пином.
+ */
 function PinIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      className="shrink-0 text-brand"
+    >
       <path
-        d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10Z"
-        fill="none"
+        d="M6.40002 9.21171C6.40002 6.33336 8.90723 4 12 4C15.0928 4 17.6 6.33336 17.6 9.21171C17.6 12.0675 15.8127 15.3999 13.0241 16.5916C12.374 16.8695 11.626 16.8695 10.976 16.5916C8.18735 15.3999 6.40002 12.0675 6.40002 9.21171Z"
         stroke="currentColor"
         strokeWidth="1.5"
-        strokeLinejoin="round"
-        className="text-brand"
       />
-      <circle cx="12" cy="11" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-brand" />
+      <path
+        d="M13.6 9.6C13.6 10.4837 12.8837 11.2 12 11.2C11.1164 11.2 10.4 10.4837 10.4 9.6C10.4 8.71634 11.1164 8 12 8C12.8837 8 13.6 8.71634 13.6 9.6Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M19.1684 14.8C19.7007 15.282 20 15.8253 20 16.4C20 18.3882 16.4183 20 12 20C7.58172 20 4 18.3882 4 16.4C4 15.8253 4.29929 15.282 4.83157 14.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Значок гостя на кнопке «Войти» (узел 3549:6441), выгружен из макета. */
+function UserIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      className="shrink-0"
+    >
+      <circle cx="12" cy="7.2" r="3.2" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M18.4 16.4C18.4 18.3882 18.4 20 12 20C5.59998 20 5.59998 18.3882 5.59998 16.4C5.59998 14.4118 8.46535 12.8 12 12.8C15.5346 12.8 18.4 14.4118 18.4 16.4Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
     </svg>
   );
 }
