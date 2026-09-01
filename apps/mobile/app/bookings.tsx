@@ -99,9 +99,18 @@ export default function MyBookingsScreen() {
     return { active: activeBucket, history: historyBucket };
   }, [bookings]);
 
+  // Вид карточки приносит ЭКРАН: он один знает, в какое ведро бронь попала.
+  // В макете это две разные карточки — высокая с полосой статуса (node
+  // 3589:8231) и низкая без неё (node 3589:8529), — и решать это внутри
+  // карточки значило бы раскладывать бронь по вкладкам дважды и разными
+  // правилами.
+  const cardVariant = activeTab === TAB_HISTORY ? "past" : "active";
+
   const renderItem = useCallback(
-    ({ item }: { item: Booking }) => <BookingListCard booking={item} onPress={openBooking} />,
-    [openBooking],
+    ({ item }: { item: Booking }) => (
+      <BookingListCard booking={item} variant={cardVariant} onPress={openBooking} />
+    ),
+    [cardVariant, openBooking],
   );
 
   const visibleBookings = activeTab === TAB_HISTORY ? history : active;
@@ -236,7 +245,8 @@ const styles = StyleSheet.create({
   // Отступы из макета (Figma 3z0f6dgev4HMwBAHPjTjPo, node 3053:10074 —
   // дорожка 343×44 на отметке x=16, y=8): поля 16 по краям, по 8 сверху и
   // снизу от дорожки вкладок. Дальше 24 до первой карточки (8 снизу от
-  // вкладок + 16 сверху у списка), 12 между карточками.
+  // вкладок + 16 сверху у списка), 16 между карточками (было 12 — в новом
+  // макете `Frame 2087327228`, узлы 3589:8229 и 3589:8394, просвет 16).
   tabs: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
@@ -245,7 +255,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   listEmpty: {
     flexGrow: 1,

@@ -2042,6 +2042,8 @@ export const kk: LocaleOverride<Dictionary> = {
       cityHint: "Еркін өріс — профильде қалалар тізімі жоқ",
       birthDateLabel: "Туған күні",
       birthDatePlaceholder: "Күнді таңдаңыз",
+      birthDateTypeLabel: "Сандармен енгізіңіз",
+      birthDateTypePlaceholder: "КК.АА.ЖЖЖЖ",
       birthDateEmpty: "таңдалмаған",
       birthDateHint: "КК.АА.ЖЖЖЖ пішімі. Күнді кейін жоюға болмайды — тек өзгертуге болады",
       birthDateDialogTitle: "Туған күні",
@@ -2053,7 +2055,8 @@ export const kk: LocaleOverride<Dictionary> = {
       saved: "Сақталды",
       errors: {
         name_required: "Атыңызды көрсетіңіз — ол брондарға қойылады",
-        birth_date_format: "Күнтізбеден күнді таңдаңыз",
+        birth_date_incomplete: "Күнді толық енгізіңіз: күні, айы және жылы",
+        birth_date_format: "Мұндай күн жоқ — күні мен айын тексеріңіз",
         birth_date_not_past: "Туған күні бүгінгі күннен ерте болуы керек",
         birth_date_too_old: "Жылды тексеріңіз: бұл күн қате сияқты",
         birth_date_cannot_clear: "Туған күнін өзгертуге болады, бірақ жоюға болмайды",

@@ -18,8 +18,9 @@ import { FlowHeader } from "../../src/components/FlowHeader";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
+import { parseBirthDateInput } from "../../src/lib/birth-date-input";
 import { BIRTH_DATE_STEP_SKIPPABLE } from "../../src/lib/onboarding";
-import { birthDateBounds, classifyProfileSaveFailure } from "../../src/lib/profile-edit";
+import { classifyProfileSaveFailure } from "../../src/lib/profile-edit";
 
 /**
  * Шаг «Укажите дату рождения» — идёт СРАЗУ ЗА ИМЕНЕМ при первом входе
@@ -33,10 +34,18 @@ import { birthDateBounds, classifyProfileSaveFailure } from "../../src/lib/profi
  * Фокус переезжает в следующее поле сам, как только текущее заполнено: иначе
  * ввод даты из трёх полей превращается в три отдельных касания.
  *
- * ГРАНИЦЫ ДАТЫ берутся из `birthDateBounds` — той же функции, что проверяет
- * дату в профиле, а она, в свою очередь, повторяет правило сервера (строго в
- * прошлом, не старше 120 лет). Своей копии правила здесь нет намеренно: две
- * копии разъезжаются, и человек получает 422 вместо подсказки.
+ * ПРОВЕРКУ ДЕЛАЕТ `parseBirthDateInput` — общий разбор набранной цифрами
+ * даты, тот же, что стоит в диалоге даты рождения в профиле. Он же держит
+ * границы (строго в прошлом, не старше 120 лет) через `birthDateBounds`.
+ * Своей копии правила здесь нет намеренно: две копии разъезжаются, и человек
+ * получает 422 вместо подсказки.
+ *
+ * ОШИБКА НАЗЫВАЕТСЯ ВСЛУХ (правка владельца 2026-09-01). Раньше неверная дата
+ * просто гасила кнопку «Сохранить»: гость набирал 31.02, кнопка не нажималась,
+ * и почему — не сообщалось нигде. Теперь кнопка живая, а нажатие на неверной
+ * дате печатает причину: «такой даты не существует», «дата в будущем»,
+ * «проверьте год», «введите дату полностью». Кнопка гаснет ровно на время
+ * сохранения.
  *
  * ПОКАЗЫВАЕТСЯ ТОЛЬКО НОВОМУ АККАУНТУ. Кто новый — решает `postSignInStep`
  * (src/lib/onboarding.ts) по ответу сервера, а не по пустой дате рождения:
@@ -81,26 +90,33 @@ export default function OnboardingBirthdayScreen() {
     return () => sub.remove();
   }, [skip]);
 
-  // "YYYY-MM-DD" — тот же вид, что принимает сервер и хранит профиль.
-  const birthDate = useMemo(() => {
-    if (day.length === 0 || month.length === 0 || year.length !== 4) return "";
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  // Три поля — это ОДНА набранная дата: склеиваем их в восемь цифр и отдаём
+  // общему разбору. Однозначные день и месяц дополняются нулём («1» и «2» —
+  // это 01.02), пустые не дополняются: тогда цифр меньше восьми, и разбор
+  // честно скажет «дата не дописана», а не соберёт из «00» несуществующий
+  // день.
+  const parsed = useMemo(() => {
+    const digits =
+      day.length > 0 && month.length > 0
+        ? `${day.padStart(2, "0")}${month.padStart(2, "0")}${year}`
+        : `${day}${month}${year}`;
+    return parseBirthDateInput(digits, new Date());
   }, [day, month, year]);
 
-  const valid = useMemo(() => {
-    if (birthDate === "") return false;
-    // Дата должна СУЩЕСТВОВАТЬ: 31 февраля Date молча превратит в 3 марта,
-    // поэтому сверяем разобранное значение с введённым.
-    const parsed = new Date(`${birthDate}T00:00:00Z`);
-    if (Number.isNaN(parsed.getTime())) return false;
-    if (parsed.toISOString().slice(0, 10) !== birthDate) return false;
-
-    const { earliest, latest } = birthDateBounds(new Date());
-    return birthDate <= latest && birthDate >= earliest;
-  }, [birthDate]);
-
   const save = useCallback(async () => {
-    if (inFlight.current || !valid) return;
+    if (inFlight.current || saving) return;
+    // Причина отказа называется вслух — молча погашенная кнопка не объясняет
+    // ничего. `empty` и `incomplete` для гостя одно и то же: дата не дописана.
+    if (parsed.status !== "ok") {
+      const errors = t.profile.edit.errors;
+      setError(
+        parsed.status === "invalid"
+          ? errors[parsed.error]
+          : errors.birth_date_incomplete,
+      );
+      return;
+    }
+    const birthDate = parsed.dateKey;
     inFlight.current = true;
     setSaving(true);
     setError(undefined);
@@ -124,7 +140,7 @@ export default function OnboardingBirthdayScreen() {
       inFlight.current = false;
       setSaving(false);
     }
-  }, [birthDate, valid, repository, queryClient, router, t]);
+  }, [parsed, saving, repository, queryClient, router, t]);
 
   /** Оставляет только цифры и не даёт полю перерасти свою длину. */
   const digits = (value: string, max: number) => value.replace(/[^0-9]/g, "").slice(0, max);
@@ -208,11 +224,15 @@ export default function OnboardingBirthdayScreen() {
           </View>
 
           <View style={styles.actions}>
+            {/* Кнопка ЖИВАЯ на неверной дате: она печатает причину. Гаснет
+                только на время сохранения — двойное нажатие безопасно и без
+                этого (страхует `inFlight`), но крутящаяся надпись не должна
+                выглядеть нажимаемой. */}
             <PrimaryButton
               label={saving ? t.onboarding.birthday.saving : t.onboarding.birthday.save}
               size="lg"
               onPress={() => void save()}
-              disabled={!valid || saving}
+              disabled={saving}
             />
             {BIRTH_DATE_STEP_SKIPPABLE ? (
               <>
