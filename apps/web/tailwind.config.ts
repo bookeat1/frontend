@@ -28,12 +28,34 @@ const px = (value: number) => `${value}px`;
  * ровно тройками, как они подписаны в макете (60/68 · Bold и так далее). */
 type FontSizeEntry = [string, { lineHeight: string; fontWeight: string }];
 
-const fontSize: Record<string, FontSizeEntry> = Object.fromEntries(
-  Object.entries(webTypography).map(([name, style]): [string, FontSizeEntry] => [
-    name,
-    [px(style.fontSize), { lineHeight: px(style.lineHeight), fontWeight: String(style.fontWeight) }],
-  ]),
-);
+const fontSize: Record<string, FontSizeEntry> = {
+  ...Object.fromEntries(
+    Object.entries(webTypography).map(([name, style]): [string, FontSizeEntry] => [
+      name,
+      [
+        px(style.fontSize),
+        { lineHeight: px(style.lineHeight), fontWeight: String(style.fontWeight) },
+      ],
+    ]),
+  ),
+  /** Подпись кухни. Своей строки в ките у неё нет — кегль снят с самой ячейки
+   * (узел 3254:7), поэтому и утилита собрана из `webCuisineTile`. */
+  "cuisine-label": [
+    px(webCuisineTile.labelFontSize),
+    {
+      lineHeight: px(webCuisineTile.labelLineHeight),
+      fontWeight: String(webCuisineTile.labelFontWeight),
+    },
+  ],
+  /** Она же в тесном ряду: четырнадцать кухонь в 1200 без переноса слова. */
+  "cuisine-label-compact": [
+    px(webCuisineTile.labelFontSizeCompact),
+    {
+      lineHeight: px(webCuisineTile.labelLineHeightCompact),
+      fontWeight: String(webCuisineTile.labelFontWeight),
+    },
+  ],
+};
 
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
@@ -139,6 +161,7 @@ const config: Config = {
         "card-body": px(webVenueCard.bodyPadding),
         "cuisine-gap": px(webCuisineTile.gap),
         "cuisine-row-x": px(webCuisineTile.rowGapX),
+        "cuisine-row-x-compact": px(webCuisineTile.rowGapXCompact),
         "header-y": px(webHeader.paddingY),
         "header-brand-gap": px(webHeader.brandGap),
         "header-nav-gap": px(webHeader.navGap),
@@ -187,6 +210,7 @@ const config: Config = {
         header: px(webLayout.headerHeight),
         "card-image": px(webVenueCard.imageHeight),
         cuisine: px(webCuisineTile.size),
+        "cuisine-compact": px(webCuisineTile.sizeCompact),
         panel: px(webSearchPanel.height),
         submit: px(webSearchPanel.submit.height),
         store: px(webAppSection.storeButton.height),
@@ -204,6 +228,7 @@ const config: Config = {
       },
       width: {
         cuisine: px(webCuisineTile.size),
+        "cuisine-compact": px(webCuisineTile.sizeCompact),
         logo: px(webHeader.logo.width),
         "card-favorite": px(webVenueCard.favorite.size),
         "store-app": px(webAppSection.storeButton.appStoreWidth),

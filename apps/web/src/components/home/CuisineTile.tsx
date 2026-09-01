@@ -3,26 +3,41 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { webCuisineTile, webLayout } from "@bookeat/design-tokens";
 import type { Cuisine } from "@bookeat/api/client";
 
 import { cuisinePhoto } from "@web/lib/cuisine-photos";
 import { cx } from "@web/lib/cx";
 
+/** Круг рисуется ровно в размер токена, поэтому `sizes` — тоже из токенов. */
+const DESIGN_IMAGE_SIZES = `${webCuisineTile.size}px`;
+const COMPACT_IMAGE_SIZES = `(min-width: ${webLayout.breakpoints[1]}px) ${webCuisineTile.sizeCompact}px, ${webCuisineTile.size}px`;
+
 /**
  * Ячейка ряда «Выберите кухню» — Figma 3254:7 (кадр 3253:2).
  *
- * Ячейка НЕ задаёт себе ширину: её задаёт колонка сетки в `CuisineRow`. Круг
- * тянется на ширину колонки и упирается в 104 из макета — при десяти кухнях
- * колонка выходит 103,5, и ряд совпадает с макетом; при четырнадцати круг
- * ужимается, но ряд остаётся ОДНОЙ строкой без прокрутки (замечание владельца
- * 01.09.2026). Прежние `min-w-cuisine` + `whitespace-nowrap` держали ячейку по
- * подписи и ряд от этого переносился.
+ * Ширину ячейке задаёт `CuisineRow` (`width: min-content`), то есть ячейка
+ * равна самому длинному СЛОВУ подписи или кругу — что шире. Ровно так ячейка
+ * и нарисована в макете: 104 у «Европейской», 112 у «Паназиатской», 122 у
+ * «Морепродуктов» при одном и том же круге 104.
  *
- * Подпись переносится по словам и, если слово длиннее колонки, внутри слова:
- * «Средиземноморская» — одно слово, и в колонке 71 px оно не помещается ни
- * целиком, ни половиной. `hyphens: auto` даёт перенос по правилам языка там,
- * где браузер умеет, `overflow-wrap: anywhere` — грубый запасной вариант.
- * Многоточия здесь быть не может: обрезанное название кухни ничего не значит.
+ * ПОДПИСЬ НЕ РВЁТСЯ ВНУТРИ СЛОВА. `hyphens: none` и `overflow-wrap: normal`
+ * стоят явно: прежние `[hyphens:auto]` + `[overflow-wrap:anywhere]` давали
+ * «Средизем-номорская» и «Море-продукты» — владелец назвал это багом
+ * 01.09.2026. Перенос допустим ТОЛЬКО по пробелу, поэтому «Еуропалық асхана»
+ * встаёт в две строки, а «Средиземноморская» обязана поместиться целиком.
+ * Многоточия здесь тоже быть не может: обрезанное название кухни ничего не
+ * значит.
+ *
+ * В тесном ряду (четырнадцать кухонь против десяти нарисованных) уменьшается
+ * и подпись, и круг — 11/14 вместо 16/18 и 64 вместо 104. Числа посчитаны из
+ * реальных ширин Noto Sans 500, разбор — в комментарии к `webCuisineTile`.
+ * Мельче делаем ТОЛЬКО с `xl` (1280), и это не «на глаз». Ужимать подпись
+ * имеет смысл ровно там, где это ПОМОГАЕТ уместить ряд. Контейнер отдаёт
+ * 1200 только шире 1440, между 1024 и 1440 у него ещё поля `px-6`, и на 1024
+ * ряду достаётся 976 при нужных 1127 — то есть на 1024 прокрутка всё равно
+ * будет, и мелкий кегль там просто портит чтение. На 1280 доступно 1152, и
+ * ряд помещается целиком.
  *
  * В макете в круге фотография. Справочник картинку присылает не всегда (на
  * тестовом стенде — ни у одной из 14 кухонь), поэтому источников три: ссылка
@@ -46,11 +61,13 @@ export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; co
   return (
     <Link
       href={`/venues?cuisine=${encodeURIComponent(cuisine.id)}`}
-      className="flex w-full min-w-0 flex-col items-center gap-cuisine-gap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className="flex w-full flex-col items-center gap-cuisine-gap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       <span
         className={cx(
-          "relative flex aspect-square w-full max-w-cuisine items-center justify-center overflow-hidden rounded-full",
+          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full",
+          "h-cuisine w-cuisine",
+          compact && "xl:h-cuisine-compact xl:w-cuisine-compact",
           // Под фотографией — обычная приглушённая подложка (у части снимков
           // прозрачный фон). Под монограммой — фирменная светлая.
           src ? "bg-muted" : "bg-brand-subtle",
@@ -61,7 +78,7 @@ export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; co
             src={src}
             alt=""
             fill
-            sizes="104px"
+            sizes={compact ? COMPACT_IMAGE_SIZES : DESIGN_IMAGE_SIZES}
             // Тот же довод, что в RemoteImage: наш загрузчик отдаёт один адрес
             // на любую ширину, без флага Next печатает srcSet из шестнадцати
             // одинаковых ссылок.
@@ -78,8 +95,9 @@ export function CuisineTile({ cuisine, compact = false }: { cuisine: Cuisine; co
       </span>
       <span
         className={cx(
-          "w-full text-balance text-center font-medium text-ink [hyphens:auto] [overflow-wrap:anywhere]",
-          compact ? "text-[13px] leading-4" : "text-[16px] leading-[18px]",
+          "w-full text-center text-ink [hyphens:none] [overflow-wrap:normal]",
+          "text-cuisine-label",
+          compact && "xl:text-cuisine-label-compact",
         )}
       >
         {cuisine.name}
