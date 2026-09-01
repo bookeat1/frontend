@@ -8,6 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
+      "./plugins/withAndroidBackupRules",
       "expo-router",
       "expo-font",
       "expo-secure-store",

@@ -28,5 +28,17 @@ module.exports = {
     "@typescript-eslint/no-explicit-any": "error",
     "react-native/no-inline-styles": "off",
   },
+  overrides: [
+    {
+      // Config-плагины Expo грузит обычным require() из Node ещё до всякой
+      // транспиляции, поэтому они обязаны быть CommonJS. Это не поблажка
+      // общему правилу, а другая среда исполнения — здесь нет модулей ESM.
+      files: ["plugins/**/*.js"],
+      env: { node: true, es2021: true },
+      rules: {
+        "@typescript-eslint/no-var-requires": "off",
+      },
+    },
+  ],
   ignorePatterns: [".expo/", "node_modules/", "dist/", "*.config.js"],
 };
