@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
 
+import { DEFAULT_GUESTS, GUEST_OPTIONS } from "@web/lib/booking-options";
 import { cx } from "@web/lib/cx";
 import { serializeCatalogParams, type CatalogState } from "@web/lib/catalog-params";
 import { nowTimeHhMm, searchDateLabel, todayIso } from "@web/lib/format";
@@ -47,7 +48,7 @@ export function SearchPanel({
   const [text, setText] = useState(state.text);
   const [date, setDate] = useState(state.date ?? "");
   const [time, setTime] = useState(state.time ?? "");
-  const [guests, setGuests] = useState(state.guests ?? 2);
+  const [guests, setGuests] = useState(state.guests ?? DEFAULT_GUESTS);
   const [today, setToday] = useState<string | null>(null);
 
   useEffect(() => {
@@ -227,6 +228,3 @@ function Divider() {
   return <span aria-hidden="true" className="hidden w-px self-stretch bg-line-strong lg:block" />;
 }
 
-/** До восьми гостей: дальше это уже банкет, который заведения принимают
- * отдельно (то же ограничение, что на экране брони в приложении). */
-const GUEST_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];

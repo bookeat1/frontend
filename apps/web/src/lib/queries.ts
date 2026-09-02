@@ -8,7 +8,10 @@ import {
 } from "@tanstack/react-query";
 import type {
   Amenity,
+  Booking,
+  CreateBookingInput,
   Cuisine,
+  DayAvailability,
   EventSummary,
   GuideCollection,
   HomePromo,
@@ -211,6 +214,78 @@ export function useToggleFavorite() {
       // наблюдатель — второй незачем.
       if (client.getQueryState(FAVORITES_KEY) === undefined) return;
       void client.invalidateQueries({ queryKey: FAVORITES_KEY });
+    },
+  });
+}
+
+/**
+ * Свободное время заведения на один день (`GET /restaurants/:id/availability`).
+ *
+ * КЛЮЧ БЕЗ ЛОКАЛИ, в отличие от остальных: ответ — это время и машинные
+ * причины отказа (`too_soon`, `capacity`, …), переводить в нём нечего, а
+ * лишний ключ означал бы повторный запрос после переключения языка.
+ *
+ * Размер компании — ЧАСТЬ КЛЮЧА, а не деталь запроса: ответ на двоих ничего не
+ * говорит о шестерых, и общий кэш показывал бы гостю чужие слоты.
+ *
+ * `staleTime: 0`: слот перестаёт быть свободным в тот момент, когда его занял
+ * кто-то другой, и цена устаревшего ответа здесь — 409 на кнопке.
+ *
+ * Запрос НЕ уходит, когда заведение не принимает онлайн-брони
+ * (`acceptsOnlineBookings === false`): сервер по такому заведению не выдаст
+ * слот ни на одну дату. `undefined` (заведение ещё едет) запрос не блокирует
+ * — блокирует отсутствие даты, потому что «сегодня» знает только браузер.
+ */
+export function useAvailability(input: {
+  restaurantId: string;
+  date: string | null;
+  guests: number;
+  acceptsOnlineBookings?: boolean;
+}): UseQueryResult<DayAvailability> {
+  const { restaurantId, date, guests, acceptsOnlineBookings } = input;
+  return useQuery({
+    queryKey: ["availability", restaurantId, date, guests],
+    // `date!` безопасен: без даты запрос выключен (см. enabled).
+    queryFn: () =>
+      repository.getAvailability({ restaurantId, date: date as string, guests }),
+    enabled:
+      isApiConfigured &&
+      restaurantId.length > 0 &&
+      Boolean(date) &&
+      acceptsOnlineBookings !== false,
+    staleTime: 0,
+  });
+}
+
+export interface CreateBookingVariables {
+  input: CreateBookingInput;
+  /**
+   * Обязателен: без заголовка `Idempotency-Key` сервер отвечает 422. Один и
+   * тот же ключ на повтор ОДНОЙ И ТОЙ ЖЕ брони — иначе второе нажатие или
+   * автоматический повтор запроса дают гостю два стола.
+   */
+  idempotencyKey: string;
+}
+
+/**
+ * Создание брони гостем (`POST /bookings`).
+ *
+ * Предзаказа здесь нет намеренно: в макете карточки его нет, а `PUT
+ * /bookings/:id/preorder` — отдельный шаг после того, как бронь уже есть.
+ *
+ * Повторов нет тоже. TanStack Query по умолчанию повторяет неудачную мутацию
+ * ноль раз, и менять это нельзя: сеть могла оборваться ПОСЛЕ того, как сервер
+ * принял запрос, и слепой повтор — это второй стол на то же имя. От двойного
+ * нажатия защищает ключ идемпотентности, а не ретрай.
+ */
+export function useCreateBooking() {
+  const client = useQueryClient();
+  return useMutation<Booking, unknown, CreateBookingVariables>({
+    mutationFn: ({ input, idempotencyKey }) => repository.createBooking(input, idempotencyKey),
+    onSuccess: (booking) => {
+      // Слот, который заняла эта бронь, больше не свободен — всё, что лежит в
+      // кэше по доступности этого заведения, стало неправдой.
+      void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
     },
   });
 }

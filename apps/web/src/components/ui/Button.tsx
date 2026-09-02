@@ -35,8 +35,13 @@ type Variant = "primary" | "secondary" | "danger";
  * `header` — единственная кнопка шапки, «Войти» (узел 3549:6440): 48 высотой,
  * радиус 12, паддинг 16, просвет 8, кегль 14/20 SemiBold. Ни M (42), ни
  * `submit` (радиус 14) сюда не попадают.
+ *
+ * `booking` — «Забронировать на 19:30» в карточке брони (QovvuAoI9YxsLMwWkfgKN8,
+ * узел 3525:14768): ДВЕ строки друг под другом через 2, паддинг 14 по
+ * вертикали, радиус 14, фиксированной высоты нет. Единственный размер, где
+ * содержимое идёт колонкой, — поэтому у него и другой `gap`.
  */
-type Size = "l" | "m" | "submit" | "action" | "header";
+type Size = "l" | "m" | "submit" | "action" | "header" | "booking";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -57,18 +62,26 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
+/**
+ * `gap` и `whitespace-nowrap` живут в РАЗМЕРЕ, а не здесь: у кнопки брони
+ * подпись стоит второй строкой (просвет 2, не 8), и переопределить `gap-2`
+ * снаружи нельзя — у двух утилит одного свойства одинаковая специфичность, и
+ * побеждает та, что Tailwind сгенерировал позже, то есть `gap-0.5`, а не та,
+ * которую передали.
+ */
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold " +
+  "inline-flex items-center justify-center font-semibold " +
   "transition-colors focus-visible:outline focus-visible:outline-2 " +
   "focus-visible:outline-offset-2 focus-visible:outline-brand " +
   "disabled:cursor-not-allowed";
 
 const sizes: Record<Size, string> = {
-  l: "h-btn-l px-btn-l-x rounded-lg text-[16px] leading-6",
-  m: "h-btn-m px-btn-m-x rounded-md text-[14px] leading-5",
-  submit: "h-login-submit px-btn-l-x rounded-field text-[16px] leading-6",
-  action: "h-venue-action px-venue-action-x rounded-md text-[14px] leading-5",
-  header: "h-btn-header px-btn-header-x rounded-md text-[14px] leading-5",
+  l: "h-btn-l gap-2 whitespace-nowrap px-btn-l-x rounded-lg text-[16px] leading-6",
+  m: "h-btn-m gap-2 whitespace-nowrap px-btn-m-x rounded-md text-[14px] leading-5",
+  submit: "h-login-submit gap-2 whitespace-nowrap px-btn-l-x rounded-field text-[16px] leading-6",
+  action: "h-venue-action gap-2 whitespace-nowrap px-venue-action-x rounded-md text-[14px] leading-5",
+  header: "h-btn-header gap-2 whitespace-nowrap px-btn-header-x rounded-md text-[14px] leading-5",
+  booking: "flex-col gap-0.5 py-booking-cta-y rounded-field text-booking-cta",
 };
 
 /**

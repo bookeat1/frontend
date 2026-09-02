@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 import {
   webAppSection,
+  webBookingCard,
   webCatalog,
   webColors,
   webControls,
@@ -39,6 +40,43 @@ const fontSize: Record<string, FontSizeEntry> = {
       ],
     ]),
   ),
+  /**
+   * Карточка брони (узел 3525:14731). Своих строк в шкале кита у этих пар
+   * нет — они сняты с текстовых узлов самой карточки, поэтому утилиты собраны
+   * из `webBookingCard`, а не подобраны из ближайшей ступени шкалы.
+   */
+  "aside-card-title": [
+    px(webBookingCard.header.titleFontSize),
+    { lineHeight: px(webBookingCard.header.titleLineHeight), fontWeight: "700" },
+  ],
+  "booking-subtitle": [
+    px(webBookingCard.header.subtitleFontSize),
+    { lineHeight: px(webBookingCard.header.subtitleLineHeight), fontWeight: "400" },
+  ],
+  "booking-label": [
+    px(webBookingCard.field.labelFontSize),
+    { lineHeight: px(webBookingCard.field.labelLineHeight), fontWeight: "500" },
+  ],
+  "booking-value": [
+    px(webBookingCard.field.valueFontSize),
+    { lineHeight: px(webBookingCard.field.valueLineHeight), fontWeight: "600" },
+  ],
+  "booking-slots-title": [
+    px(webBookingCard.slots.headerFontSize),
+    { lineHeight: px(webBookingCard.slots.headerLineHeight), fontWeight: "600" },
+  ],
+  "booking-slot": [
+    px(webBookingCard.slots.fontSize),
+    { lineHeight: px(webBookingCard.slots.lineHeight), fontWeight: "600" },
+  ],
+  "booking-cta": [
+    px(webBookingCard.cta.titleFontSize),
+    { lineHeight: px(webBookingCard.cta.titleLineHeight), fontWeight: "600" },
+  ],
+  "booking-cta-sub": [
+    px(webBookingCard.cta.subtitleFontSize),
+    { lineHeight: px(webBookingCard.cta.subtitleLineHeight), fontWeight: "400" },
+  ],
   /** Подпись кухни. Своей строки в ките у неё нет — кегль снят с самого
    * текстового узла (3254:9), поэтому утилита собрана из `webCuisineTile`. */
   "cuisine-label": [
@@ -109,6 +147,8 @@ const config: Config = {
         "on-photo-chip": webColors.overlay.onPhotoChip,
         "on-photo-chip-border": webColors.overlay.onPhotoChipBorder,
         "on-brand-muted": webColors.overlay.onBrandMutedText,
+        /** Вторая строка кнопки «Забронировать» — белый 80 %, узел 3525:14770. */
+        "on-brand-subtle": webColors.overlay.onBrandSubtleText,
         "photo-action": webVenuePage.galleryButton.background,
       },
       fontSize,
@@ -131,6 +171,9 @@ const config: Config = {
         /** Широкая карточка выдачи скруглена на 18 — не как карточка кита (24)
          * и не как карточка блюда (16). Узел 3525:14495. */
         "wide-card": px(webCatalog.wideCard.radius),
+        /** Слот в сетке карточки брони — 10, а не 12 как у слота кита.
+         * Узел 3525:14751. */
+        "slot-grid": px(webBookingCard.slots.radius),
       },
       boxShadow: {
         card: webShadow.card,
@@ -198,6 +241,9 @@ const config: Config = {
         "wide-card-y": px(webCatalog.wideCard.bodyPaddingY),
         "active-chip-l": px(webCatalog.activeChip.paddingLeft),
         "active-chip-r": px(webCatalog.activeChip.paddingRight),
+        "booking-field-x": px(webBookingCard.field.paddingX),
+        "booking-field-y": px(webBookingCard.field.paddingY),
+        "booking-cta-y": px(webBookingCard.cta.paddingY),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -235,6 +281,9 @@ const config: Config = {
         "venue-map": px(webVenuePage.map.height),
         "wide-card": px(webCatalog.wideCard.height),
         "sort-select": px(webCatalog.sortSelect.height),
+        /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
+        "slot-grid": px(webBookingCard.slots.height),
+        "booking-field-icon": px(webBookingCard.field.iconSize),
         page: px(webCatalog.pagination.size),
         logo: px(webHeader.logo.height),
       },
@@ -253,12 +302,16 @@ const config: Config = {
         "venue-contact-glyph": px(webVenuePage.contactCard.iconGlyphSize),
         "filters-rail": px(webCatalog.filtersCard.width),
         "wide-card-image": px(webCatalog.wideCard.imageWidth),
+        "booking-field-icon": px(webBookingCard.field.iconSize),
         page: px(webCatalog.pagination.size),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
       },
       gridTemplateColumns: {
+        /** Сетка свободного времени (узел 3525:14749) — четыре равные
+         * колонки; в макете это ряды по четыре ячейки `flex-[1_0_0]`. */
+        slots: `repeat(${webBookingCard.slots.columns}, minmax(0, 1fr))`,
         /** Мозаика 3261:33: 788 к 404 при просвете 8 — это НЕ 2/3 к 1/3.
          * Дроби держат пропорцию макета на любой ширине контейнера. */
         mosaic: `${webVenuePage.mosaic.mainWidth}fr ${webVenuePage.mosaic.sideWidth}fr`,

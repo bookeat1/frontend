@@ -165,7 +165,18 @@ describe("карточка заведения", () => {
     expect(await screen.findByRole("dialog")).toBeTruthy();
   });
 
-  it("часы работы берутся из графика сервера, а не выводятся из текста", async () => {
+  /**
+   * Отдельного блока часов работы на странице БОЛЬШЕ НЕТ: в макете
+   * (QovvuAoI9YxsLMwWkfgKN8, кадр 3525:14561) его нет нигде, а место в правой
+   * колонке, которое он занимал «взаймы», заняла карточка брони. Проверка
+   * подневного графика ушла вместе с блоком — она проверяла бы вёрстку,
+   * которой не существует.
+   *
+   * Осталось то, что график ВСЁ ЕЩЁ решает: ярлык статуса в шапке. Его считает
+   * сервер (`schedule.openNow`), и это единственное, что сегодня на сайте
+   * говорит о времени работы.
+   */
+  it("статус в шапке берётся из графика сервера, а не выводится из текста", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({
         schedule: {
@@ -181,8 +192,20 @@ describe("карточка заведения", () => {
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByText("12:00–01:00 (до следующего дня)")).toBeTruthy();
-    expect(screen.getByText("Выходной")).toBeTruthy();
-    expect(screen.getByText("Открыто сейчас")).toBeTruthy();
+    expect(await screen.findByText("Открыто сейчас")).toBeTruthy();
+    // Подневного расписания на странице нет — ни в правой колонке, ни где-либо
+    // ещё. Если оно снова появится, это должно быть осознанной правкой макета.
+    expect(screen.queryByText("12:00–01:00 (до следующего дня)")).toBeNull();
+    expect(screen.queryByText("Выходной")).toBeNull();
+  });
+
+  /** Правая колонка макета (узел 3525:14730) — РОВНО одна карточка брони. */
+  it("в правой колонке стоит карточка брони, а не часы работы", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByRole("heading", { name: "Забронировать столик" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Часы работы" })).toBeNull();
   });
 });
