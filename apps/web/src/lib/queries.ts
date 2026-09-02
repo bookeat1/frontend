@@ -1,6 +1,11 @@
 "use client";
 
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import type {
   Amenity,
   Cuisine,
@@ -14,6 +19,8 @@ import type {
 } from "@bookeat/api/client";
 
 import { isApiConfigured, repository } from "@web/lib/api";
+import { useAuth } from "@web/lib/auth";
+import { FAVORITES_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -116,5 +123,94 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
     // 404 — это ответ, а не сбой связи: повторять его бессмысленно.
     retry: (failureCount, error) =>
       failureCount < 1 && !(error instanceof Error && "status" in error && error.status === 404),
+  });
+}
+
+/**
+ * Избранное гостя.
+ *
+ * Ключ БЕЗ локали: это список идентификаторов, перевод на него не влияет, а
+ * лишний ключ означал бы второй запрос после переключения языка. Зато ключ
+ * ПРИВЯЗАН К СЕССИИ — его чистит `AuthProvider` при входе и выходе, см.
+ * `lib/query-keys.ts`.
+ *
+ * Запрос уходит только у вошедшего: `GET /favorites` требует сессию и гостю
+ * без неё ответит 401. Пока сессия читается из хранилища (`isLoading`), не
+ * ходим тоже — иначе первый заход после перезагрузки страницы гарантированно
+ * ловит 401.
+ */
+export function useFavoriteIds(): UseQueryResult<Set<string>> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: FAVORITES_KEY,
+    queryFn: () =>
+      repository.getFavorites().then((items) => new Set(items.map((item) => item.id))),
+    enabled: isApiConfigured && signedIn && !isLoading,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Переключатель избранного.
+ *
+ * Обновление оптимистичное: сердце закрашивается сразу, потому что ждать
+ * ответа сети ради галочки — это подвисшая кнопка на плохой связи. Отказ
+ * сервера ОТКАТЫВАЕТ состояние, а не оставляет гостя с ложным «сохранено».
+ *
+ * ОТКАТ ПОШТУЧНЫЙ, А НЕ СНИМКОМ ВСЕГО СПИСКА. Снимок выглядит проще и ломается
+ * на двух нажатиях подряд: гость добавляет A, следом B; A успел снять снимок
+ * пустого множества, B — снимок `{A}`. Падает A — и его откат кладёт обратно
+ * пустое множество, стирая B, хотя запрос B успешен или ещё летит. Гость видит
+ * ложь, пока не приедет перезапрос. Поэтому в откате правится РОВНО ТОТ id,
+ * который менялся, а остальное множество остаётся таким, каким его сделали
+ * соседние мутации.
+ *
+ * ДАННЫХ МОГЛО НЕ БЫТЬ ВОВСЕ. Если гость нажал сердце раньше, чем ответил
+ * `GET /favorites`, оптимистичное множество ПРИДУМАНО клиентом целиком: до
+ * него в кэше не было ничего. Возвращать в этом случае «пустое множество»
+ * нельзя — это выдало бы за ответ сервера то, чего сервер не говорил (и заодно
+ * скрыло бы состояние загрузки). Запрос удаляется, наблюдатель тут же просит
+ * его заново. Заметить `setQueryData(key, undefined)` тут не выйдет: в
+ * TanStack Query v5 значение `undefined` означает «не менять» и молча
+ * игнорируется — поэтому именно `removeQueries`.
+ */
+export function useToggleFavorite() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, next }: { id: string; next: boolean }) =>
+      next ? repository.addFavorite(id) : repository.removeFavorite(id),
+    onMutate: async ({ id, next }) => {
+      await client.cancelQueries({ queryKey: FAVORITES_KEY });
+      const previous = client.getQueryData<Set<string>>(FAVORITES_KEY);
+      client.setQueryData<Set<string>>(FAVORITES_KEY, (current) => {
+        const optimistic = new Set(current ?? previous ?? []);
+        if (next) optimistic.add(id);
+        else optimistic.delete(id);
+        return optimistic;
+      });
+      // Хранится не снимок, а ДВА факта: были ли данные вообще и лежал ли в
+      // них ЭТОТ id. Больше для отката ничего не нужно.
+      return { hadData: previous !== undefined, wasFavorite: previous?.has(id) ?? false };
+    },
+    onError: (_error, { id }, context) => {
+      if (!context) return;
+      if (!context.hadData) {
+        client.removeQueries({ queryKey: FAVORITES_KEY });
+        return;
+      }
+      client.setQueryData<Set<string>>(FAVORITES_KEY, (current) => {
+        if (!current) return current;
+        const restored = new Set(current);
+        if (context.wasFavorite) restored.add(id);
+        else restored.delete(id);
+        return restored;
+      });
+    },
+    onSettled: () => {
+      // После `removeQueries` запроса в кэше нет, и перезапрос уже начал
+      // наблюдатель — второй незачем.
+      if (client.getQueryState(FAVORITES_KEY) === undefined) return;
+      void client.invalidateQueries({ queryKey: FAVORITES_KEY });
+    },
   });
 }

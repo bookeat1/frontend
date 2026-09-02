@@ -97,6 +97,12 @@ export function repositoryStub(
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
     getRestaurant: vi.fn(async () => venueDetail()),
     getMapPreviewUrl: vi.fn(() => undefined),
+    // Избранное. Стоит здесь, а не только в тестах страницы заведения: экран
+    // спрашивает его сам, и тест «кнопка не ходила в сеть» должен иметь что
+    // проверять.
+    getFavorites: vi.fn(async () => [] as RestaurantSummary[]),
+    addFavorite: vi.fn(async () => {}),
+    removeFavorite: vi.fn(async () => {}),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
 }

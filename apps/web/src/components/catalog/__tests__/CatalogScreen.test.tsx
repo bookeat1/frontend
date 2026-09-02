@@ -13,10 +13,11 @@ import { pending, renderScreen, repositoryStub, venueSummary } from "@web/test/h
  */
 
 const replace = vi.fn();
+const push = vi.fn();
 let search = "";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ replace, push, prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(search),
 }));
 
@@ -41,9 +42,109 @@ function lastQuery(fn: { mock: { calls: unknown[][] } }): SearchQuery {
 beforeEach(() => {
   search = "";
   replace.mockClear();
+  push.mockClear();
 });
 
 describe("листинг заведений", () => {
+  it("сердце на карточке ведёт гостя без входа на вход, а не молчит", async () => {
+    repository.searchRestaurants = vi.fn(async (query) => ({
+      query,
+      items: [venueSummary()],
+      total: 1,
+    }));
+
+    renderScreen(<CatalogScreen />);
+
+    const heart = await screen.findByRole("button", { name: "Избранное" });
+    fireEvent.click(heart);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    // И в сеть за избранным никто не ходил: ручка требует сессию.
+    expect(repository.addFavorite).not.toHaveBeenCalled();
+  });
+
+  it("особенности раскрываются ПО КЛИКУ, а не лежат списком целиком", async () => {
+    // Семь удобств в справочнике: пять видно сразу, остальные — по кнопке.
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "namazhana", name: "Namazhana" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "banquet", name: "Банкетный зал" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    expect(await screen.findByLabelText("Терраса")).toBeTruthy();
+    expect(screen.queryByLabelText("Банкетный зал")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Показать все 7" }));
+
+    expect(screen.getByLabelText("Банкетный зал")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Свернуть" })).toBeTruthy();
+  });
+
+  it("кнопки нет, когда сворачивать нечего: отмеченное не занимает лимит", async () => {
+    // Шесть особенностей, отмечена шестая. Все шесть и так на экране, поэтому
+    // «Показать все 6» было бы кнопкой, которая по нажатию меняет только
+    // собственную надпись.
+    search = "features=namazhana";
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "namazhana", name: "Namazhana" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    expect(await screen.findByLabelText("Namazhana")).toBeTruthy();
+    expect(screen.getByLabelText("Веранда с видом")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Показать все/ })).toBeNull();
+  });
+
+  it("лимит считает только НЕотмеченные строки", async () => {
+    // Отмечены две первые. Раньше они съедали два места из пяти, и «Терраса 7»
+    // с «Террасой 8» прятались вместе с двумя честными кандидатами.
+    search = "features=a,b";
+    repository.getAmenities = vi.fn(async () =>
+      ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => ({ id, name: `Особенность ${id}` })),
+    );
+
+    renderScreen(<CatalogScreen />);
+
+    // Две отмеченные сверх лимита плюс пять неотмеченных.
+    expect(await screen.findByLabelText("Особенность a")).toBeTruthy();
+    expect(screen.getByLabelText("Особенность b")).toBeTruthy();
+    expect(screen.getByLabelText("Особенность g")).toBeTruthy();
+    // Восьмая — единственная спрятанная.
+    expect(screen.queryByLabelText("Особенность h")).toBeNull();
+    expect(screen.getByRole("button", { name: "Показать все 8" })).toBeTruthy();
+  });
+
+  it("выбранная особенность видна и в свёрнутом списке", async () => {
+    // Иначе снять фильтр было бы нечем: чекбокс есть, а на экране его нет.
+    search = "features=banquet";
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "namazhana", name: "Namazhana" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "banquet", name: "Банкетный зал" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    const checked = await screen.findByLabelText("Банкетный зал");
+    expect((checked as HTMLInputElement).checked).toBe(true);
+  });
+
   it("пока запрос летит, показывает загрузку, а не пустую выдачу", async () => {
     repository.searchRestaurants = vi.fn(() => pending<SearchResult>());
 

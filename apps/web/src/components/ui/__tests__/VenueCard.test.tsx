@@ -53,7 +53,7 @@ describe("VenueCard", () => {
       <VenueCard name="Flour Demi" meta="Европейская" favorite onToggleFavorite={onToggleFavorite} />,
     );
 
-    const button = screen.getByRole("button", { name: "Убрать из избранного" });
+    const button = screen.getByRole("button", { name: "Избранное" });
     expect(button.getAttribute("aria-pressed")).toBe("true");
 
     fireEvent.click(button);

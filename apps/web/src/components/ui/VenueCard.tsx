@@ -3,15 +3,16 @@
 import Link from "next/link";
 
 import { Card } from "@web/components/ui/Card";
+import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
 
 /**
  * Карточка заведения — единственная карточка, полностью размеченная в
- * десктопных кадрах (Figma 49Zk9oEV3ZCiCdh6Cz9dE2, узел 3280:5482 в кадре
- * главной; в блоке «Выбрали для вас» и в «Все заведения» это ОДИН и тот же
- * компонент, 282×318).
+ * десктопных кадрах (Figma QovvuAoI9YxsLMwWkfgKN8, узел 3280:4748; в блоке
+ * «Выбрали для вас» (3525:14214) и в «Все заведения» (3525:14246) это ОДИН и
+ * тот же компонент, 282 шириной).
  *
  * Размеры оттуда же: фото 190 высотой, тело с паддингом 16 и просветом 16,
  * название 18/24 SemiBold, подпись 14/20 Regular #595959, слоты-подсказки
@@ -41,6 +42,8 @@ export interface VenueCardProps {
   /** Подсказки свободного времени. См. комментарий выше о `undefined` и `[]`. */
   slots?: readonly string[];
   favorite?: boolean;
+  /** Запрос по этой карточке в полёте — кнопка заблокирована. */
+  favoritePending?: boolean;
   onToggleFavorite?: () => void;
   onSelectSlot?: (time: string) => void;
   className?: string;
@@ -54,6 +57,7 @@ export function VenueCard({
   href,
   slots,
   favorite = false,
+  favoritePending = false,
   onToggleFavorite,
   onSelectSlot,
   className,
@@ -90,9 +94,13 @@ export function VenueCard({
           <button
             type="button"
             onClick={onToggleFavorite}
+            disabled={favoritePending}
             aria-pressed={favorite}
-            aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
-            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            // Имя ПОСТОЯННОЕ, состояние несёт `aria-pressed`. Меняющееся имя
+            // рядом с состоянием читается вслух как «Убрать из избранного,
+            // нажато» — гость слышит противоречие вместо подсказки.
+            aria-label={t.web.ui.favoriteToggle}
+            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <HeartIcon filled={favorite} />
           </button>
@@ -126,14 +134,16 @@ export function VenueCard({
         </div>
 
         {slots === undefined ? null : slots.length > 0 ? (
-          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex flex-wrap gap-2">
+          // Слоты делят строку поровну (`flex-1`, узел 3280:4392), а не
+          // переносятся: в макете это ряд из трёх равных долей.
+          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex gap-2">
             {slots.map((time, index) => (
-              <li key={time}>
+              <li key={time} className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => onSelectSlot?.(time)}
                   className={cx(
-                    "inline-flex h-8 items-center justify-center rounded-slot px-3 text-[13px] font-semibold leading-[18px]",
+                    "inline-flex h-8 w-full items-center justify-center rounded-slot px-3 text-[13px] font-semibold leading-[18px]",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     // Первый слот в макете выделен фирменным тоном — это
                     // ближайшее свободное время, а не «выбранное».
@@ -150,21 +160,5 @@ export function VenueCard({
         )}
       </div>
     </Card>
-  );
-}
-
-/** Сердце из мобильного набора Phosphor, перерисованное как inline-SVG:
- * тянуть иконочный пакет ради одной формы в вебе не за что. */
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M12 20.7 3.9 12.6a5.4 5.4 0 0 1 7.6-7.6l.5.5.5-.5a5.4 5.4 0 0 1 7.6 7.6Z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

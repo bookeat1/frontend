@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 import {
   webAppSection,
+  webCatalog,
   webColors,
   webControls,
   webCuisineTile,
@@ -127,6 +128,9 @@ const config: Config = {
         slot: px(webVenueCard.slot.radius),
         tag: px(webVenuePage.tag.radius),
         promo: px(webVenuePage.promoCard.radius),
+        /** Широкая карточка выдачи скруглена на 18 — не как карточка кита (24)
+         * и не как карточка блюда (16). Узел 3525:14495. */
+        "wide-card": px(webCatalog.wideCard.radius),
       },
       boxShadow: {
         card: webShadow.card,
@@ -186,6 +190,14 @@ const config: Config = {
         "venue-promo-p": px(webVenuePage.promoCard.padding),
         "venue-dish-x": px(webVenuePage.dishCard.bodyPaddingX),
         "venue-dish-y": px(webVenuePage.dishCard.bodyPaddingY),
+        "venue-mosaic-inset-b": px(webVenuePage.galleryButton.insetBottom),
+        "venue-tabs-gap": px(webVenuePage.tabs.gap),
+        "venue-tabs-label-gap": px(webVenuePage.tabs.labelGap),
+        "section-y": px(webLayout.sectionPaddingY),
+        "wide-card-x": px(webCatalog.wideCard.bodyPaddingX),
+        "wide-card-y": px(webCatalog.wideCard.bodyPaddingY),
+        "active-chip-l": px(webCatalog.activeChip.paddingLeft),
+        "active-chip-r": px(webCatalog.activeChip.paddingRight),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -218,6 +230,12 @@ const config: Config = {
         "venue-gallery-btn": px(webVenuePage.galleryButton.height),
         "venue-dish-image": px(webVenuePage.dishCard.imageHeight),
         "venue-contact-icon": px(webVenuePage.contactCard.iconSize),
+        "venue-contact-glyph": px(webVenuePage.contactCard.iconGlyphSize),
+        "venue-tabs-underline": px(webVenuePage.tabs.underlineHeight),
+        "venue-map": px(webVenuePage.map.height),
+        "wide-card": px(webCatalog.wideCard.height),
+        "sort-select": px(webCatalog.sortSelect.height),
+        page: px(webCatalog.pagination.size),
         logo: px(webHeader.logo.height),
       },
       width: {
@@ -232,6 +250,10 @@ const config: Config = {
         submit: px(webSearchPanel.submit.width),
         "venue-aside": px(webVenuePage.asideWidth),
         "venue-contact-icon": px(webVenuePage.contactCard.iconSize),
+        "venue-contact-glyph": px(webVenuePage.contactCard.iconGlyphSize),
+        "filters-rail": px(webCatalog.filtersCard.width),
+        "wide-card-image": px(webCatalog.wideCard.imageWidth),
+        page: px(webCatalog.pagination.size),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),

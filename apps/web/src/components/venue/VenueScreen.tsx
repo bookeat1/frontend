@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   WEEKDAY_BY_DAY_OF_WEEK,
   type Amenity,
@@ -14,14 +14,17 @@ import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
+import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { Modal } from "@web/components/ui/Modal";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Tag } from "@web/components/ui/Tag";
 import { repository } from "@web/lib/api";
+import { useAuth } from "@web/lib/auth";
+import { useLoginHref } from "@web/lib/favorites";
 import { cx } from "@web/lib/cx";
 import { priceLabel, scheduleStatus, venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
-import { useVenue } from "@web/lib/queries";
+import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
 
 /**
  * Карточка заведения — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 03 · Карточка
@@ -131,18 +134,49 @@ function VenueBody({ venue }: { venue: Restaurant }) {
   const photos = venue.coverPhoto
     ? [venue.coverPhoto, ...venue.photos.filter((photo) => photo.id !== venue.coverPhoto?.id)]
     : venue.photos;
+  const hasPromos = venue.promoBanners.length > 0;
+  /** Окно со всеми снимками открывают ДВА элемента — кнопка на мозаике и
+   * вкладка «Фото · N», — поэтому его состояние живёт здесь, а не в галерее. */
+  const [galleryOpen, setGalleryOpen] = useState(false);
+
+  /** Вкладки собираются из ТОГО, ЧТО НА СТРАНИЦЕ ЕСТЬ: нет акций — нет и
+   * вкладки. `useMemo` здесь не украшение: список уходит в зависимость
+   * наблюдателя прокрутки, и новый массив на каждый кадр пересоздавал бы его. */
+  const tabs = useMemo<SectionTab[]>(() => {
+    const all: (SectionTab | null)[] = [
+      { id: SECTION_ID.about, label: t.web.venue.tabs.overview },
+      venue.menuHighlights.length > 0
+        ? { id: SECTION_ID.menu, label: t.web.venue.tabs.menu }
+        : null,
+      photos.length > 0
+        ? {
+            id: SECTION_ID.photos,
+            label: t.web.venue.tabs.photos(photos.length),
+            // Мозаика стоит ВЫШЕ вкладок, и прокрутка к ней уводила бы вверх,
+            // за пределы страницы, которую гость читает. Вкладка делает то же,
+            // что кнопка «Все фото», — открывает все снимки.
+            onSelect: () => setGalleryOpen(true),
+          }
+        : null,
+      hasPromos ? { id: SECTION_ID.promos, label: t.web.venue.tabs.promos } : null,
+      { id: SECTION_ID.contacts, label: t.web.venue.tabs.contacts },
+    ];
+    return all.filter((tab): tab is SectionTab => tab !== null);
+  }, [t, venue.menuHighlights.length, photos.length, hasPromos]);
 
   return (
     <div className="flex flex-col gap-8">
-      <Gallery photos={photos} name={venue.name} />
+      <Gallery photos={photos} name={venue.name} open={galleryOpen} onOpenChange={setGalleryOpen} />
 
       <VenueHeader venue={venue} status={status} />
 
       <div className="flex flex-col gap-8 lg:flex-row">
-        {/* Левая колонка: «О заведении» и дальше 24, потом секции через 32
-            (узлы 3262:3 и 3379:11435). */}
+        {/* Левая колонка: вкладки, «О заведении» и дальше 24, потом секции
+            через 32 (узлы 3525:14612 и 3525:14639). */}
         <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <section className="flex flex-col gap-3">
+          <SectionTabs tabs={tabs} />
+
+          <section id={SECTION_ID.about} className="flex scroll-mt-6 flex-col gap-3">
             <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.about.title}</h2>
             <p className="whitespace-pre-line break-words text-[16px] leading-[26px] text-ink-secondary">
               {venue.description.trim() || t.web.venue.about.empty}
@@ -151,7 +185,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
 
           <div className="flex flex-col gap-8">
             <MenuSection venue={venue} />
-            {venue.promoBanners.length > 0 ? <PromoSection venue={venue} /> : null}
+            {hasPromos ? <PromoSection venue={venue} /> : null}
             <Contacts venue={venue} />
           </div>
         </div>
@@ -168,8 +202,132 @@ function VenueBody({ venue }: { venue: Restaurant }) {
   );
 }
 
+/** Подпись вкладки с полосой под ней: одна разметка на ссылку и на кнопку,
+ * чтобы они не разошлись видом. */
+function TabLabel({ label, current }: { label: string; current: boolean }) {
+  return (
+    <>
+      <span
+        className={cx(
+          "text-[16px] leading-6",
+          current ? "font-semibold text-ink" : "font-medium text-ink-secondary",
+        )}
+      >
+        {label}
+      </span>
+      <span
+        aria-hidden="true"
+        className={cx(
+          "h-venue-tabs-underline w-full rounded-nav-underline",
+          current ? "bg-brand" : "bg-transparent",
+        )}
+      />
+    </>
+  );
+}
+
+/** Ссылка-якорь или кнопка-действие — снаружи они выглядят одинаково. */
+function TabShell({ tab, current }: { tab: SectionTab; current: boolean }) {
+  const shell =
+    "flex flex-col items-center gap-venue-tabs-label-gap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+
+  if (tab.onSelect) {
+    return (
+      <button type="button" onClick={tab.onSelect} className={shell}>
+        <TabLabel label={tab.label} current={current} />
+      </button>
+    );
+  }
+
+  return (
+    <a href={`#${tab.id}`} aria-current={current ? "true" : undefined} className={shell}>
+      <TabLabel label={tab.label} current={current} />
+    </a>
+  );
+}
+
 /**
- * Шапка заведения — узел 3261:45.
+ * Идентификаторы секций страницы. Одни и те же в разметке секции и в ссылке
+ * вкладки: разъехались бы — вкладка молча вела бы в никуда.
+ */
+const SECTION_ID = {
+  about: "venue-about",
+  menu: "venue-menu",
+  photos: "venue-photos",
+  promos: "venue-promos",
+  contacts: "venue-contacts",
+} as const;
+
+interface SectionTab {
+  id: string;
+  label: string;
+  /** Вкладка не якорь, а действие (так устроено «Фото»): тогда она рисуется
+   * кнопкой и в подсветке по прокрутке не участвует — прокручивать нечего. */
+  onSelect?: () => void;
+}
+
+/**
+ * Вкладки страницы — узел 3525:14613: ряд через 32, подпись 16/24 (активная
+ * SemiBold основным цветом, остальные Medium вторичным), под подписью полоса 2
+ * через 12; у неактивной вкладки полоса прозрачная, поэтому строка не прыгает.
+ *
+ * ЭТО ССЫЛКИ НА ЯКОРЯ, А НЕ ВКЛАДКИ-ПЕРЕКЛЮЧАТЕЛИ. Разделов «Меню», «Фото» и
+ * «Контакты» отдельными страницами у сайта нет, а всё их содержимое уже лежит
+ * на этой странице ниже. Поэтому нажатие прокручивает к секции — и работает
+ * без JavaScript, средним кликом и с клавиатуры.
+ *
+ * Вкладки «Отзывы · 312» из макета здесь НЕТ: отзывов на сайте не существует
+ * ни секцией, ни страницей, и вкладка вела бы в пустоту.
+ *
+ * Активная вкладка вычисляется наблюдателем прокрутки. Наблюдателя нет
+ * (старый браузер) — активной остаётся первая: это хуже подсветки, но не
+ * ломает переходы.
+ */
+function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
+  const t = useT();
+  const [active, setActive] = useState<string | undefined>(tabs[0]?.id);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible) setActive(visible.target.id);
+      },
+      // Полоса «сейчас читают»: верхние 30% окна. Без неё активной становилась
+      // бы любая секция, краем попавшая в экран, и подсветка дрожала бы.
+      { rootMargin: "0px 0px -70% 0px", threshold: 0 },
+    );
+    for (const tab of tabs) {
+      if (tab.onSelect) continue;
+      const element = document.getElementById(tab.id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [tabs]);
+
+  if (tabs.length < 2) return null;
+
+  return (
+    <nav aria-label={t.web.venue.tabs.label}>
+      <ul className="flex flex-wrap gap-venue-tabs-gap">
+        {tabs.map((tab) => {
+          const current = tab.id === active;
+          return (
+            <li key={tab.id}>
+              <TabShell tab={tab} current={current} />
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/**
+ * Шапка заведения — узел 3525:14582.
  *
  * Название 40/48 Bold с трекингом −0.8, рядом ярлык статуса через 14; строка
  * свойств 16/24; ряд ярлыков-удобств через 12 от неё, ярлыки через 8.
@@ -206,11 +364,13 @@ function VenueHeader({
           </p>
         ) : null}
       </div>
-      {/* В макете рядом стоят «Сохранить» и «Поделиться». «Сохранить» —
-          избранное, а этого у сайта нет ни в модели заведения (`Restaurant`
-          без `isFavorite`), ни в экранах; кнопка-обманка хуже её отсутствия.
-          «Поделиться» работает по-настоящему. */}
-      <ShareButton name={venue.name} />
+      {/* Две кнопки, как в макете (узел 3525:14601), просвет 10. Обе делают
+          то, что обещают: «Сохранить» ходит в `PUT/DELETE /favorites/:id`,
+          «Поделиться» открывает системное окно или копирует адрес. */}
+      <div className="flex items-center gap-2.5">
+        <SaveButton id={venue.id} />
+        <ShareButton name={venue.name} />
+      </div>
     </header>
   );
 }
@@ -250,9 +410,18 @@ function AmenityRow({ amenities }: { amenities: Amenity[] }) {
  *   3 — 2×2, где третья растянута на обе колонки;
  *   4 — сетка макета.
  */
-function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
+function Gallery({
+  photos,
+  name,
+  open,
+  onOpenChange,
+}: {
+  photos: Photo[];
+  name: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const t = useT();
-  const [open, setOpen] = useState(false);
 
   if (photos.length === 0) {
     return <StateMessage text={t.web.venue.gallery.empty} />;
@@ -262,7 +431,7 @@ function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
   const grid = rest.slice(0, 4);
 
   return (
-    <section aria-label={t.web.venue.gallery.label} className="relative">
+    <section id={SECTION_ID.photos} aria-label={t.web.venue.gallery.label} className="relative scroll-mt-6">
       <div
         className={cx(
           "grid gap-venue-mosaic-gap overflow-hidden rounded-xl md:h-venue-mosaic",
@@ -305,8 +474,8 @@ function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
           ничего не делает. */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="absolute bottom-venue-mosaic-inset right-venue-mosaic-inset inline-flex h-venue-gallery-btn items-center gap-1.5 rounded-md bg-photo-action px-4 text-[14px] font-semibold leading-5 text-ink shadow-photo-action transition-colors hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        onClick={() => onOpenChange(true)}
+        className="absolute bottom-venue-mosaic-inset-b right-venue-mosaic-inset inline-flex h-venue-gallery-btn items-center gap-1.5 rounded-md bg-photo-action px-4 text-[14px] font-semibold leading-5 text-ink shadow-photo-action transition-colors hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
         <GridIcon />
         {t.web.venue.gallery.count(photos.length)}
@@ -315,7 +484,7 @@ function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
       {open ? (
         <Modal
           title={t.web.venue.gallery.label}
-          onClose={() => setOpen(false)}
+          onClose={() => onOpenChange(false)}
           // Окно кита узкое (380) — это ширина модалки входа. Для сетки
           // снимков нужна вся полоса контента; `!` здесь обязателен, потому
           // что `max-w-modal` стоит в самом компоненте.
@@ -343,7 +512,7 @@ function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
 function MenuSection({ venue }: { venue: Restaurant }) {
   const t = useT();
   return (
-    <section className="flex flex-col gap-5">
+    <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
       <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.menu.title}</h2>
       {venue.menuHighlights.length === 0 ? (
         <StateMessage text={t.web.venue.menu.empty} />
@@ -362,16 +531,21 @@ function MenuSection({ venue }: { venue: Restaurant }) {
                     sizes="(min-width: 1280px) 252px, 33vw"
                   />
                 </div>
-                <div className="flex flex-1 flex-col gap-1.5 px-venue-dish-x py-venue-dish-y">
-                  <p className="break-words text-[15px] font-semibold leading-[22px] text-ink">
-                    {dish.name}
-                  </p>
-                  {dish.description ? (
-                    <p className="line-clamp-2 break-words text-[13px] leading-[18px] text-ink-tertiary">
-                      {dish.description}
+                {/* Тело карточки: название с описанием сверху, цена прижата к
+                    низу (`justify-between`, узел 3525:14648), а не отодвинута
+                    произвольным отступом. */}
+                <div className="flex flex-1 flex-col justify-between gap-4 px-venue-dish-x py-venue-dish-y">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="break-words text-[15px] font-semibold leading-[22px] text-ink">
+                      {dish.name}
                     </p>
-                  ) : null}
-                  <p className="mt-auto pt-1.5 text-[16px] font-bold leading-6 text-ink">
+                    {dish.description ? (
+                      <p className="line-clamp-2 break-words text-[13px] leading-[18px] text-ink-tertiary">
+                        {dish.description}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="text-[16px] font-bold leading-6 text-ink">
                     {dish.price || t.web.venue.menu.noPrice}
                   </p>
                 </div>
@@ -399,7 +573,7 @@ function MenuSection({ venue }: { venue: Restaurant }) {
 function PromoSection({ venue }: { venue: Restaurant }) {
   const t = useT();
   return (
-    <section className="flex flex-col gap-5">
+    <section id={SECTION_ID.promos} className="flex scroll-mt-6 flex-col gap-5">
       <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.promos.title}</h2>
       <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {venue.promoBanners.map((promo) => (
@@ -452,11 +626,11 @@ function Contacts({ venue }: { venue: Restaurant }) {
   const hasAnything = venue.address.trim() || venue.phone || links.length > 0;
 
   return (
-    <section className="flex flex-col gap-5">
+    <section id={SECTION_ID.contacts} className="flex scroll-mt-6 flex-col gap-5">
       <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.contacts.title}</h2>
 
       {mapUrl ? (
-        <div className="relative aspect-venue-map w-full overflow-hidden rounded-lg bg-muted">
+        <div className="relative h-venue-map w-full overflow-hidden rounded-lg bg-muted">
           <RemoteImage
             src={mapUrl}
             alt={t.web.venue.contacts.mapAlt(venue.name)}
@@ -596,7 +770,7 @@ function ShareButton({ name }: { name: string }) {
   }
 
   return (
-    <div className="flex items-center gap-2.5">
+    <>
       {copied ? (
         <span role="status" className="text-[13px] leading-[18px] text-ink-secondary">
           {t.web.venue.shareCopied}
@@ -606,14 +780,67 @@ function ShareButton({ name }: { name: string }) {
         <ShareIcon />
         {t.web.venue.share}
       </Button>
-    </div>
+    </>
+  );
+}
+
+/**
+ * «Сохранить» (узел 3525:14602). Раньше кнопки здесь не было вовсе: считалось,
+ * что избранного у сайта нет. Оно есть — `GET /favorites`, `PUT /favorites/:id`
+ * и `DELETE /favorites/:id`, те же ручки, что у приложения.
+ *
+ * ЧЕТЫРЕ СОСТОЯНИЯ, а не два:
+ *   • гость не вошёл — кнопка ведёт на вход, а не притворяется работающей;
+ *   • список избранного ещё едет — подпись «Сохранить», а не мигание;
+ *   • полёт запроса — кнопка заблокирована, повторное нажатие безвредно
+ *     (ручки идемпотентные);
+ *   • отказ сервера — состояние откатывается и появляется текст ошибки, а не
+ *     ложное «сохранено».
+ */
+function SaveButton({ id }: { id: string }) {
+  const t = useT();
+  const { signedIn } = useAuth();
+  const favorites = useFavoriteIds();
+  const toggle = useToggleFavorite();
+  const loginTarget = useLoginHref();
+  const saved = favorites.data?.has(id) ?? false;
+
+  if (!signedIn) {
+    // Ссылка ПОМНИТ, откуда гость ушёл: без этого он вводит код и попадает на
+    // главную, а заведение, ради которого всё затевалось, остаётся позади.
+    return (
+      <Button size="action" variant="secondary" asLink href={loginTarget}>
+        <HeartIcon filled={false} size={24} />
+        {t.web.venue.save}
+      </Button>
+    );
+  }
+
+  return (
+    <>
+      {toggle.isError ? (
+        <span role="alert" className="text-[13px] leading-[18px] text-danger">
+          {t.web.venue.saveFailed}
+        </span>
+      ) : null}
+      <Button
+        size="action"
+        variant="secondary"
+        aria-pressed={saved}
+        loading={toggle.isPending}
+        onClick={() => toggle.mutate({ id, next: !saved })}
+      >
+        <HeartIcon filled={saved} size={24} />
+        {saved ? t.web.venue.saved : t.web.venue.save}
+      </Button>
+    </>
   );
 }
 
 /** Значок сетки на кнопке «Все фото» (узел 3367:11311) — четыре квадрата. */
 function GridIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
       <rect x="4" y="4" width="7" height="7" rx="1.5" />
       <rect x="13" y="4" width="7" height="7" rx="1.5" />
       <rect x="4" y="13" width="7" height="7" rx="1.5" />
@@ -624,7 +851,7 @@ function GridIcon() {
 
 function PinIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10Z" strokeLinejoin="round" />
       <circle cx="12" cy="11" r="2.2" />
     </svg>
@@ -633,7 +860,7 @@ function PinIcon() {
 
 function PhoneIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path
         d="M5 4h3.2l1.4 3.5-2 1.3a12 12 0 0 0 5.6 5.6l1.3-2L18 13.8V17a2 2 0 0 1-2.2 2A14.5 14.5 0 0 1 5 6.2 2 2 0 0 1 7 4"
         strokeLinejoin="round"
@@ -644,7 +871,7 @@ function PhoneIcon() {
 
 function LinkIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M10.5 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1.2 1.2" strokeLinecap="round" />
       <path d="M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1.2-1.2" strokeLinecap="round" />
     </svg>
@@ -653,7 +880,7 @@ function LinkIcon() {
 
 function ShareIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
       <path d="M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" strokeLinecap="round" />
     </svg>
@@ -677,7 +904,7 @@ function Hours({ venue }: { venue: Restaurant }) {
   return (
     // Оболочка карточки брони (узел 3262:5), а не `Card` кита: радиус 20
     // против 24 и своя тень.
-    <div className="flex flex-col gap-6 overflow-hidden rounded-xl border border-line-strong bg-canvas p-6 shadow-aside">
+    <div className="flex flex-col gap-6 overflow-hidden rounded-xl border border-line bg-canvas p-6 shadow-aside">
       <h2 className="text-[21px] font-bold leading-7 tracking-[-0.2px] text-ink">
         {t.web.venue.hours.title}
       </h2>

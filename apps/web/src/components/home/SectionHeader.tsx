@@ -56,7 +56,13 @@ export function ArrowIcon(): ReactNode {
   );
 }
 
-/** Секция главной: вертикальный ритм из макета (просвет 28, поля 42/120). */
+/**
+ * Секция главной: вертикальный ритм из макета — поля 42 по вертикали и 120 по
+ * горизонтали (последние даёт `Container`), просвет 28 внутри.
+ *
+ * 42, а не 40: в узлах 3525:14214 и 3525:14246 файла QovvuAoI9YxsLMwWkfgKN8
+ * стоит `py-[42px]`. Прежняя утилита `py-10` была округлением на глаз.
+ */
 export function Section({
   children,
   tone = "canvas",
@@ -67,7 +73,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section className={cx("w-full py-10", tone === "subtle" ? "bg-subtle" : "bg-canvas", className)}>
+    <section className={cx("w-full py-section-y", tone === "subtle" ? "bg-subtle" : "bg-canvas", className)}>
       {children}
     </section>
   );

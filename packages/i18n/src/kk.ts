@@ -2325,8 +2325,7 @@ export const kk: LocaleOverride<Dictionary> = {
     ui: {
       close: "Жабу",
       loading: "Жүктеп жатырмыз…",
-      addToFavorites: "Таңдаулыға қосу",
-      removeFromFavorites: "Таңдаулыдан алу",
+      favoriteToggle: "Таңдаулы",
       slotsLabel: "Бос уақыт",
       noSlots: "Бос уақыт жоқ",
     },
@@ -2498,6 +2497,9 @@ export const kk: LocaleOverride<Dictionary> = {
       breadcrumbVenues: "Орындар",
       share: "Бөлісу",
       shareCopied: "Сілтеме көшірілді",
+      save: "Сақтау",
+      saved: "Сақталды",
+      saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
       amenitiesLabel: "Орынның ыңғайлылықтары",
       notFound: {
         title: "Орын табылмады",
@@ -2513,6 +2515,14 @@ export const kk: LocaleOverride<Dictionary> = {
         open: "Қазір ашық",
         closed: "Қазір жабық",
         unknown: "Жұмыс уақыты көрсетілмеген",
+      },
+      tabs: {
+        label: "Бет бөлімдері",
+        overview: "Шолу",
+        menu: "Мәзір",
+        photos: (count: number) => `Фото · ${count}`,
+        promos: "Акциялар",
+        contacts: "Байланыс",
       },
       about: {
         title: "Орын туралы",

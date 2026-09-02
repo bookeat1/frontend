@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { webCatalog } from "@bookeat/design-tokens";
 
 import { AsyncBlock, Skeleton } from "@web/components/state/AsyncBlock";
 import { cx } from "@web/lib/cx";
@@ -9,9 +10,22 @@ import { useT } from "@web/lib/locale";
 import { useAmenities, useCuisines } from "@web/lib/queries";
 
 /**
- * Колонка фильтров — Figma, узел «Card / Filters» кадра 3258:2: белая карточка
- * 288 шириной, паддинг 20, просвет 24 между группами, галочки 20×20 с
- * радиусом 4, ценовые пилюли 56×38.
+ * Колонка фильтров — Figma QovvuAoI9YxsLMwWkfgKN8, узел «Filters rail (sticky)»
+ * 3525:14386: белая карточка 288 шириной, радиус 16, паддинг 20, просвет 24
+ * между группами, галочки 20×20 с радиусом 4.
+ *
+ * ОБВОДКИ У КАРТОЧКИ НЕТ — под ней та же двойная тень, что под карточками
+ * заведений. Раньше здесь стояла рамка `border/default` и тени не было вовсе:
+ * колонка читалась как таблица, а не как карточка.
+ *
+ * ЦЕНОВЫЕ ПИЛЮЛИ делят строку поровну (`flex-1`, узел 3525:14424), а не
+ * переносятся по мере надобности: в макете это ряд из четырёх равных долей.
+ *
+ * ДЛИННЫЕ СПРАВОЧНИКИ РАСКРЫВАЮТСЯ ПО КЛИКУ — и кухни, и особенности. У кухонь
+ * так нарисовано (шесть флажков и ссылка «Показать все 14», узел 3525:14421),
+ * у особенностей в макете нарисовано пять штук без ссылки, но справочник
+ * отдаёт их больше, и требование владельца от 02.09.2026 — показывать их по
+ * клику, а не списком целиком.
  *
  * Списки кухонь и удобств приходят СПРАВОЧНИКАМИ с сервера, а не зашиты: их
  * состав меняет владелец в кабинете. Счётчиков рядом с кухнями в макете шесть
@@ -35,14 +49,15 @@ export function FiltersRail({
   const t = useT();
   const cuisines = useCuisines();
   const amenities = useAmenities();
-  const [expanded, setExpanded] = useState(false);
+  const [cuisinesExpanded, setCuisinesExpanded] = useState(false);
+  const [featuresExpanded, setFeaturesExpanded] = useState(false);
 
   const patch = (partial: Partial<CatalogState>) => onChange({ ...state, ...partial, page: 1 });
 
   return (
     <aside
       aria-label={t.web.catalog.filters.title}
-      className="flex w-full flex-col gap-6 rounded-lg border border-line bg-canvas p-5 lg:w-[288px] lg:shrink-0"
+      className="flex w-full flex-col gap-6 rounded-lg bg-canvas p-5 shadow-card lg:w-filters-rail lg:shrink-0"
     >
       <div className="flex items-center justify-between">
         <h2 className="text-[19px] font-bold leading-[26px] text-ink">
@@ -86,32 +101,16 @@ export function FiltersRail({
             </div>
           }
         >
-          {(items) => {
-            const visible = expanded ? items : items.slice(0, VISIBLE_CUISINES);
-            return (
-              <div className="flex flex-col gap-3">
-                {visible.map((cuisine) => (
-                  <CheckboxRow
-                    key={cuisine.id}
-                    label={cuisine.name}
-                    checked={state.cuisines.includes(cuisine.id)}
-                    onChange={() => patch({ cuisines: toggleInList(state.cuisines, cuisine.id) })}
-                  />
-                ))}
-                {items.length > VISIBLE_CUISINES ? (
-                  <button
-                    type="button"
-                    onClick={() => setExpanded((value) => !value)}
-                    className="self-start text-[14px] font-medium leading-5 text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                  >
-                    {expanded
-                      ? t.web.catalog.filters.collapse
-                      : t.web.catalog.filters.showAll(items.length)}
-                  </button>
-                ) : null}
-              </div>
-            );
-          }}
+          {(items) => (
+            <CollapsibleRows
+              items={items}
+              visibleCount={VISIBLE_CUISINES}
+              expanded={cuisinesExpanded}
+              onToggleExpanded={() => setCuisinesExpanded((value) => !value)}
+              isChecked={(item) => state.cuisines.includes(item.id)}
+              onToggle={(item) => patch({ cuisines: toggleInList(state.cuisines, item.id) })}
+            />
+          )}
         </AsyncBlock>
       </fieldset>
 
@@ -119,7 +118,9 @@ export function FiltersRail({
         <legend className="text-[15px] font-semibold leading-[22px] text-ink">
           {t.web.catalog.filters.price}
         </legend>
-        <div className="flex flex-wrap gap-2">
+        {/* Ряд из четырёх РАВНЫХ долей (узел 3525:14424), а не переносимая
+            россыпь: «₸₸₸₸» шире «₸», и без `flex-1` пилюли разной ширины. */}
+        <div className="flex gap-2">
           {PRICE_LEVELS.map((level) => {
             const active = state.price === level;
             return (
@@ -129,7 +130,7 @@ export function FiltersRail({
                 aria-pressed={active}
                 onClick={() => patch({ price: active ? undefined : level })}
                 className={cx(
-                  "inline-flex h-chip min-w-[56px] items-center justify-center rounded-slot px-3 text-[14px] font-semibold leading-5",
+                  "inline-flex h-chip flex-1 items-center justify-center rounded-slot px-3 text-[14px] font-semibold leading-5",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   active
                     ? "border border-brand bg-brand-subtle text-brand-text"
@@ -159,16 +160,14 @@ export function FiltersRail({
           }
         >
           {(items) => (
-            <div className="flex flex-col gap-3">
-              {items.map((amenity) => (
-                <CheckboxRow
-                  key={amenity.id}
-                  label={amenity.name}
-                  checked={state.features.includes(amenity.id)}
-                  onChange={() => patch({ features: toggleInList(state.features, amenity.id) })}
-                />
-              ))}
-            </div>
+            <CollapsibleRows
+              items={items}
+              visibleCount={VISIBLE_FEATURES}
+              expanded={featuresExpanded}
+              onToggleExpanded={() => setFeaturesExpanded((value) => !value)}
+              isChecked={(item) => state.features.includes(item.id)}
+              onToggle={(item) => patch({ features: toggleInList(state.features, item.id) })}
+            />
           )}
         </AsyncBlock>
       </fieldset>
@@ -192,8 +191,96 @@ export function FiltersRail({
   );
 }
 
-/** Сколько кухонь видно до нажатия «Показать все» — как в макете (шесть). */
-const VISIBLE_CUISINES = 6;
+/** Сколько строк видно до нажатия «Показать все» — как в макете: шесть кухонь
+ * (узел 3525:14421) и пять особенностей (узлы 3525:14435…14457). */
+const VISIBLE_CUISINES = webCatalog.visibleRows.cuisines;
+const VISIBLE_FEATURES = webCatalog.visibleRows.features;
+
+/**
+ * Группа флажков, которая раскрывается по клику.
+ *
+ * Одна на кухни и на особенности: две почти одинаковые группы разъехались бы в
+ * первую же правку.
+ *
+ * ЛИМИТ СЧИТАЕТ ТОЛЬКО НЕОТМЕЧЕННЫЕ. Отмеченное показывается всегда — снять
+ * фильтр, которого не видно, нельзя, — но занимать им места из лимита нечестно
+ * в обе стороны:
+ *
+ *   • шесть особенностей, отмечена шестая: при счёте «первые пять плюс
+ *     отмеченные» на экране все шесть, а кнопка всё равно предлагает
+ *     «Показать все 6» и по нажатию только меняет надпись;
+ *   • десять отмеченных из адресной строки съедали бы лимит целиком, и
+ *     свёрнутый список переставал быть свёрнутым.
+ *
+ * КНОПКА ЕСТЬ ТОЛЬКО ТОГДА, КОГДА СВОРАЧИВАНИЕ ЧТО-ТО ПРЯЧЕТ. Условие
+ * считается для СВЁРНУТОГО состояния независимо от текущего — иначе «Свернуть»
+ * исчезала бы сразу после раскрытия и свернуть обратно было бы нечем.
+ */
+function CollapsibleRows<T extends { id: string; name: string }>({
+  items,
+  visibleCount,
+  expanded,
+  onToggleExpanded,
+  isChecked,
+  onToggle,
+}: {
+  items: T[];
+  visibleCount: number;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  isChecked: (item: T) => boolean;
+  onToggle: (item: T) => void;
+}) {
+  const t = useT();
+  const collapsed = collapsedRows(items, visibleCount, isChecked);
+  const visible = expanded ? items : collapsed;
+  // Сколько строк прячет СВЁРНУТЫЙ вид — считается всегда, а не только пока
+  // список свёрнут.
+  const hidden = items.length - collapsed.length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {visible.map((item) => (
+        <CheckboxRow
+          key={item.id}
+          label={item.name}
+          checked={isChecked(item)}
+          onChange={() => onToggle(item)}
+        />
+      ))}
+      {hidden > 0 ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggleExpanded}
+          className="self-start text-[14px] font-medium leading-5 text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {expanded ? t.web.catalog.filters.collapse : t.web.catalog.filters.showAll(items.length)}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Что видно в СВЁРНУТОМ виде: первые `visibleCount` НЕотмеченных плюс все
+ * отмеченные, в исходном порядке справочника.
+ */
+function collapsedRows<T extends { id: string; name: string }>(
+  items: T[],
+  visibleCount: number,
+  isChecked: (item: T) => boolean,
+): T[] {
+  let unchecked = 0;
+  return items.filter((item) => {
+    if (isChecked(item)) return true;
+    if (unchecked < visibleCount) {
+      unchecked += 1;
+      return true;
+    }
+    return false;
+  });
+}
 
 /**
  * Строка с галочкой. Настоящий `<input type="checkbox">` внутри `<label>`:
