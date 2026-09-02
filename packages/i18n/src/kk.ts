@@ -2185,6 +2185,7 @@ export const kk: LocaleOverride<Dictionary> = {
     restartMessage: "Жаңарту жүктеліп қойды. Оны қолдану үшін қосымшаны қайта іске қосыңыз.",
     update: "Жаңарту",
     restart: "Қайта іске қосу",
+    later: "Кейінірек",
     openFailed: "Қосымшалар дүкенін ашу мүмкін болмады",
   },
   settings: {

@@ -2179,6 +2179,7 @@ export const en: LocaleOverride<Dictionary> = {
     restartMessage: "The update is already downloaded. Restart the app to start using it.",
     update: "Update",
     restart: "Restart",
+    later: "Later",
     openFailed: "Couldn't open the app store",
   },
   settings: {

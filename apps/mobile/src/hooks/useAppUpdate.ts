@@ -14,6 +14,12 @@ import { openStoreListing } from "../lib/external-links";
 import { useLocale } from "../lib/locale";
 import { reloadApp } from "../lib/reload-app";
 import { useRepository } from "../lib/repository";
+import {
+  readUpdateSnooze,
+  snoozeActive,
+  writeUpdateSnooze,
+  type UpdateSnooze,
+} from "../lib/update-snooze";
 
 /**
  * Не спрашивать сервер чаще, чем он сам разрешает кэшировать ответ
@@ -93,6 +99,14 @@ export function useAppUpdate(): AppUpdateState {
     store: false,
     restart: false,
   });
+  // Отказ от похода в магазин, ПЕРЕЖИВШИЙ перезапуск (см. lib/update-snooze).
+  // `loaded` отдельно от значения: пока хранилище не прочитано, окно магазина
+  // не показывается вовсе — иначе «Позже», нажатое вчера, мигнуло бы окном на
+  // старте и погасло само.
+  const [snooze, setSnooze] = useState<{ loaded: boolean; value: UpdateSnooze | null }>({
+    loaded: false,
+    value: null,
+  });
   const [acting, setActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -127,6 +141,18 @@ export function useAppUpdate(): AppUpdateState {
     }
   }, [repository]);
 
+  // Чтение отказа — один раз за запуск. Ошибку хранилища читалка сама сводит
+  // к «отказа нет», поэтому ловить здесь нечего.
+  useEffect(() => {
+    let alive = true;
+    void readUpdateSnooze().then((value) => {
+      if (alive) setSnooze({ loaded: true, value });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     void check();
     const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
@@ -147,7 +173,22 @@ export function useAppUpdate(): AppUpdateState {
   const visible = (candidate: UpdatePrompt | null) =>
     candidate && (candidate.blocking || !dismissed[candidate.kind]) ? candidate : null;
 
-  const storePrompt = visible(decision ? storeUpdatePrompt(decision, locale, dictionary) : null);
+  /**
+   * Записанное «Позже» — вторая ступень того же отсева, и только для магазина.
+   *
+   * `blocking` проходит НАСКВОЗЬ: вчерашний отказ от мягкой просьбы не имеет
+   * права проглотить сегодняшнее «дальше не пустим», иначе включённый в панели
+   * жёсткий режим не доехал бы до тех, кто накануне нажал «Позже».
+   */
+  const snoozedAway = (candidate: UpdatePrompt | null) => {
+    if (!candidate || candidate.kind !== "store" || candidate.blocking) return candidate;
+    if (!snooze.loaded) return null;
+    return snoozeActive(snooze.value, buildVersion(), Date.now()) ? null : candidate;
+  };
+
+  const storePrompt = snoozedAway(
+    visible(decision ? storeUpdatePrompt(decision, locale, dictionary) : null),
+  );
   const otaPrompt = visible(isUpdatePending ? restartUpdatePrompt(dictionary) : null);
   const prompt = pickPrompt(storePrompt, otaPrompt);
 
@@ -173,10 +214,25 @@ export function useAppUpdate(): AppUpdateState {
       .finally(() => setActing(false));
   }, [acting, dictionary, prompt]);
 
+  /**
+   * «Позже».
+   *
+   * Окно закрывается СРАЗУ — за это отвечает состояние в памяти, а не запись
+   * в хранилище: гость нажал кнопку и должен увидеть результат, даже если
+   * связка ключей заперта. Запись — про то, увидит ли он это окно завтра.
+   *
+   * Пишется только отказ от МАГАЗИНА. Отказ от перезапуска переживать
+   * холодный старт незачем: скачанный бандл на нём и применяется, после чего
+   * предлагать уже нечего.
+   */
   const dismiss = useCallback(() => {
     if (!prompt || prompt.blocking) return;
     const kind = prompt.kind;
     setDismissed((current) => ({ ...current, [kind]: true }));
+    if (kind !== "store") return;
+    void writeUpdateSnooze(buildVersion(), Date.now()).then((value) => {
+      setSnooze({ loaded: true, value });
+    });
   }, [prompt]);
 
   return { prompt, acting, actionError, act, dismiss };

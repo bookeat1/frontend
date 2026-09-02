@@ -3,6 +3,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { Platform } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { UPDATE_SNOOZE_KEY, UPDATE_SNOOZE_MS } from "../../lib/update-snooze";
 import { useAppUpdate } from "../useAppUpdate";
 
 /**
@@ -13,6 +14,9 @@ import { useAppUpdate } from "../useAppUpdate";
  *     в жёсткое: гость не просил проверять, а запертое приложение из-за
  *     потерянной сети — худшее, что эта фича может сделать;
  *   • «Позже» помнится отдельно для магазина и для перезапуска;
+ *   • «Позже» для магазина ПЕРЕЖИВАЕТ перезапуск приложения — сутки, и не
+ *     дольше, и только для той сборки, которая отказалась;
+ *   • жёсткий режим не читает записанный отказ вовсе;
  *   • жёсткий режим закрыть нельзя даже вызовом `dismiss()` напрямую;
  *   • магазин важнее скачанного по воздуху обновления;
  *   • не открывшийся магазин виден, а не проглочен.
@@ -42,6 +46,21 @@ vi.mock("../../lib/external-links", () => ({
   openStoreListing: (url: string) => openStoreListing(url),
 }));
 vi.mock("../../lib/reload-app", () => ({ reloadApp: () => reloadApp() }));
+/**
+ * Хранилище отказа — настоящая карта в памяти, а не заглушка из пустых
+ * функций: проверять надо, что «Позже» действительно ЗАПИСАНО и что при
+ * следующем запуске оно читается, а не что была вызвана функция.
+ */
+const secureStore = new Map<string, string>();
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: async (key: string) => secureStore.get(key) ?? null,
+  setItemAsync: async (key: string, value: string) => {
+    secureStore.set(key, value);
+  },
+  deleteItemAsync: async (key: string) => {
+    secureStore.delete(key);
+  },
+}));
 vi.mock("expo-updates", () => ({
   isEnabled: false,
   reloadAsync: async () => {},
@@ -70,6 +89,7 @@ function answers(decision: AppUpdateDecision) {
 }
 
 beforeEach(() => {
+  secureStore.clear();
   pretendPlatform("ios");
   updatePending = false;
   checkAppUpdate.mockReset();
@@ -162,6 +182,74 @@ describe("useAppUpdate", () => {
     expect(reloadApp).toHaveBeenCalledTimes(1);
     // В магазин при этом никто не уходит: обновление уже на телефоне.
     expect(openStoreListing).not.toHaveBeenCalled();
+  });
+
+  it("«Позже» записывается и переживает перезапуск приложения", async () => {
+    answers({ action: "recommended", storeUrl: STORE });
+    const first = renderHook(() => useAppUpdate());
+    await waitFor(() => expect(first.result.current.prompt).not.toBeNull());
+
+    await act(async () => {
+      first.result.current.dismiss();
+    });
+    await waitFor(() => expect(secureStore.get(UPDATE_SNOOZE_KEY)).toBeDefined());
+    first.unmount();
+
+    // Новый запуск: тот же сервер, тот же ответ, но окна быть не должно.
+    const second = renderHook(() => useAppUpdate());
+    await waitFor(() => expect(checkAppUpdate).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(second.result.current.prompt).toBeNull();
+  });
+
+  it("через сутки просьба возвращается", async () => {
+    secureStore.set(
+      UPDATE_SNOOZE_KEY,
+      JSON.stringify({ version: "1.5.1", until: Date.now() - 1 }),
+    );
+    answers({ action: "recommended", storeUrl: STORE });
+    const { result } = renderHook(() => useAppUpdate());
+    await waitFor(() => expect(result.current.prompt?.kind).toBe("store"));
+  });
+
+  it("после обновления сборки старый отказ не действует", async () => {
+    // Сборка в тесте — 1.5.1 (замоканный expo-constants). Отказ записан
+    // предыдущей версией, значит он про другой разговор.
+    secureStore.set(
+      UPDATE_SNOOZE_KEY,
+      JSON.stringify({ version: "1.5.0", until: Date.now() + UPDATE_SNOOZE_MS }),
+    );
+    answers({ action: "recommended", storeUrl: STORE });
+    const { result } = renderHook(() => useAppUpdate());
+    await waitFor(() => expect(result.current.prompt?.kind).toBe("store"));
+  });
+
+  it("записанное «Позже» не проглатывает жёсткий режим", async () => {
+    // Самое опасное место фичи: вчера гость снял мягкую просьбу, сегодня в
+    // панели включили принуждение. Оно обязано доехать.
+    secureStore.set(
+      UPDATE_SNOOZE_KEY,
+      JSON.stringify({ version: "1.5.1", until: Date.now() + UPDATE_SNOOZE_MS }),
+    );
+    answers({ action: "required", storeUrl: STORE });
+    const { result } = renderHook(() => useAppUpdate());
+    await waitFor(() => expect(result.current.prompt?.blocking).toBe(true));
+  });
+
+  it("отказ от перезапуска в хранилище не пишется", async () => {
+    // Скачанный бандл применяется на следующем холодном старте сам, так что
+    // переживать перезапуск этому отказу нечего и незачем.
+    updatePending = true;
+    const { result } = renderHook(() => useAppUpdate());
+    await waitFor(() => expect(result.current.prompt?.kind).toBe("restart"));
+
+    await act(async () => {
+      result.current.dismiss();
+    });
+    expect(result.current.prompt).toBeNull();
+    expect(secureStore.has(UPDATE_SNOOZE_KEY)).toBe(false);
   });
 
   it("веб-сборка сервер не спрашивает вовсе", async () => {

@@ -1,0 +1,14 @@
+{
+  "recommended_title": "Доступно обновление BookEat",
+  "recommended_title_i18n": {
+    "ru": "Доступно обновление BookEat",
+    "kk": "BookEat жаңартуы қолжетімді",
+    "en": "BookEat update available"
+  },
+  "recommended_message": "Мы улучшили приложение, чтобы бронировать столики было ещё удобнее. Установите последнюю версию. Обновление займёт не больше минуты.",
+  "recommended_message_i18n": {
+    "ru": "Мы улучшили приложение, чтобы бронировать столики было ещё удобнее. Установите последнюю версию. Обновление займёт не больше минуты.",
+    "kk": "Столик брондау бұдан да ыңғайлы болуы үшін қосымшаны жақсарттық. Соңғы нұсқасын орнатыңыз. Жаңарту бір минуттан аспайды.",
+    "en": "We've improved the app to make booking a table even easier. Install the latest version. The update takes less than a minute."
+  }
+}

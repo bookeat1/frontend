@@ -32,7 +32,7 @@ export function AppUpdateGate() {
       onDismiss={dismiss}
       updateLabel={dictionary.appUpdate.update}
       restartLabel={dictionary.appUpdate.restart}
-      closeLabel={dictionary.common.close}
+      laterLabel={dictionary.appUpdate.later}
     />
   );
 }
