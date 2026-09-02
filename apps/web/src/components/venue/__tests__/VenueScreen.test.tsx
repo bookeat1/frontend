@@ -154,6 +154,11 @@ describe("карточка заведения", () => {
     expect(tabs.textContent).not.toContain("Отзыв");
     expect(screen.getByRole("link", { name: "Меню" }).getAttribute("href")).toBe("#venue-menu");
     expect(document.getElementById("venue-menu")).toBeTruthy();
+
+    // «Фото» — не якорь: мозаика стоит выше вкладок, поэтому вкладка открывает
+    // окно со всеми снимками, как и кнопка на самой мозаике.
+    fireEvent.click(screen.getByRole("button", { name: "Фото · 1" }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
   });
 
   it("часы работы берутся из графика сервера, а не выводятся из текста", async () => {

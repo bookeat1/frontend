@@ -134,6 +134,9 @@ function VenueBody({ venue }: { venue: Restaurant }) {
     ? [venue.coverPhoto, ...venue.photos.filter((photo) => photo.id !== venue.coverPhoto?.id)]
     : venue.photos;
   const hasPromos = venue.promoBanners.length > 0;
+  /** Окно со всеми снимками открывают ДВА элемента — кнопка на мозаике и
+   * вкладка «Фото · N», — поэтому его состояние живёт здесь, а не в галерее. */
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   /** Вкладки собираются из ТОГО, ЧТО НА СТРАНИЦЕ ЕСТЬ: нет акций — нет и
    * вкладки. `useMemo` здесь не украшение: список уходит в зависимость
@@ -145,7 +148,14 @@ function VenueBody({ venue }: { venue: Restaurant }) {
         ? { id: SECTION_ID.menu, label: t.web.venue.tabs.menu }
         : null,
       photos.length > 0
-        ? { id: SECTION_ID.photos, label: t.web.venue.tabs.photos(photos.length) }
+        ? {
+            id: SECTION_ID.photos,
+            label: t.web.venue.tabs.photos(photos.length),
+            // Мозаика стоит ВЫШЕ вкладок, и прокрутка к ней уводила бы вверх,
+            // за пределы страницы, которую гость читает. Вкладка делает то же,
+            // что кнопка «Все фото», — открывает все снимки.
+            onSelect: () => setGalleryOpen(true),
+          }
         : null,
       hasPromos ? { id: SECTION_ID.promos, label: t.web.venue.tabs.promos } : null,
       { id: SECTION_ID.contacts, label: t.web.venue.tabs.contacts },
@@ -155,7 +165,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <Gallery photos={photos} name={venue.name} />
+      <Gallery photos={photos} name={venue.name} open={galleryOpen} onOpenChange={setGalleryOpen} />
 
       <VenueHeader venue={venue} status={status} />
 
@@ -191,6 +201,50 @@ function VenueBody({ venue }: { venue: Restaurant }) {
   );
 }
 
+/** Подпись вкладки с полосой под ней: одна разметка на ссылку и на кнопку,
+ * чтобы они не разошлись видом. */
+function TabLabel({ label, current }: { label: string; current: boolean }) {
+  return (
+    <>
+      <span
+        className={cx(
+          "text-[16px] leading-6",
+          current ? "font-semibold text-ink" : "font-medium text-ink-secondary",
+        )}
+      >
+        {label}
+      </span>
+      <span
+        aria-hidden="true"
+        className={cx(
+          "h-venue-tabs-underline w-full rounded-nav-underline",
+          current ? "bg-brand" : "bg-transparent",
+        )}
+      />
+    </>
+  );
+}
+
+/** Ссылка-якорь или кнопка-действие — снаружи они выглядят одинаково. */
+function TabShell({ tab, current }: { tab: SectionTab; current: boolean }) {
+  const shell =
+    "flex flex-col items-center gap-venue-tabs-label-gap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+
+  if (tab.onSelect) {
+    return (
+      <button type="button" onClick={tab.onSelect} className={shell}>
+        <TabLabel label={tab.label} current={current} />
+      </button>
+    );
+  }
+
+  return (
+    <a href={`#${tab.id}`} aria-current={current ? "true" : undefined} className={shell}>
+      <TabLabel label={tab.label} current={current} />
+    </a>
+  );
+}
+
 /**
  * Идентификаторы секций страницы. Одни и те же в разметке секции и в ссылке
  * вкладки: разъехались бы — вкладка молча вела бы в никуда.
@@ -206,6 +260,9 @@ const SECTION_ID = {
 interface SectionTab {
   id: string;
   label: string;
+  /** Вкладка не якорь, а действие (так устроено «Фото»): тогда она рисуется
+   * кнопкой и в подсветке по прокрутке не участвует — прокручивать нечего. */
+  onSelect?: () => void;
 }
 
 /**
@@ -243,6 +300,7 @@ function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
       { rootMargin: "0px 0px -70% 0px", threshold: 0 },
     );
     for (const tab of tabs) {
+      if (tab.onSelect) continue;
       const element = document.getElementById(tab.id);
       if (element) observer.observe(element);
     }
@@ -258,27 +316,7 @@ function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
           const current = tab.id === active;
           return (
             <li key={tab.id}>
-              <a
-                href={`#${tab.id}`}
-                aria-current={current ? "true" : undefined}
-                className="flex flex-col items-center gap-venue-tabs-label-gap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                <span
-                  className={cx(
-                    "text-[16px] leading-6",
-                    current ? "font-semibold text-ink" : "font-medium text-ink-secondary",
-                  )}
-                >
-                  {tab.label}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className={cx(
-                    "h-venue-tabs-underline w-full rounded-nav-underline",
-                    current ? "bg-brand" : "bg-transparent",
-                  )}
-                />
-              </a>
+              <TabShell tab={tab} current={current} />
             </li>
           );
         })}
@@ -371,9 +409,18 @@ function AmenityRow({ amenities }: { amenities: Amenity[] }) {
  *   3 — 2×2, где третья растянута на обе колонки;
  *   4 — сетка макета.
  */
-function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
+function Gallery({
+  photos,
+  name,
+  open,
+  onOpenChange,
+}: {
+  photos: Photo[];
+  name: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const t = useT();
-  const [open, setOpen] = useState(false);
 
   if (photos.length === 0) {
     return <StateMessage text={t.web.venue.gallery.empty} />;
@@ -426,7 +473,7 @@ function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
           ничего не делает. */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="absolute bottom-venue-mosaic-inset-b right-venue-mosaic-inset inline-flex h-venue-gallery-btn items-center gap-1.5 rounded-md bg-photo-action px-4 text-[14px] font-semibold leading-5 text-ink shadow-photo-action transition-colors hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
         <GridIcon />
@@ -436,7 +483,7 @@ function Gallery({ photos, name }: { photos: Photo[]; name: string }) {
       {open ? (
         <Modal
           title={t.web.venue.gallery.label}
-          onClose={() => setOpen(false)}
+          onClose={() => onOpenChange(false)}
           // Окно кита узкое (380) — это ширина модалки входа. Для сетки
           // снимков нужна вся полоса контента; `!` здесь обязателен, потому
           // что `max-w-modal` стоит в самом компоненте.
