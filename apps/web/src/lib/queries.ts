@@ -1,6 +1,11 @@
 "use client";
 
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import type {
   Amenity,
   Cuisine,
@@ -14,6 +19,7 @@ import type {
 } from "@bookeat/api/client";
 
 import { isApiConfigured, repository } from "@web/lib/api";
+import { useAuth } from "@web/lib/auth";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -116,5 +122,63 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
     // 404 — это ответ, а не сбой связи: повторять его бессмысленно.
     retry: (failureCount, error) =>
       failureCount < 1 && !(error instanceof Error && "status" in error && error.status === 404),
+  });
+}
+
+/**
+ * Избранное гостя.
+ *
+ * Ключ БЕЗ локали: это список идентификаторов, перевод на него не влияет, а
+ * лишний ключ означал бы второй запрос после переключения языка.
+ *
+ * Запрос уходит только у вошедшего: `GET /favorites` требует сессию и гостю
+ * без неё ответит 401. Пока сессия читается из хранилища (`isLoading`), не
+ * ходим тоже — иначе первый заход после перезагрузки страницы гарантированно
+ * ловит 401.
+ */
+export function useFavoriteIds(): UseQueryResult<Set<string>> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: FAVORITES_KEY,
+    queryFn: () =>
+      repository.getFavorites().then((items) => new Set(items.map((item) => item.id))),
+    enabled: isApiConfigured && signedIn && !isLoading,
+    staleTime: 60_000,
+  });
+}
+
+/** Ключ избранного. Вынесен: мутация правит ровно этот кэш. */
+const FAVORITES_KEY = ["favorites"] as const;
+
+/**
+ * Переключатель избранного.
+ *
+ * Обе ручки на сервере ИДЕМПОТЕНТНЫ (`PUT`/`DELETE /favorites/:id`), поэтому
+ * двойное нажатие безвредно, а кнопка на время полёта всё равно заблокирована.
+ *
+ * Обновление оптимистичное: сердце закрашивается сразу, потому что ждать
+ * ответа сети ради галочки — это подвисшая кнопка на плохой связи. Отказ
+ * сервера ОТКАТЫВАЕТ состояние, а не оставляет гостя с ложным «сохранено».
+ */
+export function useToggleFavorite() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, next }: { id: string; next: boolean }) =>
+      next ? repository.addFavorite(id) : repository.removeFavorite(id),
+    onMutate: async ({ id, next }) => {
+      await client.cancelQueries({ queryKey: FAVORITES_KEY });
+      const previous = client.getQueryData<Set<string>>(FAVORITES_KEY);
+      const optimistic = new Set(previous ?? []);
+      if (next) optimistic.add(id);
+      else optimistic.delete(id);
+      client.setQueryData(FAVORITES_KEY, optimistic);
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) client.setQueryData(FAVORITES_KEY, context.previous);
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: FAVORITES_KEY });
+    },
   });
 }

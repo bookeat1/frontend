@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Card } from "@web/components/ui/Card";
+import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
@@ -152,21 +153,5 @@ export function VenueCard({
         )}
       </div>
     </Card>
-  );
-}
-
-/** Сердце из мобильного набора Phosphor, перерисованное как inline-SVG:
- * тянуть иконочный пакет ради одной формы в вебе не за что. */
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M12 20.7 3.9 12.6a5.4 5.4 0 0 1 7.6-7.6l.5.5.5-.5a5.4 5.4 0 0 1 7.6 7.6Z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

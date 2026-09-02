@@ -44,6 +44,48 @@ beforeEach(() => {
 });
 
 describe("листинг заведений", () => {
+  it("особенности раскрываются ПО КЛИКУ, а не лежат списком целиком", async () => {
+    // Семь удобств в справочнике: пять видно сразу, остальные — по кнопке.
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "namazhana", name: "Namazhana" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "banquet", name: "Банкетный зал" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    expect(await screen.findByLabelText("Терраса")).toBeTruthy();
+    expect(screen.queryByLabelText("Банкетный зал")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Показать все 7" }));
+
+    expect(screen.getByLabelText("Банкетный зал")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Свернуть" })).toBeTruthy();
+  });
+
+  it("выбранная особенность видна и в свёрнутом списке", async () => {
+    // Иначе снять фильтр было бы нечем: чекбокс есть, а на экране его нет.
+    search = "features=banquet";
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "namazhana", name: "Namazhana" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "banquet", name: "Банкетный зал" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    const checked = await screen.findByLabelText("Банкетный зал");
+    expect((checked as HTMLInputElement).checked).toBe(true);
+  });
+
   it("пока запрос летит, показывает загрузку, а не пустую выдачу", async () => {
     repository.searchRestaurants = vi.fn(() => pending<SearchResult>());
 

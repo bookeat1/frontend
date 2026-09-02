@@ -2492,6 +2492,10 @@ export const en: LocaleOverride<Dictionary> = {
       breadcrumbVenues: "Venues",
       share: "Share",
       shareCopied: "Link copied",
+      save: "Save",
+      saved: "Saved",
+      saveSignIn: "Sign in to save",
+      saveFailed: "Could not save. Please try again",
       amenitiesLabel: "Venue amenities",
       notFound: {
         title: "Venue not found",
@@ -2507,6 +2511,14 @@ export const en: LocaleOverride<Dictionary> = {
         open: "Open now",
         closed: "Closed now",
         unknown: "Opening hours are not set",
+      },
+      tabs: {
+        label: "Page sections",
+        overview: "Overview",
+        menu: "Menu",
+        photos: (count: number) => `Photos · ${count}`,
+        promos: "Offers",
+        contacts: "Contacts",
       },
       about: {
         title: "About the venue",
