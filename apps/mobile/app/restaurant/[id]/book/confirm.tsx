@@ -520,6 +520,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  /**
+   * ИТОГ предзаказа в шапке карточки — НАМЕРЕННО остаётся SemiBold. Это не
+   * цена позиции, а сумма, которую гость увидит в счёте; сравняв её со
+   * строками блюд, мы бы спрятали единственное число, ради которого он сюда
+   * смотрит. Строки позиций облегчены отдельно (`preorderPrice`).
+   */
   preorderTotal: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
@@ -574,9 +580,17 @@ const styles = StyleSheet.create({
     ...typography.itemName,
     color: colors.text.strong,
   },
+  /**
+   * Цена позиции предзаказа — тот же вид, что у цены в меню и в карточке
+   * блюда: `typography.body` (Regular 14/20) + `text.primary`.
+   *
+   * БЫЛО `labelSemiBold` + `text.strong`, то есть ровно то начертание, от
+   * которого уже ушли на экране меню (PR #102) и в ленте (PR #108). Название
+   * позиции над ценой остаётся SemiBold 16 — иерархия строки в этом и есть.
+   */
   preorderPrice: {
-    ...typography.labelSemiBold,
-    color: colors.text.strong,
+    ...typography.body,
+    color: colors.text.primary,
   },
   stepper: {
     flexDirection: "row",

@@ -1,7 +1,9 @@
+import { typography } from "@bookeat/design-tokens";
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { SafeAreaProvider, type Metrics } from "react-native-safe-area-context";
 import { describe, expect, it, vi } from "vitest";
+import { atomicStyle } from "../../../../test/atomic-style";
 import type { DishCardItem } from "../../../lib/dish-card";
 import { DishDetailSheet } from "../DishDetailSheet";
 
@@ -90,5 +92,47 @@ describe("DishDetailSheet", () => {
   it("блюдо из стоп-листа честно подписано", () => {
     renderSheet({ dish: { ...DISH, isAvailable: false }, canAdd: false });
     expect(document.body.textContent).toContain("Сейчас нет в наличии");
+  });
+
+  /**
+   * ЦЕНА В ШТОРКЕ НАБРАНА ТАК ЖЕ, КАК В МЕНЮ (правка 2026-09-02).
+   *
+   * Шторка открывается ИЗ строки меню и ИЗ ленты «Популярное в меню», то есть
+   * до неё цена меняла вид прямо по тапу: в списке — регулярная 14, внутри —
+   * Bold 18 чистым чёрным (`titleCard` + `text.strong`, узла в Figma под этот
+   * кегель нет, он был выбран на глаз). Владелец: «везде используется прайс,
+   * он должен быть такого же размера как в меню».
+   *
+   * Стиль читается `atomicStyle`, а не `getComputedStyle`: в jsdom последний
+   * врёт про шрифт и цвет (conventions/bookeat-frontend-testing).
+   */
+  it("цена набрана регулярным 14 и цветом основного текста, как в меню", () => {
+    renderSheet();
+
+    const price = screen
+      .getAllByText((_content, element) => element?.textContent === DISH.priceLabel)
+      .find((element) => element.childElementCount === 0);
+    expect(price).toBeTruthy();
+
+    const style = atomicStyle(price as HTMLElement);
+    expect(style["font-family"]).toBe(typography.body.fontFamily);
+    expect(style["font-size"]).toBe(`${typography.body.fontSize}px`);
+    expect(style["color"]).toBe("rgba(27,27,27,1.00)");
+  });
+
+  it("название блюда остаётся крупнее цены — иерархия не потеряна", () => {
+    renderSheet();
+
+    const name = screen
+      .getAllByText((_content, element) => element?.textContent === DISH.name)
+      .find((element) => element.childElementCount === 0);
+    const price = screen
+      .getAllByText((_content, element) => element?.textContent === DISH.priceLabel)
+      .find((element) => element.childElementCount === 0);
+
+    const nameStyle = atomicStyle(name as HTMLElement);
+    const priceStyle = atomicStyle(price as HTMLElement);
+    expect(nameStyle["font-size"]).toBe(`${typography.titleXl.fontSize}px`);
+    expect(priceStyle["font-size"]).not.toBe(nameStyle["font-size"]);
   });
 });

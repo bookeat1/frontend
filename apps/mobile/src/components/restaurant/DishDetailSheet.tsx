@@ -258,9 +258,22 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.muted,
   },
+  /**
+   * Цена блюда — тот же вид, что в меню, в ленте и в предзаказе:
+   * `typography.body` (Regular 14/20) + `text.primary`.
+   *
+   * БЫЛО `titleCard` + `text.strong` (Bold 18/26, чистый чёрный). Узла в
+   * Figma под этот кегель нет — он был выбран на глаз, когда шторку заводили,
+   * и оказался самым тяжёлым начертанием цены в приложении. Шторка
+   * открывается ИЗ строки меню и ИЗ ленты, то есть цена меняла вид прямо
+   * по тапу, — ровно то, на что жаловался владелец («прайс везде должен быть
+   * такого же размера, как в меню»).
+   *
+   * Отступ сверху не трогаем: правка про начертание и цвет.
+   */
   price: {
-    ...typography.titleCard,
-    color: colors.text.strong,
+    ...typography.body,
+    color: colors.text.primary,
     marginTop: spacing.xs,
   },
   unavailable: {
