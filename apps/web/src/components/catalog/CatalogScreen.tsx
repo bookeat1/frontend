@@ -13,6 +13,7 @@ import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
 import { useCity } from "@web/lib/city";
+import { useFavoriteControl } from "@web/lib/favorites";
 import { cx } from "@web/lib/cx";
 import {
   EMPTY_CATALOG_STATE,
@@ -60,6 +61,8 @@ export function CatalogScreen() {
   );
 
   const query = useCatalog(buildSearchQuery(state, city));
+  // Одна подписка на избранное на весь экран, а не по одной на карточку.
+  const favoriteProps = useFavoriteControl();
   const cuisines = useCuisines();
   const amenities = useAmenities();
 
@@ -240,7 +243,7 @@ export function CatalogScreen() {
                 <ul className={cx("flex flex-col gap-4", query.isFetching && "opacity-70")}>
                   {visible.map((venue) => (
                     <li key={venue.id}>
-                      <VenueWideCard venue={venue} />
+                      <VenueWideCard venue={venue} {...favoriteProps(venue.id)} />
                     </li>
                   ))}
                 </ul>

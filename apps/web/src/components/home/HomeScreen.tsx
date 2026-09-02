@@ -16,6 +16,7 @@ import { Button } from "@web/components/ui/Button";
 import { assetUrl } from "@web/lib/asset";
 import { useCity } from "@web/lib/city";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
+import { useFavoriteControl } from "@web/lib/favorites";
 import { venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
 import {
@@ -56,6 +57,8 @@ export function HomeScreen() {
   const events = useEvents(city);
   const guide = useGuideCollections();
   const catalog = useCatalog(buildSearchQuery(EMPTY_CATALOG_STATE, city));
+  // Одна подписка на избранное на всю страницу: карточек здесь дюжина.
+  const favoriteProps = useFavoriteControl();
 
   return (
     <SiteChrome active="home">
@@ -110,6 +113,7 @@ export function HomeScreen() {
                       imageUrl={venue.coverPhoto?.uri}
                       href={`/venues/${venue.id}`}
                       tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
+                      {...favoriteProps(venue.id)}
                     />
                   </li>
                 ))}
@@ -177,6 +181,7 @@ export function HomeScreen() {
                         imageUrl={venue.coverPhoto?.uri}
                         href={`/venues/${venue.id}`}
                         tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
+                        {...favoriteProps(venue.id)}
                       />
                     </li>
                   ))}

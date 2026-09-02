@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { RestaurantSummary } from "@bookeat/api/client";
 
+import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
@@ -33,7 +34,16 @@ import { useT } from "@web/lib/locale";
  * рисовать данные; вместо них — правдивые признаки «открыто сейчас» и
  * «онлайн-бронь», которые уже есть в ответе листинга.
  */
-export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
+export function VenueWideCard({
+  venue,
+  favorite = false,
+  onToggleFavorite,
+}: {
+  venue: RestaurantSummary;
+  favorite?: boolean;
+  /** Нет обработчика — нет и кнопки: сердце без действия это украшение. */
+  onToggleFavorite?: () => void;
+}) {
   const t = useT();
 
   return (
@@ -47,7 +57,23 @@ export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 md:px-wide-card-x md:py-wide-card-y">
-        <div className="flex flex-col gap-1">
+        {/* Кружок избранного — узел I3525:14495;3367:11038: 40×40 на подложке
+            `background/subtle`, в правом верхнем углу ТЕЛА карточки, а не
+            фотографии. `z-10` обязателен: ссылка заголовка растянута на всю
+            карточку псевдоэлементом и иначе перехватила бы нажатие. */}
+        {onToggleFavorite ? (
+          <button
+            type="button"
+            onClick={onToggleFavorite}
+            aria-pressed={favorite}
+            aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
+            className="absolute right-5 top-5 z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-subtle text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:right-wide-card-x md:top-wide-card-y"
+          >
+            <HeartIcon filled={favorite} size={24} />
+          </button>
+        ) : null}
+
+        <div className="flex flex-col gap-1 pr-14">
           <h3 className="break-words text-[21px] font-semibold leading-7 tracking-[-0.2px] text-ink">
             <Link
               href={`/venues/${venue.id}`}

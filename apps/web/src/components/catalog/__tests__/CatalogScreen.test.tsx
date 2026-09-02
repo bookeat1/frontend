@@ -13,10 +13,11 @@ import { pending, renderScreen, repositoryStub, venueSummary } from "@web/test/h
  */
 
 const replace = vi.fn();
+const push = vi.fn();
 let search = "";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ replace, push, prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(search),
 }));
 
@@ -41,9 +42,27 @@ function lastQuery(fn: { mock: { calls: unknown[][] } }): SearchQuery {
 beforeEach(() => {
   search = "";
   replace.mockClear();
+  push.mockClear();
 });
 
 describe("листинг заведений", () => {
+  it("сердце на карточке ведёт гостя без входа на вход, а не молчит", async () => {
+    repository.searchRestaurants = vi.fn(async (query) => ({
+      query,
+      items: [venueSummary()],
+      total: 1,
+    }));
+
+    renderScreen(<CatalogScreen />);
+
+    const heart = await screen.findByRole("button", { name: "В избранное" });
+    fireEvent.click(heart);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    // И в сеть за избранным никто не ходил: ручка требует сессию.
+    expect(repository.addFavorite).not.toHaveBeenCalled();
+  });
+
   it("особенности раскрываются ПО КЛИКУ, а не лежат списком целиком", async () => {
     // Семь удобств в справочнике: пять видно сразу, остальные — по кнопке.
     repository.getAmenities = vi.fn(async () => [
