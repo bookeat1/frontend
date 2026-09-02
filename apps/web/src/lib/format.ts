@@ -148,3 +148,55 @@ export function nowTimeHhMm(now: Date = new Date()): string {
   const minutes = `${now.getMinutes()}`.padStart(2, "0");
   return `${hours}:${minutes}`;
 }
+
+/**
+ * «25 августа» — подпись выбранной даты в карточке брони (узлы 3525:14739 и
+ * 3525:14770 файла QovvuAoI9YxsLMwWkfgKN8).
+ *
+ * Месяц ПОЛНЫЙ и в родительном падеже, а не сокращённый, как в панели поиска:
+ * там ячейка 190 широкая и подпись делит её с датой, здесь строка стоит одна.
+ * Обе печатаются `Intl`, склонение — его забота, а не наша.
+ *
+ * Тот же приём с UTC-полуночью, что и в `searchDateLabel`: дата без времени,
+ * разобранная в поясе браузера, при печати в другом поясе съезжает на сутки.
+ */
+export function bookingDateLabel(iso: string, locale: WebLocale): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(INTL_TAG[locale], {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+/**
+ * «19:30» из `AvailabilitySlot.startsAt`.
+ *
+ * ЧАСЫ БЕРУТСЯ ИЗ САМОЙ СТРОКИ, а не из `new Date(...)`. Слот приходит как
+ * RFC3339 со смещением ЗАВЕДЕНИЯ («2026-08-25T19:30:00+05:00»), и это стенные
+ * часы ресторана — то время, на которое гостя ждут за столом. `Date` перевёл
+ * бы его в пояс браузера, и гость из Берлина увидел бы 16:30 у слота, который
+ * ресторан называет 19:30. На телефоне такого не бывает (устройство стоит в
+ * том же поясе), а сайт открывают откуда угодно.
+ *
+ * Пустая строка — «время не разобрали»: вызывающий не должен печатать
+ * «Invalid Date» на кнопке.
+ */
+export function slotTimeLabel(startsAt: string): string {
+  const match = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})/.exec(startsAt.trim());
+  if (!match) return "";
+  return `${match[1]}:${match[2]}`;
+}
+
+/**
+ * Календарный день слота в поясе ЗАВЕДЕНИЯ — «YYYY-MM-DD» из той же строки и
+ * по той же причине, что и `slotTimeLabel`.
+ */
+export function slotDateIso(startsAt: string): string | null {
+  const match = /^(\d{4}-\d{2}-\d{2})[T ]/.exec(startsAt.trim());
+  return match ? match[1] : null;
+}

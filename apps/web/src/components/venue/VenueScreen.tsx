@@ -2,17 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  WEEKDAY_BY_DAY_OF_WEEK,
-  type Amenity,
-  type Photo,
-  type Restaurant,
-  type ScheduleDay,
-} from "@bookeat/api/client";
+import { type Amenity, type Photo, type Restaurant } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
+import { BookingCard } from "@web/components/venue/BookingCard";
 import { Button } from "@web/components/ui/Button";
 import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { Modal } from "@web/components/ui/Modal";
@@ -22,7 +17,7 @@ import { repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
 import { cx } from "@web/lib/cx";
-import { priceLabel, scheduleStatus, venueMeta } from "@web/lib/format";
+import { scheduleStatus, venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
 import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
 
@@ -42,11 +37,6 @@ import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
  * контейнере 1200 это ровно 788, ширина мозаики и всех секций макета.
  *
  * ЧТО В МАКЕТЕ ЕСТЬ, А ЗДЕСЬ НЕТ И ПОЧЕМУ:
- *   • карточка брони справа (узел 3262:5: дата, гости, сетка времени,
- *     «Забронировать на 19:30») — бронирование в эту задачу не входит, а
- *     кнопка, которая ничего не бронирует, хуже её отсутствия. На её месте —
- *     часы работы, то есть настоящие данные того же заведения, в ТОЙ ЖЕ
- *     оболочке (радиус 20, обводка #DADADA, паддинг 24, тень 0 8 28);
  *   • вкладки «Обзор / Меню / Отзывы / Фото / Контакты» (узел 3263:2) — это
  *     навигация по разделам, которых пока нет; секции идут подряд одной
  *     страницей;
@@ -191,10 +181,27 @@ function VenueBody({ venue }: { venue: Restaurant }) {
         </div>
 
         <aside className="w-full lg:w-venue-aside lg:shrink-0">
-          {/* Липкая колонка: на длинной странице часы работы должны оставаться
-              перед глазами, как карточка брони в макете (узел 3262:4). */}
+          {/* Правая колонка — узел 3525:14730 «Right column (sticky)»: 380
+              фиксированной ширины, вертикальный auto-layout с просветом 16 и
+              РОВНО ОДИН ребёнок, карточка брони 3525:14731. Просвет 16 заложен
+              под второй блок, но второго блока в макете нет, поэтому и здесь
+              его нет.
+
+              ЧАСЫ РАБОТЫ ОТСЮДА УБРАНЫ. Пока брони на сайте не было, они
+              занимали место карточки «взаймы». В макете отдельного блока часов
+              нет НИГДЕ на странице: время работы живёт ярлыком в шапке
+              заведения (3525:14586 «Открыто до 23:00») и строкой под телефоном
+              в контактах (3525:14723 «Ежедневно с 10:00 до 23:00»). Ни то, ни
+              другое сегодня НЕ собирается из `venue.schedule` — ярлык печатает
+              «Открыто сейчас», а под телефоном стоит слово «Телефон». То есть
+              подневный график сервера на сайте временно не показывается нигде;
+              это названо в отчёте отдельной строкой и ждёт решения владельца.
+
+              «Липкость» — единственное, что о ней известно, это слово (sticky)
+              в имени слоя: ни оффсета, ни второго состояния в макете нет.
+              Отступ сверху 24 остался прежним и макетом НЕ подтверждён. */}
           <div className="lg:sticky lg:top-6">
-            <Hours venue={venue} />
+            <BookingCard venue={venue} />
           </div>
         </aside>
       </div>
@@ -887,60 +894,3 @@ function ShareIcon() {
   );
 }
 
-/**
- * Часы работы. Стоит на месте карточки брони (узел 3262:5) и носит ЕЁ
- * оболочку: радиус 20, обводка #DADADA, паддинг 24, просвет 24, тень
- * 0 8 28 rgba(0,0,0,.08), заголовок 21/28 Bold с трекингом −0.2.
- *
- * Показываем СТРУКТУРНЫЙ график, когда он есть; иначе — то, что заведение
- * написало о себе само (`opening_hours`), подписанное как его собственные
- * слова. Разбирать эту строку на часы нельзя — на этом уже стоял баг в
- * мобильном приложении.
- */
-function Hours({ venue }: { venue: Restaurant }) {
-  const t = useT();
-  const days = venue.schedule?.days ?? [];
-
-  return (
-    // Оболочка карточки брони (узел 3262:5), а не `Card` кита: радиус 20
-    // против 24 и своя тень.
-    <div className="flex flex-col gap-6 overflow-hidden rounded-xl border border-line bg-canvas p-6 shadow-aside">
-      <h2 className="text-[21px] font-bold leading-7 tracking-[-0.2px] text-ink">
-        {t.web.venue.hours.title}
-      </h2>
-      {days.length > 0 ? (
-        <dl className="flex flex-col gap-2">
-          {days.map((day) => (
-            <div key={day.dayOfWeek} className="flex items-baseline justify-between gap-4">
-              <dt className="text-[14px] leading-5 text-ink-secondary">
-                {t.weekdays[WEEKDAY_BY_DAY_OF_WEEK[day.dayOfWeek]]}
-              </dt>
-              <dd className="text-right text-[14px] font-medium leading-5 text-ink">
-                {dayHours(day, t)}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : venue.openingHoursText.trim() ? (
-        <p className="whitespace-pre-line text-bodyM text-ink-secondary">
-          {venue.openingHoursText}
-        </p>
-      ) : (
-        <p className="text-bodyM text-ink-tertiary">{t.web.venue.hours.unknown}</p>
-      )}
-      {venue.priceRange ? (
-        <p className="text-bodyM text-ink-secondary">
-          {priceLabel(venue.priceLevel, venue.priceRange, t)}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function dayHours(day: ScheduleDay, t: ReturnType<typeof useT>): string {
-  if (!day.isOpen) return t.web.venue.hours.dayOff;
-  if (!day.opensAt || !day.closesAt) return t.web.venue.hours.unknown;
-  return day.closesNextDay
-    ? t.web.venue.hours.untilNextDay(day.opensAt, day.closesAt)
-    : t.web.venue.hours.range(day.opensAt, day.closesAt);
-}
