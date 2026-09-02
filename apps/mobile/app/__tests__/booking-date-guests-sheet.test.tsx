@@ -96,7 +96,18 @@ const guestsPill = (value: string) =>
 const dayTile = (caption: string, date: Date) =>
   screen.getByRole("tab", { name: `${caption}, ${date.getDate()}` });
 
+// Плитки «Сегодня, N»/«Завтра, N» экран строит от системных часов
+// (`DateStrip`: `useMemo(() => new Date(), [])`), а тест считал «завтра» от
+// своего `new Date()`. Окно между ними — миллисекунды до рендера, но полночь
+// Алматы в него попадает, и плитка «Завтра, 2» ищется как «Завтра, 3».
+// Момент прибит для обоих.
+const FIXED_NOW = new Date("2026-09-01T12:00:00+05:00");
+
+// beforeEach, а не beforeAll: общий vitest.setup.ts делает vi.useRealTimers()
+// в afterEach, и подмена на весь файл дожила бы только до конца первого теста.
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
   push.mockClear();
 });
 
@@ -116,10 +127,10 @@ describe("выбор даты и гостей на экране брони", () 
   it("выбранная в шторке дата попадает в то же состояние, что и быстрые плитки", async () => {
     renderBooking();
     const user = userEvent.setup();
-    const tomorrow = addDays(new Date(), 1);
+    const tomorrow = addDays(FIXED_NOW, 1);
 
     // Исходно подсвечен сегодняшний день — плиткой, а не шторкой.
-    expect(dayTile(t.booking.today, new Date()).getAttribute("aria-selected")).toBe("true");
+    expect(dayTile(t.booking.today, FIXED_NOW).getAttribute("aria-selected")).toBe("true");
     expect(dayTile(t.booking.tomorrow, tomorrow).getAttribute("aria-selected")).toBe("false");
 
     await user.click(datePill(t.booking.today));
@@ -131,12 +142,12 @@ describe("выбор даты и гостей на экране брони", () 
     await waitFor(() =>
       expect(dayTile(t.booking.tomorrow, tomorrow).getAttribute("aria-selected")).toBe("true"),
     );
-    expect(dayTile(t.booking.today, new Date()).getAttribute("aria-selected")).toBe("false");
+    expect(dayTile(t.booking.today, FIXED_NOW).getAttribute("aria-selected")).toBe("false");
     // И сам пилл показывает то же самое — один источник на оба контрола.
     expect(datePill(t.booking.tomorrow)).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
     // Дата в черновике — ключ завтрашнего дня, а не что-то своё у шторки.
-    expect(toDateKey(tomorrow)).not.toBe(toDateKey(new Date()));
+    expect(toDateKey(tomorrow)).not.toBe(toDateKey(FIXED_NOW));
   });
 
   it("тап по гостям поднимает шторку и сохраняет предупреждение про банкет", async () => {

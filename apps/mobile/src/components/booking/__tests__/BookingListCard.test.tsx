@@ -58,7 +58,18 @@ const BOOKING: Booking = {
   createdAt: null,
 };
 
+// Время в заголовке карточка печатает через `formatRelativeDateTime`, а тот
+// по умолчанию читает системные часы: 28 июля бронь на 29-е звалась бы
+// «Завтра, 20:30», 29-го — «Сегодня, 20:30», и три теста ниже краснели бы. Дата
+// брони уехала в прошлое, и файл «выздоровел» сам собой — до следующего июля.
+// Часы прибиты за неделю до брони: она впереди, но не сегодня и не завтра.
+const FIXED_NOW = new Date("2026-07-20T12:00:00+05:00");
+
+// beforeEach, а не beforeAll: общий vitest.setup.ts делает vi.useRealTimers()
+// в afterEach, и подмена на весь файл дожила бы только до конца первого теста.
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
   summaryState.data = VENUE;
   summaryState.isError = false;
 });
