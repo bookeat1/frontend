@@ -591,10 +591,22 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     flex: 1,
   },
+  /**
+   * Сумма СТРОКИ состава заказа — тот же вид, что у цены в меню, в карточке
+   * блюда и на экране предзаказа: `typography.body` + `text.primary`.
+   *
+   * БЫЛО `labelMedium` (Medium 14/20): кегель тот же, начертание тяжелее, и
+   * на одном экране с меню цена читалась как другой элемент.
+   */
   preorderPrice: {
-    ...typography.labelMedium,
+    ...typography.body,
     color: colors.text.primary,
   },
+  /**
+   * Строка «Итого примерно» — ОБА её конца намеренно остаются SemiBold. Это
+   * сумма к оплате, а не цена позиции; после облегчения строк выше она стала
+   * единственным выделенным числом в карточке, и это именно то, что нужно.
+   */
   preorderTotalLabel: {
     ...typography.labelSemiBold,
     color: colors.text.primary,

@@ -349,9 +349,19 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.muted,
   },
+  /**
+   * Цена блюда — ЕДИНЫЙ вид на всё приложение: `typography.body` (Noto Sans
+   * Regular 14/20) + `text.primary` (#1B1B1B).
+   *
+   * БЫЛО `labelSemiBold` + `text.strong` (SemiBold 14/20, чистый чёрный) — то
+   * же самое, что уже поправили на экране меню (PR #102) и в карточке ленты
+   * (PR #108). Экран предзаказа остался жирным, и владелец увидел на соседних
+   * экранах две РАЗНЫЕ цены: «в предзаказе цифры, а в меню цифры предзаказа».
+   * Своего начертания у цены предзаказа быть не должно — это то же блюдо.
+   */
   dishPrice: {
-    ...typography.labelSemiBold,
-    color: colors.text.strong,
+    ...typography.body,
+    color: colors.text.primary,
   },
   dishUnavailable: {
     ...typography.caption,
@@ -436,6 +446,12 @@ const styles = StyleSheet.create({
     color: colors.status.negativeTextOnSurface,
     textAlign: "center",
   },
+  /**
+   * ИТОГ, а не цена позиции — и поэтому НАМЕРЕННО остаётся крупнее и тяжелее
+   * строк меню (SemiBold 16/24). Правка 2026-09-02 облегчила цену БЛЮДА; если
+   * подвести под тот же `typography.body` ещё и итог, гость перестанет
+   * отличать «сколько стоит это блюдо» от «сколько я заплачу за всё».
+   */
   totalValue: {
     ...typography.titleMd,
     color: colors.text.primary,
