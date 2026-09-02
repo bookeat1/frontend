@@ -1,7 +1,7 @@
 import type { AvailabilitySlot } from "@bookeat/api";
 import { act, renderHook } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BookingDraftProvider, useBookingDraft, type BookingPrefill } from "../booking-draft";
 
 /**
@@ -30,9 +30,24 @@ function slot(startsAt: string, available: boolean): AvailabilitySlot {
   };
 }
 
+// The provider reads the real clock (`sanitizeDate`, `sanitizeStartsAt`,
+// the default `date`), and the fixtures below used to derive "3 days ahead"
+// from their own `new Date()`. The margins (3 days inside the horizon, 400
+// outside) keep that from flipping at midnight, so this file never went red;
+// the moment is pinned anyway so a future equality-with-today assertion
+// cannot make it hostage to the launch hour.
+const FIXED_NOW = new Date("2026-09-01T12:00:00+05:00");
+
+// beforeEach, not beforeAll: the shared vitest.setup.ts calls
+// vi.useRealTimers() in afterEach, so a per-file switch would only last one test.
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
+});
+
 /** A date the sanitizer will accept (today .. +60 days). */
 function futureDateKey(daysAhead = 3): string {
-  const date = new Date();
+  const date = new Date(FIXED_NOW);
   date.setDate(date.getDate() + daysAhead);
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");

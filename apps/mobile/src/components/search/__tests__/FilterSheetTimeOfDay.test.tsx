@@ -3,7 +3,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { SafeAreaProvider, type Metrics } from "react-native-safe-area-context";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toDateKey } from "../../../lib/format";
 import { FilterSheet } from "../FilterSheet";
 
@@ -88,6 +88,19 @@ async function searchUrlFor(filters: SearchFilters): Promise<URL> {
   return new URL(seen.find((u) => u.includes("/restaurants/search")) ?? "");
 }
 
+// Чип времени суток без выбранной даты подставляет сегодняшнюю
+// (`FilterSheet`: `toDateKey(new Date())`), а тест сверял её со своим
+// `new Date()` после клика и сетевого вызова. Полночь Алматы между ними — и
+// `date` в запросе на день старше ожидания. Момент прибит.
+const FIXED_NOW = new Date("2026-09-01T12:00:00+05:00");
+
+// beforeEach, а не beforeAll: общий vitest.setup.ts делает vi.useRealTimers()
+// в afterEach, и подмена на весь файл дожила бы только до конца первого теста.
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -102,7 +115,7 @@ describe("время суток в шторке фильтров", () => {
     expect(url.searchParams.get("time_from")).toBe("00:00");
     expect(url.searchParams.get("time_to")).toBe("12:00");
     // Без этой пары сервер окно ИГНОРИРУЕТ, и чип не сузил бы ничего.
-    expect(url.searchParams.get("date")).toBe(toDateKey(new Date()));
+    expect(url.searchParams.get("date")).toBe(toDateKey(FIXED_NOW));
     expect(url.searchParams.get("guests")).toBe("2");
   });
 
