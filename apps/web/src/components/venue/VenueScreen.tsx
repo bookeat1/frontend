@@ -20,6 +20,7 @@ import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Tag } from "@web/components/ui/Tag";
 import { repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
+import { useLoginHref } from "@web/lib/favorites";
 import { cx } from "@web/lib/cx";
 import { priceLabel, scheduleStatus, venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
@@ -801,11 +802,14 @@ function SaveButton({ id }: { id: string }) {
   const { signedIn } = useAuth();
   const favorites = useFavoriteIds();
   const toggle = useToggleFavorite();
+  const loginTarget = useLoginHref();
   const saved = favorites.data?.has(id) ?? false;
 
   if (!signedIn) {
+    // Ссылка ПОМНИТ, откуда гость ушёл: без этого он вводит код и попадает на
+    // главную, а заведение, ради которого всё затевалось, остаётся позади.
     return (
-      <Button size="action" variant="secondary" asLink href="/login">
+      <Button size="action" variant="secondary" asLink href={loginTarget}>
         <HeartIcon filled={false} size={24} />
         {t.web.venue.save}
       </Button>

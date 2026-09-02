@@ -2325,8 +2325,7 @@ export const kk: LocaleOverride<Dictionary> = {
     ui: {
       close: "Жабу",
       loading: "Жүктеп жатырмыз…",
-      addToFavorites: "Таңдаулыға қосу",
-      removeFromFavorites: "Таңдаулыдан алу",
+      favoriteToggle: "Таңдаулы",
       slotsLabel: "Бос уақыт",
       noSlots: "Бос уақыт жоқ",
     },
@@ -2500,7 +2499,6 @@ export const kk: LocaleOverride<Dictionary> = {
       shareCopied: "Сілтеме көшірілді",
       save: "Сақтау",
       saved: "Сақталды",
-      saveSignIn: "Сақтау үшін кіріңіз",
       saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
       amenitiesLabel: "Орынның ыңғайлылықтары",
       notFound: {

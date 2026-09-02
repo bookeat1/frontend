@@ -13,6 +13,8 @@ import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/ha
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(""),
+  // Кнопка «Сохранить» строит адрес возврата из текущего пути.
+  usePathname: () => "/venues/venue-1",
 }));
 
 const repository = repositoryStub();
@@ -123,7 +125,9 @@ describe("карточка заведения", () => {
     renderScreen(<VenueScreen id="venue-1" />);
 
     const save = await screen.findByRole("link", { name: "Сохранить" });
-    expect(save.getAttribute("href")).toBe("/login");
+    // Ссылка ПОМНИТ страницу заведения: без этого гость вводит код и попадает
+    // на главную, а заведение, ради которого он входил, остаётся позади.
+    expect(save.getAttribute("href")).toBe("/login?next=%2Fvenues%2Fvenue-1");
     // И избранное у неавторизованного НЕ запрашивается: ручка требует сессию.
     expect(repository.getFavorites).not.toHaveBeenCalled();
   });

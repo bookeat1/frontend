@@ -37,10 +37,13 @@ import { useT } from "@web/lib/locale";
 export function VenueWideCard({
   venue,
   favorite = false,
+  favoritePending = false,
   onToggleFavorite,
 }: {
   venue: RestaurantSummary;
   favorite?: boolean;
+  /** Запрос по этой карточке в полёте — кнопка заблокирована. */
+  favoritePending?: boolean;
   /** Нет обработчика — нет и кнопки: сердце без действия это украшение. */
   onToggleFavorite?: () => void;
 }) {
@@ -65,9 +68,11 @@ export function VenueWideCard({
           <button
             type="button"
             onClick={onToggleFavorite}
+            disabled={favoritePending}
             aria-pressed={favorite}
-            aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
-            className="absolute right-5 top-5 z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-subtle text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:right-wide-card-x md:top-wide-card-y"
+            // Имя постоянное, состояние — в `aria-pressed`: см. VenueCard.
+            aria-label={t.web.ui.favoriteToggle}
+            className="absolute right-5 top-5 z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-subtle text-ink disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:right-wide-card-x md:top-wide-card-y"
           >
             <HeartIcon filled={favorite} size={24} />
           </button>

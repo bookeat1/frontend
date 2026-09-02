@@ -55,7 +55,7 @@ describe("листинг заведений", () => {
 
     renderScreen(<CatalogScreen />);
 
-    const heart = await screen.findByRole("button", { name: "В избранное" });
+    const heart = await screen.findByRole("button", { name: "Избранное" });
     fireEvent.click(heart);
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
@@ -84,6 +84,46 @@ describe("листинг заведений", () => {
 
     expect(screen.getByLabelText("Банкетный зал")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Свернуть" })).toBeTruthy();
+  });
+
+  it("кнопки нет, когда сворачивать нечего: отмеченное не занимает лимит", async () => {
+    // Шесть особенностей, отмечена шестая. Все шесть и так на экране, поэтому
+    // «Показать все 6» было бы кнопкой, которая по нажатию меняет только
+    // собственную надпись.
+    search = "features=namazhana";
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "namazhana", name: "Namazhana" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    expect(await screen.findByLabelText("Namazhana")).toBeTruthy();
+    expect(screen.getByLabelText("Веранда с видом")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Показать все/ })).toBeNull();
+  });
+
+  it("лимит считает только НЕотмеченные строки", async () => {
+    // Отмечены две первые. Раньше они съедали два места из пяти, и «Терраса 7»
+    // с «Террасой 8» прятались вместе с двумя честными кандидатами.
+    search = "features=a,b";
+    repository.getAmenities = vi.fn(async () =>
+      ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => ({ id, name: `Особенность ${id}` })),
+    );
+
+    renderScreen(<CatalogScreen />);
+
+    // Две отмеченные сверх лимита плюс пять неотмеченных.
+    expect(await screen.findByLabelText("Особенность a")).toBeTruthy();
+    expect(screen.getByLabelText("Особенность b")).toBeTruthy();
+    expect(screen.getByLabelText("Особенность g")).toBeTruthy();
+    // Восьмая — единственная спрятанная.
+    expect(screen.queryByLabelText("Особенность h")).toBeNull();
+    expect(screen.getByRole("button", { name: "Показать все 8" })).toBeTruthy();
   });
 
   it("выбранная особенность видна и в свёрнутом списке", async () => {

@@ -42,6 +42,8 @@ export interface VenueCardProps {
   /** Подсказки свободного времени. См. комментарий выше о `undefined` и `[]`. */
   slots?: readonly string[];
   favorite?: boolean;
+  /** Запрос по этой карточке в полёте — кнопка заблокирована. */
+  favoritePending?: boolean;
   onToggleFavorite?: () => void;
   onSelectSlot?: (time: string) => void;
   className?: string;
@@ -55,6 +57,7 @@ export function VenueCard({
   href,
   slots,
   favorite = false,
+  favoritePending = false,
   onToggleFavorite,
   onSelectSlot,
   className,
@@ -91,9 +94,13 @@ export function VenueCard({
           <button
             type="button"
             onClick={onToggleFavorite}
+            disabled={favoritePending}
             aria-pressed={favorite}
-            aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
-            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            // Имя ПОСТОЯННОЕ, состояние несёт `aria-pressed`. Меняющееся имя
+            // рядом с состоянием читается вслух как «Убрать из избранного,
+            // нажато» — гость слышит противоречие вместо подсказки.
+            aria-label={t.web.ui.favoriteToggle}
+            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <HeartIcon filled={favorite} />
           </button>

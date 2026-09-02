@@ -3,8 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { RepositoryError, type AuthSession, type AuthUser } from "@bookeat/api/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { authRepository, setUnauthorizedHandler } from "@web/lib/api";
+import { forgetSessionScopedQueries } from "@web/lib/query-keys";
 import {
   browserStorage,
   clearSession,
@@ -67,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [isLoading, setLoading] = useState(true);
+  /** `AuthProvider` стоит ВНУТРИ `QueryClientProvider` (см. app/providers.tsx),
+   * поэтому кэш ему доступен — и смена сессии его чистит. */
+  const queryClient = useQueryClient();
   /** Единый «полёт» обновления внутри вкладки. */
   const inFlight = useRef<Promise<string | undefined> | null>(null);
 
@@ -74,7 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSession(browserStorage());
     setUser(null);
     setSignedIn(false);
-  }, []);
+    // Данные прежней сессии не должны пережить её. Иначе после отзыва токена
+    // гость продолжает видеть закрашенные сердца прежнего пользователя, а
+    // следующий вошедший в этой же вкладке — его избранное, и первый же клик
+    // уходит на сервер уже от СВОЕГО имени.
+    forgetSessionScopedQueries(queryClient);
+  }, [queryClient]);
 
   const refresh = useCallback(
     async (staleToken: string): Promise<string | undefined> => {
@@ -151,20 +161,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [forget]);
 
-  const completeSignIn = useCallback(async (session: AuthSession) => {
-    const storage = browserStorage();
-    storeSession(storage, session);
-    setSignedIn(true);
-    try {
-      const fresh = await authRepository.getMe();
-      storeUser(browserStorage(), fresh);
-      setUser(fresh);
-    } catch {
-      // Профиль не приехал — вход всё равно состоялся, токены на месте.
-      // Шапка покажет обобщённую подпись вместо имени, а не выкинет гостя.
-      setUser(null);
-    }
-  }, []);
+  const completeSignIn = useCallback(
+    async (session: AuthSession) => {
+      const storage = browserStorage();
+      // И на ВХОДЕ тоже: выход мог случиться в другой вкладке, а этот кэш
+      // живёт в памяти вкладки и `clearSession` его не касается.
+      forgetSessionScopedQueries(queryClient);
+      storeSession(storage, session);
+      setSignedIn(true);
+      try {
+        const fresh = await authRepository.getMe();
+        storeUser(browserStorage(), fresh);
+        setUser(fresh);
+      } catch {
+        // Профиль не приехал — вход всё равно состоялся, токены на месте.
+        // Шапка покажет обобщённую подпись вместо имени, а не выкинет гостя.
+        setUser(null);
+      }
+    },
+    [queryClient],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, isLoading, signedIn, completeSignIn, signOut: forget }),

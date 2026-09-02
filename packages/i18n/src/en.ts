@@ -2318,8 +2318,7 @@ export const en: LocaleOverride<Dictionary> = {
     ui: {
       close: "Close",
       loading: "Loading…",
-      addToFavorites: "Add to favourites",
-      removeFromFavorites: "Remove from favourites",
+      favoriteToggle: "Favourite",
       slotsLabel: "Available times",
       noSlots: "No times available",
     },
@@ -2494,7 +2493,6 @@ export const en: LocaleOverride<Dictionary> = {
       shareCopied: "Link copied",
       save: "Save",
       saved: "Saved",
-      saveSignIn: "Sign in to save",
       saveFailed: "Could not save. Please try again",
       amenitiesLabel: "Venue amenities",
       notFound: {

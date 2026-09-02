@@ -200,11 +200,21 @@ const VISIBLE_FEATURES = webCatalog.visibleRows.features;
  * Группа флажков, которая раскрывается по клику.
  *
  * Одна на кухни и на особенности: две почти одинаковые группы разъехались бы в
- * первую же правку. Кнопка появляется только когда прятать ЕСТЬ ЧТО — при пяти
- * особенностях в справочнике ссылка «Показать все 5» ничего бы не показывала.
+ * первую же правку.
  *
- * Выбранное не прячется: снять фильтр, которого не видно, нельзя. Поэтому в
- * свёрнутом виде показываются первые N плюс всё отмеченное.
+ * ЛИМИТ СЧИТАЕТ ТОЛЬКО НЕОТМЕЧЕННЫЕ. Отмеченное показывается всегда — снять
+ * фильтр, которого не видно, нельзя, — но занимать им места из лимита нечестно
+ * в обе стороны:
+ *
+ *   • шесть особенностей, отмечена шестая: при счёте «первые пять плюс
+ *     отмеченные» на экране все шесть, а кнопка всё равно предлагает
+ *     «Показать все 6» и по нажатию только меняет надпись;
+ *   • десять отмеченных из адресной строки съедали бы лимит целиком, и
+ *     свёрнутый список переставал быть свёрнутым.
+ *
+ * КНОПКА ЕСТЬ ТОЛЬКО ТОГДА, КОГДА СВОРАЧИВАНИЕ ЧТО-ТО ПРЯЧЕТ. Условие
+ * считается для СВЁРНУТОГО состояния независимо от текущего — иначе «Свернуть»
+ * исчезала бы сразу после раскрытия и свернуть обратно было бы нечем.
  */
 function CollapsibleRows<T extends { id: string; name: string }>({
   items,
@@ -222,9 +232,11 @@ function CollapsibleRows<T extends { id: string; name: string }>({
   onToggle: (item: T) => void;
 }) {
   const t = useT();
-  const visible = expanded
-    ? items
-    : items.filter((item, index) => index < visibleCount || isChecked(item));
+  const collapsed = collapsedRows(items, visibleCount, isChecked);
+  const visible = expanded ? items : collapsed;
+  // Сколько строк прячет СВЁРНУТЫЙ вид — считается всегда, а не только пока
+  // список свёрнут.
+  const hidden = items.length - collapsed.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -236,7 +248,7 @@ function CollapsibleRows<T extends { id: string; name: string }>({
           onChange={() => onToggle(item)}
         />
       ))}
-      {items.length > visibleCount ? (
+      {hidden > 0 ? (
         <button
           type="button"
           aria-expanded={expanded}
@@ -248,6 +260,26 @@ function CollapsibleRows<T extends { id: string; name: string }>({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Что видно в СВЁРНУТОМ виде: первые `visibleCount` НЕотмеченных плюс все
+ * отмеченные, в исходном порядке справочника.
+ */
+function collapsedRows<T extends { id: string; name: string }>(
+  items: T[],
+  visibleCount: number,
+  isChecked: (item: T) => boolean,
+): T[] {
+  let unchecked = 0;
+  return items.filter((item) => {
+    if (isChecked(item)) return true;
+    if (unchecked < visibleCount) {
+      unchecked += 1;
+      return true;
+    }
+    return false;
+  });
 }
 
 /**
