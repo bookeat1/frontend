@@ -14,7 +14,9 @@ import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncB
 import { Button } from "@web/components/ui/Button";
 import { TimeSlot } from "@web/components/ui/TimeSlot";
 import { useAuth } from "@web/lib/auth";
+import { clearBookingDraft, readBookingDraft, writeBookingDraft } from "@web/lib/booking-draft";
 import { DEFAULT_GUESTS, GUEST_OPTIONS } from "@web/lib/booking-options";
+import { cx } from "@web/lib/cx";
 import { useLoginHref } from "@web/lib/favorites";
 import { bookingDateLabel, slotDateIso, slotTimeLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
@@ -61,6 +63,9 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
    * с браузерным — это ошибка гидратации. До этого момента запрос выключен.
    */
   const [today, setToday] = useState<string | null>(null);
+  /** `null` — до гидратации, `""` — гость очистил поле (Chrome шлёт пустую
+   * строку, когда стёрты сегменты даты). Это разные состояния: первое ждёт
+   * браузер, второе ждёт гостя. */
   const [date, setDate] = useState<string | null>(null);
   const [guests, setGuests] = useState(DEFAULT_GUESTS);
   const [slot, setSlot] = useState<string | null>(null);
@@ -74,11 +79,34 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
    */
   const [confirmed, setConfirmed] = useState<{ startsAt: string; guests: number } | null>(null);
 
+  /** Подтверждение получает фокус: кнопка, на которой он стоял, исчезает
+   * вместе с формой, и без этого фокус проваливается в `body`. */
+  const confirmedRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const iso = todayIso();
     setToday(iso);
+    // Гость мог уйти на вход посреди выбора: черновик этого заведения
+    // возвращает субботу, четверых и 20:00 — а не пустую карточку.
+    const draft = readBookingDraft(venue.id, iso);
+    if (draft) {
+      setDate(draft.date);
+      setGuests(draft.guests);
+      setSlot(draft.slot);
+      return;
+    }
     setDate((current) => current ?? iso);
-  }, []);
+  }, [venue.id]);
+
+  useEffect(() => {
+    // До гидратации сохранять нечего: значения ещё не гостя.
+    if (today === null || date === null) return;
+    writeBookingDraft(venue.id, { date, guests, slot });
+  }, [venue.id, today, date, guests, slot]);
+
+  useEffect(() => {
+    if (confirmed) confirmedRef.current?.focus();
+  }, [confirmed]);
 
   const availability = useAvailability({
     restaurantId: venue.id,
@@ -111,36 +139,49 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
   }
   const idempotencyKey = idempotency.current.key;
 
+  /**
+   * Пока бронь летит на сервер, выбор ЗАМОРОЖЕН — и в разметке (поля
+   * выключены), и здесь (изменение отбрасывается).
+   *
+   * Раньше смена даты или гостей звала `create.reset()`. В TanStack Query v5
+   * `reset()` отписывает наблюдателя от мутации, и `onSuccess`, переданный в
+   * `mutate()`, уже не вызывается: сервер бронь создал, а карточка
+   * подтверждение не показала. Гость жал снова — с НОВЫМ ключом
+   * идемпотентности, потому что выбор изменился, — и получал второй стол.
+   * Поэтому `create.reset()` здесь нет вовсе: `create.error` и `create.data`
+   * никто не читает, а «в полёте» решает только `isPending`.
+   */
   function pickDate(next: string) {
+    if (create.isPending) return;
     setDate(next);
     // Слот принадлежит дню: оставить выбранным «19:30» от вчера значило бы
     // отправить на сервер время, которого нет в новой выдаче.
     setSlot(null);
     setFailure(null);
-    reset();
   }
 
   function pickGuests(next: number) {
+    if (create.isPending) return;
     setGuests(next);
     // И компании тоже: доступность считается на размер компании, ответ на
     // двоих ничего не говорит о шестерых.
     setSlot(null);
     setFailure(null);
-    reset();
   }
 
-  function reset() {
-    setConfirmed(null);
-    create.reset();
-  }
+  /**
+   * Вошёл, а профиля нет: `AuthProvider` намеренно переживает падение
+   * `GET /me` после ввода кода (токены на месте, вход состоялся), и тогда
+   * `signedIn === true` при `user === null`. Телефон — обязательное поле
+   * брони, взять его больше неоткуда. Кнопка в этом состоянии выключена и
+   * подписана, а не активна и молчалива.
+   */
+  const profileMissing = signedIn && !authLoading && !(user?.phone ?? "").trim();
 
   function submit() {
-    if (!chosen || !signedIn) return;
+    if (!chosen || !signedIn || profileMissing) return;
     const name = (user?.fullName ?? "").trim();
     const phone = (user?.phone ?? "").trim();
-    // Сессия могла протухнуть, пока карточка открыта: уводим на вход, а не
-    // отправляем заведомый 401.
-    if (!phone) return;
     if (!name) {
       setFailure({ title: t.web.venue.booking.noNameTitle, text: t.web.venue.booking.noNameText });
       return;
@@ -160,15 +201,29 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
         idempotencyKey,
       },
       {
-        onSuccess: () => setConfirmed({ startsAt: chosen.startsAt, guests }),
+        onSuccess: () => {
+          setConfirmed({ startsAt: chosen.startsAt, guests });
+          // Забронированный выбор — больше не черновик: после перезагрузки
+          // карточка не должна предлагать тот же слот ещё раз.
+          clearBookingDraft(venue.id);
+        },
         onError: (error) => setFailure(describeFailure(error, t, () => setSlot(null))),
       },
     );
   }
 
   const dateText = date ? bookingDateLabel(date, locale) : null;
-  const summary = dateText
-    ? t.web.venue.booking.summary(dateText, t.web.format.guests(guests))
+  /**
+   * Вторая строка кнопки — про ДЕНЬ СЛОТА, а не про выбранную дату. Заведение
+   * до 02:00 отдаёт для 25 августа старты вплоть до «26 августа 00:30»;
+   * подпись «25 августа · 00:30» отправила бы гостя не в ту ночь, а
+   * подтверждение после успеха (оно считается от `confirmed.startsAt`) с ней
+   * разошлось бы.
+   */
+  const summaryDate = chosen ? slotDateIso(chosen.startsAt) : date;
+  const summaryDateText = summaryDate ? bookingDateLabel(summaryDate, locale) : null;
+  const summary = summaryDateText
+    ? t.web.venue.booking.summary(summaryDateText, t.web.format.guests(guests))
     : null;
   /** Пустота, если данные приехали, — какая именно, решает `emptyKind`. */
   const empty = slots ? emptyKind(slots) : null;
@@ -200,14 +255,26 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
         // здесь было бы приглашением в тупик, поэтому его нет вовсе.
         <StateMessage text={t.web.venue.booking.offlineText} title={t.web.venue.booking.offlineTitle} />
       ) : confirmed ? (
-        <StateMessage
-          title={t.web.venue.booking.createdTitle}
-          text={t.web.venue.booking.createdText(
-            bookingDateLabel(slotDateIso(confirmed.startsAt) ?? "", locale) ?? "",
-            slotTimeLabel(confirmed.startsAt),
-            t.web.format.guests(confirmed.guests),
-          )}
-        />
+        // Форма целиком заменяется сообщением, поэтому у него роль `status`
+        // (диктор произносит его сам) и фокус (см. `confirmedRef`): иначе
+        // фокус с исчезнувшей кнопки уходит в `body`, и следующий Tab
+        // начинает страницу с начала.
+        <div
+          ref={confirmedRef}
+          role="status"
+          aria-live="polite"
+          tabIndex={-1}
+          className="rounded-lg"
+        >
+          <StateMessage
+            title={t.web.venue.booking.createdTitle}
+            text={t.web.venue.booking.createdText(
+              bookingDateLabel(slotDateIso(confirmed.startsAt) ?? "", locale) ?? "",
+              slotTimeLabel(confirmed.startsAt),
+              t.web.format.guests(confirmed.guests),
+            )}
+          />
+        </div>
       ) : (
         <>
           <div className="flex gap-3">
@@ -216,49 +283,74 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
               min={today}
               label={t.web.venue.booking.dateLabel}
               shown={dateText}
+              disabled={create.isPending}
               onChange={pickDate}
             />
-            <GuestsField value={guests} label={t.web.venue.booking.guestsLabel} onChange={pickGuests} />
+            <GuestsField
+              value={guests}
+              label={t.web.venue.booking.guestsLabel}
+              disabled={create.isPending}
+              onChange={pickGuests}
+            />
           </div>
 
           <div className="flex flex-col gap-4">
             <h3 className="text-booking-slots-title text-ink-secondary">
               {t.web.venue.booking.slotsTitle}
             </h3>
-            <AsyncBlock
-              query={availability}
-              emptyText={t.web.venue.booking.emptyDay}
-              isEmpty={(data) => emptyKind(data.slots) !== null}
-              empty={<StateMessage text={t.web.venue.booking[EMPTY_TEXT_KEY[empty ?? "day"]]} />}
-              skeleton={<SlotsSkeleton />}
-            >
-              {(data) => (
-                <div
-                  role="group"
-                  aria-label={t.web.venue.booking.slotsLabel}
-                  className="grid grid-cols-slots gap-2"
-                >
-                  {data.slots.map((item) => (
-                    <TimeSlot
-                      key={item.startsAt}
-                      size="grid"
-                      time={slotTimeLabel(item.startsAt)}
-                      label={slotAriaLabel(item, t)}
-                      selected={item.startsAt === slot}
-                      disabled={!item.available}
-                      onSelect={() => {
-                        setSlot(item.startsAt);
-                        setFailure(null);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </AsyncBlock>
+            {date === "" ? (
+              // Поле очищено — запрос доступности выключен, и `AsyncBlock`
+              // показывал бы загрузку вечно. Это не загрузка, это ожидание
+              // гостя. Подставлять «сегодня» нельзя: Chrome шлёт пустую строку
+              // и посреди набора новой даты, и подстановка перебила бы ввод.
+              <StateMessage text={t.web.venue.booking.pickDateText} />
+            ) : (
+              <AsyncBlock
+                query={availability}
+                emptyText={t.web.venue.booking.emptyDay}
+                isEmpty={(data) => emptyKind(data.slots) !== null}
+                empty={<StateMessage text={t.web.venue.booking[EMPTY_TEXT_KEY[empty ?? "day"]]} />}
+                skeleton={<SlotsSkeleton />}
+              >
+                {(data) => (
+                  <div
+                    role="group"
+                    aria-label={t.web.venue.booking.slotsLabel}
+                    className="grid grid-cols-slots gap-2"
+                  >
+                    {data.slots.map((item) => (
+                      <TimeSlot
+                        key={item.startsAt}
+                        size="grid"
+                        time={slotTimeLabel(item.startsAt)}
+                        label={slotAriaLabel(item, t)}
+                        selected={item.startsAt === slot}
+                        disabled={!item.available}
+                        onSelect={() => {
+                          setSlot(item.startsAt);
+                          setFailure(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </AsyncBlock>
+            )}
           </div>
 
           {failure ? (
             <StateMessage title={failure.title} text={failure.text} tone="danger" />
+          ) : null}
+
+          {profileMissing ? (
+            <StateMessage
+              title={t.web.venue.booking.profileMissingTitle}
+              text={t.web.venue.booking.profileMissingText}
+            >
+              <Button size="m" variant="secondary" onClick={() => window.location.reload()}>
+                {t.web.venue.booking.reloadPage}
+              </Button>
+            </StateMessage>
           ) : null}
 
           <SubmitButton
@@ -266,6 +358,7 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
             summary={summary}
             signedIn={signedIn}
             authLoading={authLoading}
+            profileMissing={profileMissing}
             loginHref={loginHref}
             submitting={create.isPending}
             blocked={failure?.blocksSubmit ?? false}
@@ -288,6 +381,8 @@ const BOOKING_TITLE_ID = "venue-booking-title";
  *   • гость не вошёл → ССЫЛКА на вход, помнящая эту страницу. Сервер берёт
  *     владельца брони из токена, анонимной брони через веб не существует, и
  *     кнопка, которая молча выкидывает на вход, хуже честной ссылки;
+ *   • вошёл, но профиль не приехал → кнопка выключена и говорит почему
+ *     (второй строкой), а совет — в плашке над ней;
  *   • иначе → отправка, на время которой кнопка заблокирована.
  */
 function SubmitButton({
@@ -295,6 +390,7 @@ function SubmitButton({
   summary,
   signedIn,
   authLoading,
+  profileMissing,
   loginHref,
   submitting,
   blocked,
@@ -304,6 +400,7 @@ function SubmitButton({
   summary: string | null;
   signedIn: boolean;
   authLoading: boolean;
+  profileMissing: boolean;
   loginHref: string;
   submitting: boolean;
   blocked: boolean;
@@ -331,6 +428,15 @@ function SubmitButton({
         <span className="text-booking-cta-sub text-on-brand-subtle">
           {t.web.venue.booking.signInHint}
         </span>
+      </Button>
+    );
+  }
+
+  if (profileMissing) {
+    return (
+      <Button size="booking" block disabled>
+        <span>{title}</span>
+        <span className="text-booking-cta-sub">{t.web.venue.booking.profileMissingHint}</span>
       </Button>
     );
   }
@@ -372,6 +478,7 @@ function DateField({
   min,
   label,
   shown,
+  disabled,
   onChange,
 }: {
   value: string | null;
@@ -380,6 +487,8 @@ function DateField({
   min: string | null;
   label: string;
   shown: string | null;
+  /** Бронь в полёте: менять день нельзя, см. `pickDate`. */
+  disabled: boolean;
   onChange: (next: string) => void;
 }) {
   return (
@@ -390,13 +499,17 @@ function DateField({
           type="date"
           value={value ?? ""}
           min={min ?? undefined}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
           onClick={openPicker}
-          className="search-native-picker peer col-start-1 row-start-1 w-full cursor-pointer bg-transparent text-booking-value text-transparent outline-none focus:text-ink"
+          className="search-native-picker peer col-start-1 row-start-1 w-full cursor-pointer bg-transparent text-booking-value text-transparent outline-none focus:text-ink disabled:cursor-not-allowed"
         />
         <span
           aria-hidden="true"
-          className="pointer-events-none col-start-1 row-start-1 self-center truncate text-booking-value text-ink peer-focus:invisible"
+          className={cx(
+            "pointer-events-none col-start-1 row-start-1 self-center truncate text-booking-value peer-focus:invisible",
+            disabled ? "text-ink-disabled" : "text-ink",
+          )}
         >
           {shown ?? ""}
         </span>
@@ -411,10 +524,13 @@ function DateField({
 function GuestsField({
   value,
   label,
+  disabled,
   onChange,
 }: {
   value: number;
   label: string;
+  /** Бронь в полёте: менять компанию нельзя, см. `pickGuests`. */
+  disabled: boolean;
   onChange: (next: number) => void;
 }) {
   const { t } = useLocale();
@@ -423,8 +539,9 @@ function GuestsField({
       <select
         id="venue-booking-guests"
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent text-booking-value text-ink outline-none"
+        className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent text-booking-value text-ink outline-none disabled:cursor-not-allowed disabled:text-ink-disabled"
       >
         {GUEST_OPTIONS.map((count) => (
           <option key={count} value={count}>

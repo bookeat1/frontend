@@ -2590,6 +2590,12 @@ export const en: LocaleOverride<Dictionary> = {
         errorValidationText: "Check the date, the time and the party size, then try again.",
         errorTitle: "Could not book",
         errorText: "The connection seems to be gone. No table was booked — try again.",
+        pickDateText: "Pick a date to see available times.",
+        profileMissingTitle: "Profile did not load",
+        profileMissingText:
+          "A booking uses the name and phone from your profile, and it did not load. Reload the page; if that does not help, sign out and sign in again.",
+        profileMissingHint: "Profile did not load",
+        reloadPage: "Reload the page",
         noNameTitle: "Your profile has no name",
         noNameText:
           "A booking is made in the name from your profile, and it is empty. Fill it in inside the BookEat app and come back.",
