@@ -43,8 +43,10 @@ vi.mock("../../src/lib/repository", () => ({
   useRepository: () => ({ getMapPreviewUrl: () => "https://cdn.example/map.png" }),
 }));
 
+/** Заведение подменяется по тесту: подключение к приёму оплаты — это теперь
+ * то, от чего блок оплаты и зависит. `undefined` = деталка ещё не приехала. */
 vi.mock("../../src/hooks/useRestaurant", () => ({
-  useRestaurant: () => ({ data: RESTAURANT, isLoading: false, isError: false }),
+  useRestaurant: () => ({ data: restaurant, isLoading: false, isError: false }),
 }));
 
 let booking: Booking;
@@ -72,8 +74,16 @@ const pay = vi.fn();
 const renew = vi.fn();
 const check = vi.fn();
 
+/** Аргументы, с которыми экран включает поток оплаты. `enabled: false` — это
+ * не косметика: с ним не создаётся счёт и не идёт опрос, то есть у
+ * неподключённого заведения живые деньги не трогаются вовсе. */
+const flowEnabled: boolean[] = [];
+
 vi.mock("../../src/hooks/useKaspiPayment", () => ({
-  useKaspiPaymentFlow: () => ({ ...flowState, pay, renew, check }),
+  useKaspiPaymentFlow: (input: { enabled: boolean }) => {
+    flowEnabled.push(input.enabled);
+    return { ...flowState, pay, renew, check };
+  },
 }));
 
 /** Открытие внешней ссылки — единственное место, где экран уводит гостя из
@@ -84,6 +94,12 @@ vi.mock("../../src/lib/external-links", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/lib/external-links")>()),
   openWebsite: (url: string) => openWebsite(url),
 }));
+
+let restaurant: Restaurant | undefined;
+
+function venue(acceptsOnlinePayment: boolean): Restaurant {
+  return { ...RESTAURANT, acceptsOnlinePayment };
+}
 
 const RESTAURANT: Restaurant = {
   id: "r-1",
@@ -104,6 +120,10 @@ const RESTAURANT: Restaurant = {
   tables: [],
   description: "",
   acceptsOnlineBookings: true,
+  // Подключено к приёму оплаты. Значение по умолчанию фикстуры — «да»,
+  // потому что остальные тесты файла разбирают ФАЗЫ оплаты, а фазы бывают
+  // только у заведения, которому вообще разрешено платить.
+  acceptsOnlinePayment: true,
 };
 
 function bookingWith(status: BookingStatus): Booking {
@@ -157,6 +177,8 @@ function paymentWith(overrides: Partial<BookingPayment> = {}): BookingPayment {
 }
 
 beforeEach(() => {
+  restaurant = venue(true);
+  flowEnabled.length = 0;
   booking = bookingWith("confirmed");
   preorder = preorderWith(998_000);
   livePayment = null;
@@ -198,6 +220,61 @@ describe("когда блок оплаты вообще есть", () => {
       expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
     },
   );
+});
+
+describe("оплата видна только там, где заведение к ней подключено", () => {
+  /** Все кнопки, которые могут привести к созданию счёта. Ни одной из них не
+   * должно быть у заведения, которое оплату не принимает. */
+  function paymentButtons() {
+    return [
+      screen.queryByRole("button", { name: t.booking.paymentPayWithKaspi }),
+      screen.queryByRole("button", {
+        name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
+      }),
+      screen.queryByRole("button", { name: t.booking.paymentRenew }),
+    ].filter(Boolean);
+  }
+
+  it("заведение принимает оплату — блок на месте, кнопка Kaspi есть", async () => {
+    restaurant = venue(true);
+    render(<ReservationScreen />);
+    await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
+    expect(paymentButtons()).toHaveLength(1);
+    expect(flowEnabled.every((v) => v === true)).toBe(true);
+  });
+
+  it("заведение оплату НЕ принимает — блока нет вовсе", async () => {
+    restaurant = venue(false);
+    render(<ReservationScreen />);
+    // Экран отрисовался целиком: без этого «блока нет» доказывало бы лишь то,
+    // что мы измерили пустую страницу.
+    await waitFor(() => expect(screen.getByText(t.booking.preorderSectionTitle)).toBeTruthy());
+    expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
+    expect(paymentButtons()).toHaveLength(0);
+    // И счёт не создаётся: поток выключён, а не просто спрятан.
+    expect(flowEnabled.every((v) => v === false)).toBe(true);
+  });
+
+  it("деталка заведения ещё не приехала — оплату не предлагаем", async () => {
+    restaurant = undefined;
+    render(<ReservationScreen />);
+    // Без деталки заведения на экране нет и блока предзаказа (он живёт на
+    // меню), поэтому «экран отрисовался» доказывает заголовок брони.
+    await waitFor(() => expect(screen.getByText(t.booking.title)).toBeTruthy());
+    expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
+    expect(flowEnabled.every((v) => v === false)).toBe(true);
+  });
+
+  it("уже оплачено, а заведение отключили — чек остаётся, кнопок оплаты нет", async () => {
+    restaurant = venue(false);
+    livePayment = paymentWith({ status: "captured" });
+    flowState.phase = "paid";
+    flowState.payment = livePayment;
+
+    render(<ReservationScreen />);
+    await waitFor(() => expect(screen.getByText(t.booking.paymentPaidTitle)).toBeTruthy());
+    expect(paymentButtons()).toHaveLength(0);
+  });
 });
 
 describe("фазы оплаты", () => {

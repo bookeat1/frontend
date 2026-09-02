@@ -582,6 +582,10 @@ export const restaurants: Restaurant[] = [
     description:
       "Современный ресторан с авторской кухней, уютной атмосферой и внимательным сервисом. Идеальное место для встреч, семейных ужинов и особых событий.",
     acceptsOnlineBookings: true,
+    // Единственное заведение макета, у которого «подключён» приём оплаты: в
+    // офлайн-режиме должны быть видны ОБА исхода — и бронь с кнопкой Kaspi, и
+    // бронь без неё.
+    acceptsOnlinePayment: true,
   },
   {
     id: "r2",
@@ -614,6 +618,7 @@ export const restaurants: Restaurant[] = [
     ],
     description: "Итальянская кухня, дровяная печь и терраса с видом на горы.",
     acceptsOnlineBookings: true,
+    acceptsOnlinePayment: false,
   },
   {
     id: "r3",
@@ -643,6 +648,7 @@ export const restaurants: Restaurant[] = [
     description: "Аутентичный рамен и суши-бар в самом центре города.",
     // Онлайн-брони нет — фикстура для состояния «столик только по телефону».
     acceptsOnlineBookings: false,
+    acceptsOnlinePayment: false,
   },
   {
     id: "r4",
@@ -689,6 +695,7 @@ export const restaurants: Restaurant[] = [
     description:
       "Ресторан на крыше с панорамным видом на город и авторской fusion-кухней.",
     acceptsOnlineBookings: true,
+    acceptsOnlinePayment: false,
   },
 ];
 

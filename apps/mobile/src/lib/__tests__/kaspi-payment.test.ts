@@ -12,6 +12,7 @@ import {
   POLL_GRACE_MS,
   POLL_MAX_MS,
   POLL_SLOW_MS,
+  preorderPaymentGate,
   remainingMs,
 } from "../kaspi-payment";
 
@@ -182,6 +183,86 @@ describe("ритм опроса", () => {
 
   it("сервера ещё не спрашивали — опрос начинается", () => {
     expect(nextPollDelayMs({ ...base, status: null })).toBe(POLL_FAST_MS);
+  });
+});
+
+describe("кому вообще показывать оплату предзаказа", () => {
+  const connected = {
+    bookingIsLive: true,
+    preorderItemsCount: 2,
+    venueAcceptsOnlinePayment: true,
+    existingPayment: null,
+  };
+
+  it("заведение подключено, бронь жива, предзаказ есть — платить можно", () => {
+    expect(preorderPaymentGate(connected)).toEqual({ visible: true, payable: true });
+  });
+
+  it("заведение НЕ подключено — ни блока, ни возможности создать счёт", () => {
+    expect(
+      preorderPaymentGate({ ...connected, venueAcceptsOnlinePayment: false }),
+    ).toEqual({ visible: false, payable: false });
+  });
+
+  it("пустой предзаказ — платить не за что даже у подключённого заведения", () => {
+    expect(preorderPaymentGate({ ...connected, preorderItemsCount: 0 })).toEqual({
+      visible: false,
+      payable: false,
+    });
+  });
+
+  it("бронь уже не живая — блока нет", () => {
+    expect(preorderPaymentGate({ ...connected, bookingIsLive: false })).toEqual({
+      visible: false,
+      payable: false,
+    });
+  });
+
+  describe("уже оплаченный предзаказ у ОТКЛЮЧЁННОГО заведения", () => {
+    const offline = { ...connected, venueAcceptsOnlinePayment: false };
+
+    it.each<PaymentStatus>(["authorized", "capturing", "captured"])(
+      "%s — чек показываем, но новый счёт создать нельзя",
+      (status) => {
+        expect(
+          preorderPaymentGate({ ...offline, existingPayment: payment({ status }) }),
+        ).toEqual({ visible: true, payable: false });
+      },
+    );
+
+    it("статусы «деньги уже ушли» и фазы экрана — одно и то же множество", () => {
+      // Инвариант, на котором держится «видно, но платить нельзя»: карточка в
+      // этих фазах рисует чек и НИ ОДНОЙ кнопки, создающей счёт. Если множества
+      // разойдутся, у отключённого заведения снова появится кнопка.
+      for (const status of ["authorized", "capturing", "captured"] as PaymentStatus[]) {
+        expect(["settling", "paid"]).toContain(paymentPhase(payment({ status }), NOW));
+      }
+    });
+
+    it.each<PaymentStatus>(["created", "expired", "failed", "voided", "refunded"])(
+      "%s — деньги не дошли, блока нет",
+      (status) => {
+        expect(
+          preorderPaymentGate({ ...offline, existingPayment: payment({ status }) }),
+        ).toEqual({ visible: false, payable: false });
+      },
+    );
+
+    it("депозит — не предзаказ: чужой платёж блок не воскрешает", () => {
+      expect(
+        preorderPaymentGate({
+          ...offline,
+          existingPayment: payment({ status: "captured", purpose: "deposit" }),
+        }),
+      ).toEqual({ visible: false, payable: false });
+    });
+
+    it("платёж не удалось прочитать (undefined) — блока нет", () => {
+      expect(preorderPaymentGate({ ...offline, existingPayment: undefined })).toEqual({
+        visible: false,
+        payable: false,
+      });
+    });
   });
 });
 
