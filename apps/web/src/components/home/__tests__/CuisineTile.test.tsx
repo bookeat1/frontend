@@ -106,15 +106,42 @@ describe("CuisineTile", () => {
   });
 
   it("кухня без картинки вовсе показывает монограмму, а не серый круг", () => {
-    // Снимка нет ни в макете, ни в R2, ни в мобильных ассетах ровно у двух
-    // кодов справочника — `georgian` и `authors`. 31.08.2026 к вшитым
-    // снимкам добавились `japanese` и `pan_asian`: их круги В МАКЕТЕ
-    // нарисованы (узлы 3254:16 и 3254:19), просто раньше не были
-    // экспортированы, и оба показывали монограмму на стенде.
-    const { container } = render(<CuisineTile cuisine={{ id: "georgian", name: "Грузинская" }} />);
+    // С 02.09.2026 вшитый снимок есть у ВСЕХ кодов справочника (см.
+    // cuisine-photos.ts), поэтому монограмма — запас на будущее: код, которого
+    // в карте нет (шестнадцатая кухня), обязан показать букву, а не пустой
+    // серый круг.
+    const { container } = render(<CuisineTile cuisine={{ id: "fusion", name: "Фьюжн" }} />);
 
     expect(container.querySelector("img")).toBeNull();
-    expect(screen.getByText("Г")).toBeTruthy();
+    expect(screen.getByText("Ф")).toBeTruthy();
+  });
+
+  it("у каждого кода справочника есть вшитый снимок — монограмм в ряду нет", () => {
+    // Все 15 кодов `GET /cuisines` на 02.09.2026. Владелец увидел монограммы
+    // у «Грузинской» и «Индийской» на скриншоте 01.09.2026 — этот тест
+    // запирает возврат буквы для ЛЮБОЙ кухни справочника.
+    const codes = [
+      "european",
+      "mediterranean",
+      "seafood",
+      "kazakh",
+      "pan_asian",
+      "italian",
+      "french",
+      "georgian",
+      "turkish",
+      "greek",
+      "oriental",
+      "vegan",
+      "authors",
+      "japanese",
+      "indian",
+    ];
+    for (const code of codes) {
+      const { container, unmount } = render(<CuisineTile cuisine={{ id: code, name: code }} />);
+      expect(photoSrc(container), code).toMatch(/\/cuisines\/[a-z_-]+\.webp$/);
+      unmount();
+    }
   });
 
   it("у японской и паназиатской кухни есть вшитый снимок из макета", () => {
