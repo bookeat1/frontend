@@ -9,9 +9,9 @@ import { useT } from "@web/lib/locale";
 
 /**
  * Карточка заведения — единственная карточка, полностью размеченная в
- * десктопных кадрах (Figma 49Zk9oEV3ZCiCdh6Cz9dE2, узел 3280:5482 в кадре
- * главной; в блоке «Выбрали для вас» и в «Все заведения» это ОДИН и тот же
- * компонент, 282×318).
+ * десктопных кадрах (Figma QovvuAoI9YxsLMwWkfgKN8, узел 3280:4748; в блоке
+ * «Выбрали для вас» (3525:14214) и в «Все заведения» (3525:14246) это ОДИН и
+ * тот же компонент, 282 шириной).
  *
  * Размеры оттуда же: фото 190 высотой, тело с паддингом 16 и просветом 16,
  * название 18/24 SemiBold, подпись 14/20 Regular #595959, слоты-подсказки
@@ -126,14 +126,16 @@ export function VenueCard({
         </div>
 
         {slots === undefined ? null : slots.length > 0 ? (
-          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex flex-wrap gap-2">
+          // Слоты делят строку поровну (`flex-1`, узел 3280:4392), а не
+          // переносятся: в макете это ряд из трёх равных долей.
+          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex gap-2">
             {slots.map((time, index) => (
-              <li key={time}>
+              <li key={time} className="min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => onSelectSlot?.(time)}
                   className={cx(
-                    "inline-flex h-8 items-center justify-center rounded-slot px-3 text-[13px] font-semibold leading-[18px]",
+                    "inline-flex h-8 w-full items-center justify-center rounded-slot px-3 text-[13px] font-semibold leading-[18px]",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     // Первый слот в макете выделен фирменным тоном — это
                     // ближайшее свободное время, а не «выбранное».

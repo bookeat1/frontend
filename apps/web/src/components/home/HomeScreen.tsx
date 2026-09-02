@@ -29,8 +29,9 @@ import {
 } from "@web/lib/queries";
 
 /**
- * Главная — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 01 · Главная + каталог»
- * (узел 3253:2).
+ * Главная — Figma QovvuAoI9YxsLMwWkfgKN8, кадр «WEB / 01 · Главная + каталог».
+ * Секции «Выбрали для вас» и «Все заведения в Алматы» сверены с узлами
+ * 3525:14214 и 3525:14246.
  *
  * Порядок секций и их отступы — из макета. Каждая секция ходит за своими
  * данными отдельным запросом и падает отдельно: сломавшаяся афиша не должна
@@ -164,7 +165,9 @@ export function HomeScreen() {
             skeleton={<VenueGridSkeleton />}
           >
             {(result) => (
-              <div className="flex flex-col gap-gutter">
+              // Просвет «сетка → кнопка» 28, как между блоками секции в макете
+              // (узел 3525:14246), а не 24 гаттера сетки.
+              <div className="flex flex-col gap-7">
                 <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
                   {result.items.slice(0, HOME_CATALOG_LIMIT).map((venue) => (
                     <li key={venue.id} className="h-full">
