@@ -142,6 +142,14 @@ export interface ApiRestaurant {
   /** Может ли сервер выдать слот по этому заведению вообще. */
   accepts_online_bookings?: boolean;
   /**
+   * Принимает ли заведение онлайн-оплату. ⚠️ Сервер этого поля ПОКА НЕ
+   * ОТДАЁТ (проверено 2026-09-02 по restaurantResponse в
+   * internal/transport/rest/restaurants/response.go) — поэтому необязательное
+   * и читается строго как `=== true`: «нет поля» и «false» одинаково значат
+   * «оплату не предлагаем». См. Restaurant.acceptsOnlinePayment.
+   */
+  accepts_online_payment?: boolean;
+  /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
    * по названию заведения поля нет вовсе, поэтому оно необязательное и может
@@ -1073,6 +1081,11 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     tables: stubTables(),
     description: plainText(api.description),
     acceptsOnlineBookings: api.accepts_online_bookings === true,
+    // Оплату предлагаем ТОЛЬКО заведению, про которое сервер сам сказал «да».
+    // Отсутствие поля — это «нет», а не «наверное можно»: гость, нажавший
+    // кнопку у неподключённого заведения, получает 422 и остаётся с чувством,
+    // что сломалось приложение.
+    acceptsOnlinePayment: api.accepts_online_payment === true,
     // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
     // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
     // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб

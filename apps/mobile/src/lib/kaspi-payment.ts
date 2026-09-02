@@ -84,6 +84,61 @@ export function paymentPhase(payment: BookingPayment | null, now: number): Payme
 }
 
 /**
+ * Статусы, при которых деньги гостя УЖЕ ушли: `paymentPhase` показывает по ним
+ * «оплачено» или «дожимаем списание», то есть блок оплаты работает чеком, а не
+ * предложением заплатить. Инвариант закреплён тестом.
+ */
+const SETTLED_STATUSES: PaymentStatus[] = ["authorized", "capturing", "captured"];
+
+/** Что экран брони делает с блоком «Оплата предзаказа». */
+export interface PreorderPaymentGate {
+  /** Рисовать ли блок вообще. */
+  visible: boolean;
+  /** Можно ли предлагать НОВЫЙ счёт: кнопки «Оплатить» и «новая ссылка». */
+  payable: boolean;
+}
+
+/**
+ * Показывать ли блок оплаты предзаказа — ОДНО решение в одном месте.
+ *
+ * Правило: кнопка оплаты появляется только там, где заведение реально
+ * подключено к приёму оплаты. Раньше условием было «живая бронь + непустой
+ * предзаказ», и кнопка Kaspi предлагалась ВСЕМ: на боевом сервере адаптер
+ * Kaspi не сконфигурирован вовсе, то есть гость нажимал и получал отказ
+ * (422 «payments are not enabled for this restaurant»).
+ *
+ * Подключение — не догадка клиента, а поле заведения `acceptsOnlinePayment`
+ * (см. его комментарий в @bookeat/api): сервер сам сводит три своих условия в
+ * одно «да». Нет поля — нет кнопки.
+ *
+ * Отдельный случай — УЖЕ ОПЛАЧЕННЫЙ предзаказ. Заведение могли отключить от
+ * приёма оплаты после того, как гость заплатил; выкидывать из-за этого чек
+ * («Оплачено, 9 980 ₸») нельзя — это факт про его деньги, а не предложение.
+ * Поэтому блок остаётся видимым, но `payable` при этом `false`, и создать
+ * второй счёт не из чего.
+ */
+export function preorderPaymentGate(input: {
+  /** Статус брони ещё позволяет платёж (pending/confirmed). */
+  bookingIsLive: boolean;
+  /** Позиций в предзаказе: за пустую корзину платить нечего. */
+  preorderItemsCount: number;
+  /** Заведение принимает онлайн-оплату (`Restaurant.acceptsOnlinePayment`). */
+  venueAcceptsOnlinePayment: boolean;
+  /** Живой платёж брони из `GET /bookings/:id/payment`: `null` — его нет,
+   * `undefined` — узнать не удалось (запрос не выполнялся или упал). */
+  existingPayment: BookingPayment | null | undefined;
+}): PreorderPaymentGate {
+  const somethingToPayFor = input.bookingIsLive && input.preorderItemsCount > 0;
+  const payable = somethingToPayFor && input.venueAcceptsOnlinePayment;
+  const settled =
+    somethingToPayFor &&
+    input.existingPayment != null &&
+    input.existingPayment.purpose === "preorder" &&
+    SETTLED_STATUSES.includes(input.existingPayment.status);
+  return { visible: payable || settled, payable };
+}
+
+/**
  * Сколько миллисекунд осталось до `expiresAt`.
  *
  * `0` — срок вышел. `null` — срока НЕТ (сервер его не прислал или прислал

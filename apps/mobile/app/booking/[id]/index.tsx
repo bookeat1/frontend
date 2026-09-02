@@ -36,7 +36,7 @@ import { trackEvent } from "../../../src/lib/analytics";
 import { useAuth } from "../../../src/lib/auth";
 import { openWebsite } from "../../../src/lib/external-links";
 import { formatMoneyMinor, formatRelativeDay, formatTime } from "../../../src/lib/format";
-import { paymentReturnUrl } from "../../../src/lib/kaspi-payment";
+import { paymentReturnUrl, preorderPaymentGate } from "../../../src/lib/kaspi-payment";
 
 const t = getDictionary();
 
@@ -80,24 +80,44 @@ export default function ReservationScreen() {
   // Статус ещё позволяет отмену (бронь жива), даже если двухчасовое окно уже
   // закрылось: от этого зависит, показывать ли блок отмены вообще.
   const cancellable = booking.data ? isCancellableBookingStatus(booking.data.status) : false;
-  // Предзаказ, за который можно заплатить. Блок оплаты появляется только у
-  // живой брони с уже собранным предзаказом: платить за пустую корзину нечего,
-  // а у отменённой и прошедшей брони сервер платёж всё равно не примет
+  // Предзаказ, за который в принципе есть что платить: живая бронь и непустая
+  // корзина. У отменённой и прошедшей брони сервер платёж всё равно не примет
   // (`CreateForBooking` отказывает всему, что не pending/confirmed).
+  //
+  // Это ещё НЕ разрешение показывать оплату — только «деньги на столе есть».
+  // Разрешение считает `preorderPaymentGate` ниже, и в него входит главное:
+  // подключено ли заведение к приёму оплаты.
   const preorderItemsCount = preorder.data?.items.length ?? 0;
-  const paymentEnabled = cancellable && preorderItemsCount > 0;
+  const preorderChargeable = cancellable && preorderItemsCount > 0;
   // Та же ручка, что кормит диалог отмены (`GET /bookings/:id/payment`), и
   // тот же ключ кэша — один запрос на оба потребителя. Она отдаёт ТОЛЬКО
   // «живой» платёж, то есть для предзаказа — уже оплаченный; именно поэтому
   // она годится как стартовое «оплачено» и не годится как опрос.
-  const payment = useBookingPayment(id, canCancel || paymentEnabled);
+  //
+  // Условие запроса НЕ зависит от подключения заведения нарочно: узнать, что
+  // за бронь уже заплачено, надо и у отключённого заведения — иначе гость
+  // потеряет свой чек, а диалог отмены — фразу про деньги.
+  const payment = useBookingPayment(id, canCancel || preorderChargeable);
   const cancel = useCancelBooking();
+
+  // ОДНО решение про блок оплаты, целиком в чистой функции (см. её
+  // комментарий): предлагать оплату только там, где заведение реально
+  // подключено, но уже оплаченный предзаказ показывать всегда.
+  const paymentGate = preorderPaymentGate({
+    bookingIsLive: cancellable,
+    preorderItemsCount,
+    venueAcceptsOnlinePayment: restaurant.data?.acceptsOnlinePayment === true,
+    existingPayment: payment.isError ? null : payment.data,
+  });
 
   const paymentFlow = useKaspiPaymentFlow({
     bookingId: id ?? "",
     returnUrl: paymentReturnUrl(id ?? ""),
     existing: payment.isError ? null : payment.data,
-    enabled: paymentEnabled && Boolean(id),
+    // Создание счёта и опрос включены ровно тогда, когда блок на экране: при
+    // `visible && !payable` платёж уже сделан, фаза — «оплачено»/«дожимаем»,
+    // и ни одной кнопки, создающей счёт, карточка не рисует.
+    enabled: paymentGate.visible && Boolean(id),
   });
   const [openFailed, setOpenFailed] = React.useState(false);
 
@@ -424,11 +444,13 @@ export default function ReservationScreen() {
         {/* Оплата предзаказа через Kaspi. Стоит СРАЗУ под составом заказа —
             человек только что увидел сумму, и следующий естественный вопрос
             «как заплатить». Блока нет, пока предзаказ пуст: платить не за что.
+            Блока нет и у заведения, которое оплату не принимает: кнопка,
+            упирающаяся в отказ сервера, хуже отсутствующей кнопки.
 
             ⚠️ У Kaspi НЕТ ПЕСОЧНИЦЫ. Каждое успешное создание счёта — живая
             ссылка на живые деньги, поэтому этот блок нельзя «просто потыкать»
             на настоящем заведении. */}
-        {paymentEnabled ? (
+        {paymentGate.visible ? (
           <PreorderPaymentCard
             flow={paymentFlow}
             onOpenLink={() => void openPaymentLink()}
