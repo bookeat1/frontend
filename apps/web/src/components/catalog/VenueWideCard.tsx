@@ -3,15 +3,22 @@
 import Link from "next/link";
 import type { RestaurantSummary } from "@bookeat/api/client";
 
-import { Card } from "@web/components/ui/Card";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
 
 /**
- * Широкая карточка выдачи — Figma, узел «Card / Venue wide» кадра 3258:2:
- * 880×229, фото 268 слева, тело с паддингом 20/24, название 21/28 SemiBold,
- * подпись 14/20 и описание 14/22 на три строки.
+ * Широкая карточка выдачи — Figma QovvuAoI9YxsLMwWkfgKN8, узел «Card / Venue
+ * wide» 3525:14495: 880×229, фото 268 слева, тело с паддингом 20/24, название
+ * 21/28 SemiBold, подпись 14/20 и описание 14/22 на три строки.
+ *
+ * ПОЧЕМУ НЕ `Card`. У карточки кита радиус 24, у этой — 18 (то же расхождение,
+ * что у карточки блюда с её 16). Класс поверх `Card` полагался бы на порядок
+ * правил в собранном CSS, а не на разметку, поэтому подложка своя.
+ *
+ * Высота 229 взята КАК МИНИМУМ, а не как жёсткий размер: у «Ресторан-кофейня
+ * Дастархан» название занимает две строки, и фиксированные 229 обрезали бы
+ * нижний ряд признаков. В обычном случае ряд карточек всё равно ровный.
  *
  * ЛОВУШКА, на которой карточка стояла плашмя: у веба СВОЙ набор брейкпоинтов
  * (`screens` в tailwind.config заменён, а не расширен, — там только
@@ -30,8 +37,8 @@ export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
   const t = useT();
 
   return (
-    <Card className="relative flex w-full flex-col overflow-hidden md:flex-row">
-      <div className="relative h-[200px] w-full shrink-0 bg-muted md:h-auto md:w-[268px]">
+    <div className="relative flex w-full flex-col overflow-hidden rounded-wide-card bg-canvas shadow-card md:h-full md:min-h-wide-card md:flex-row">
+      <div className="relative h-[200px] w-full shrink-0 bg-muted md:h-auto md:w-wide-card-image">
         <RemoteImage
           src={venue.coverPhoto?.uri}
           alt={venue.name}
@@ -39,7 +46,7 @@ export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 md:p-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 md:px-wide-card-x md:py-wide-card-y">
         <div className="flex flex-col gap-1">
           <h3 className="break-words text-[21px] font-semibold leading-7 tracking-[-0.2px] text-ink">
             <Link
@@ -75,6 +82,6 @@ export function VenueWideCard({ venue }: { venue: RestaurantSummary }) {
           ) : null}
         </ul>
       </div>
-    </Card>
+    </div>
   );
 }

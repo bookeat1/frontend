@@ -32,9 +32,13 @@ import { useLocale, useT } from "@web/lib/locale";
 import { useAmenities, useCatalog, useCuisines } from "@web/lib/queries";
 
 /**
- * Листинг заведений — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 02 · Поиск и
- * фильтры» (узел 3258:2): строка поиска под шапкой, колонка фильтров 288
- * слева, выдача широкими карточками справа, снизу нумерация страниц.
+ * Листинг заведений — Figma QovvuAoI9YxsLMwWkfgKN8, узел «Results» 3525:14461:
+ * строка поиска под шапкой, колонка фильтров 288 слева, выдача широкими
+ * карточками справа, снизу нумерация страниц.
+ *
+ * Порядок блоков правой колонки и просветы из макета: хлебные крошки, шапка
+ * выдачи, чипы применённых фильтров, карточки, нумерация — всё через 20,
+ * карточки между собой через 16.
  *
  * Состояние целиком в адресной строке (см. lib/catalog-params): ссылку на
  * выдачу можно отправить, кнопка «назад» возвращает прежние фильтры.
@@ -116,12 +120,14 @@ export function CatalogScreen() {
 
             <label className="flex items-center gap-2 text-[14px] font-medium leading-5 text-ink">
               <span className="text-ink-secondary">{t.web.catalog.sort.label}</span>
+              {/* Выпадашка макета (узел 3525:14473) — белая, 42 высотой, без
+                  обводки: её роль играет мягкая тень контрола. */}
               <select
                 value={state.sort}
                 onChange={(event) =>
                   update({ ...state, sort: event.target.value as CatalogSort, page: 1 })
                 }
-                className="h-11 cursor-pointer rounded-md border border-line-strong bg-canvas px-3 text-[14px] font-medium leading-5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="h-sort-select cursor-pointer rounded-md border border-transparent bg-canvas px-4 text-[14px] font-medium leading-5 text-ink shadow-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <option value="recommended">{t.web.catalog.sort.recommended}</option>
                 <option value="rating">{t.web.catalog.sort.rating}</option>
@@ -252,11 +258,12 @@ export function CatalogScreen() {
   );
 }
 
-/** Чип применённого фильтра с крестиком (узел «Chip / active» кадра 3258:2). */
+/** Чип применённого фильтра с крестиком — узел 3525:14477: паддинг 8 по
+ * вертикали, 14 слева и 12 справа, крестик 20. */
 function ActiveChip({ label, onClear }: { label: string; onClear: () => void }) {
   const t = useT();
   return (
-    <span className="inline-flex h-9 items-center gap-1 rounded-full border border-brand bg-brand-subtle py-2 pl-3.5 pr-2 text-[13px] font-medium leading-[18px] text-brand-text">
+    <span className="inline-flex h-9 items-center gap-1 rounded-full border border-brand bg-brand-subtle py-2 pl-active-chip-l pr-active-chip-r text-[13px] font-medium leading-[18px] text-brand-text">
       {label}
       <button
         type="button"
