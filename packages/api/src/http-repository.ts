@@ -7,6 +7,7 @@ import {
 } from "./http-client";
 import { timeOfDayWindow } from "./time-of-day";
 import {
+  mapAppUpdateDecision,
   mapCuisine,
   mapAvailability,
   mapBooking,
@@ -29,6 +30,7 @@ import {
   mapSession,
   mapUser,
   priceLevelToPriceCategory,
+  type ApiAppVersionCheck,
   type ApiAvailability,
   type ApiBooking,
   type ApiEventListItem,
@@ -59,6 +61,7 @@ import { RepositoryError, type AuthRepository, type RestaurantRepository } from 
 import { buildMapPreviewUrl, type MapPreviewOptions } from "./static-map";
 import type {
   Amenity,
+  AppUpdateDecision,
   AuthSession,
   AuthUser,
   Booking,
@@ -930,6 +933,26 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   /** POST /notifications/read-all — authenticated; idempotent server-side. */
   async markAllNotificationsRead(): Promise<void> {
     await this.client.post<unknown>("/notifications/read-all", undefined, { auth: true });
+  }
+
+  /* --- update gate («Доступна новая версия») --- */
+
+  /**
+   * `GET /app/version-check?platform=&version=` — public, no bearer token.
+   * The server caches it (`public, max-age=300` + ETag), so the once-per-launch
+   * call costs almost nothing.
+   *
+   * An empty `version` is dropped from the query string by HttpClient.get, and
+   * the server answers `none` for an absent version — the same outcome as for
+   * a version it cannot parse. Failures are NOT swallowed here; the caller
+   * turns them into silence (see useAppUpdate).
+   */
+  async checkAppUpdate(input: { platform: "ios" | "android"; version: string }): Promise<AppUpdateDecision> {
+    const api = await this.client.get<ApiAppVersionCheck>("/app/version-check", {
+      platform: input.platform,
+      version: input.version,
+    });
+    return mapAppUpdateDecision(api);
   }
 }
 

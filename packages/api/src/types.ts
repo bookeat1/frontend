@@ -1384,3 +1384,56 @@ export interface NotificationFeed {
   unreadCount: number;
   nextCursor: string | null;
 }
+
+/* ------------------------------------------------------------------------ *
+ * Update gate («Доступна новая версия»)
+ * ------------------------------------------------------------------------ */
+
+/**
+ * What the SERVER decided this build should be told
+ * (`GET /api/v1/app/version-check`, backend `domain.AppUpdateAction`):
+ *   - "none"        → say nothing;
+ *   - "recommended" → a dismissible prompt;
+ *   - "required"    → a blocking screen, the build is below the floor.
+ *
+ * The mode is deliberately not the client's call: a native change cannot be
+ * delivered over the air, so "ask nicely" and "do not let them continue" have
+ * to be switchable from the panel without a store release (ADR-039).
+ *
+ * A value this build does not know maps to "none" — every uncertainty in this
+ * feature resolves in the direction that cannot lock a guest out of a working
+ * app, which is the same rule the server follows.
+ */
+export type AppUpdateAction = "none" | "recommended" | "required";
+
+/**
+ * Title/message as they travel: the WHOLE {ru,kk,en} object, not one resolved
+ * string. The server answers independently of `Accept-Language` so the reply
+ * can be cached by URL alone, and the client picks the language itself.
+ *
+ * Keys are locale codes; a locale the panel has no text for is simply absent,
+ * so a consumer must fall back (ru first, then its own dictionary) rather than
+ * index blindly.
+ */
+export type LocalizedText = Record<string, string>;
+
+/**
+ * The answer to "does this build have to update?".
+ *
+ * `storeUrl` is carried even for "none" (it is not a secret and an about
+ * screen may want it), and is `undefined` rather than "" when the policy has
+ * none — a button that opens nothing must be impossible to render by accident.
+ *
+ * `title`/`message` are absent for "none": the server sends no wording when
+ * there is nothing to say.
+ *
+ * The thresholds are echoed back by the server so support can tell WHY a guest
+ * saw what they saw; they are deliberately NOT modelled here, because nothing
+ * in the app may branch on them — `action` is the only contract.
+ */
+export interface AppUpdateDecision {
+  action: AppUpdateAction;
+  storeUrl?: string;
+  title?: LocalizedText;
+  message?: LocalizedText;
+}

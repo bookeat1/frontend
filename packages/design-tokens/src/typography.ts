@@ -514,6 +514,43 @@ export const typography = {
     lineHeight: 16,
   },
 
+  /* ------------------------------------------------------------------ *
+   * Окно «Доступно обновление BookEat» (Figma QovvuAoI9YxsLMwWkfgKN8,
+   * node 3623:9053).
+   *
+   * У обеих надписей в макете `leading: normal` — автоматический интервал
+   * шрифта. Считается тем же коэффициентом 1.2 для Noto Sans, что и вся
+   * группа гастрогида выше (там он выведен из измеренных узлов): 16 → 19,
+   * 14 → 17. Подгонять их к соседним ролям нельзя: `titleMd` и `itemName`
+   * тоже 16 SemiBold, но с явным интервалом 24, а `body` — 14/20.
+   * ------------------------------------------------------------------ */
+
+  /** Заголовок окна (node 3623:9056) — Noto Sans SemiBold 16, интервал авто. */
+  appUpdateTitle: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 16,
+    lineHeight: 19,
+  },
+  /** Текст окна (node 3623:9236) — Noto Sans Regular 14, интервал авто. */
+  appUpdateMessage: {
+    fontFamily: fontFamilies.notoSansRegular,
+    fontSize: 14,
+    lineHeight: 17,
+  },
+  /**
+   * Подпись кнопки на 16 (node 3625:9239 — 16/20 SemiBold).
+   *
+   * Отдельный токен, а не `labelSemiBold`: тот 14/20 и стоит на кнопках всего
+   * остального приложения. Здесь в макете нарисован кегль 16, и это ЕДИНСТВЕННОЕ
+   * отличие кнопки окна обновления от обычной — высота, поля и скругление
+   * совпадают.
+   */
+  buttonLabelLg: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+
   /** Promo banner caption over the photo — the one place the design uses Inter. */
   bannerCaption: {
     fontFamily: fontFamilies.interSemiBold,

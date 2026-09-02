@@ -17,6 +17,8 @@
  */
 import type {
   Amenity,
+  AppUpdateAction,
+  AppUpdateDecision,
   AuthSession,
   AuthUser,
   Booking,
@@ -1691,4 +1693,61 @@ export function mapFavoriteItems(api: ApiFavoriteItems | null | undefined): Favo
     promos: count(api?.counts?.promos),
   };
   return { items, counts };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Update gate («Доступна новая версия»)
+ * ------------------------------------------------------------------------ */
+
+/** `GET /app/version-check` on the wire (backend appversion/dto.go
+ * `checkResponse`). The echoed thresholds are on the wire but deliberately not
+ * mapped: nothing in the app may branch on them. */
+export interface ApiAppVersionCheck {
+  platform?: string | null;
+  action?: string | null;
+  store_url?: string | null;
+  title?: Record<string, string> | null;
+  message?: Record<string, string> | null;
+}
+
+const APP_UPDATE_ACTIONS: AppUpdateAction[] = ["none", "recommended", "required"];
+
+/**
+ * Maps the update verdict. Every uncertain input lands on "none", the same
+ * direction the server resolves its own ambiguity in (ADR-039): an action this
+ * build does not know, a missing body, a blank string — all mean "say nothing".
+ * The opposite default would let a payload we failed to understand put a
+ * blocking screen in front of a paying guest.
+ */
+export function mapAppUpdateDecision(
+  api: ApiAppVersionCheck | null | undefined,
+): AppUpdateDecision {
+  const action = APP_UPDATE_ACTIONS.find((value) => value === text(api?.action)) ?? "none";
+  if (action === "none") {
+    // No wording is sent for "none", and carrying a store URL nobody may use
+    // only invites a button that opens it.
+    return { action: "none" };
+  }
+  const storeUrl = text(api?.store_url);
+  return {
+    action,
+    // "" on the wire means the policy has no store link — undefined, so a
+    // caller cannot render a button that opens nothing.
+    storeUrl: storeUrl || undefined,
+    title: localizedText(api?.title),
+    message: localizedText(api?.message),
+  };
+}
+
+/** Keeps only string values with real text in them, so a locale present but
+ * blank on the wire falls through to the next fallback instead of rendering an
+ * empty dialog. Returns undefined when nothing survives. */
+function localizedText(raw: Record<string, string> | null | undefined) {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [locale, value] of Object.entries(raw)) {
+    const trimmed = text(value);
+    if (trimmed) out[locale] = trimmed;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }

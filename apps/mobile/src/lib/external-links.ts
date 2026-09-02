@@ -123,3 +123,23 @@ export function openMap(input: {
   }
   return open(`https://www.google.com/maps/search/?api=1&query=${coords}`);
 }
+
+/**
+ * Страница приложения в магазине — App Store или Google Play.
+ *
+ * Ссылку задаёт панель (`store_url` в политике обновления, ADR-039), поэтому
+ * она приходит уже со схемой и открывается КАК ЕСТЬ. Именно поэтому здесь не
+ * `openWebsite`: тот дописывает `https://` всему, что не начинается с http, и
+ * превратил бы `market://details?id=…` или `itms-apps://…` в неоткрываемый
+ * `https://market://…`. Схему без `://` (голый хост) всё же достраиваем — это
+ * единственная опечатка, которую можно починить не гадая.
+ *
+ * Как и всё в этом файле — best-effort: устройство без магазина и без браузера
+ * возвращает `false`, а не исключение. Вызывающий обязан сказать гостю, что
+ * не открылось: в жёстком режиме эта кнопка — единственный выход из окна.
+ */
+export function openStoreListing(url: string): Promise<boolean> {
+  const raw = url.trim();
+  if (!raw) return Promise.resolve(false);
+  return open(raw.includes("://") ? raw : toHttpUrl(raw));
+}

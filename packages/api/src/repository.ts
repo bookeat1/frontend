@@ -1,6 +1,7 @@
 import type { MapPreviewOptions } from "./static-map";
 import type {
   Amenity,
+  AppUpdateDecision,
   AuthSession,
   AuthUser,
   Booking,
@@ -436,6 +437,25 @@ export interface RestaurantRepository {
   /** Marks the whole inbox read (`POST /notifications/read-all`). Requires a
    * session. Idempotent — an inbox with nothing unread still answers 200. */
   markAllNotificationsRead(): Promise<void>;
+
+  /* --- update gate («Доступна новая версия») --- */
+
+  /**
+   * Asks the server what to tell THIS build
+   * (`GET /app/version-check?platform=&version=`, public and unauthenticated —
+   * it is called before anybody signs in, and the answer depends on the build,
+   * never on who is holding the phone).
+   *
+   * `version` is the build's marketing version (`Constants.expoConfig.version`,
+   * e.g. "1.5.1"). The server parses it component-wise and answers `none` for
+   * anything it cannot parse, so an odd value degrades to silence rather than
+   * to a wrong verdict.
+   *
+   * Fails like every other call (RepositoryError on 4xx/5xx/timeout). The
+   * CALLER decides what a failure means, and the only correct answer for this
+   * feature is "say nothing" — never a prompt built on a guess.
+   */
+  checkAppUpdate(input: { platform: "ios" | "android"; version: string }): Promise<AppUpdateDecision>;
 }
 
 /**

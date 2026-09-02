@@ -16,6 +16,14 @@ interface PrimaryButtonProps {
    * `lg` is the 48pt height the booking flow's sticky CTA has in the design
    * (Figma node 471:3967). Not a new component — same pill, one number. */
   size?: "md" | "lg";
+  /**
+   * Кегль подписи. `md` — 14/20 (`typography.labelSemiBold`), как на всех
+   * кнопках приложения. `lg` — 16/20: так нарисована единственная кнопка окна
+   * «Доступно обновление BookEat» (Figma QovvuAoI9YxsLMwWkfgKN8,
+   * node 3625:9239). Это ПРОП, а не вторая кнопка: высота, поля и скругление
+   * там совпадают с `md`, отличается только кегль.
+   */
+  labelSize?: "md" | "lg";
   accessibilityLabel?: string;
   /**
    * Уточнение, которое скринридер зачитывает ПОСЛЕ подписи, — «почему сейчас
@@ -39,6 +47,7 @@ export function PrimaryButton({
   disabled = false,
   variant = "primary",
   size = "md",
+  labelSize = "md",
   icon: Icon,
   accessibilityLabel,
   accessibilityHint,
@@ -62,7 +71,15 @@ export function PrimaryButton({
       ]}
     >
       {Icon ? <Icon size={20} color={labelColor} weight="regular" /> : null}
-      <Text style={[styles.label, isSecondary && styles.labelSecondary]}>{label}</Text>
+      <Text
+        style={[
+          styles.label,
+          labelSize === "lg" && styles.labelLarge,
+          isSecondary && styles.labelSecondary,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -96,6 +113,9 @@ const styles = StyleSheet.create({
   label: {
     ...typography.labelSemiBold,
     color: colors.text.onBrand,
+  },
+  labelLarge: {
+    ...typography.buttonLabelLg,
   },
   labelSecondary: {
     color: colors.text.primary,

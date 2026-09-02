@@ -2170,6 +2170,17 @@ export const en: LocaleOverride<Dictionary> = {
     enabledTitle: "Notifications are on",
     enabledDescription: "We'll let you know as soon as the restaurant replies",
   },
+  appUpdate: {
+    title: "BookEat update available",
+    message:
+      "We've improved the app to make booking a table even easier. Install the latest version. The update takes less than a minute.",
+    requiredTitle: "Update required",
+    requiredMessage: "This version of BookEat is no longer supported. Please update the app to continue.",
+    restartMessage: "The update is already downloaded. Restart the app to start using it.",
+    update: "Update",
+    restart: "Restart",
+    openFailed: "Couldn't open the app store",
+  },
   settings: {
     title: "Settings",
     language: "Language",

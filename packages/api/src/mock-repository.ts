@@ -19,6 +19,7 @@ import { favoriteEventKey, isCancellableBookingStatus } from "./types";
 import type {
   Amenity,
   AppNotification,
+  AppUpdateDecision,
   AuthSession,
   AuthUser,
   AvailabilitySlot,
@@ -781,6 +782,17 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async markAllNotificationsRead(): Promise<void> {
     await this.simulateNetwork();
     this.notifications = this.notifications.map((n) => ({ ...n, read: true }));
+  }
+
+  /**
+   * The mock never asks anyone to update: the verdict belongs to a server
+   * policy, and a mock that invented one would put an update prompt in front
+   * of every developer running against mock data. Flip the returned action by
+   * hand when working on the dialog.
+   */
+  async checkAppUpdate(): Promise<AppUpdateDecision> {
+    await this.simulateNetwork();
+    return { action: "none" };
   }
 }
 
