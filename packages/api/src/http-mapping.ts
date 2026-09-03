@@ -1034,11 +1034,17 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // can never load: the Photos screen counts what it shows.
     .filter((img) => Boolean(img.image_url?.trim()))
     .map((img) => imageToPhoto(img.image_url, img.id, text(api.name), undefined));
+  // `type` и `url` в базе — свободные строки, бэкенд их не валидирует.
+  // Ссылка без схемы («instagram.com/x», «@x») в `<a href>` сайта стала бы
+  // относительным путём → 404. Как и для сторис: не http(s) — значит канала
+  // нет. Схему догадкой не дочиниваем (см. httpLink).
+  const socialLink = (type: string): string | undefined =>
+    httpLink(api.social_links?.find((s) => s.type === type)?.url) ?? undefined;
   const social = api.social_links?.length
     ? {
-        website: api.social_links.find((s) => s.type === "website")?.url,
-        whatsapp: api.social_links.find((s) => s.type === "whatsapp")?.url,
-        instagram: api.social_links.find((s) => s.type === "instagram")?.url,
+        website: socialLink("website"),
+        whatsapp: socialLink("whatsapp"),
+        instagram: socialLink("instagram"),
       }
     : undefined;
 

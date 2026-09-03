@@ -1,5 +1,12 @@
 import type { DayOfWeek, ScheduleDay, VenueSchedule } from "@bookeat/api";
-import { WEEK_ORDER_MONDAY_FIRST } from "@bookeat/api";
+import {
+  WEEK_ORDER_MONDAY_FIRST,
+  activeScheduleDay,
+  isAroundTheClock,
+  scheduleDayFor,
+  venueClock,
+  venueDayOfWeek,
+} from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 
 const t = getDictionary();
@@ -16,6 +23,11 @@ const t = getDictionary();
  * Всё, что тут делается с датами, — определение того, какой сегодня ДЕНЬ
  * НЕДЕЛИ у заведения, чтобы подсветить нужную строку недели. Ошибка в этом
  * месте стоит подсветки не той строки, а не вранья про «открыто».
+ *
+ * Сами вычисления (день и часы в зоне заведения, выбор строки, которой
+ * объясняется текущее состояние) живут в `@bookeat/api` (`schedule.ts`) —
+ * ОБЩЕМ с сайтом модуле, чтобы приложение и сайт не спорили о времени
+ * закрытия на ночных заведениях (2026-09-03). Здесь остаётся выбор слов.
  */
 
 /** Статус заведения «прямо сейчас» — ровно три возможных состояния. */
@@ -37,30 +49,7 @@ export function openStateLabel(schedule: VenueSchedule | null): string {
   }
 }
 
-/**
- * День недели (0 = вс, как у сервера) В ТАЙМЗОНЕ ЗАВЕДЕНИЯ.
- *
- * `Intl` с `timeZone` — единственный способ разрешить IANA-зону; на сборке
- * Hermes без полного ICU он может отсутствовать или бросить, поэтому вызов
- * защищён, а запасной вариант — день устройства. Для гостя в Алматы и
- * заведения в Алматы это одно и то же; расхождение возможно только у
- * заведения в другой зоне (в каталоге такое поддержано на бэкенде).
- */
-export function venueDayOfWeek(timezone: string, now: Date = new Date()): DayOfWeek {
-  if (timezone) {
-    try {
-      const weekday = new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        weekday: "short",
-      }).format(now);
-      const index = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
-      if (index >= 0) return index as DayOfWeek;
-    } catch {
-      // Зона неизвестна движку — падать из-за подсветки строки нельзя.
-    }
-  }
-  return now.getDay() as DayOfWeek;
-}
+export { scheduleDayFor, venueClock, venueDayOfWeek };
 
 /** true, когда заведение живёт в другом часовом поясе, чем телефон гостя, —
  * тогда под графиком имеет смысл написать, что время местное. */
@@ -72,14 +61,6 @@ export function isForeignTimezone(timezone: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** День из графика или `undefined` — «сервер про этот день не сказал». */
-export function scheduleDayFor(
-  schedule: VenueSchedule | null,
-  dayOfWeek: DayOfWeek,
-): ScheduleDay | undefined {
-  return schedule?.days.find((day) => day.dayOfWeek === dayOfWeek);
 }
 
 /**
@@ -96,6 +77,9 @@ export function dayHoursLabel(day: ScheduleDay | undefined): string {
   if (!day) return t.restaurant.schedule.unknownDay;
   if (!day.isOpen) return t.restaurant.schedule.dayOff;
   if (!day.opensAt || !day.closesAt) return t.restaurant.schedule.openTimeUnknown;
+  // 24/7 сервер кодирует как «00:00–24:00»; без этой ветки строка читалась бы
+  // «00:00 – 00:00» (ревью PR #119, п. 1.2).
+  if (isAroundTheClock(day)) return t.restaurant.schedule.aroundTheClock;
   if (!day.closesNextDay) return t.restaurant.schedule.range(day.opensAt, day.closesAt);
   if (day.closesAt === "00:00") return t.restaurant.schedule.untilMidnight(day.opensAt);
   return t.restaurant.schedule.rangeNextDay(day.opensAt, day.closesAt);
@@ -108,12 +92,18 @@ export function hasKnownDays(schedule: VenueSchedule | null): boolean {
 
 /**
  * Статус для компактного блока часов: серверное «Открыто» + время закрытия
- * СЕГОДНЯ («Открыто до 23:00») и серверное «Закрыто» + время открытия
- * СЕГОДНЯ («Откроется в 10:00», правка владельца 2026-08-24).
+ * АКТИВНОЙ строки графика («Открыто до 23:00») и серверное «Закрыто» + время
+ * открытия СЕГОДНЯ («Откроется в 10:00», правка владельца 2026-08-24).
  *
  * Открытость по-прежнему берётся ТОЛЬКО из `openNow` — эта функция ничего не
  * вычисляет об открытости, а лишь дописывает к уже известному ответу сервера
- * время из сегодняшней строки графика.
+ * время из графика.
+ *
+ * АКТИВНАЯ строка — не обязательно сегодняшняя: в воскресенье 01:00 при
+ * субботней смене «до 02:00» заведение открыто по субботней строке, и писать
+ * надо «до 02:00», а не воскресное закрытие (и не голое «Открыто», если
+ * воскресенье выходной). Решает `activeScheduleDay` из `@bookeat/api`, тот же,
+ * что у сайта.
  *
  * «Откроется в» ставится строго при трёх условиях сразу: сервер сказал
  * «закрыто», у СЕГОДНЯШНЕГО дня есть время открытия, и это время ещё впереди
@@ -126,20 +116,24 @@ export function openUntilTodayLabel(
   now: Date = new Date(),
 ): string {
   if (!schedule) return openStateLabel(schedule);
-  const day = scheduleDayFor(schedule, venueDayOfWeek(schedule.timezone, now));
 
   if (openState(schedule) === "open") {
-    if (day?.isOpen && day.closesAt) {
-      return t.restaurant.openUntil(day.closesAt);
+    const active = activeScheduleDay(schedule, now)?.day;
+    if (isAroundTheClock(active)) return t.restaurant.openAroundTheClock;
+    if (active?.isOpen && active.closesAt) {
+      return t.restaurant.openUntil(active.closesAt);
     }
     return openStateLabel(schedule);
   }
 
   if (openState(schedule) === "closed") {
+    // Только СЕГОДНЯШНЯЯ строка: если сервер сказал «закрыто», пока вчерашняя
+    // смена по графику ещё идёт, прав сервер (переучёт, праздник).
+    const day = scheduleDayFor(schedule, venueDayOfWeek(schedule.timezone, now));
     // Сравнение строк "ЧЧ:ММ" честно только при ВЕДУЩЕМ НУЛЕ: "9:00" < "10:00"
     // лексикографически ложно. Ведущий ноль гарантирует `clockTime`
-    // (packages/api/src/http-mapping.ts), и `venueClock` ниже нормализует
-    // ответ движка тем же образом.
+    // (packages/api/src/http-mapping.ts), и `venueClock` нормализует ответ
+    // движка тем же образом.
     const clock = venueClock(schedule.timezone, now);
     if (day?.isOpen && day.opensAt && clock && clock < day.opensAt) {
       return t.restaurant.opensAt(day.opensAt);
@@ -147,33 +141,6 @@ export function openUntilTodayLabel(
   }
 
   return openStateLabel(schedule);
-}
-
-/**
- * Текущее время «ЧЧ:ММ» В ТАЙМЗОНЕ ЗАВЕДЕНИЯ, либо `null`, когда движок зону
- * не знает.
- *
- * Это НЕ вычисление открытости — открытость по-прежнему приходит только из
- * `openNow`. Часы нужны ровно для одного решения: сегодняшнее время открытия
- * ещё впереди (тогда закрытому заведению можно дописать «Откроется в 10:00»)
- * или уже позади (тогда остаётся голое «Закрыто», потому что «завтра» мы
- * гостю не обещали).
- */
-function venueClock(timezone: string, now: Date): string | null {
-  if (!timezone) return null;
-  try {
-    const value = new Intl.DateTimeFormat("en-GB", {
-      timeZone: timezone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(now);
-    // Часть движков печатает полночь как «24:00» — это тот же ноль часов.
-    const normalized = value.startsWith("24:") ? `00:${value.slice(3)}` : value;
-    return /^\d{2}:\d{2}$/.test(normalized) ? normalized : null;
-  } catch {
-    return null;
-  }
 }
 
 /**
