@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { type Amenity, type Photo, type Restaurant } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
@@ -17,7 +17,8 @@ import { repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
 import { cx } from "@web/lib/cx";
-import { scheduleStatus, venueMeta } from "@web/lib/format";
+import { instagramHandle, venueMeta, websiteHost } from "@web/lib/format";
+import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
 import { useT } from "@web/lib/locale";
 import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
 
@@ -191,11 +192,10 @@ function VenueBody({ venue }: { venue: Restaurant }) {
               занимали место карточки «взаймы». В макете отдельного блока часов
               нет НИГДЕ на странице: время работы живёт ярлыком в шапке
               заведения (3525:14586 «Открыто до 23:00») и строкой под телефоном
-              в контактах (3525:14723 «Ежедневно с 10:00 до 23:00»). Ни то, ни
-              другое сегодня НЕ собирается из `venue.schedule` — ярлык печатает
-              «Открыто сейчас», а под телефоном стоит слово «Телефон». То есть
-              подневный график сервера на сайте временно не показывается нигде;
-              это названо в отчёте отдельной строкой и ждёт решения владельца.
+              в контактах (3525:14723 «Ежедневно с 10:00 до 23:00»). Обе строки
+              собираются из `venue.schedule` в `lib/schedule.ts`: ярлык берёт
+              время закрытия сегодняшнего дня, подпись под телефоном — общее
+              окно недели либо окно сегодняшнего дня.
 
               «Липкость» — единственное, что о ней известно, это слово (sticky)
               в имени слоя: ни оффсета, ни второго состояния в макете нет.
@@ -345,7 +345,7 @@ function VenueHeader({
   status,
 }: {
   venue: Restaurant;
-  status: ReturnType<typeof scheduleStatus>;
+  status: ScheduleStatus;
 }) {
   const t = useT();
   const amenities = venue.amenities ?? [];
@@ -612,25 +612,37 @@ function PromoSection({ venue }: { venue: Restaurant }) {
  * радиусом 16 (пропорция, а не высота — колонка уже 788 не на всех
  * брейкпоинтах), под ней три плашки через 16.
  */
+type SocialChannel = { key: keyof NonNullable<Restaurant["social"]>; href: string; label: string };
+
+function socialChannelTitle(channel: SocialChannel): string {
+  if (channel.key === "instagram") return instagramHandle(channel.href) ?? channel.label;
+  if (channel.key === "website") return websiteHost(channel.href) ?? channel.label;
+  return channel.label;
+}
+
 function Contacts({ venue }: { venue: Restaurant }) {
   const t = useT();
   const mapUrl =
     venue.latitude !== undefined && venue.longitude !== undefined
       ? repository.getMapPreviewUrl(venue.id, { size: "detail" })
       : undefined;
-  const links = [
-    venue.social?.website
-      ? { key: "website", label: venue.social.website, href: venue.social.website }
-      : null,
-    venue.social?.instagram
-      ? { key: "instagram", label: venue.social.instagram, href: venue.social.instagram }
-      : null,
-    venue.social?.whatsapp
-      ? { key: "whatsapp", label: venue.social.whatsapp, href: venue.social.whatsapp }
-      : null,
-  ].filter((item): item is { key: string; label: string; href: string } => item !== null);
+  // Каналы в порядке макета (узел 3525:14729 «Instagram · WhatsApp»); сайт
+  // в макете не нарисован, но в API есть — идёт последним.
+  const channels: SocialChannel[] = [];
+  for (const key of ["instagram", "whatsapp", "website"] as const) {
+    const href = venue.social?.[key];
+    if (href) channels.push({ key, href, label: t.web.venue.contacts.channel[key] });
+  }
+  // Заголовок плашки (узел 3525:14728 «flourdemi.kz») — имя аккаунта
+  // Instagram; если первый канал — сайт, его домен; иначе имя канала.
+  // Домен сайта НЕЛЬЗЯ подставлять под ссылку Instagram без разбираемого
+  // ника: гость нажимал бы «dastarkhan.kz» и попадал в Instagram (ревью PR
+  // #119, п. 2.2). Заголовок всегда описывает то, куда ведёт `primary.href`.
+  const primary: SocialChannel | undefined = channels[0];
+  const primaryTitle = primary ? socialChannelTitle(primary) : null;
+  const phoneNote = venue.phone ? phoneHoursNote(venue.schedule, t) : null;
 
-  const hasAnything = venue.address.trim() || venue.phone || links.length > 0;
+  const hasAnything = venue.address.trim() || venue.phone || channels.length > 0;
 
   return (
     <section id={SECTION_ID.contacts} className="flex scroll-mt-6 flex-col gap-5">
@@ -669,16 +681,26 @@ function Contacts({ venue }: { venue: Restaurant }) {
               icon={<PhoneIcon />}
               title={venue.phone}
               href={`tel:${venue.phone.replace(/[^\d+]/g, "")}`}
-              note={t.web.venue.contacts.phone}
+              // Подпись из макета — «Ежедневно с 10:00 до 23:00» (3525:14723).
+              // Без графика остаётся слово «Телефон»: пустая вторая строка
+              // делала бы плашку ниже соседних.
+              note={phoneNote ?? t.web.venue.contacts.phone}
             />
           ) : null}
-          {links.length > 0 ? (
+          {primary && primaryTitle ? (
+            // Плашка соцсетей (узел 3525:14724): заголовок ведёт на первый
+            // канал, подпись перечисляет ВСЕ каналы, и каждый — ссылка.
+            // Поэтому вся плашка ссылкой быть не может: `<a>` внутри `<a>`
+            // запрещён, а WhatsApp иначе оказался бы недостижим.
             <ContactCard
-              icon={<LinkIcon />}
-              title={links[0].label}
-              href={links[0].href}
-              external
-              note={t.web.venue.contacts.social}
+              icon={primary.key === "instagram" ? <InstagramIcon /> : <LinkIcon />}
+              title={<ContactLink href={primary.href}>{primaryTitle}</ContactLink>}
+              note={channels.map((channel, index) => (
+                <Fragment key={channel.key}>
+                  {index > 0 ? t.web.format.metaSeparator : null}
+                  <ContactLink href={channel.href}>{channel.label}</ContactLink>
+                </Fragment>
+              ))}
             />
           ) : null}
         </ul>
@@ -701,8 +723,8 @@ function ContactCard({
   external = false,
 }: {
   icon: ReactNode;
-  title: string;
-  note?: string;
+  title: ReactNode;
+  note?: ReactNode;
   href?: string;
   external?: boolean;
 }) {
@@ -742,6 +764,25 @@ function ContactCard({
         <span className={inner}>{body}</span>
       )}
     </li>
+  );
+}
+
+/**
+ * Ссылка внутри плашки контактов — наследует кегль и цвет строки, чтобы
+ * заголовок 14/20 SemiBold и подпись 12/16 остались такими, как в макете.
+ * Подчёркивание появляется при наведении и с клавиатуры: цветом ссылка от
+ * текста не отличается, и это единственный признак, что её можно нажать.
+ */
+function ContactLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer nofollow"
+      className="rounded-sm hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+    >
+      {children}
+    </a>
   );
 }
 
@@ -872,6 +913,22 @@ function PhoneIcon() {
         d="M5 4h3.2l1.4 3.5-2 1.3a12 12 0 0 0 5.6 5.6l1.3-2L18 13.8V17a2 2 0 0 1-2.2 2A14.5 14.5 0 0 1 5 6.2 2 2 0 0 1 7 4"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+/**
+ * Значок Instagram на плашке соцсетей (узел 3525:14725). Сам вектор из макета
+ * не снят — component set в файле сломан (см. design-specs/web/spec-venue-
+ * socials.md), поэтому контур нарисован по скриншоту: скруглённый квадрат,
+ * объектив, точка вспышки; та же толщина линии, что у соседних значков.
+ */
+function InstagramIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="4" y="4" width="16" height="16" rx="4.5" />
+      <circle cx="12" cy="12" r="3.6" />
+      <circle cx="16.6" cy="7.4" r="0.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }

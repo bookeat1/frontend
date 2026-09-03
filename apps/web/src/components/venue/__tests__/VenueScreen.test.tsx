@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
 import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
@@ -30,6 +30,10 @@ vi.mock("@web/lib/api", () => ({
 const { VenueScreen } = await import("@web/components/venue/VenueScreen");
 
 describe("карточка заведения", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("пока заведение едет, показывает загрузку", async () => {
     repository.getRestaurant = vi.fn(() => pending<Restaurant>());
 
@@ -172,13 +176,19 @@ describe("карточка заведения", () => {
    * подневного графика ушла вместе с блоком — она проверяла бы вёрстку,
    * которой не существует.
    *
-   * Осталось то, что график ВСЁ ЕЩЁ решает: ярлык статуса в шапке. Его считает
-   * сервер (`schedule.openNow`), и это единственное, что сегодня на сайте
-   * говорит о времени работы.
+   * Осталось то, что график ВСЁ ЕЩЁ решает: ярлык статуса в шапке
+   * (3525:14586 «Открыто до 23:00») и подпись под телефоном (3525:14723).
+   * Открытость считает сервер (`schedule.openNow`); клиент лишь дописывает к
+   * ней время из сегодняшней строки графика.
    */
-  it("статус в шапке берётся из графика сервера, а не выводится из текста", async () => {
+  it("ярлык в шапке — «Открыто до …» со временем закрытия сегодняшнего дня", async () => {
+    // Понедельник, 14:00 по Алматы. Подменяем только Date: таймеры
+    // testing-library должны остаться настоящими.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-31T09:00:00Z"));
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({
+        phone: "+7 (707) 547-47-47",
         schedule: {
           timezone: "Asia/Almaty",
           openNow: true,
@@ -192,11 +202,77 @@ describe("карточка заведения", () => {
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByText("Открыто сейчас")).toBeTruthy();
+    expect(await screen.findByText("Открыто до 01:00")).toBeTruthy();
+    expect(screen.queryByText("Открыто сейчас")).toBeNull();
     // Подневного расписания на странице нет — ни в правой колонке, ни где-либо
     // ещё. Если оно снова появится, это должно быть осознанной правкой макета.
     expect(screen.queryByText("12:00–01:00 (до следующего дня)")).toBeNull();
     expect(screen.queryByText("Выходной")).toBeNull();
+    // График неодинаков по дням, значит под телефоном — окно сегодняшнего дня.
+    expect(screen.getByText("Сегодня с 12:00 до 01:00")).toBeTruthy();
+  });
+
+  it("закрытое заведение получает слова, а не пустой ярлык", async () => {
+    // Понедельник, 09:00 по Алматы — до открытия.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-31T04:00:00Z"));
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        schedule: {
+          timezone: "Asia/Almaty",
+          openNow: false,
+          days: [{ dayOfWeek: 1, isOpen: true, opensAt: "12:00", closesAt: "23:00", closesNextDay: false }],
+        },
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByText("Откроется в 12:00")).toBeTruthy();
+  });
+
+  /**
+   * Плашка соцсетей (узел 3525:14724): заголовок — имя аккаунта Instagram, а
+   * не адрес целиком; подпись перечисляет каналы, и КАЖДЫЙ из них ссылка —
+   * иначе WhatsApp, второй в списке, был бы недостижим.
+   */
+  it("плашка соцсетей: имя аккаунта в заголовке, каждый канал — ссылка", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        phone: "+7 (707) 547-47-47",
+        social: {
+          instagram: "https://www.instagram.com/tbilisi.almaty/",
+          whatsapp: "https://api.whatsapp.com/send/?phone=77055743434",
+        },
+        schedule: {
+          timezone: "Asia/Almaty",
+          openNow: true,
+          days: ([0, 1, 2, 3, 4, 5, 6] as const).map((dayOfWeek) => ({
+            dayOfWeek,
+            isOpen: true,
+            opensAt: "12:00",
+            closesAt: "01:00",
+            closesNextDay: true,
+          })),
+        },
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const title = await screen.findByRole("link", { name: "tbilisi.almaty" });
+    expect(title.getAttribute("href")).toBe("https://www.instagram.com/tbilisi.almaty/");
+    // Ищем внутри секции контактов: свой Instagram есть и у подвала сайта.
+    const contacts = within(title.closest("section") as HTMLElement);
+    expect(contacts.getByRole("link", { name: "Instagram" }).getAttribute("href")).toBe(
+      "https://www.instagram.com/tbilisi.almaty/",
+    );
+    expect(contacts.getByRole("link", { name: "WhatsApp" }).getAttribute("href")).toBe(
+      "https://api.whatsapp.com/send/?phone=77055743434",
+    );
+    expect(screen.queryByText("https://www.instagram.com/tbilisi.almaty/")).toBeNull();
+    // Одинаковый график на неделю — строка макета «Ежедневно с … до …».
+    expect(screen.getByText("Ежедневно с 12:00 до 01:00")).toBeTruthy();
   });
 
   /** Правая колонка макета (узел 3525:14730) — РОВНО одна карточка брони. */

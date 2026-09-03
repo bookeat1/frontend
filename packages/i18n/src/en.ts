@@ -351,6 +351,8 @@ export const en: LocaleOverride<Dictionary> = {
     openNow: "Open",
     closedNow: "Closed",
     openUntil: (time: string) => `Open until ${time}`,
+    /** The active schedule row is 24 h — see ru.openAroundTheClock. */
+    openAroundTheClock: "Open 24 hours",
     /** Closed venue that still opens later today — see ru.opensAt. */
     opensAt: (time: string) => `Opens at ${time}`,
     hoursUnknownShort: "Hours not listed",
@@ -412,6 +414,8 @@ export const en: LocaleOverride<Dictionary> = {
       rangeNextDay: (from: string, to: string) => `${from} – ${to}`,
       /** No "(midnight)" suffix (owner, 2026-08-24) — hours only. */
       untilMidnight: (from: string) => `${from} – 00:00`,
+      /** 24-hour day — see ru.schedule.aroundTheClock. */
+      aroundTheClock: "24 hours",
       openTimeUnknown: "Open, time not listed",
       byDayTitle: "Opening hours by day",
       byDayExpand: "Show hours by day",
@@ -2544,7 +2548,10 @@ export const en: LocaleOverride<Dictionary> = {
       },
       status: {
         open: "Open now",
+        openUntil: (time: string) => `Open until ${time}`,
         closed: "Closed now",
+        opensAt: (time: string) => `Opens at ${time}`,
+        aroundTheClock: "Open 24 hours",
         unknown: "Opening hours are not set",
       },
       tabs: {
@@ -2572,6 +2579,16 @@ export const en: LocaleOverride<Dictionary> = {
         address: "Address",
         phone: "Phone",
         social: "Social",
+        daily: (from: string, to: string) => `Daily from ${from} to ${to}`,
+        today: (from: string, to: string) => `Today from ${from} to ${to}`,
+        todayUntil: (to: string) => `Today until ${to}`,
+        aroundTheClock: "24 hours",
+        todayDayOff: "Closed today",
+        channel: {
+          instagram: "Instagram",
+          whatsapp: "WhatsApp",
+          website: "Website",
+        },
         mapAlt: (name: string) => `Map: where ${name} is`,
         noMap: "The venue has not provided coordinates.",
         mapUnavailable: "The map is unavailable right now.",

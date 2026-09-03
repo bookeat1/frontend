@@ -356,6 +356,8 @@ export const kk: LocaleOverride<Dictionary> = {
     openNow: "Ашық",
     closedNow: "Жабық",
     openUntil: (time: string) => `${time} дейін ашық`,
+    /** Белсенді жол — тәулік бойы, ru.openAroundTheClock қараңыз. */
+    openAroundTheClock: "Тәулік бойы ашық",
     /** Бүгін әлі ашылатын жабық мейрамхана — ru.opensAt қараңыз. */
     opensAt: (time: string) => `Ашылады: ${time}`,
     hoursUnknownShort: "Жұмыс уақыты көрсетілмеген",
@@ -420,6 +422,8 @@ export const kk: LocaleOverride<Dictionary> = {
       rangeNextDay: (from: string, to: string) => `${from} – ${to}`,
       /** «(түн ортасы)» алынып тасталды (2026-08-24) — тек уақыт. */
       untilMidnight: (from: string) => `${from} – 00:00`,
+      /** Тәулік бойы жұмыс күні — ru.schedule.aroundTheClock қараңыз. */
+      aroundTheClock: "Тәулік бойы",
       openTimeUnknown: "Ашық, уақыты көрсетілмеген",
       byDayTitle: "Күн бойынша жұмыс уақыты",
       byDayExpand: "Күн бойынша уақытты көрсету",
@@ -2550,7 +2554,10 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       status: {
         open: "Қазір ашық",
+        openUntil: (time: string) => `${time}-ге дейін ашық`,
         closed: "Қазір жабық",
+        opensAt: (time: string) => `${time}-де ашылады`,
+        aroundTheClock: "Тәулік бойы ашық",
         unknown: "Жұмыс уақыты көрсетілмеген",
       },
       tabs: {
@@ -2578,6 +2585,16 @@ export const kk: LocaleOverride<Dictionary> = {
         address: "Мекенжайы",
         phone: "Телефон",
         social: "Әлеуметтік желілер",
+        daily: (from: string, to: string) => `Күн сайын ${from}-ден ${to}-ге дейін`,
+        today: (from: string, to: string) => `Бүгін ${from}-ден ${to}-ге дейін`,
+        todayUntil: (to: string) => `Бүгін ${to}-ге дейін`,
+        aroundTheClock: "Тәулік бойы",
+        todayDayOff: "Бүгін демалыс",
+        channel: {
+          instagram: "Instagram",
+          whatsapp: "WhatsApp",
+          website: "Сайт",
+        },
         mapAlt: (name: string) => `Карта: ${name} қай жерде`,
         noMap: "Орын координаттарын көрсетпеген.",
         mapUnavailable: "Карта қазір қолжетімсіз.",
