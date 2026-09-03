@@ -1,5 +1,5 @@
 import type { Dictionary } from "@bookeat/i18n";
-import type { PriceLevel, PriceRange, RestaurantSummary, VenueSchedule } from "@bookeat/api/client";
+import type { PriceLevel, PriceRange, RestaurantSummary } from "@bookeat/api/client";
 
 import type { WebLocale } from "@web/lib/locale";
 
@@ -53,15 +53,28 @@ export function formatNumber(value: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-/** «Открыто сейчас» / «Сейчас закрыто» / «Часы работы не указаны».
- * Считает СЕРВЕР: клиент не выводит статус из часов открытия (см. VenueSchedule). */
-export function scheduleStatus(schedule: VenueSchedule | null, t: Dictionary) {
-  if (!schedule || schedule.openNow === null) {
-    return { label: t.web.venue.status.unknown, tone: "neutral" as const };
+/**
+ * «flourdemi.kz» из `https://www.instagram.com/flourdemi.kz/` — заголовок
+ * плашки соцсетей (узел 3525:14728) показывает имя аккаунта, а не адрес.
+ * Ссылка без пути (или не разбираемая) отдаёт `null`, и заголовком остаётся
+ * сама ссылка — молча резать её до пустой строки нельзя.
+ */
+export function instagramHandle(url: string): string | null {
+  try {
+    const path = new URL(url).pathname.split("/").filter(Boolean);
+    return path[0] ? decodeURIComponent(path[0]) : null;
+  } catch {
+    return null;
   }
-  return schedule.openNow
-    ? { label: t.web.venue.status.open, tone: "success" as const }
-    : { label: t.web.venue.status.closed, tone: "neutral" as const };
+}
+
+/** «dastarkhan.kz» из `https://www.dastarkhan.kz/menu` — для плашки без Instagram. */
+export function websiteHost(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 /** «18» и «МАЯ» для плашки на карточке события (узел 3253:2 → «Card / Event»). */

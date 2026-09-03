@@ -2504,7 +2504,9 @@ export const en: LocaleOverride<Dictionary> = {
       },
       status: {
         open: "Open now",
+        openUntil: (time: string) => `Open until ${time}`,
         closed: "Closed now",
+        opensAt: (time: string) => `Opens at ${time}`,
         unknown: "Opening hours are not set",
       },
       tabs: {
@@ -2532,6 +2534,14 @@ export const en: LocaleOverride<Dictionary> = {
         address: "Address",
         phone: "Phone",
         social: "Social",
+        daily: (from: string, to: string) => `Daily from ${from} to ${to}`,
+        today: (from: string, to: string) => `Today from ${from} to ${to}`,
+        todayDayOff: "Closed today",
+        channel: {
+          instagram: "Instagram",
+          whatsapp: "WhatsApp",
+          website: "Website",
+        },
         mapAlt: (name: string) => `Map: where ${name} is`,
         noMap: "The venue has not provided coordinates.",
         mapUnavailable: "The map is unavailable right now.",

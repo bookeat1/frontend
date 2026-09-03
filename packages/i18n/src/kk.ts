@@ -2510,7 +2510,9 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       status: {
         open: "Қазір ашық",
+        openUntil: (time: string) => `${time}-ге дейін ашық`,
         closed: "Қазір жабық",
+        opensAt: (time: string) => `${time}-де ашылады`,
         unknown: "Жұмыс уақыты көрсетілмеген",
       },
       tabs: {
@@ -2538,6 +2540,14 @@ export const kk: LocaleOverride<Dictionary> = {
         address: "Мекенжайы",
         phone: "Телефон",
         social: "Әлеуметтік желілер",
+        daily: (from: string, to: string) => `Күн сайын ${from}-ден ${to}-ге дейін`,
+        today: (from: string, to: string) => `Бүгін ${from}-ден ${to}-ге дейін`,
+        todayDayOff: "Бүгін демалыс",
+        channel: {
+          instagram: "Instagram",
+          whatsapp: "WhatsApp",
+          website: "Сайт",
+        },
         mapAlt: (name: string) => `Карта: ${name} қай жерде`,
         noMap: "Орын координаттарын көрсетпеген.",
         mapUnavailable: "Карта қазір қолжетімсіз.",
