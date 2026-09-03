@@ -747,6 +747,14 @@ export interface CreateBookingInput {
   guests: number;
   name: string;
   phone: string;
+  /**
+   * Optional contact e-mail. The backend accepts it on `POST /bookings`
+   * (`createBookingRequest.Email`, internal/transport/rest/bookings/request.go),
+   * lower-cases it, matches it against the blacklist and stores it on the
+   * booking (usecase/bookings/create.go). Omitted when empty — an empty
+   * string would still travel over the wire for nothing.
+   */
+  email?: string;
   notes?: string;
 }
 

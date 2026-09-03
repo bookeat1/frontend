@@ -20,7 +20,7 @@ import { useT } from "@web/lib/locale";
  * а голый спиннер не читается вслух. Пока идёт запрос, кнопка disabled —
  * повторный клик по ней безвреден.
  */
-type Variant = "primary" | "secondary" | "danger";
+type Variant = "primary" | "secondary" | "outline" | "danger";
 /**
  * `l` и `m` — размеры кита (узел 3274:6). `submit` в ките не нарисован, но
  * дважды нарисован на ЭКРАНАХ: «Получить код» в модалке входа (3272:19) и
@@ -36,12 +36,17 @@ type Variant = "primary" | "secondary" | "danger";
  * радиус 12, паддинг 16, просвет 8, кегль 14/20 SemiBold. Ни M (42), ни
  * `submit` (радиус 14) сюда не попадают.
  *
+ * `ticket` — «Изменить бронь» на экране успеха (узел 3525:15105): 48 высотой,
+ * радиус 14, кегль 14/20 SemiBold. От `submit` (тоже 48 и 14) отличается
+ * ровно кеглем: соседняя с ней «На главную» набрана 16/24, и одна ступень на
+ * две разные подписи не годится.
+ *
  * `booking` — «Забронировать на 19:30» в карточке брони (QovvuAoI9YxsLMwWkfgKN8,
  * узел 3525:14768): ДВЕ строки друг под другом через 2, паддинг 14 по
  * вертикали, радиус 14, фиксированной высоты нет. Единственный размер, где
  * содержимое идёт колонкой, — поэтому у него и другой `gap`.
  */
-type Size = "l" | "m" | "submit" | "action" | "header" | "booking";
+type Size = "l" | "m" | "submit" | "ticket" | "action" | "header" | "booking";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -79,6 +84,7 @@ const sizes: Record<Size, string> = {
   l: "h-btn-l gap-2 whitespace-nowrap px-btn-l-x rounded-lg text-[16px] leading-6",
   m: "h-btn-m gap-2 whitespace-nowrap px-btn-m-x rounded-md text-[14px] leading-5",
   submit: "h-login-submit gap-2 whitespace-nowrap px-btn-l-x rounded-field text-[16px] leading-6",
+  ticket: "h-login-submit gap-2 whitespace-nowrap px-btn-l-x rounded-field text-[14px] leading-5",
   action: "h-venue-action gap-2 whitespace-nowrap px-venue-action-x rounded-md text-[14px] leading-5",
   header: "h-btn-header gap-2 whitespace-nowrap px-btn-header-x rounded-md text-[14px] leading-5",
   booking: "flex-col gap-0.5 py-booking-cta-y rounded-field text-booking-cta",
@@ -95,6 +101,15 @@ const disabledLook =
 const variants: Record<Variant, string> = {
   primary: "bg-brand text-ink-on-brand border border-transparent hover:bg-brand-text",
   secondary: "bg-canvas text-ink border border-line-control hover:bg-subtle",
+  /**
+   * Фирменная обводка без заливки — «Изменить бронь» на экране успеха (узел
+   * 3525:15105) и «Забронировать без предзаказа» в сводке (3525:14973): рамка
+   * и текст фирменные, фон прозрачный.
+   *
+   * Это НЕ `secondary`: у той обводка нейтральная (#B2B2B2) и текст основной.
+   * Разница видна на экране успеха, где обе кнопки стоят рядом.
+   */
+  outline: "bg-transparent text-brand-text border border-brand hover:bg-brand-subtle",
   danger: "bg-transparent text-danger-strong border border-transparent hover:bg-danger",
 };
 

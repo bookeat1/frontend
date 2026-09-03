@@ -850,3 +850,210 @@ export const webCatalog = {
   /** Нумерация страниц — узел 3525:14501: квадраты 44, радиус 12, просвет 8. */
   pagination: { size: 44, radius: webRadius.md, gap: 8 },
 } as const;
+
+/**
+ * Страница бронирования — узел `3525:14815` («WEB / 04 · Бронирование») файла
+ * **QovvuAoI9YxsLMwWkfgKN8**. Разбор узла лежит в
+ * `/home/tai/work/design-specs/web/spec-booking-flow.md`.
+ *
+ * Оболочка страницы (две колонки 788 + 32 + 380 = 1200) повторяет
+ * `webVenuePage.columnsGap` и `webVenuePage.asideWidth` — второй набор тех же
+ * чисел разъехался бы с первым в первую же правку макета, поэтому здесь их нет.
+ *
+ * ЧЕГО В МАКЕТЕ НЕТ (и потому нет здесь): выбор даты, состояния загрузки,
+ * ошибки и валидации полей, вид формы для гостя без входа, «свободных слотов
+ * нет». Всё это собрано из уже существующих примитивов сайта (`AsyncBlock`,
+ * `StateMessage`, `Skeleton`, `TextField`, `Button`), а не подобрано на глаз, и
+ * перечислено несверенным в отчёте.
+ */
+export const webBookingFlow = {
+  /** 3525:14818 — форма: колонка карточек с просветом 16. */
+  formGap: 16,
+  /**
+   * Карточка формы — узлы 3525:14819 / 14862 / 14898 / 14923: радиус 24,
+   * паддинг 26 сверху и 28 с остальных сторон. Просвет ВНУТРИ карточки у всех
+   * четырёх разный (24 / 16 / 20 / 20), поэтому он здесь не один: усреднение
+   * не попало бы ни в одну из четырёх.
+   */
+  card: {
+    radius: webRadius.xxl,
+    paddingTop: 26,
+    paddingX: 28,
+    paddingBottom: 28,
+    /** 3525:14820 — «заголовок → подпись» внутри шапки карточки. */
+    headerGap: 4,
+    titleFontSize: 21,
+    titleLineHeight: 28,
+    titleTracking: -0.2,
+    subtitleFontSize: 14,
+    subtitleLineHeight: 20,
+  },
+  /**
+   * 3525:14824 — блок времени: «строка даты → группы» через 14, между
+   * группами 16, внутри группы «подпись → ряд слотов» через 6, между слотами 8.
+   *
+   * Сам слот ЗДЕСЬ НЕ ОПИСАН: узел 3525:14832 (42 высотой, радиус 12, кегль
+   * 15/20 SemiBold, обводка в покое, фирменная заливка у выбранного, #E7E7E7
+   * у недоступного) — это в точности слот кита, то есть `webControls.slot` и
+   * размер `m` компонента `TimeSlot`. Второе описание того же элемента здесь
+   * было бы вторым источником правды.
+   */
+  slots: {
+    dateRowGap: 14,
+    groupsGap: 16,
+    groupGap: 6,
+    gridGap: 8,
+    columns: 4,
+    groupLabelFontSize: 14,
+    groupLabelLineHeight: 18,
+    /** 3525:14826 — «Вторник, 25 августа». */
+    dateFontSize: 16,
+    dateLineHeight: 24,
+  },
+  /**
+   * 3525:14870 — степпер гостей: 148×52, паддинг 6, радиус 14, подложка
+   * `background/subtle`; кнопки 40×40 радиуса 10 на `background/canvas`;
+   * поле значения 56 широкое, кегль 18/24 (значение SemiBold, знаки Medium).
+   */
+  stepper: {
+    height: 52,
+    padding: 6,
+    radius: webRadius.field,
+    buttonSize: 40,
+    buttonRadius: 10,
+    valueWidth: 56,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  /**
+   * 3525:14918 — чекбокс оферты: квадрат 20 радиуса 4, просвет до текста 12,
+   * текст 14/20 Regular `text/secondary`.
+   */
+  checkbox: { size: 20, radius: webRadius.checkbox, gap: 12 },
+  /**
+   * 3525:14927 — поле пожеланий: 96 высотой, радиус 12, паддинг 14/16,
+   * подложка `background/subtle` (не `canvas`, как у остальных полей).
+   */
+  textarea: { height: 96, radius: webRadius.md, paddingX: 16, paddingY: 14 },
+  /**
+   * 3525:14930 — чип быстрого пожелания: 34 высотой, паддинг 8/14, радиус
+   * полный, кегль 13/18 Medium. Это НЕ чип фильтра (3274:22: 38 высотой,
+   * паддинг 9/16, кегль 14/20 и обводка даже у невыбранного) — здесь у
+   * невыбранного обводки нет вовсе, а подложка `background/subtle`.
+   */
+  wishChip: { height: 34, paddingX: 14, fontSize: 13, lineHeight: 18, gap: 8 },
+  /**
+   * 3525:14940 — сводка справа: радиус 20, паддинг 24, просвет 18.
+   * Ширину задаёт колонка (`webVenuePage.asideWidth`).
+   */
+  summary: {
+    radius: webRadius.xl,
+    padding: 24,
+    gap: 18,
+    /** 3525:14941 — «фото → текст» и «название → адрес». */
+    venueGap: 14,
+    venueTextGap: 3,
+    photoSize: 64,
+    photoRadius: webRadius.field,
+    nameFontSize: 18,
+    nameLineHeight: 26,
+    /** 3525:14947 — строки «label / value» через 12: подпись 14/20 Regular
+     * `text/secondary`, значение 14/20 SemiBold `text/primary`. */
+    rowsGap: 12,
+    rowFontSize: 14,
+    rowLineHeight: 20,
+    /** 3525:14967 — «К оплате сейчас» 15/22 SemiBold и «0 ₸» 20/28 Bold. */
+    totalFontSize: 15,
+    totalLineHeight: 22,
+    totalValueFontSize: 20,
+    totalValueLineHeight: 28,
+    /** 3525:14970 — просвет между кнопками. */
+    actionsGap: 10,
+  },
+} as const;
+
+/**
+ * Страница «Бронь подтверждена» — узел `3525:15019` («WEB / 04b») того же
+ * файла. Разбор: `/home/tai/work/design-specs/web/spec-booking-confirmed.md`.
+ *
+ * ЧЕГО В МАКЕТЕ НЕТ: статус «ждёт подтверждения заведением», отмена брони,
+ * состояния загрузки и ошибки. QR нарисован 48 прямоугольниками — это не
+ * изображение и не компонент, код генерируется на фронте (`uqr`).
+ */
+export const webBookingTicket = {
+  /** 3525:15021 — содержимое страницы: паддинг 72 сверху и 96 снизу,
+   * блоки по центру через 32. */
+  contentPaddingTop: 72,
+  contentPaddingBottom: 96,
+  contentGap: 32,
+  /** 3525:15022 — блок успеха: 720 широкий, по центру, просвет 16. */
+  successWidth: 720,
+  successGap: 16,
+  /** 3525:15023 — кружок с галочкой: 76 радиуса 999, заливка
+   * `background/success`, сама галочка 44. */
+  successIcon: { size: 76, glyphSize: 44 },
+  /** 3525:15027 — подпись под заголовком: 17/26 Regular `text/secondary`. */
+  successTextFontSize: 17,
+  successTextLineHeight: 26,
+  /** 3525:15028 — карточка-билет: 720 широкая, радиус 24, обводка и тень. */
+  card: { width: 720, radius: webRadius.xxl },
+  /** 3525:15029 — шапка с фотографией: 180 высотой, содержимое прижато к
+   * низу, паддинг 28 по бокам и 24 снизу, «название → подпись» через 4. */
+  venueHeader: {
+    height: 180,
+    paddingX: 28,
+    paddingBottom: 24,
+    gap: 4,
+    nameFontSize: 28,
+    nameLineHeight: 36,
+    nameTracking: -0.4,
+    /** Затемнение под белым текстом. В макете шапка залита ФОТОГРАФИЕЙ плюс
+     * сплошным чёрным; без затемнения белое название на светлом снимке
+     * нечитаемо, поэтому градиент — часть токена, а не украшение. Тот же
+     * приём и те же стопы, что у карточки акции (`webVenuePage.promoCard`). */
+    scrim:
+      "linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.85) 100%)",
+  },
+  /** 3525:15032 — тело билета: паддинг 28, блоки через 24. */
+  body: { padding: 28, gap: 24 },
+  /** 3525:15034 — ячейка «Дата / Вт, 25 авг»: 72 высотой, радиус 14,
+   * паддинг 14/16, просвет 4; подпись 12/16 Medium трекинг 0.2, значение
+   * 17/24 SemiBold. Между ячейками 16. */
+  detail: {
+    height: 72,
+    radius: webRadius.field,
+    paddingX: 16,
+    paddingY: 14,
+    gap: 4,
+    rowGap: 16,
+    labelFontSize: 12,
+    labelLineHeight: 16,
+    labelTracking: 0.2,
+    valueFontSize: 17,
+    valueLineHeight: 24,
+  },
+  /** 3525:15047 — строка кода: QR 96 радиуса 12 с обводкой, до текста 20,
+   * в тексте просвет 4; «Код брони» 13/18 Medium, сам код 24/32 Bold с
+   * трекингом 1, подпись 13/18 Regular. */
+  code: {
+    qrSize: 96,
+    qrRadius: webRadius.md,
+    gap: 20,
+    textGap: 4,
+    /** «Код брони» — 13/18 MEDIUM (узел 3525:15100), а не Regular, как
+     * одноимённая по кеглю ступень `bodyS` шкалы кита. */
+    labelFontSize: 13,
+    labelLineHeight: 18,
+    valueFontSize: 24,
+    valueLineHeight: 32,
+    valueTracking: 1,
+  },
+  /**
+   * 3525:15104 — две кнопки в ряд через 10, каждая 48 высотой.
+   *
+   * Радиус в макете РАЗНЫЙ (14 у «Изменить бронь», 16 у «На главную») —
+   * спека называет это недосмотром, и обе кнопки здесь скруглены на 14
+   * (`webRadius.field`), как остальные кнопки этого потока.
+   */
+  actionsGap: 10,
+} as const;

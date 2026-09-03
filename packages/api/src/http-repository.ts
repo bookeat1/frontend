@@ -637,6 +637,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
         guests: input.guests,
         name: input.name,
         phone: input.phone,
+        email: input.email?.trim() ? input.email.trim() : undefined,
         notes: input.notes?.trim() ? input.notes.trim() : undefined,
       },
       { auth: true, headers: { "Idempotency-Key": idempotencyKey } },

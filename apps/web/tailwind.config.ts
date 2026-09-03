@@ -2,6 +2,8 @@ import type { Config } from "tailwindcss";
 import {
   webAppSection,
   webBookingCard,
+  webBookingFlow,
+  webBookingTicket,
   webCatalog,
   webColors,
   webControls,
@@ -76,6 +78,95 @@ const fontSize: Record<string, FontSizeEntry> = {
   "booking-cta-sub": [
     px(webBookingCard.cta.subtitleFontSize),
     { lineHeight: px(webBookingCard.cta.subtitleLineHeight), fontWeight: "400" },
+  ],
+  /**
+   * Страница бронирования (узел 3525:14815). Как и у карточки брони, своих
+   * ступеней в шкале кита у этих пар нет — они сняты с текстовых узлов самой
+   * страницы, поэтому утилиты собраны из `webBookingFlow`.
+   */
+  "flow-title": [
+    px(webBookingFlow.card.titleFontSize),
+    { lineHeight: px(webBookingFlow.card.titleLineHeight), fontWeight: "700" },
+  ],
+  "flow-subtitle": [
+    px(webBookingFlow.card.subtitleFontSize),
+    { lineHeight: px(webBookingFlow.card.subtitleLineHeight), fontWeight: "400" },
+  ],
+  /** «Вторник, 25 августа», «Количество гостей», «Зона посадки» — одна пара
+   * 16/24 SemiBold на все три строки-подзаголовка внутри карточек. */
+  "flow-row-title": [
+    px(webBookingFlow.slots.dateFontSize),
+    { lineHeight: px(webBookingFlow.slots.dateLineHeight), fontWeight: "600" },
+  ],
+  /** Подпись группы слотов «День» / «Вечер» (узел 3525:14830). */
+  "flow-slot-group": [
+    px(webBookingFlow.slots.groupLabelFontSize),
+    { lineHeight: px(webBookingFlow.slots.groupLabelLineHeight), fontWeight: "500" },
+  ],
+  /** Степпер гостей: значение SemiBold, знаки «−» и «+» Medium — в макете
+   * это РАЗНЫЕ начертания одного кегля (узлы 3525:14872 и 3525:14874), а
+   * утилита кегля несёт начертание с собой, поэтому пар две. */
+  "flow-stepper-value": [
+    px(webBookingFlow.stepper.fontSize),
+    { lineHeight: px(webBookingFlow.stepper.lineHeight), fontWeight: "600" },
+  ],
+  "flow-stepper-sign": [
+    px(webBookingFlow.stepper.fontSize),
+    { lineHeight: px(webBookingFlow.stepper.lineHeight), fontWeight: "500" },
+  ],
+  /** Чип быстрого пожелания (узел 3525:14930) — 13/18 Medium, не 14/20 как
+   * у чипа фильтра. */
+  "flow-wish": [
+    px(webBookingFlow.wishChip.fontSize),
+    { lineHeight: px(webBookingFlow.wishChip.lineHeight), fontWeight: "500" },
+  ],
+  /** Сводка справа (узел 3525:14940). */
+  "flow-summary-name": [
+    px(webBookingFlow.summary.nameFontSize),
+    { lineHeight: px(webBookingFlow.summary.nameLineHeight), fontWeight: "700" },
+  ],
+  "flow-summary-label": [
+    px(webBookingFlow.summary.rowFontSize),
+    { lineHeight: px(webBookingFlow.summary.rowLineHeight), fontWeight: "400" },
+  ],
+  "flow-summary-value": [
+    px(webBookingFlow.summary.rowFontSize),
+    { lineHeight: px(webBookingFlow.summary.rowLineHeight), fontWeight: "600" },
+  ],
+  "flow-total": [
+    px(webBookingFlow.summary.totalFontSize),
+    { lineHeight: px(webBookingFlow.summary.totalLineHeight), fontWeight: "600" },
+  ],
+  "flow-total-value": [
+    px(webBookingFlow.summary.totalValueFontSize),
+    { lineHeight: px(webBookingFlow.summary.totalValueLineHeight), fontWeight: "700" },
+  ],
+  /** Билет брони (узел 3525:15019). */
+  "ticket-lead": [
+    px(webBookingTicket.successTextFontSize),
+    { lineHeight: px(webBookingTicket.successTextLineHeight), fontWeight: "400" },
+  ],
+  "ticket-venue-name": [
+    px(webBookingTicket.venueHeader.nameFontSize),
+    { lineHeight: px(webBookingTicket.venueHeader.nameLineHeight), fontWeight: "700" },
+  ],
+  "ticket-detail-label": [
+    px(webBookingTicket.detail.labelFontSize),
+    { lineHeight: px(webBookingTicket.detail.labelLineHeight), fontWeight: "500" },
+  ],
+  "ticket-detail-value": [
+    px(webBookingTicket.detail.valueFontSize),
+    { lineHeight: px(webBookingTicket.detail.valueLineHeight), fontWeight: "600" },
+  ],
+  "ticket-code": [
+    px(webBookingTicket.code.valueFontSize),
+    { lineHeight: px(webBookingTicket.code.valueLineHeight), fontWeight: "700" },
+  ],
+  /** «Код брони» — 13/18 MEDIUM (узел 3525:15100), а не Regular, как
+   * одноимённая по кеглю ступень `bodyS`. */
+  "ticket-code-label": [
+    px(webBookingTicket.code.labelFontSize),
+    { lineHeight: px(webBookingTicket.code.labelLineHeight), fontWeight: "500" },
   ],
   /** Подпись кухни. Своей строки в ките у неё нет — кегль снят с самого
    * текстового узла (3254:9), поэтому утилита собрана из `webCuisineTile`. */
@@ -174,6 +265,10 @@ const config: Config = {
         /** Слот в сетке карточки брони — 10, а не 12 как у слота кита.
          * Узел 3525:14751. */
         "slot-grid": px(webBookingCard.slots.radius),
+        /** Кнопка «−»/«+» степпера гостей (узел 3525:14871) — 10 внутри
+         * оболочки радиуса 14. Совпадает по числу со слотом сетки, но это
+         * другой элемент другого экрана. */
+        "stepper-btn": px(webBookingFlow.stepper.buttonRadius),
       },
       boxShadow: {
         card: webShadow.card,
@@ -187,6 +282,8 @@ const config: Config = {
         "hero-scrim": webHero.scrim,
         "app-section": webAppSection.gradient,
         "promo-scrim": webVenuePage.promoCard.scrim,
+        /** Затемнение под белым названием в шапке билета (узел 3525:15029). */
+        "ticket-scrim": webBookingTicket.venueHeader.scrim,
       },
       spacing: {
         gutter: px(webLayout.gutter),
@@ -244,6 +341,27 @@ const config: Config = {
         "booking-field-x": px(webBookingCard.field.paddingX),
         "booking-field-y": px(webBookingCard.field.paddingY),
         "booking-cta-y": px(webBookingCard.cta.paddingY),
+        /** Карточка формы бронирования: 26 сверху, 28 с трёх сторон
+         * (узел 3525:14819). */
+        "flow-card-t": px(webBookingFlow.card.paddingTop),
+        "flow-card-x": px(webBookingFlow.card.paddingX),
+        "flow-card-b": px(webBookingFlow.card.paddingBottom),
+        "flow-stepper-p": px(webBookingFlow.stepper.padding),
+        "flow-textarea-x": px(webBookingFlow.textarea.paddingX),
+        "flow-textarea-y": px(webBookingFlow.textarea.paddingY),
+        "flow-wish-x": px(webBookingFlow.wishChip.paddingX),
+        "flow-summary-p": px(webBookingFlow.summary.padding),
+        /** Просветы сводки (узел 3525:14940): между блоками 18, «название →
+         * адрес» 3. В шкале Tailwind таких ступеней нет. */
+        "flow-summary-gap": px(webBookingFlow.summary.gap),
+        "flow-venue-text-gap": px(webBookingFlow.summary.venueTextGap),
+        "ticket-top": px(webBookingTicket.contentPaddingTop),
+        "ticket-bottom": px(webBookingTicket.contentPaddingBottom),
+        "ticket-body": px(webBookingTicket.body.padding),
+        "ticket-venue-x": px(webBookingTicket.venueHeader.paddingX),
+        "ticket-venue-b": px(webBookingTicket.venueHeader.paddingBottom),
+        "ticket-detail-x": px(webBookingTicket.detail.paddingX),
+        "ticket-detail-y": px(webBookingTicket.detail.paddingY),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -284,6 +402,17 @@ const config: Config = {
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
         "slot-grid": px(webBookingCard.slots.height),
         "booking-field-icon": px(webBookingCard.field.iconSize),
+        "flow-stepper": px(webBookingFlow.stepper.height),
+        "flow-stepper-btn": px(webBookingFlow.stepper.buttonSize),
+        "flow-textarea": px(webBookingFlow.textarea.height),
+        "flow-wish": px(webBookingFlow.wishChip.height),
+        "flow-checkbox": px(webBookingFlow.checkbox.size),
+        "flow-summary-photo": px(webBookingFlow.summary.photoSize),
+        "ticket-venue": px(webBookingTicket.venueHeader.height),
+        "ticket-detail": px(webBookingTicket.detail.height),
+        "ticket-icon": px(webBookingTicket.successIcon.size),
+        "ticket-icon-glyph": px(webBookingTicket.successIcon.glyphSize),
+        "ticket-qr": px(webBookingTicket.code.qrSize),
         page: px(webCatalog.pagination.size),
         logo: px(webHeader.logo.height),
       },
@@ -303,6 +432,13 @@ const config: Config = {
         "filters-rail": px(webCatalog.filtersCard.width),
         "wide-card-image": px(webCatalog.wideCard.imageWidth),
         "booking-field-icon": px(webBookingCard.field.iconSize),
+        "flow-stepper-btn": px(webBookingFlow.stepper.buttonSize),
+        "flow-stepper-value": px(webBookingFlow.stepper.valueWidth),
+        "flow-checkbox": px(webBookingFlow.checkbox.size),
+        "flow-summary-photo": px(webBookingFlow.summary.photoSize),
+        "ticket-icon": px(webBookingTicket.successIcon.size),
+        "ticket-icon-glyph": px(webBookingTicket.successIcon.glyphSize),
+        "ticket-qr": px(webBookingTicket.code.qrSize),
         page: px(webCatalog.pagination.size),
       },
       minHeight: {
@@ -315,6 +451,13 @@ const config: Config = {
         /** Мозаика 3261:33: 788 к 404 при просвете 8 — это НЕ 2/3 к 1/3.
          * Дроби держат пропорцию макета на любой ширине контейнера. */
         mosaic: `${webVenuePage.mosaic.mainWidth}fr ${webVenuePage.mosaic.sideWidth}fr`,
+        /** Ряд слотов страницы бронирования (узел 3525:14831) — четыре
+         * ячейки 177 при ширине 732 и просвете 8, то есть четыре равные
+         * колонки. Отдельно от `slots`: там четвёрка карточки брони. */
+        "flow-slots": `repeat(${webBookingFlow.slots.columns}, minmax(0, 1fr))`,
+        /** Четыре ячейки «Дата / Время / Гости / Зона» в билете
+         * (узел 3525:15033). */
+        "ticket-details": "repeat(4, minmax(0, 1fr))",
       },
       aspectRatio: {
         /** Карта в контактах (3264:69): 788×280. */
@@ -323,6 +466,9 @@ const config: Config = {
       maxWidth: {
         container: px(webLayout.containerWidth),
         modal: px(webLayout.modalWidth),
+        /** Блок успеха и карточка-билет — оба 720 (узлы 3525:15022 и
+         * 3525:15028). */
+        ticket: px(webBookingTicket.card.width),
       },
     },
   },

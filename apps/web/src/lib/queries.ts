@@ -10,6 +10,7 @@ import type {
   Amenity,
   Booking,
   CreateBookingInput,
+  RescheduleBookingInput,
   Cuisine,
   DayAvailability,
   EventSummary,
@@ -286,6 +287,70 @@ export function useCreateBooking() {
       // Слот, который заняла эта бронь, больше не свободен — всё, что лежит в
       // кэше по доступности этого заведения, стало неправдой.
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
+      // Страница «Бронь подтверждена» читает бронь по этому ключу: с ответом
+      // в кэше она открывается без второго запроса и без скелета.
+      client.setQueryData(["booking", booking.id], booking);
+    },
+  });
+}
+
+/**
+ * Одна бронь гостя (`GET /bookings/:id`) — источник данных страницы
+ * «Бронь подтверждена».
+ *
+ * КЛЮЧ БЕЗ ЛОКАЛИ: в ответе только время, числа и машинный статус, переводить
+ * нечего, а лишний ключ означал бы повторный запрос после переключения языка.
+ *
+ * Ходим ТОЛЬКО у вошедшего: ручка требует сессию и гостю без неё ответит 401.
+ * Пока сессия читается из хранилища (`isLoading`), не ходим тоже — иначе
+ * первый заход после перезагрузки страницы гарантированно ловит 401.
+ *
+ * 404 НЕ ПОВТОРЯЕМ: чужая или несуществующая бронь — это ответ, а не сбой
+ * связи, и три попытки подряд ничего не изменят.
+ */
+export function useBooking(bookingId: string): UseQueryResult<Booking> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: ["booking", bookingId],
+    queryFn: () => repository.getBooking(bookingId),
+    enabled: isApiConfigured && bookingId.length > 0 && signedIn && !isLoading,
+    retry: (failureCount, error) =>
+      failureCount < 1 &&
+      !(error instanceof Error && "status" in error && (error as { status?: number }).status === 404),
+  });
+}
+
+/**
+ * Перенос брони — другое время и/или число гостей (`PATCH /bookings/:id`).
+ *
+ * Это НЕ «отменить и создать заново»: у брони есть история, подтверждение
+ * заведения и уведомления, и пересоздание всё это обнуляет.
+ *
+ * ИДЕМПОТЕНТНОСТИ У ЭТОЙ РУЧКИ НЕТ. `POST /bookings` защищён заголовком
+ * `Idempotency-Key`, `PATCH /bookings/:id` — нет (см. `rescheduleBooking` в
+ * `packages/api/src/repository.ts`), поэтому единственный запрос в полёте
+ * обязан гарантировать ВЫЗЫВАЮЩИЙ. Экран делает это тем же способом, что и при
+ * создании: пока `isPending`, кнопка заблокирована, а изменения выбора
+ * отбрасываются.
+ *
+ * Повторов нет по той же причине, что и у создания: сеть могла оборваться
+ * ПОСЛЕ того, как сервер применил перенос.
+ */
+export interface RescheduleBookingVariables {
+  bookingId: string;
+  input: RescheduleBookingInput;
+}
+
+export function useRescheduleBooking() {
+  const client = useQueryClient();
+  return useMutation<Booking, unknown, RescheduleBookingVariables>({
+    mutationFn: ({ bookingId, input }) => repository.rescheduleBooking(bookingId, input),
+    onSuccess: (booking) => {
+      // Прежнее время освободилось, новое занято — всё, что лежит в кэше по
+      // доступности этого заведения, стало неправдой.
+      void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
+      // И сама бронь в кэше — тоже: страница успеха читает её по ключу ниже.
+      client.setQueryData(["booking", booking.id], booking);
     },
   });
 }
