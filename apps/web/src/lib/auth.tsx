@@ -6,6 +6,7 @@ import { RepositoryError, type AuthSession, type AuthUser } from "@bookeat/api/c
 import { useQueryClient } from "@tanstack/react-query";
 
 import { authRepository, setUnauthorizedHandler } from "@web/lib/api";
+import { clearAllBookingFormDrafts } from "@web/lib/booking-form-draft";
 import { forgetSessionScopedQueries } from "@web/lib/query-keys";
 import {
   browserStorage,
@@ -84,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // следующий вошедший в этой же вкладке — его избранное, и первый же клик
     // уходит на сервер уже от СВОЕГО имени.
     forgetSessionScopedQueries(queryClient);
+    // Черновик формы брони (имя, телефон, e-mail) — тоже данные прежнего
+    // гостя, и он сильнее профиля следующего: см. `clearAllBookingFormDrafts`.
+    clearAllBookingFormDrafts();
   }, [queryClient]);
 
   const refresh = useCallback(
@@ -167,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // И на ВХОДЕ тоже: выход мог случиться в другой вкладке, а этот кэш
       // живёт в памяти вкладки и `clearSession` его не касается.
       forgetSessionScopedQueries(queryClient);
+      clearAllBookingFormDrafts();
       storeSession(storage, session);
       setSignedIn(true);
       try {

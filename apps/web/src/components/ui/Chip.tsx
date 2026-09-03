@@ -19,24 +19,61 @@ import { cx } from "@web/lib/cx";
  *
  * Это настоящая <button> с `aria-pressed` — переключатель, а не ссылка:
  * скринридер должен объявлять, нажат чип или нет.
+ *
+ * ДВА РАЗМЕРА, ПОТОМУ ЧТО В МАКЕТЕ ИХ ДВА, и они не сводятся друг к другу:
+ *
+ *   `m`    — чип фильтра кита (узлы 3274:22/24/26): 38 высотой, паддинг 9/16,
+ *            кегль 14/20 Medium, обводка есть ВСЕГДА, даже у невыбранного;
+ *   `wish` — чип быстрого пожелания на странице бронирования (узлы
+ *            3525:14930…14938): 34 высотой, паддинг 8/14, кегль 13/18 Medium,
+ *            у невыбранного обводки НЕТ вовсе, а подложка `background/subtle`.
+ *
+ * Ни одно число из четырёх пар не совпадает, усреднение не попадает ни в один
+ * узел, а `className` снаружи здесь ненадёжен: у двух утилит одного свойства
+ * одинаковая специфичность, и побеждает та, что Tailwind сгенерировал позже.
  */
 export type ChipState = "default" | "active" | "selected";
+export type ChipSize = "m" | "wish";
 
 export interface ChipProps {
   children: ReactNode;
   state?: ChipState;
+  /** `m` — кит (3274:22), `wish` — пожелания к брони (3525:14930). */
+  size?: ChipSize;
   disabled?: boolean;
   onClick?: () => void;
   className?: string;
 }
 
-const states: Record<ChipState, string> = {
-  default: "bg-canvas text-ink-secondary border-line-control",
-  active: "bg-brand-subtle text-brand-text border-brand",
-  selected: "bg-brand text-ink-on-brand border-brand",
+const sizes: Record<ChipSize, string> = {
+  m: "h-chip px-chip-x text-[14px] leading-5",
+  wish: "h-flow-wish px-flow-wish-x text-flow-wish",
 };
 
-export function Chip({ children, state = "default", disabled = false, onClick, className }: ChipProps) {
+/** Покой у двух размеров нарисован по-разному вплоть до наличия обводки,
+ * поэтому таблица одна на пару «размер × состояние». Выбранные состояния
+ * совпадают, но повторены явно: одинаковыми они быть не обязаны. */
+const looks: Record<ChipSize, Record<ChipState, string>> = {
+  m: {
+    default: "bg-canvas text-ink-secondary border-line-control",
+    active: "bg-brand-subtle text-brand-text border-brand",
+    selected: "bg-brand text-ink-on-brand border-brand",
+  },
+  wish: {
+    default: "bg-subtle text-ink-secondary border-transparent",
+    active: "bg-brand-subtle text-brand-text border-brand",
+    selected: "bg-brand text-ink-on-brand border-brand",
+  },
+};
+
+export function Chip({
+  children,
+  state = "default",
+  size = "m",
+  disabled = false,
+  onClick,
+  className,
+}: ChipProps) {
   return (
     <button
       type="button"
@@ -46,11 +83,12 @@ export function Chip({ children, state = "default", disabled = false, onClick, c
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        "inline-flex h-chip shrink-0 items-center justify-center rounded-full px-chip-x",
-        "border text-[14px] font-medium leading-5 transition-colors",
+        "inline-flex shrink-0 items-center justify-center rounded-full",
+        "border font-medium transition-colors",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "disabled:cursor-not-allowed disabled:border-transparent disabled:bg-disabled disabled:text-ink-disabled",
-        states[state],
+        sizes[size],
+        looks[size][state],
         className,
       )}
     >

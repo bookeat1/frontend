@@ -173,17 +173,118 @@ export function nowTimeHhMm(now: Date = new Date()): string {
  * Тот же приём с UTC-полуночью, что и в `searchDateLabel`: дата без времени,
  * разобранная в поясе браузера, при печати в другом поясе съезжает на сутки.
  */
-export function bookingDateLabel(iso: string, locale: WebLocale): string | null {
+export type BookingDateStyle =
+  /** «25 августа» — подпись даты в карточке брони. */
+  | "dayMonth"
+  /** «Вторник, 25 августа» — строка даты на странице бронирования
+   * (узел 3525:14826). */
+  | "weekdayLong"
+  /** «Вт, 25 августа» — строка сводки (узел 3525:14950). */
+  | "weekdayShort"
+  /** «Вт, 25 авг» — ячейка билета (узел 3525:15036). */
+  | "weekdayCompact";
+
+const DATE_STYLE_OPTIONS: Record<BookingDateStyle, Intl.DateTimeFormatOptions> = {
+  dayMonth: { day: "numeric", month: "long" },
+  weekdayLong: { weekday: "long", day: "numeric", month: "long" },
+  weekdayShort: { weekday: "short", day: "numeric", month: "long" },
+  weekdayCompact: { weekday: "short", day: "numeric", month: "short" },
+};
+
+export function bookingDateLabel(
+  iso: string,
+  locale: WebLocale,
+  style: BookingDateStyle = "dayMonth",
+): string | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
   if (!match) return null;
   const [, year, month, day] = match;
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(INTL_TAG[locale], {
-    day: "numeric",
-    month: "long",
+  const text = new Intl.DateTimeFormat(INTL_TAG[locale], {
+    ...DATE_STYLE_OPTIONS[style],
     timeZone: "UTC",
-  }).format(date);
+  })
+    .format(date)
+    // «25 авг.» → «25 авг»: точку в макете не рисуют, а Intl её ставит.
+    .replace(/\.$/, "");
+  // Русский Intl печатает день недели со строчной («вторник, 25 августа»), а
+  // в макете он с прописной. Регистр меняем по правилам ЯЗЫКА, а не ASCII:
+  // «i» в турецком становится «İ», и `toUpperCase()` без локали это ломает.
+  return capitalize(text, locale);
+}
+
+function capitalize(text: string, locale: WebLocale): string {
+  if (!text) return text;
+  return text[0].toLocaleUpperCase(INTL_TAG[locale]) + text.slice(1);
+}
+
+/**
+ * Запасная зона заведения, когда сервер её не назвал.
+ *
+ * То же значение и та же причина, что в маппере доступности
+ * (`packages/api/src/http-mapping.ts`: `text(api.timezone) || "Asia/Almaty"`):
+ * весь каталог сегодня казахстанский, и «зона неизвестна» на практике значит
+ * «поле не приехало», а не «заведение в другом поясе».
+ */
+export const VENUE_TIMEZONE_FALLBACK = "Asia/Almaty";
+
+/**
+ * Момент времени — в СТЕННЫХ ЧАСАХ ЗАВЕДЕНИЯ.
+ *
+ * Зачем вообще: `Booking.startsAt` приходит в UTC («RFC3339 UTC as stored by
+ * the backend»), а гостю надо показать то время, на которое его ждут за
+ * столом. Печать через `new Date(...)` без зоны перевела бы момент в пояс
+ * БРАУЗЕРА, и гость, открывший ссылку из Берлина, увидел бы 16:30 у брони,
+ * которую ресторан называет 19:30. На телефоне такого не бывает (устройство
+ * стоит в том же поясе), а сайт открывают откуда угодно.
+ *
+ * Зону берём с заведения (`Restaurant.schedule.timezone` — это IANA-строка
+ * сервера, которой он же считал `open_now`). Битую или пустую подменяем
+ * запасной: `Intl` на неизвестной зоне БРОСАЕТ, и один кривой ответ сервера
+ * иначе уронил бы страницу целиком.
+ *
+ * `null` — момент не разобрали; вызывающий обязан не печатать «Invalid Date».
+ */
+export function venueWallClock(
+  iso: string,
+  timeZone: string | null | undefined,
+): { date: string; time: string } | null {
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return null;
+  const zone = (timeZone ?? "").trim();
+  return (zone ? partsIn(instant, zone) : null) ?? partsIn(instant, VENUE_TIMEZONE_FALLBACK);
+}
+
+function partsIn(instant: Date, timeZone: string): { date: string; time: string } | null {
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      // `hour12: false` в некоторых движках даёт «24:00» вместо «00:00»;
+      // `h23` — единственная запись, у которой полночь это ноль.
+      hourCycle: "h23",
+    }).formatToParts(instant);
+  } catch {
+    // Неизвестная зона — `Intl` бросает RangeError.
+    return null;
+  }
+  const at = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  const [year, month, day, hour, minute] = [
+    at("year"),
+    at("month"),
+    at("day"),
+    at("hour"),
+    at("minute"),
+  ];
+  if (!year || !month || !day || !hour || !minute) return null;
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` };
 }
 
 /**

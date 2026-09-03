@@ -162,6 +162,10 @@ export function repositoryStub(
     // доступность сама, и тест «запроса не было» должен иметь что проверять.
     getAvailability: vi.fn(async () => dayAvailability()),
     createBooking: vi.fn(async () => booking()),
+    // Страница «Бронь подтверждена» читает бронь по адресу, режим переноса
+    // (`?change=`) на странице бронирования зовёт `PATCH /bookings/:id`.
+    getBooking: vi.fn(async () => booking()),
+    rescheduleBooking: vi.fn(async () => booking()),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
 }

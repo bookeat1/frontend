@@ -4,6 +4,7 @@ import {
   formatForDisplay,
   formatNational,
   isComplete,
+  kzNationalDigits,
   nationalDigits,
   toE164,
 } from "@web/lib/phone";
@@ -52,5 +53,27 @@ describe("номер телефона (веб, только KZ)", () => {
   it("полным считается ровно десятизначный номер", () => {
     expect(isComplete("701869223")).toBe(false);
     expect(isComplete("7018692233")).toBe(true);
+  });
+
+  /** Обратный разбор — для номера, который уже ХРАНИТСЯ (профиль, бронь). */
+  describe("kzNationalDigits: из E.164 обратно в поле", () => {
+    it("казахстанский номер отдаёт десять национальных цифр", () => {
+      expect(kzNationalDigits("+77018692233")).toBe("7018692233");
+      expect(kzNationalDigits("+7 701 869-22-33")).toBe("7018692233");
+    });
+
+    it("ИНОСТРАННЫЙ номер — null, а не первые десять цифр с приклеенным «+7»", () => {
+      // Аккаунт из мобильного приложения с выбором страны. Раньше
+      // `nationalDigits` делал из него «4915112345», и бронь уходила с
+      // фальшивым «+74915112345».
+      expect(kzNationalDigits("+4915112345678")).toBeNull();
+      expect(nationalDigits("+4915112345678")).toBe("4915112345");
+    });
+
+    it("неполный, пустой и слишком длинный — тоже null", () => {
+      expect(kzNationalDigits("")).toBeNull();
+      expect(kzNationalDigits("+7701869223")).toBeNull();
+      expect(kzNationalDigits("+770186922334")).toBeNull();
+    });
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getDictionary } from "@bookeat/i18n";
 
-import { bookingDateLabel, searchDateLabel, slotDateIso, slotTimeLabel } from "@web/lib/format";
+import { bookingDateLabel, searchDateLabel, slotDateIso, slotTimeLabel, venueWallClock } from "@web/lib/format";
 
 /**
  * Подпись поля даты в панели поиска. Проверяем именно её, потому что нативное
@@ -76,5 +76,44 @@ describe("bookingDateLabel", () => {
 
   it("мусор на входе — null, а не «Invalid Date»", () => {
     expect(bookingDateLabel("25.08.2026", "ru")).toBeNull();
+  });
+});
+
+/**
+ * Четыре записи одной даты на потоке бронирования — по узлам макета:
+ * «Вторник, 25 августа» (3525:14826), «Вт, 25 августа» (3525:14950),
+ * «Вт, 25 авг» (3525:15036). Intl печатает день недели со строчной и ставит
+ * точку после «авг» — в макете ни того, ни другого.
+ */
+describe("bookingDateLabel — стили", () => {
+  it("день недели с прописной, сокращение без точки", () => {
+    expect(bookingDateLabel("2026-08-25", "ru", "weekdayLong")).toBe("Вторник, 25 августа");
+    expect(bookingDateLabel("2026-08-25", "ru", "weekdayShort")).toBe("Вт, 25 августа");
+    expect(bookingDateLabel("2026-08-25", "ru", "weekdayCompact")).toBe("Вт, 25 авг");
+  });
+});
+
+/**
+ * `Booking.startsAt` приходит в UTC; гостю показываются стенные часы
+ * ЗАВЕДЕНИЯ, а не браузера. Тесты идут в TZ=Asia/Almaty, поэтому чужой пояс
+ * берётся явно.
+ */
+describe("venueWallClock", () => {
+  it("переводит UTC в зону заведения", () => {
+    expect(venueWallClock("2026-08-25T14:30:00Z", "Asia/Almaty")).toEqual({ date: "2026-08-25", time: "19:30" });
+    expect(venueWallClock("2026-08-25T14:30:00Z", "Europe/Berlin")).toEqual({ date: "2026-08-25", time: "16:30" });
+  });
+
+  it("без зоны и на битой зоне берёт запасную Алматы, а не роняет страницу", () => {
+    expect(venueWallClock("2026-08-25T14:30:00Z", null)).toEqual({ date: "2026-08-25", time: "19:30" });
+    expect(venueWallClock("2026-08-25T14:30:00Z", "Nowhere/Land")).toEqual({ date: "2026-08-25", time: "19:30" });
+  });
+
+  it("полночь — «00:00» следующего числа, а не «24:00»", () => {
+    expect(venueWallClock("2026-08-25T19:00:00Z", "Asia/Almaty")).toEqual({ date: "2026-08-26", time: "00:00" });
+  });
+
+  it("мусор — null", () => {
+    expect(venueWallClock("завтра", "Asia/Almaty")).toBeNull();
   });
 });
