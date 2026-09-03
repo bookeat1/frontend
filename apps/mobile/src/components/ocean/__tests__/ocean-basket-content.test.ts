@@ -1,7 +1,12 @@
-import type { RestaurantSummary } from "@bookeat/api";
+import type { MenuSection, RestaurantSummary } from "@bookeat/api";
+import { getDictionary } from "@bookeat/i18n";
 import { describe, expect, it } from "vitest";
 import {
+  OCEAN_BASKET_INSTAGRAM,
+  OCEAN_SIGNATURE_DISHES,
+  findMenuDish,
   isOceanBasketVenue,
+  normalizeDishName,
   oceanPointName,
   spacedOut,
 } from "../ocean-basket-content";
@@ -78,5 +83,61 @@ describe("разрядка надписей", () => {
 
   it("пустая строка остаётся пустой, а не превращается в пробел", () => {
     expect(spacedOut("")).toBe("");
+  });
+});
+
+describe("инстаграм бренда", () => {
+  it("ведёт на настоящий аккаунт — oceanbasket.kz, с точкой", () => {
+    // До 2026-09-03 стояло «oceanbasketkz» — такой страницы в инстаграме нет.
+    expect(OCEAN_BASKET_INSTAGRAM).toBe("oceanbasket.kz");
+  });
+
+  it("подпись в словаре совпадает со ссылкой — во всех трёх языках", () => {
+    for (const locale of ["ru", "kk", "en"] as const) {
+      expect(getDictionary(locale).oceanBasket.instagramHandle, locale).toBe(
+        `@${OCEAN_BASKET_INSTAGRAM}`,
+      );
+    }
+  });
+});
+
+describe("блюда «Фирменного улова» в меню", () => {
+  const menu: MenuSection[] = [
+    {
+      title: "Платтеры",
+      dishes: [
+        { id: "p", name: "Full Deck Platter", description: "", priceMinor: 3_799_000, imageUrl: null, isAvailable: true },
+      ],
+    },
+    {
+      title: "Креветки",
+      dishes: [
+        { id: "k10", name: "King Креветки 10 шт", description: "", priceMinor: 2_239_000, imageUrl: null, isAvailable: true },
+        { id: "k6", name: "King  креветки 6 шт ", description: "", priceMinor: 1_509_000, imageUrl: null, isAvailable: true },
+      ],
+    },
+  ];
+
+  it("имена из привязки — ровно те, что в меню всех трёх точек (2026-09-03)", () => {
+    expect(OCEAN_SIGNATURE_DISHES.map((dish) => dish.menuName)).toEqual([
+      "Full Deck Platter",
+      "King Креветки 6 шт",
+    ]);
+  });
+
+  it("находит блюдо в любом разделе, не путая «6 шт» и «10 шт»", () => {
+    expect(findMenuDish(menu, "Full Deck Platter")?.id).toBe("p");
+    expect(findMenuDish(menu, "King Креветки 6 шт")?.id).toBe("k6");
+  });
+
+  it("сравнивает без регистра, лишних пробелов и разницы ё/е — так меню правят руками", () => {
+    expect(normalizeDishName("  King  КРЕВЕТКИ 6 шт ")).toBe("king креветки 6 шт");
+    expect(normalizeDishName("Ёрш")).toBe("ерш");
+    expect(findMenuDish(menu, "full deck platter")?.id).toBe("p");
+  });
+
+  it("блюда нет — undefined, а не ближайшее похожее", () => {
+    expect(findMenuDish(menu, "King Креветки 8 шт")).toBeUndefined();
+    expect(findMenuDish([], "Full Deck Platter")).toBeUndefined();
   });
 });

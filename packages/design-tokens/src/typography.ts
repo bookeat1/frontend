@@ -513,6 +513,21 @@ export const typography = {
     fontSize: 13,
     lineHeight: 16,
   },
+  /** Плашка «ПРОМО BOOKEAT x OCEAN BASKET» в шторке welcome drink
+   * (node 5012:5682) — Montserrat SemiBold 12 с разрядкой 12 % (1.44). */
+  brandPromoBadge: {
+    fontFamily: fontFamilies.montserratSemiBold,
+    fontSize: 12,
+    lineHeight: 15,
+    letterSpacing: 1.44,
+  },
+  /** Подписи шагов «1. Бронь через BookEat» в той же шторке (узлы
+   * 5012:5713…5012:5735) — Noto Sans SemiBold 12. */
+  brandSheetStepLabel: {
+    fontFamily: fontFamilies.notoSansSemiBold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
 
   /** Promo banner caption over the photo — the one place the design uses Inter. */
   bannerCaption: {
