@@ -243,7 +243,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingLeft: 9,
     paddingRight: 14,
-    gap: spacing.md,
+    // В макете просветы 8–10, не 12: на 360 dp каждые 4 pt решают, влезет ли
+    // «WELCOME DRINK» без многоточия.
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.brand2.accentBorder,
     backgroundColor: colors.brand2.welcomeSurface,
@@ -261,8 +263,10 @@ const styles = StyleSheet.create({
     color: colors.brand2.gold,
     // Надпись занимает всё, что осталось между значком и разделителем: у
     // казахской и английской строки длина своя, а плашка тянется от края до
-    // края.
-    flexShrink: 1,
+    // края. Но НЕ сжимается: фирменная строка не может стать «WELCOME DRI…».
+    // Когда места нет (360 dp, kk «Толығырақ»), ужимается второстепенное
+    // «Подробнее» ниже.
+    flexShrink: 0,
     flexGrow: 1,
   },
   /** Разделитель 1×18 золотом 50 % (node 3425:3947). */
@@ -274,5 +278,6 @@ const styles = StyleSheet.create({
   welcomeAction: {
     ...typography.brandPromoAction,
     color: colors.brand2.onNavy,
+    flexShrink: 1,
   },
 });
