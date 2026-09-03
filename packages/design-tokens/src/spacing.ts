@@ -526,36 +526,73 @@ export const brandPageLayout = {
  * ВЫСОТЫ, скругления и просветы, которые от ширины не зависят.
  */
 export const oceanPageLayout = {
-  /** Шапка (node 3425:3926) — 357 при статус-баре 0, как у `brandPageLayout`. */
-  heroHeight: 357,
+  /**
+   * Шапка (node 3425:3926) — 327 при статус-баре 0.
+   *
+   * БЫЛО 357: число сняли с ранней версии кадра. Пересчитано 2026-09-03 по
+   * сырому JSON узла (`absoluteBoundingBox` 390×327, нижние углы 24) — все
+   * дети шапки ниже приведены к тому же кадру: пилюля поднялась на 22,
+   * надпись и плашка промо — на 30, свечение осталось на месте.
+   */
+  heroHeight: 327,
+  /** Нижние углы шапки (node 3425:3926, `rectangleCornerRadii [0,0,24,24]`). */
+  heroBottomRadius: 24,
+  /** Боковые поля содержимого шапки — 24 с каждой стороны (контентный блок
+   * 5012:5189 — 342 при кадре 390). Ряд кнопок шире, у него поля 20. */
+  heroContentPaddingHorizontal: 24,
   /** Свечение за надписью (node 3425:3927) — круг 210, левый край на 90,
    * верхний на 145 от верха шапки. */
   heroGlowSize: 210,
   heroGlowLeft: 90,
   heroGlowTop: 145,
   /** Пилюля «КАРТА ПРИКЛЮЧЕНИЙ» (node 3425:3935) — 268×36, скругление 19,
-   * верх на 104. */
+   * верх на 82 (26 → панель 40 → 16). */
   heroPillWidth: 268,
   heroPillHeight: 36,
   heroPillRadius: 19,
-  heroPillTop: 104,
+  heroPillTop: 82,
   /** Надписи «Seafood» и «Expedition» (узлы 3425:3940, 3425:3941) — размеры
-   * НАРИСОВАННОГО (absoluteRenderBounds), потому что в коде это картинки, а не
-   * текст: шрифта Lobster в приложении нет. */
+   * и отступы НАРИСОВАННОГО (absoluteRenderBounds: 133.9×43.2 на y 144.5 и
+   * 185.3×48.1 на y 184.9), потому что в коде это картинки, а не текст:
+   * шрифта Lobster в приложении нет. */
   heroSeafoodWidth: 134,
   heroSeafoodHeight: 43,
-  heroSeafoodTop: 174.5,
+  heroSeafoodTop: 144.5,
   heroExpeditionWidth: 185,
   heroExpeditionHeight: 48,
-  heroExpeditionTop: 215,
+  heroExpeditionTop: 185,
   /** Плашка «WELCOME DRINK» (node 3425:3942) — 342×48, скругление 24, верх
-   * на 285, кружок значка 30, разделитель 1×18. */
+   * на 255 (низ на 303, до низа шапки 24), кружок значка 30, разделитель
+   * 1×18. */
   welcomeWidth: 342,
   welcomeHeight: 48,
   welcomeRadius: 24,
-  welcomeTop: 285,
+  welcomeTop: 255,
   welcomeIconCircle: 30,
   welcomeDividerHeight: 18,
+  /**
+   * ШТОРКА «WELCOME DRINK» (узел 5012:5670 в кадре 5012:5489, снято
+   * 2026-09-03): верхние углы 24, ручка 40×4 на 6 от верха, герой 170 со
+   * скруглением 24, плашка промо 32 со скруглением 15, карточка 82 со
+   * скруглением 24 и кружком значка 36, галочка 20, плитка шага 48 со
+   * скруглением 8, блок условий со скруглением 16.
+   */
+  welcomeSheetRadius: 24,
+  welcomeSheetHandleWidth: 40,
+  welcomeSheetHandleHeight: 4,
+  welcomeSheetHandleTop: 6,
+  /** В макете 170; +42 — крестик закрытия (40) с просветом (8) над плашкой промо
+   * вместо макетных 22 воздуха сверху, см. OceanWelcomeDrinkSheet. */
+  welcomeSheetHeroHeight: 212,
+  welcomeSheetPromoHeight: 32,
+  welcomeSheetPromoRadius: 15,
+  welcomeSheetCardMinHeight: 82,
+  welcomeSheetCardRadius: 24,
+  welcomeSheetCardIconCircle: 36,
+  welcomeSheetCheckSize: 20,
+  welcomeSheetStepTile: 48,
+  welcomeSheetStepTileRadius: 8,
+  welcomeSheetTermsRadius: 16,
   /** Карта-иллюстрация (node 3426:9633) — 240 высотой, скругление 22. */
   mapHeight: 240,
   mapRadius: 22,

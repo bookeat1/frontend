@@ -185,6 +185,28 @@ export const kk: LocaleOverride<Dictionary> = {
   oceanBasket: {
     heroEyebrow: "ШЫТЫРМАН ОҚИҒА КАРТАСЫ",
     welcomeDrink: "WELCOME DRINK",
+    welcomeDrinkAction: "Толығырақ",
+    welcomeDrinkA11y: "Welcome drink — акция туралы толығырақ",
+    welcomeSheet: {
+      promoBadge: "ПРОМО BOOKEAT x OCEAN BASKET",
+      title: "Welcome drink",
+      subtitle: "Бір бокал просекко немесе үй лимонады тегін",
+      includesTitle: "Не кіреді",
+      includes: [
+        "Бронь бойынша әр қонаққа 125 мл просекко немесе үй лимонады бір бокалдан",
+        "Отырғызылғаннан кейін бірден беріледі — күтусіз",
+        "Алматыдағы барлық Ocean Basket мейрамханаларында жарамды",
+      ],
+      stepsTitle: "Қалай алуға болады",
+      steps: ["1. BookEat арқылы брондаңыз", "2. Хостеске QR көрсетіңіз", "3. Бокалыңызды алыңыз"],
+      termsTitle: "Шарттар",
+      terms: [
+        "Тек BookEat арқылы расталған бронь болғанда",
+        "Келген күні жарамды, басқа акциялармен қосылмайды",
+        "Әр қонаққа 1 сусын · алкоголь 18+",
+        "Промо 31.12.2026 дейін жарамды",
+      ],
+    },
     mapTitle: "Өз олжаңды тап",
     mapAlt: "Алматыдағы Ocean Basket нүктелерінің салынған картасы",
     pointsTitle: "Барлық нүктелер",
@@ -196,10 +218,10 @@ export const kk: LocaleOverride<Dictionary> = {
     pointNumber: (index: number) => String(index + 1).padStart(2, "0"),
     dishesTitle: "Фирмалық олжа",
     dishesNote: "мәзір хиттері",
-    dishes: [
-      { name: "Full Deck Platter", price: "37\u00A0990 ₸ · компанияға" },
-      { name: "King Асшаяндар", price: "15\u00A0090 ₸ бастап · 6 дана" },
-    ],
+    dishesLoading: "Мәзірді жүктеп жатырмыз…",
+    dishesError: "Мәзір жүктелмеді",
+    dishMissing: "Мекеме мәзірінен қараңыз",
+    dishOpen: (name: string) => `«${name}» тағамын ашу`,
     storyEyebrow: "БРЕНД ТАРИХЫ",
     storyTitleLead: "ОАР жағажайынан",
     storyTitleTail: "Алматы мен Астанаға дейін",
@@ -211,15 +233,33 @@ export const kk: LocaleOverride<Dictionary> = {
           "Мұхит жағасындағы шағын дүкен. Балғын балық, зәйтүн майы, лимон және " +
           "жерорта теңізі дәмдеуіштері — 30 жыл бойы жұмыс істеп келе жатқан формула.",
       },
-      { label: "2-ТАРАУ · ӘЛЕМНІҢ 14 ЕЛІ", title: "Шекарасыз мұхит", body: "" },
-      { label: "3-ТАРАУ · АЛМАТЫ · ҚАЗАҚСТАН", title: "ҚР-дағы алғашқы нүкте", body: "" },
-      { label: "4-ТАРАУ · 3 НҮКТЕ · АЛМАТЫ", title: "Әр ауданда мұхит", body: "" },
+      {
+        label: "2-ТАРАУ · ӘЛЕМНІҢ 14 ЕЛІ",
+        title: "Шекарасыз мұхит",
+        body:
+          "Йоханнесбургтен Дубайға, Лондоннан Найробиге дейін — барлық жерде сол " +
+          "платтерлер, сол дәмдеуіштер, сол мінез.",
+      },
+      {
+        label: "3-ТАРАУ · АЛМАТЫ · ҚАЗАҚСТАН",
+        title: "ҚР-дағы алғашқы нүкте",
+        body:
+          "Dostyk Plaza-да ашылу. Алматылықтар нағыз Seafood Platter мен " +
+          "Calamari Grill-ді алғаш рет дәм татады.",
+      },
+      {
+        label: "4-ТАРАУ · 3 НҮКТЕ · АЛМАТЫ",
+        title: "Әр ауданда мұхит",
+        body:
+          "Сол платтерлер, сол дәмдеуіштер, сол мұхит — енді қол жетімді жерде. " +
+          "Әр тәрелке — кішкентай саяхат.",
+      },
     ],
     chapterExpand: (title: string) => `«${title}» тарауын ашу`,
     chapterCollapse: (title: string) => `«${title}» тарауын жабу`,
     closingEyebrow: "ЖАЛҒАСЫ БАР",
     closingTitle: "…сенің тәрелкеңде",
-    instagramHandle: "@oceanbasketkz",
+    instagramHandle: "@oceanbasket.kz",
     instagramNote: "Олжаңды көрсет · #BookEatOcean",
     instagramA11y: "Ocean Basket инстаграмын ашу",
     ctaEyebrow: "ОЛЖАҒА ДАЙЫНСЫҢ БА?",

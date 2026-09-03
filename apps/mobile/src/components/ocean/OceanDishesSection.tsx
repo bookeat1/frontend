@@ -1,10 +1,14 @@
 import { colors, oceanPageLayout, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Image } from "expo-image";
-import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { dishCardFromMenuDish, type DishCardItem } from "../../lib/dish-card";
+import { formatMoneyMinor } from "../../lib/format";
+import { DishDetailSheet } from "../restaurant/DishDetailSheet";
+import { OCEAN_SIGNATURE_DISHES } from "./ocean-basket-content";
 import { OceanSectionHeader } from "./OceanSectionHeader";
-import { oceanDishPhotos } from "./ocean-basket-content";
+import type { OceanSignatureDishesState } from "./use-ocean-signature-dishes";
 
 const t = getDictionary();
 
@@ -13,20 +17,31 @@ const t = getDictionary();
  * заголовок с подписью «хиты меню» и ряд карточек блюда (фотография 108,
  * название, цена).
  *
- * БЛЮДА ЗАШИТЫ В КОД вместе с ценами — решение владельца 2026-09-01. Это
- * значит ровно то, что написано: карточка не связана с меню заведения, id
- * блюда у неё нет, и цена не обновится сама. Когда в Ocean Basket поменяется
- * прайс, эти две строки придётся править разработчику.
+ * С 2026-09-03 КАРТОЧКИ ЖИВЫЕ. Название и цена — из меню первой точки бренда
+ * (`useOceanSignatureDishes`), а не из словаря: зашитая цена разъезжалась бы
+ * с меню при первой же смене прайса. Из макета остались только фотографии и
+ * имя, по которому блюдо ищется (`OCEAN_SIGNATURE_DISHES`).
  *
- * КАРТОЧКА НЕ НАЖИМАЕТСЯ, и строки «Тапните блюдо — оформим предзаказ к столу»
- * (node 3441:12382) здесь НЕТ. Предзаказ в приложении начинается с брони
- * конкретного заведения и требует настоящий `menu_item_id`; у зашитого блюда
- * его нет. Нарисованная строка обещала бы гостю оформление заказа, которого не
- * произойдёт, — это ровно тот случай, когда макет повторять нельзя. Как только
- * блок начнёт приходить из API с идентификаторами блюд, строка и переход
- * возвращаются вместе.
+ * НАЖАТИЕ ОТКРЫВАЕТ КАРТОЧКУ БЛЮДА — ту же `DishDetailSheet`, что на экране
+ * меню и в ленте «Популярное в меню». Без «Добавить»: предзаказ начинается с
+ * брони конкретной точки, а страница общая для бренда. Строки «Тапните
+ * блюдо — оформим предзаказ к столу» (node 3441:12382) по-прежнему НЕТ —
+ * предзаказа отсюда нет.
+ *
+ * ЧЕТЫРЕ СОСТОЯНИЯ живут ВНУТРИ карточки, а не вместо ряда: фотография из
+ * макета есть всегда, меняется только подпись под ней. Загрузка —
+ * «Загружаем меню…», ошибка — «Меню не загрузилось» с повтором по нажатию,
+ * блюдо не нашлось в меню — «Ищите в меню заведения» и карточка не кнопка.
  */
-export function OceanDishesSection({ contentPadding }: { contentPadding: number }) {
+export function OceanDishesSection({
+  contentPadding,
+  state,
+}: {
+  contentPadding: number;
+  state: OceanSignatureDishesState;
+}) {
+  const [openedDish, setOpenedDish] = useState<DishCardItem | null>(null);
+
   return (
     <View style={styles.section}>
       <OceanSectionHeader
@@ -45,26 +60,105 @@ export function OceanDishesSection({ contentPadding }: { contentPadding: number 
         style={{ marginHorizontal: -contentPadding }}
         contentContainerStyle={[styles.rail, { paddingHorizontal: contentPadding }]}
       >
-        {t.oceanBasket.dishes.map((dish, index) => (
-          <View key={dish.name} style={styles.card}>
-            <Image
-              source={oceanDishPhotos[index]}
-              style={styles.photo}
-              contentFit="cover"
-              accessibilityLabel={dish.name}
-            />
-            <View style={styles.body}>
-              <Text style={styles.name} numberOfLines={2}>
-                {dish.name}
-              </Text>
-              <Text style={styles.price} numberOfLines={1}>
-                {dish.price}
-              </Text>
-            </View>
-          </View>
+        {OCEAN_SIGNATURE_DISHES.map((signature, index) => (
+          <OceanDishCard
+            key={signature.menuName}
+            photo={signature.photo}
+            state={state}
+            index={index}
+            onOpen={setOpenedDish}
+          />
         ))}
       </ScrollView>
+
+      {/* Карточка читательская: `canAdd={false}`, поэтому `onAdd` не зовётся
+          никогда — предзаказ начинается с брони конкретной точки. */}
+      <DishDetailSheet
+        dish={openedDish}
+        canAdd={false}
+        onAdd={() => {}}
+        onClose={() => setOpenedDish(null)}
+      />
     </View>
+  );
+}
+
+function OceanDishCard({
+  photo,
+  state,
+  index,
+  onOpen,
+}: {
+  photo: number;
+  state: OceanSignatureDishesState;
+  index: number;
+  onOpen: (dish: DishCardItem) => void;
+}) {
+  const dish = state.status === "ready" ? state.dishes[index] : undefined;
+
+  const picture = <Image source={photo} style={styles.photo} contentFit="cover" />;
+
+  if (state.status === "loading") {
+    return (
+      <View style={styles.card} accessibilityState={{ busy: true }}>
+        {picture}
+        <View style={styles.body}>
+          <Text style={styles.note}>{t.oceanBasket.dishesLoading}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t.common.retry}
+        onPress={state.retry}
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      >
+        {picture}
+        <View style={styles.body}>
+          <Text style={styles.note}>{t.oceanBasket.dishesError}</Text>
+          <Text style={styles.retry}>{t.common.retry}</Text>
+        </View>
+      </Pressable>
+    );
+  }
+
+  if (!dish) {
+    // Блюда с таким именем в меню нет: карточка остаётся — с фотографией и
+    // нейтральной подписью — но не кнопка: открывать ей нечего.
+    return (
+      <View style={styles.card}>
+        {picture}
+        <View style={styles.body}>
+          <Text style={styles.note}>{t.oceanBasket.dishMissing}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const price =
+    dish.priceMinor === null ? t.restaurant.menuDishNoPrice : formatMoneyMinor(dish.priceMinor);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.oceanBasket.dishOpen(dish.name)}
+      onPress={() => onOpen(dishCardFromMenuDish(dish))}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
+      {picture}
+      <View style={styles.body}>
+        <Text style={styles.name} numberOfLines={2}>
+          {dish.name}
+        </Text>
+        <Text style={styles.price} numberOfLines={1}>
+          {price}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -83,6 +177,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.surface,
     overflow: "hidden",
   },
+  pressed: {
+    opacity: 0.8,
+  },
   photo: {
     width: "100%",
     height: oceanPageLayout.dishPhotoHeight,
@@ -98,5 +195,15 @@ const styles = StyleSheet.create({
   price: {
     ...typography.brandDishPrice,
     color: colors.brand2.navy,
+  },
+  /** Подпись состояния на месте названия — тем же кеглем, но приглушённо:
+   * это не блюдо, а сообщение о нём. */
+  note: {
+    ...typography.brandDishName,
+    color: colors.brand2.muted,
+  },
+  retry: {
+    ...typography.brandDishPrice,
+    color: colors.brand2.goldMuted,
   },
 });

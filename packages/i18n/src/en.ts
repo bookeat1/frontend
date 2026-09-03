@@ -182,6 +182,28 @@ export const en: LocaleOverride<Dictionary> = {
   oceanBasket: {
     heroEyebrow: "ADVENTURE MAP",
     welcomeDrink: "WELCOME DRINK",
+    welcomeDrinkAction: "Details",
+    welcomeDrinkA11y: "Welcome drink — promo details",
+    welcomeSheet: {
+      promoBadge: "PROMO BOOKEAT x OCEAN BASKET",
+      title: "Welcome drink",
+      subtitle: "A free glass of prosecco or homemade lemonade",
+      includesTitle: "What you get",
+      includes: [
+        "1 glass of prosecco (125 ml) or homemade lemonade for every guest in the booking",
+        "Served right after you are seated — no waiting",
+        "Valid at every Ocean Basket restaurant in Almaty",
+      ],
+      stepsTitle: "How to get it",
+      steps: ["1. Book through BookEat", "2. Show the QR to the host", "3. Enjoy your glass"],
+      termsTitle: "Terms",
+      terms: [
+        "Only with a confirmed booking through BookEat",
+        "Valid on the day of the visit, cannot be combined with other offers",
+        "1 drink per guest · 18+ for alcohol",
+        "The promo runs until 31.12.2026",
+      ],
+    },
     mapTitle: "Find your catch",
     mapAlt: "Illustrated map of Ocean Basket locations in Almaty",
     pointsTitle: "All locations",
@@ -193,10 +215,10 @@ export const en: LocaleOverride<Dictionary> = {
     pointNumber: (index: number) => String(index + 1).padStart(2, "0"),
     dishesTitle: "Signature catch",
     dishesNote: "menu hits",
-    dishes: [
-      { name: "Full Deck Platter", price: "37\u00A0990 ₸ · for the table" },
-      { name: "King Prawns", price: "from 15\u00A0090 ₸ · 6 pcs" },
-    ],
+    dishesLoading: "Loading the menu…",
+    dishesError: "The menu didn't load",
+    dishMissing: "See the venue's menu",
+    dishOpen: (name: string) => `Open the "${name}" dish`,
     storyEyebrow: "BRAND STORY",
     storyTitleLead: "From a beach in South Africa",
     storyTitleTail: "to Almaty and Astana",
@@ -208,15 +230,33 @@ export const en: LocaleOverride<Dictionary> = {
           "A small shop by the ocean. Fresh fish, olive oil, lemon and " +
           "Mediterranean spices — a formula that has worked for 30 years.",
       },
-      { label: "CHAPTER 2 · 14 COUNTRIES", title: "An ocean without borders", body: "" },
-      { label: "CHAPTER 3 · ALMATY · KAZAKHSTAN", title: "The first spot in Kazakhstan", body: "" },
-      { label: "CHAPTER 4 · 3 SPOTS · ALMATY", title: "An ocean in every district", body: "" },
+      {
+        label: "CHAPTER 2 · 14 COUNTRIES",
+        title: "An ocean without borders",
+        body:
+          "From Johannesburg to Dubai, from London to Nairobi — the same platters, " +
+          "the same spices, the same character everywhere.",
+      },
+      {
+        label: "CHAPTER 3 · ALMATY · KAZAKHSTAN",
+        title: "The first spot in Kazakhstan",
+        body:
+          "The opening at Dostyk Plaza. Almaty tastes a real Seafood Platter " +
+          "and Calamari Grill for the first time.",
+      },
+      {
+        label: "CHAPTER 4 · 3 SPOTS · ALMATY",
+        title: "An ocean in every district",
+        body:
+          "The same platters, the same spices, the same ocean — now within walking " +
+          "distance. Every plate is a small journey.",
+      },
     ],
     chapterExpand: (title: string) => `Expand the "${title}" chapter`,
     chapterCollapse: (title: string) => `Collapse the "${title}" chapter`,
     closingEyebrow: "TO BE CONTINUED",
     closingTitle: "…on your plate",
-    instagramHandle: "@oceanbasketkz",
+    instagramHandle: "@oceanbasket.kz",
     instagramNote: "Show us your catch · #BookEatOcean",
     instagramA11y: "Open the Ocean Basket Instagram",
     ctaEyebrow: "READY FOR THE CATCH?",
