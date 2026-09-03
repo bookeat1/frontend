@@ -581,7 +581,9 @@ export const oceanPageLayout = {
   welcomeSheetHandleWidth: 40,
   welcomeSheetHandleHeight: 4,
   welcomeSheetHandleTop: 6,
-  welcomeSheetHeroHeight: 170,
+  /** В макете 170; +42 — крестик закрытия (40) с просветом (8) над плашкой промо
+   * вместо макетных 22 воздуха сверху, см. OceanWelcomeDrinkSheet. */
+  welcomeSheetHeroHeight: 212,
   welcomeSheetPromoHeight: 32,
   welcomeSheetPromoRadius: 15,
   welcomeSheetCardMinHeight: 82,

@@ -1,8 +1,17 @@
-import { colors, oceanPageLayout, spacing, typography } from "@bookeat/design-tokens";
+import { brandPageLayout, colors, oceanPageLayout, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheetAnimation } from "../../lib/sheet-animation";
 import { BrandHeroControl } from "../articles/BrandHero";
@@ -29,7 +38,12 @@ const t = getDictionary();
  *     кнопки, ни крестика. Закрытие одним жестом — ловушка для части людей
  *     (скринридер, моторика, просто не догадался), поэтому крестик есть:
  *     поверх героя, как кнопки поверх шапки страницы. Тап по затемнению и
- *     системная «назад» тоже закрывают.
+ *     системная «назад» тоже закрывают. Место под крестик в макете не
+ *     предусмотрено, поэтому содержимое героя (плашка промо и карточка)
+ *     опущено ПОД него: на 360 dp плашка «ПРОМО BOOKEAT x OCEAN BASKET»
+ *     доходит до ≈ 315, а крестик начинается на 304 — в одной строке они
+ *     пересекались, и hitSlop крестика съедал тапы по хвосту плашки. Герой
+ *     из-за этого выше макетных 170 на высоту кнопки с просветом.
  *   • ЗАГОЛОВОК ВТОРОГО БЛОКА. В макете он повторяет «Что входит» — ошибка
  *     копирования; здесь «Как получить» (`welcomeSheet.stepsTitle`).
  *   • «Welcome drink» в карточке набрано Lobster 24 — шрифта в приложении
@@ -50,7 +64,11 @@ export function OceanWelcomeDrinkSheet({
   onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { mounted, progress, translateY } = useSheetAnimation(visible);
+  // Шторка ≈ 743 pt на iPhone — выше общего хода 640, поэтому ход задаём сами:
+  // панель ограничена 90 % окна и высоты окна ей хватает всегда. С ходом 640 на
+  // экранах от 780 pt верх (ручка, крестик, плашка) торчал бы из-под низа.
+  const { height: windowHeight } = useWindowDimensions();
+  const { mounted, progress, translateY } = useSheetAnimation(visible, windowHeight);
 
   if (!mounted) return null;
 
@@ -195,9 +213,10 @@ const STEP_ICON_COLORS: readonly string[] = [
 const CLOSE_TOP = 16;
 /** Низ листа в макете — 27 (node 5012:5691, паддинг B27). */
 const SHEET_BOTTOM_PADDING = 27;
-/** Верх содержимого героя: ручка 6+4, затем воздух до плашки промо
- * (в макете контейнер 126 при герое 170 — 22 сверху и снизу). */
-const HERO_CONTENT_TOP = 22;
+/** Верх содержимого героя. В макете — 22 (контейнер 126 при герое 170, по 22
+ * сверху и снизу), но у нас над плашкой промо стоит крестик (16 + 40), и плашка
+ * начинается под ним с просветом 8, чтобы на 360 dp они не пересекались. */
+const HERO_CONTENT_TOP = CLOSE_TOP + brandPageLayout.heroControlSize + spacing.sm;
 
 const styles = StyleSheet.create({
   root: {

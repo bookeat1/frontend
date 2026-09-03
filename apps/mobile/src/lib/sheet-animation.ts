@@ -14,9 +14,14 @@ import { Animated, Easing } from "react-native";
  * по visible=false, она исчезнет мгновенно и весь смысл плавности пропадёт.
  */
 
-/** Насколько панель уезжает вниз в закрытом состоянии. Заведомо больше высоты
- * любой нашей шторки: точная высота неизвестна до замера, а недоезд оставил бы
- * полоску видимой на закрытом экране. */
+/** Насколько панель уезжает вниз в закрытом состоянии по умолчанию. Больше
+ * высоты шести шторок приложения (все ниже 640): точная высота неизвестна до
+ * замера, а недоезд оставил бы полоску видимой на закрытом экране.
+ *
+ * Шторка, которая может быть выше (у Welcome drink ≈ 743 при `maxHeight: 90%`),
+ * ОБЯЗАНА передать свой `travel` — иначе на экранах от 780 pt её верх торчит
+ * из-под низа при открытии и исчезает рывком при закрытии (ревью PR #118,
+ * п. 1.1). Проще всего отдать высоту окна: панель не бывает выше окна. */
 export const SHEET_TRAVEL = 640;
 
 const OPEN_MS = 260;
@@ -31,7 +36,12 @@ export interface SheetAnimation {
   translateY: Animated.AnimatedInterpolation<number>;
 }
 
-export function useSheetAnimation(visible: boolean): SheetAnimation {
+/**
+ * @param travel Ход панели вниз в закрытом состоянии, pt. Должен быть НЕ МЕНЬШЕ
+ *   фактической высоты панели. По умолчанию `SHEET_TRAVEL`; значения ниже него
+ *   не принимаются — меньший ход никогда не нужен, а недоезд виден гостю.
+ */
+export function useSheetAnimation(visible: boolean, travel: number = SHEET_TRAVEL): SheetAnimation {
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
 
@@ -53,7 +63,7 @@ export function useSheetAnimation(visible: boolean): SheetAnimation {
 
   const translateY = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [SHEET_TRAVEL, 0],
+    outputRange: [Math.max(travel, SHEET_TRAVEL), 0],
   });
 
   return { mounted, progress, translateY };
