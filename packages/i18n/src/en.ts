@@ -182,8 +182,6 @@ export const en: LocaleOverride<Dictionary> = {
   oceanBasket: {
     heroEyebrow: "ADVENTURE MAP",
     welcomeDrink: "WELCOME DRINK",
-    welcomeDrinkAction: "Learn more",
-    welcomeDrinkA11y: "Welcome drink, learn more — jump to the list of locations",
     mapTitle: "Find your catch",
     mapAlt: "Illustrated map of Ocean Basket locations in Almaty",
     pointsTitle: "All locations",
@@ -192,7 +190,6 @@ export const en: LocaleOverride<Dictionary> = {
     pointsErrorDescription: "Check your connection and try again",
     pointsEmptyTitle: "No locations yet",
     pointsEmptyDescription: "Ocean Basket isn't in the catalogue. Please check back later.",
-    venueTag: "Welcome drink",
     pointNumber: (index: number) => String(index + 1).padStart(2, "0"),
     dishesTitle: "Signature catch",
     dishesNote: "menu hits",

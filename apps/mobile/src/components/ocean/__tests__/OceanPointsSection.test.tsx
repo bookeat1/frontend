@@ -15,6 +15,11 @@ const t = getDictionary();
  * ровно поэтому её состояния нельзя пропустить: остальное лежит в сборке и
  * рисуется всегда. Проверяются все четыре исхода и то, ради чего секция
  * существует, — переход на экран заведения.
+ *
+ * И отдельно — ЧЕГО НА КАРТОЧКЕ БЫТЬ НЕ ДОЛЖНО: значка «Welcome drink»
+ * (node 3441:12296). На карточке конкретного заведения он читается как
+ * гарантия этого заведения, а акции нет ни в каталоге, ни в брони; заведение
+ * о ней не знает. Снят 2026-09-01 по решению владельца.
  */
 
 function venue(id: string, name: string): RestaurantSummary {
@@ -106,6 +111,28 @@ describe("секция «Все точки»", () => {
     // Номера точек из макета — «01», «02».
     expect(screen.getByText("01")).toBeTruthy();
     expect(screen.getByText("02")).toBeTruthy();
+  });
+
+  it("на карточке точки нет значка акции welcome drink", () => {
+    render(
+      <OceanPointsSection
+        query={query({ data: VENUES })}
+        contentPadding={16}
+        onOpenVenue={vi.fn()}
+      />,
+    );
+
+    // Ни надписи (ищем ВСЕ совпадения: карточек в ленте несколько, и
+    // `queryByText` на двух пилюлях бросил бы «Found multiple» вместо
+    // внятного «их не должно быть ни одной»)…
+    expect(screen.queryAllByText(/welcome\s*drink/i)).toHaveLength(0);
+    // …ни подарочного значка, который её сопровождал. Шапки здесь нет,
+    // поэтому единственным источником такого значка была бы карточка.
+    expect(document.querySelector('[data-testid="icon-Gift"]')).toBeNull();
+    // Остальная карточка на месте: номер, город, имя.
+    expect(screen.getByText("01")).toBeTruthy();
+    expect(screen.getAllByText("АЛМАТЫ")).toHaveLength(2);
+    expect(screen.getByText("Panfilova")).toBeTruthy();
   });
 
   it("нажатие на карточку открывает ЭТО заведение", () => {
