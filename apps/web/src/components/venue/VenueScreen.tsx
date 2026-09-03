@@ -614,6 +614,12 @@ function PromoSection({ venue }: { venue: Restaurant }) {
  */
 type SocialChannel = { key: keyof NonNullable<Restaurant["social"]>; href: string; label: string };
 
+function socialChannelTitle(channel: SocialChannel): string {
+  if (channel.key === "instagram") return instagramHandle(channel.href) ?? channel.label;
+  if (channel.key === "website") return websiteHost(channel.href) ?? channel.label;
+  return channel.label;
+}
+
 function Contacts({ venue }: { venue: Restaurant }) {
   const t = useT();
   const mapUrl =
@@ -628,13 +634,12 @@ function Contacts({ venue }: { venue: Restaurant }) {
     if (href) channels.push({ key, href, label: t.web.venue.contacts.channel[key] });
   }
   // Заголовок плашки (узел 3525:14728 «flourdemi.kz») — имя аккаунта
-  // Instagram; без Instagram — домен сайта; остался один WhatsApp — его имя.
+  // Instagram; если первый канал — сайт, его домен; иначе имя канала.
+  // Домен сайта НЕЛЬЗЯ подставлять под ссылку Instagram без разбираемого
+  // ника: гость нажимал бы «dastarkhan.kz» и попадал в Instagram (ревью PR
+  // #119, п. 2.2). Заголовок всегда описывает то, куда ведёт `primary.href`.
   const primary: SocialChannel | undefined = channels[0];
-  const primaryTitle = primary
-    ? (primary.key === "instagram" ? instagramHandle(primary.href) : null) ??
-      (venue.social?.website ? websiteHost(venue.social.website) : null) ??
-      primary.label
-    : null;
+  const primaryTitle = primary ? socialChannelTitle(primary) : null;
   const phoneNote = venue.phone ? phoneHoursNote(venue.schedule, t) : null;
 
   const hasAnything = venue.address.trim() || venue.phone || channels.length > 0;

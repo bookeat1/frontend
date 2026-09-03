@@ -81,7 +81,21 @@ describe("scheduleStatus", () => {
 
 describe("uniformDailyHours", () => {
   it("семь одинаковых дней — одно окно", () => {
-    expect(uniformDailyHours(everyDay())).toEqual({ opensAt: "12:00", closesAt: "23:00" });
+    expect(uniformDailyHours(everyDay())).toEqual({
+      opensAt: "12:00",
+      closesAt: "23:00",
+      closesNextDay: false,
+    });
+  });
+
+  // Окно обязано нести closesNextDay: без него подпись под телефоном не отличит
+  // «до 02:00» от «до 02:00 следующего дня» и соврёт гостю ночного заведения.
+  it("семь одинаковых ночных дней — окно помечено переходом через полночь", () => {
+    expect(uniformDailyHours(everyDay({ closesAt: "02:00", closesNextDay: true }))).toEqual({
+      opensAt: "12:00",
+      closesAt: "02:00",
+      closesNextDay: true,
+    });
   });
 
   it("один день другой или неизвестен — null", () => {
