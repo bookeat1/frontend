@@ -15,7 +15,7 @@ import { isNotFoundError } from "@web/lib/booking-submit";
 import { useAuth } from "@web/lib/auth";
 import { bookingDateLabel, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
-import { formatForDisplay, KZ_DIAL, KZ_NATIONAL_LENGTH } from "@web/lib/phone";
+import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
 import { useBooking, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
 
@@ -293,9 +293,6 @@ function SuccessIcon({ muted }: { muted: boolean }) {
 
 /** «+7 777 123-45-67» для казахстанского номера; иначе как есть. */
 function displayPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === KZ_NATIONAL_LENGTH + 1 && digits.startsWith(KZ_DIAL)) {
-    return formatForDisplay(digits.slice(1));
-  }
-  return phone;
+  const digits = kzNationalDigits(phone);
+  return digits ? formatForDisplay(digits) : phone;
 }

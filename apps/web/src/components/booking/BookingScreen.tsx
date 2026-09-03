@@ -35,7 +35,7 @@ import {
 } from "@web/lib/booking-submit";
 import { bookingDateLabel, slotDateIso, slotTimeLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
-import { isComplete, nationalDigits, toE164 } from "@web/lib/phone";
+import { isComplete, kzNationalDigits, toE164 } from "@web/lib/phone";
 import { useAvailability, useCreateBooking, useRescheduleBooking, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
 
@@ -191,7 +191,10 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   useEffect(() => {
     if (!user) return;
     const profileName = user.fullName.trim();
-    const profileDigits = user.phone ? nationalDigits(user.phone) : "";
+    // Только казахстанский номер: иностранный (аккаунт из приложения, где
+    // есть выбор страны) оставляет поле ПУСТЫМ — иначе `nationalDigits`
+    // сделал бы из него десять первых цифр, а `toE164` приклеил бы «+7».
+    const profileDigits = user.phone ? (kzNationalDigits(user.phone) ?? "") : "";
     setContacts((current) => ({
       ...current,
       name: current.name || profileName,
