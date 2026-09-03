@@ -167,6 +167,21 @@ describe("страница бронирования — имя и телефон
     );
   });
 
+  it("ИНОСТРАННЫЙ НОМЕР В ПРОФИЛЕ — поле пустое и с ошибкой, а не фальшивый «+7…» на сервер", async () => {
+    // Аккаунт заведён из приложения с выбором страны. Раньше `nationalDigits`
+    // брал первые десять цифр, и бронь уходила с `phone: "+74915112345"`.
+    signIn(guest({ phone: "+4915112345678" }));
+    renderBooking();
+    await chooseSlot();
+
+    expect(phoneField().value).toBe("");
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(phoneField().getAttribute("aria-invalid")).toBe("true"));
+    expect(repository.createBooking).not.toHaveBeenCalled();
+    expect(nameField().value).toBe("Дамир");
+  });
+
   it("ПУСТОЕ ИМЯ В ПРОФИЛЕ — ошибка видна, названа, получает фокус, а запрос не уходит", async () => {
     // Вход по коду создаёт учётную запись без имени, а сервер требует
     // непустое `name`. Раньше это был тупик «заполните имя в приложении».

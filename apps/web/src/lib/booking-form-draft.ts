@@ -96,3 +96,35 @@ export function clearBookingFormDraft(venueId: string): void {
     // См. выше.
   }
 }
+
+/**
+ * Стереть черновики ВСЕХ заведений. Зовёт `AuthProvider` на смене сессии
+ * (вход, выход, отзыв токена) — там же, где чистится избранное.
+ *
+ * ЗАЧЕМ. Ключ черновика — только `venueId`, сессии в нём нет. Гость А набрал
+ * имя и телефон, ушёл на вход и бросил (или вышел); Б в той же вкладке
+ * открывает форму — и поля уже заполнены данными А. Профиль Б подставляется
+ * ТОЛЬКО в пустые поля (черновик дороже профиля, см. `BookingScreen`), поэтому
+ * бронь ушла бы с телефоном А, и заведение звонило бы не тому человеку.
+ *
+ * Почему чистка, а не `user.id` в ключе: профиль может быть `null` при живой
+ * сессии, и два таких гостя подряд получили бы один и тот же ключ (см.
+ * комментарий в `query-keys.ts`).
+ *
+ * Ключи собираются в список ДО удаления: `removeItem` сдвигает индексы, и
+ * обход `for (i < length)` с удалением на лету пропускал бы каждый второй.
+ */
+export function clearAllBookingFormDrafts(): void {
+  const store = storage();
+  if (!store) return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < store.length; i += 1) {
+      const name = store.key(i);
+      if (name?.startsWith(PREFIX)) keys.push(name);
+    }
+    for (const name of keys) store.removeItem(name);
+  } catch {
+    // См. выше.
+  }
+}

@@ -24,7 +24,7 @@ import type {
 
 import { isApiConfigured, repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
-import { FAVORITES_KEY } from "@web/lib/query-keys";
+import { BOOKING_KEY, FAVORITES_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -289,7 +289,7 @@ export function useCreateBooking() {
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
       // Страница «Бронь подтверждена» читает бронь по этому ключу: с ответом
       // в кэше она открывается без второго запроса и без скелета.
-      client.setQueryData(["booking", booking.id], booking);
+      client.setQueryData([...BOOKING_KEY, booking.id], booking);
     },
   });
 }
@@ -311,7 +311,7 @@ export function useCreateBooking() {
 export function useBooking(bookingId: string): UseQueryResult<Booking> {
   const { signedIn, isLoading } = useAuth();
   return useQuery({
-    queryKey: ["booking", bookingId],
+    queryKey: [...BOOKING_KEY, bookingId],
     queryFn: () => repository.getBooking(bookingId),
     enabled: isApiConfigured && bookingId.length > 0 && signedIn && !isLoading,
     retry: (failureCount, error) =>
@@ -350,7 +350,7 @@ export function useRescheduleBooking() {
       // доступности этого заведения, стало неправдой.
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
       // И сама бронь в кэше — тоже: страница успеха читает её по ключу ниже.
-      client.setQueryData(["booking", booking.id], booking);
+      client.setQueryData([...BOOKING_KEY, booking.id], booking);
     },
   });
 }

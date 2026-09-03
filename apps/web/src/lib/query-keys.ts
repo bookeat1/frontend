@@ -19,8 +19,16 @@ import type { QueryClient } from "@tanstack/react-query";
  */
 export const FAVORITES_KEY = ["favorites"] as const;
 
+/**
+ * Префикс ключа одной брони: `[...BOOKING_KEY, id]`. Бронь — такие же данные
+ * сессии, как избранное: в ней телефон гостя, а адрес `/bookings/<id>` лежит
+ * в истории вкладки, и следующий вошедший дотянется до него кнопкой «Назад».
+ * `removeQueries` по префиксу снимает все брони разом, какой бы `id` ни был.
+ */
+export const BOOKING_KEY = ["booking"] as const;
+
 /** Всё, что нельзя показывать следующему гостю в этой же вкладке. */
-const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [FAVORITES_KEY];
+const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [FAVORITES_KEY, BOOKING_KEY];
 
 /**
  * Выбросить данные прежней сессии.
