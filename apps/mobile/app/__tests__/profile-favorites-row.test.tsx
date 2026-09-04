@@ -50,10 +50,6 @@ vi.mock("../../src/lib/locale", () => ({
   useLocale: () => ({ locale: "ru", dictionary: getDictionary("ru"), setLocale: vi.fn() }),
 }));
 
-vi.mock("../../src/hooks/useBooking", () => ({
-  useMyBookings: () => ({ data: { pages: [{ total: 3 }] } }),
-}));
-
 // Загрузка аватара тянет expo-image-picker (нативный модуль) — экрану для
 // этого теста она не нужна.
 vi.mock("../../src/lib/avatar-upload", () => ({
@@ -83,7 +79,7 @@ describe("профиль: вход в избранное", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/favorites"));
   });
 
-  it("держит её в верхней группе, рядом с бронями, а не внизу у выхода", async () => {
+  it("держит её в верхней группе, а не внизу у выхода", async () => {
     renderProfile();
 
     const favorites = await screen.findByRole("button", { name: "Избранное" });

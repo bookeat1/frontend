@@ -2048,11 +2048,6 @@ export const en: LocaleOverride<Dictionary> = {
     avatarBadFormat: "That format will not do. JPEG, PNG or WebP work",
     editTitle: "Edit profile",
     comingSoon: "Soon",
-    stats: {
-      bookings: "Bookings",
-      reviews: "Reviews",
-      friends: "Friends",
-    },
     menu: {
       favorites: "Favorites",
       foodProfile: "Foodie profile",
