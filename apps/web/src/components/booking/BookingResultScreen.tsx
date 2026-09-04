@@ -173,9 +173,11 @@ function Ticket({ booking }: { booking: Booking }) {
 
           <Divider />
 
-          {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. */}
+          {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. Рамка
+              (3525:15048) обведена `border/strong` #DADADA, как и сам билет,
+              а не обводкой контрола #B2B2B2: QR — не кнопка и не поле. */}
           <div className="flex items-center gap-5">
-            <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-control bg-canvas p-1.5 text-ink">
+            <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-strong bg-canvas p-1.5 text-ink">
               <QrCode value={bookingQrPayload(booking.id)} label={texts.qrLabel} />
             </div>
             <div className="flex min-w-0 flex-col gap-1">
