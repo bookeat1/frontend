@@ -260,8 +260,10 @@ function Divider() {
   return <hr className="border-0 border-t border-line" />;
 }
 
-/** Кружок 76 с галочкой 44 (узлы 3525:15023…15025). У отменённой брони
- * галочка неуместна — тот же кружок, но серый и без неё. */
+/** Кружок 76 с галочкой 44 (узлы 3525:15023…15025). Сама галочка обведена
+ * `#1B5E20` — это `text/success` (success/700), а не точка «Открыто»
+ * (success/500). У отменённой брони галочка неуместна — тот же кружок, но
+ * серый и без неё. */
 function SuccessIcon({ muted }: { muted: boolean }) {
   return (
     <span
@@ -269,7 +271,7 @@ function SuccessIcon({ muted }: { muted: boolean }) {
       className={
         muted
           ? "flex h-ticket-icon w-ticket-icon items-center justify-center rounded-full bg-muted"
-          : "flex h-ticket-icon w-ticket-icon items-center justify-center rounded-full bg-success text-success-dot"
+          : "flex h-ticket-icon w-ticket-icon items-center justify-center rounded-full bg-success text-success-text"
       }
     >
       {muted ? null : (
