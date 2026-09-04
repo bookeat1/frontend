@@ -12,6 +12,7 @@ import {
   webHero,
   webLayout,
   webLoginModal,
+  webProfile,
   webRadius,
   webSearchPanel,
   webShadow,
@@ -177,6 +178,22 @@ const fontSize: Record<string, FontSizeEntry> = {
       fontWeight: String(webCuisineTile.labelFontWeight),
     },
   ],
+  /** Страница гостя (узел 3525:15153) — кегли сняты с текстовых узлов,
+   * своих ступеней в шкале кита у них нет. Числа — `webProfile`. */
+  "profile-avatar": [px(webProfile.card.avatar.fontSize), { lineHeight: px(webProfile.card.avatar.lineHeight), fontWeight: "700" }],
+  "profile-name": [px(webProfile.card.nameFontSize), { lineHeight: px(webProfile.card.nameLineHeight), fontWeight: "700" }],
+  "profile-contact": [px(webProfile.card.contactFontSize), { lineHeight: px(webProfile.card.contactLineHeight), fontWeight: "400" }],
+  "profile-stat": [px(webProfile.card.stats.valueFontSize), { lineHeight: px(webProfile.card.stats.valueLineHeight), fontWeight: "700" }],
+  "profile-stat-label": [px(webProfile.card.stats.labelFontSize), { lineHeight: px(webProfile.card.stats.labelLineHeight), fontWeight: "400" }],
+  "profile-nav": [px(webProfile.nav.item.fontSize), { lineHeight: px(webProfile.nav.item.lineHeight), fontWeight: "500" }],
+  "profile-title": [px(webProfile.section.titleFontSize), { lineHeight: px(webProfile.section.titleLineHeight), fontWeight: "700" }],
+  segment: [px(webProfile.segmented.segment.fontSize), { lineHeight: px(webProfile.segmented.segment.lineHeight), fontWeight: "500" }],
+  "pbook-title": [px(webProfile.bookingCard.titleFontSize), { lineHeight: px(webProfile.bookingCard.titleLineHeight), fontWeight: "600" }],
+  "pbook-address": [px(webProfile.bookingCard.addressFontSize), { lineHeight: px(webProfile.bookingCard.addressLineHeight), fontWeight: "400" }],
+  pill: [px(webProfile.bookingCard.statusPill.fontSize), { lineHeight: px(webProfile.bookingCard.statusPill.lineHeight), fontWeight: "600" }],
+  "pbook-label": [px(webProfile.bookingCard.info.labelFontSize), { lineHeight: px(webProfile.bookingCard.info.labelLineHeight), fontWeight: "500" }],
+  "pbook-value": [px(webProfile.bookingCard.info.valueFontSize), { lineHeight: px(webProfile.bookingCard.info.valueLineHeight), fontWeight: "600" }],
+  "fav-title": [px(webProfile.favorites.card.titleFontSize), { lineHeight: px(webProfile.favorites.card.titleLineHeight), fontWeight: "600" }],
 };
 
 const config: Config = {
@@ -241,6 +258,8 @@ const config: Config = {
         /** Вторая строка кнопки «Забронировать» — белый 80 %, узел 3525:14770. */
         "on-brand-subtle": webColors.overlay.onBrandSubtleText,
         "photo-action": webVenuePage.galleryButton.background,
+        /** Точка «ждём подтверждения» в ярлыке брони профиля (узел 3525:15248). */
+        "warning-dot": webProfile.bookingCard.statusPill.dot.warning,
       },
       fontSize,
       borderRadius: {
@@ -269,6 +288,10 @@ const config: Config = {
          * оболочки радиуса 14. Совпадает по числу со слотом сетки, но это
          * другой элемент другого экрана. */
         "stepper-btn": px(webBookingFlow.stepper.buttonRadius),
+        /** Страница гостя: карточка брони и карточка избранного — 18 (узлы
+         * 3525:15205 и 3525:15393), сегмент — 9 (3525:15198). */
+        pbook: px(webProfile.bookingCard.radius),
+        segment: px(webProfile.segmented.segment.radius),
       },
       boxShadow: {
         card: webShadow.card,
@@ -362,6 +385,40 @@ const config: Config = {
         "ticket-venue-b": px(webBookingTicket.venueHeader.paddingBottom),
         "ticket-detail-x": px(webBookingTicket.detail.paddingX),
         "ticket-detail-y": px(webBookingTicket.detail.paddingY),
+        /** Страница гостя (узел 3525:15153), числа — `webProfile`. */
+        "profile-page-t": px(webProfile.page.paddingTop),
+        "profile-page-b": px(webProfile.page.paddingBottom),
+        "profile-page-gap": px(webProfile.page.gap),
+        "profile-card-p": px(webProfile.card.padding),
+        "profile-card-gap": px(webProfile.card.gap),
+        "profile-identity-gap": px(webProfile.card.identityGap),
+        "profile-stats-gap": px(webProfile.card.stats.gap),
+        "profile-stat-gap": px(webProfile.card.stats.innerGap),
+        "profile-content-gap": px(webProfile.contentGap),
+        "profile-nav-p": px(webProfile.nav.padding),
+        "profile-nav-gap": px(webProfile.nav.gap),
+        "profile-nav-item-x": px(webProfile.nav.item.paddingX),
+        "profile-nav-item-gap": px(webProfile.nav.item.gap),
+        "profile-section-gap": px(webProfile.section.gap),
+        "segmented-p": px(webProfile.segmented.padding),
+        "segment-x": px(webProfile.segmented.segment.paddingX),
+        "pbook-gap": px(webProfile.bookingsGap),
+        "pbook-body-x": px(webProfile.bookingCard.body.paddingX),
+        "pbook-body-y": px(webProfile.bookingCard.body.paddingY),
+        "pbook-body-gap": px(webProfile.bookingCard.body.gap),
+        "pbook-top-gap": px(webProfile.bookingCard.topGap),
+        "pbook-titles-gap": px(webProfile.bookingCard.titlesGap),
+        "pbook-info-gap": px(webProfile.bookingCard.info.gap),
+        "pbook-info-inner": px(webProfile.bookingCard.info.innerGap),
+        "pbook-actions-gap": px(webProfile.bookingCard.actions.gap),
+        "pbook-action-x": px(webProfile.bookingCard.actions.paddingX),
+        "pill-x": px(webProfile.bookingCard.statusPill.paddingX),
+        "pill-gap": px(webProfile.bookingCard.statusPill.gap),
+        "fav-gap": px(webProfile.favorites.gap),
+        "fav-body-t": px(webProfile.favorites.card.paddingTop),
+        "fav-body-x": px(webProfile.favorites.card.paddingX),
+        "fav-body-b": px(webProfile.favorites.card.paddingBottom),
+        "fav-body-gap": px(webProfile.favorites.card.gap),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -415,6 +472,15 @@ const config: Config = {
         "ticket-qr": px(webBookingTicket.code.qrSize),
         page: px(webCatalog.pagination.size),
         logo: px(webHeader.logo.height),
+        "profile-avatar": px(webProfile.card.avatar.size),
+        "profile-nav-item": px(webProfile.nav.item.height),
+        "profile-nav-icon": px(webProfile.nav.item.iconSize),
+        segment: px(webProfile.segmented.segment.height),
+        "pbook-image": px(webProfile.bookingCard.image.height),
+        pill: px(webProfile.bookingCard.statusPill.height),
+        "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
+        "pbook-action": px(webProfile.bookingCard.actions.height),
+        "fav-image": px(webProfile.favorites.card.imageHeight),
       },
       width: {
         cuisine: px(webCuisineTile.size),
@@ -440,6 +506,11 @@ const config: Config = {
         "ticket-icon-glyph": px(webBookingTicket.successIcon.glyphSize),
         "ticket-qr": px(webBookingTicket.code.qrSize),
         page: px(webCatalog.pagination.size),
+        "profile-avatar": px(webProfile.card.avatar.size),
+        "profile-nav": px(webProfile.nav.width),
+        "profile-nav-icon": px(webProfile.nav.item.iconSize),
+        "pbook-image": px(webProfile.bookingCard.image.width),
+        "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
@@ -458,6 +529,8 @@ const config: Config = {
         /** Четыре ячейки «Дата / Время / Гости / Зона» в билете
          * (узел 3525:15033). */
         "ticket-details": "repeat(4, minmax(0, 1fr))",
+        /** Ряд избранного в профиле (узел 3525:15392) — три равные колонки. */
+        favorites: `repeat(${webProfile.favorites.columns}, minmax(0, 1fr))`,
       },
       aspectRatio: {
         /** Карта в контактах (3264:69): 788×280. */
