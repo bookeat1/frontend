@@ -248,12 +248,17 @@ function VenueHeader({ venue }: { venue: Restaurant | undefined }) {
 }
 
 /** Ячейка 3525:15034: 72 высотой, радиус 14, паддинг 14/16, подпись 12/16
- * Medium с трекингом 0.2, значение 17/24 SemiBold. */
+ * Medium с трекингом 0.2, значение 17/24 SemiBold.
+ *
+ * Значение НЕ обрезается: в макете все четыре значения короткие, а у нас в
+ * четвёртой ячейке стоит статус, и «В листе ожидания» в 122 px на 17/600 не
+ * помещается. Многоточие спрятало бы именно то слово, ради которого ячейка
+ * есть, поэтому ячейка растёт по высоте (`min-h`), а строка переносится. */
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-h-ticket-detail flex-col gap-1 rounded-field bg-subtle px-ticket-detail-x py-ticket-detail-y">
       <dt className="text-ticket-detail-label tracking-[0.2px] text-ink-tertiary">{label}</dt>
-      <dd className="truncate text-ticket-detail-value text-ink">{value}</dd>
+      <dd className="break-words text-ticket-detail-value text-ink">{value}</dd>
     </div>
   );
 }
