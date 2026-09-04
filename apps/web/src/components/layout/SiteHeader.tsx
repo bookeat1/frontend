@@ -181,9 +181,15 @@ export function SiteHeader({
             <span aria-hidden="true" className="h-btn-header w-[109px]" />
           ) : account ? (
             <>
-              <span className="max-w-[180px] truncate text-[14px] font-medium leading-5 text-ink">
+              {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
+                  В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
+                  месте, где макет главной рисует «Войти». */}
+              <Link
+                href="/profile"
+                className="max-w-[180px] truncate rounded-sm text-[14px] font-medium leading-5 text-ink hover:text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
                 {account.name}
-              </span>
+              </Link>
               <Button size="header" variant="secondary" onClick={onSignOut}>
                 {t.web.header.signOut}
               </Button>

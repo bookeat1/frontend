@@ -46,7 +46,11 @@ type Variant = "primary" | "secondary" | "outline" | "danger";
  * вертикали, радиус 14, фиксированной высоты нет. Единственный размер, где
  * содержимое идёт колонкой, — поэтому у него и другой `gap`.
  */
-type Size = "l" | "m" | "submit" | "ticket" | "action" | "header" | "booking";
+/**
+ * `profile` — кнопки карточки брони на странице гостя (узел 3525:15233):
+ * 42 высотой, радиус 12, кегль 14/20 SemiBold — как M, но паддинг 18, а не 20.
+ */
+type Size = "l" | "m" | "submit" | "ticket" | "action" | "header" | "booking" | "profile";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -88,6 +92,7 @@ const sizes: Record<Size, string> = {
   action: "h-venue-action gap-2 whitespace-nowrap px-venue-action-x rounded-md text-[14px] leading-5",
   header: "h-btn-header gap-2 whitespace-nowrap px-btn-header-x rounded-md text-[14px] leading-5",
   booking: "flex-col gap-0.5 py-booking-cta-y rounded-field text-booking-cta",
+  profile: "h-pbook-action gap-2 whitespace-nowrap px-pbook-action-x rounded-md text-[14px] leading-5",
 };
 
 /**
