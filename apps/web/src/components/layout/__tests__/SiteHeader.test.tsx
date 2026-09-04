@@ -84,6 +84,18 @@ describe("SiteHeader", () => {
     expect(container.textContent).not.toContain("//");
   });
 
+  /**
+   * Замок от 404 в шапке. Имя вошедшего ведёт на `/profile`, но роута ещё нет:
+   * пока `SHOW_PROFILE_LINK` выключен, имя обязано быть текстом, а не ссылкой,
+   * иначе каждый вошедший гость кликом по себе попадает на 404 Next.
+   */
+  it("имя вошедшего не ссылка, пока страницы гостя нет", () => {
+    render(<SiteHeader account={{ name: "Дамир" }} />);
+
+    expect(screen.getByText("Дамир").tagName).toBe("SPAN");
+    expect(screen.queryByRole("link", { name: "Дамир" })).toBeNull();
+  });
+
   /** Пока сессия читается из localStorage, шапка не должна мигать «Войти»
    * тому, кто уже вошёл. */
   it("не показывает ни вход, ни имя, пока сессия неизвестна", () => {

@@ -62,6 +62,15 @@ export interface SiteHeaderProps {
 export const SHOW_FOR_BUSINESS: boolean = false;
 
 /**
+ * Имя вошедшего гостя ведёт на `/profile` (узел 3525:15153). Роута
+ * `apps/web/app/profile/page.tsx` ещё НЕТ — эта ветка готовит только фундамент
+ * страницы, — поэтому со включённой ссылкой каждый вошедший гость получал бы
+ * 404 Next по клику на собственное имя. Пока флаг выключен, имя остаётся
+ * обычным текстом; включить одной строкой вместе с PR самой страницы.
+ */
+export const SHOW_PROFILE_LINK: boolean = false;
+
+/**
  * Пункты ровно в порядке макета (узел 3549:5727) — их ТРИ: «Главная»,
  * «Заведения», «Гастрогид». Раньше здесь было пять: лишние «Афиша» и «Статьи»
  * достались от более старого компонента шапки и вели в 404 Next. Замечание
@@ -183,13 +192,20 @@ export function SiteHeader({
             <>
               {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
                   В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
-                  месте, где макет главной рисует «Войти». */}
-              <Link
-                href="/profile"
-                className="max-w-[180px] truncate rounded-sm text-[14px] font-medium leading-5 text-ink hover:text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                {account.name}
-              </Link>
+                  месте, где макет главной рисует «Войти». Пока роута нет,
+                  показываем имя текстом — см. SHOW_PROFILE_LINK. */}
+              {SHOW_PROFILE_LINK ? (
+                <Link
+                  href="/profile"
+                  className="max-w-[180px] truncate rounded-sm text-[14px] font-medium leading-5 text-ink hover:text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  {account.name}
+                </Link>
+              ) : (
+                <span className="max-w-[180px] truncate text-[14px] font-medium leading-5 text-ink">
+                  {account.name}
+                </span>
+              )}
               <Button size="header" variant="secondary" onClick={onSignOut}>
                 {t.web.header.signOut}
               </Button>
