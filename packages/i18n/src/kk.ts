@@ -2054,11 +2054,6 @@ export const kk: LocaleOverride<Dictionary> = {
     avatarBadFormat: "Бұл формат келмейді. JPEG, PNG немесе WebP жарайды",
     editTitle: "Профильді өңдеу",
     comingSoon: "Жақында",
-    stats: {
-      bookings: "Брондар",
-      reviews: "Пікірлер",
-      friends: "Достар",
-    },
     menu: {
       favorites: "Таңдаулылар",
       foodProfile: "Фуди-профиль",

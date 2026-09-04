@@ -11,9 +11,7 @@ import { GearSix, GlobeSimple, Heart, MapPin, SignOut, User} from "../src/compon
 import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
 import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
 import { ProfileMenuRow } from "../src/components/profile/ProfileMenuRow";
-import { ProfileStats } from "../src/components/profile/ProfileStats";
 import { EmptyState, ErrorState, LoadingState } from "../src/components/StateViews";
-import { useMyBookings } from "../src/hooks/useBooking";
 import { useAuth } from "../src/lib/auth";
 import { pickAndUploadAvatar } from "../src/lib/avatar-upload";
 import { membershipDuration } from "../src/lib/format";
@@ -31,8 +29,12 @@ import { useLocale } from "../src/lib/locale";
  *
  * Editing moved off this screen entirely: the identity block at the top is the
  * entry point (`/profile/edit`), where the same ProfileForm and PATCH
- * /users/me wiring now lives. The vitrina only reads — name, phone, one real
- * counter, the current city and language — and routes.
+ * /users/me wiring now lives. The vitrina only reads — name, phone, the
+ * current city and language — and routes.
+ *
+ * Блока статистики («Брони»/«Отзывов»/«Друзья») здесь больше нет: убран по
+ * прямому указанию владельца 04.09.2026. Вход в список броней — вкладка
+ * «Мои брони» внизу.
  */
 export default function ProfileScreen() {
   const navPad = useNavBarSpacing();
@@ -59,14 +61,6 @@ export default function ProfileScreen() {
   });
   const account = me.data ?? null;
 
-  // «Брони» — the only stat with a backend behind it: the same list the bookings
-  // screen reads (`GET /bookings`), whose first page carries the true `total`.
-  // Session-gated inside the hook, so a signed-out guest never fires it.
-  // «Отзывов» и «Друзья» СПРЯТАНЫ флагом PROFILE_SOCIAL_STATS_ENABLED
-  // (src/lib/feature-flags.ts, правка владельца 28.08.2026): продукта за ними
-  // нет, и у каждого гостя там стоял ноль. Нули ниже передаются по-прежнему —
-  // ячейки просто не рисуются; появятся ручки — флаг в `true` и сюда приедут
-  // настоящие числа. TODO(track-C backend).
   /**
    * Смена фотографии профиля. Отказ в доступе к галерее и сбой отправки — это
    * РАЗНЫЕ сообщения: первое чинится только в настройках телефона, и «попробуйте
@@ -97,9 +91,6 @@ export default function ProfileScreen() {
       setAvatarUploading(false);
     }
   }, [queryClient, repository, t]);
-
-  const bookings = useMyBookings();
-  const bookingsCount = bookings.data?.pages[0]?.total ?? 0;
 
   const currentLanguage = LOCALES.find((option) => option.code === locale)?.nativeName ?? "";
 
@@ -176,9 +167,9 @@ export default function ProfileScreen() {
           )
         ) : (
           <ScrollView contentContainerStyle={[styles.content, { paddingBottom: navPad }]} showsVerticalScrollIndicator={false}>
-            {/* Имя со сроком в BookEat и плашки статистики — одна группа:
-                между ними 24 (макет 979:7752), а не общие 32, которыми
-                разделены группы меню ниже. */}
+            {/* Имя со сроком в BookEat и строка ошибки аватара под ним —
+                одна группа с зазором 24 (макет 979:7752), а не общие 32,
+                которыми разделены группы меню ниже. */}
             <View style={styles.identityGroup}>
               <ProfileIdentity
                 name={account.fullName}
@@ -201,15 +192,6 @@ export default function ProfileScreen() {
                   {avatarError}
                 </Text>
               ) : null}
-
-              <ProfileStats
-                bookings={bookingsCount}
-                reviews={0}
-                friends={0}
-                labels={t.profile.stats}
-                // Same destination as the «Мои брони» tab — the count is a shortcut.
-                onPressBookings={() => router.push("/bookings")}
-              />
             </View>
 
             {/* Одна группа «всё про меня»: избранное, данные, город, язык,
@@ -220,9 +202,9 @@ export default function ProfileScreen() {
                 разделение, а как две дыры вокруг одинокой строки.
 
                 Порядок сохранён: «Избранное» по-прежнему первый пункт сразу
-                под счётчиком броней — вкладки внизу у избранного больше нет
-                (её место занял гастрогид), и искать вход гость будет здесь,
-                рядом с бронями, а не внизу у «Выйти».
+                под именем — вкладки внизу у избранного больше нет (её место
+                занял гастрогид), и искать вход гость будет здесь, наверху,
+                а не внизу у «Выйти».
 
                 СТРОК «СКОРО» ЗДЕСЬ БОЛЬШЕ НЕТ (обратная связь живого гостя,
                 24.08.2026). Фуди-профиль, отзывы, центр помощи и оценка
