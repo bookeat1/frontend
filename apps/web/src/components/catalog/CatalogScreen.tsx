@@ -256,7 +256,7 @@ export function CatalogScreen() {
             skeleton={
               <div className="flex flex-col gap-4">
                 {["a", "b", "c", "d", "e"].map((key) => (
-                  <Skeleton key={key} className="h-[229px] rounded-card" />
+                  <Skeleton key={key} className="h-wide-card rounded-wide-card" />
                 ))}
               </div>
             }
