@@ -237,7 +237,7 @@ function VenueHeader({ venue }: { venue: Restaurant | undefined }) {
         {venue ? (
           <>
             <p className="text-ticket-venue-name tracking-[-0.4px]">{venue.name}</p>
-            {meta ? <p className="text-[14px] leading-5">{meta}</p> : null}
+            {meta ? <p className="text-ticket-venue-meta">{meta}</p> : null}
           </>
         ) : (
           <Skeleton className="h-9 w-1/2 bg-on-inverse-surface" />
