@@ -336,6 +336,15 @@ const config: Config = {
         "section-y": px(webLayout.sectionPaddingY),
         "wide-card-x": px(webCatalog.wideCard.bodyPaddingX),
         "wide-card-y": px(webCatalog.wideCard.bodyPaddingY),
+        "sort-select-l": px(webCatalog.sortSelect.paddingLeft),
+        "sort-select-r": px(webCatalog.sortSelect.paddingRight),
+        /** Правый паддинг самого `<select>`: место под шеврон 24 и просвет 8
+         * плюс паддинг кадра 14 (узел 3525:14473). */
+        "sort-select-text-r": px(
+          webCatalog.sortSelect.paddingRight +
+            webCatalog.sortSelect.gap +
+            webCatalog.sortSelect.iconSize,
+        ),
         "active-chip-l": px(webCatalog.activeChip.paddingLeft),
         "active-chip-r": px(webCatalog.activeChip.paddingRight),
         "booking-field-x": px(webBookingCard.field.paddingX),

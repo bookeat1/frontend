@@ -131,21 +131,34 @@ export function CatalogScreen() {
               </p>
             </div>
 
-            <label className="flex items-center gap-2 text-[14px] font-medium leading-5 text-ink">
-              <span className="text-ink-secondary">{t.web.catalog.sort.label}</span>
-              {/* Выпадашка макета (узел 3525:14473) — белая, 42 высотой, без
-                  обводки: её роль играет мягкая тень контрола. */}
+            {/* Выпадашка макета (узел 3525:14473): 150×46, белая, без обводки
+                и без подписи снаружи — её роль играет мягкая тень контрола;
+                справа шеврон 24 через просвет 8. Подпись «Сортировка» остаётся
+                только для скринридера: без неё три варианта в списке ни о чём. */}
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">{t.web.catalog.sort.label}</span>
               <select
                 value={state.sort}
                 onChange={(event) =>
                   update({ ...state, sort: event.target.value as CatalogSort, page: 1 })
                 }
-                className="h-sort-select cursor-pointer rounded-md border border-transparent bg-canvas px-4 text-[14px] font-medium leading-5 text-ink shadow-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="h-sort-select cursor-pointer appearance-none rounded-md border border-transparent bg-canvas pl-sort-select-l pr-sort-select-text-r text-[14px] font-medium leading-5 text-ink shadow-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <option value="recommended">{t.web.catalog.sort.recommended}</option>
                 <option value="rating">{t.web.catalog.sort.rating}</option>
                 <option value="name">{t.web.catalog.sort.name}</option>
               </select>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                className="pointer-events-none absolute right-sort-select-r top-1/2 -translate-y-1/2 text-ink"
+              >
+                {/* Шеврон 4.8×11.2 из узла 3525:14475, повёрнутый вниз. */}
+                <path d="M6.4 9.6l5.6 5.6 5.6-5.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </label>
           </div>
 
