@@ -75,7 +75,9 @@ export function BookingResultScreen({ id }: { id: string }) {
   }
 
   return (
-    <SiteChrome>
+    // Кадр 3525:15019 залит `background/subtle`: белый билет стоит на серой
+    // подложке, а не сливается с белой страницей.
+    <SiteChrome tone="subtle">
       {/* Узел 3525:15021: 72 сверху, 96 снизу, блоки по центру через 32. */}
       <Container className="flex flex-col items-center gap-8 pb-ticket-bottom pt-ticket-top">
         <div className="w-full max-w-ticket">{body}</div>
