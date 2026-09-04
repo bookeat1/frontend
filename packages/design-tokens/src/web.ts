@@ -1057,3 +1057,105 @@ export const webBookingTicket = {
    */
   actionsGap: 10,
 } as const;
+
+/**
+ * Страница гостя «WEB / 05 · Страница гостя» — Figma `3525:15153` (файл
+ * «BookEat (Copy) (Copy)», страница «Готово к разработке»), вкладка
+ * «Избранное» — узел `3525:15365`. Разбор:
+ * `/home/tai/work/design-specs/web/spec-profile.md` и
+ * `spec-profile-favorites.md`. Figma при снятии была недоступна (429),
+ * поэтому все числа — из кэшированной спеки, не с глаза.
+ */
+export const webProfile = {
+  /** 3525:15155 — страница: паддинг 40 сверху, 80 снизу, блоки через 24. */
+  page: { paddingTop: 40, paddingBottom: 80, gap: 24 },
+  /** 3525:15156 — карточка гостя: паддинг 28, аватар → текст через 32,
+   * радиус 20 (`webRadius.xl`), тень карточки. */
+  card: {
+    padding: 28,
+    gap: 32,
+    radius: webRadius.xl,
+    /** 3525:15157 — круг 88 заливкой brand/50, инициал 34/44 Bold text/brand. */
+    avatar: { size: 88, fontSize: 34, lineHeight: 44 },
+    /** 3525:15159 — колонка «имя / контакты / статистика» через 8. */
+    identityGap: 8,
+    nameFontSize: 30,
+    nameLineHeight: 38,
+    nameTracking: -0.5,
+    contactFontSize: 15,
+    contactLineHeight: 22,
+    /** 3525:15163 — статистики через 24, внутри «число → слово» через 6. */
+    stats: { gap: 24, innerGap: 6, valueFontSize: 16, valueLineHeight: 24, labelFontSize: 14, labelLineHeight: 24 },
+  },
+  /** 3525:15170 — меню и раздел через 32. */
+  contentGap: 32,
+  /** 3525:15171 — меню разделов: 252 шириной, паддинг 8, пункты через 4,
+   * радиус 24 (`webRadius.card`). Пункт 48 высотой, паддинг 12/14, значок 24
+   * и подпись через 12, кегль 15/22; выбранный — заливка brand/50 и радиус 16,
+   * остальные — радиус 12 без заливки. */
+  nav: {
+    width: 252,
+    padding: 8,
+    gap: 4,
+    radius: webRadius.card,
+    item: {
+      height: 48,
+      paddingX: 14,
+      paddingY: 12,
+      gap: 12,
+      iconSize: 24,
+      radius: webRadius.md,
+      activeRadius: webRadius.lg,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+  },
+  /** 3525:15194 — раздел: заголовок 28/36 Bold трекинг −0.5, до списка 20. */
+  section: { gap: 20, titleFontSize: 28, titleLineHeight: 36, titleTracking: -0.5 },
+  /** 3525:15197 — сегмент-контрол: подложка muted радиуса 12 с паддингом 4,
+   * сегмент 36 высотой, паддинг 8/16, радиус 9, 14/20; выбранный — белый с
+   * тенью контрола, остальные — text/tertiary. */
+  segmented: { padding: 4, radius: webRadius.md, segment: { height: 36, paddingX: 16, radius: 9, fontSize: 14, lineHeight: 20 } },
+  /** 3525:15204 — карточки броней через 16. */
+  bookingsGap: 16,
+  /** 3525:15205 — карточка брони: радиус 18, фото 200×214 слева, тело с
+   * паддингом 20/24 и просветом 14; «название → адрес» через 3, название
+   * 20/28 SemiBold трекинг −0.2, адрес 13/18. */
+  bookingCard: {
+    radius: 18,
+    image: { width: 200, height: 214 },
+    body: { paddingX: 24, paddingY: 20, gap: 14 },
+    topGap: 12,
+    titlesGap: 3,
+    titleFontSize: 20,
+    titleLineHeight: 28,
+    titleTracking: -0.2,
+    addressFontSize: 13,
+    addressLineHeight: 18,
+    /** 3525:15212 — ярлык статуса: 32 высотой, паддинг 8/12, точка 7 и
+     * подпись 12/16 SemiBold через 6, радиус полный. Точка «ждём» #B26A00 —
+     * своего образца в ките у неё нет, снята с самого ярлыка. */
+    statusPill: {
+      height: 32,
+      paddingX: 12,
+      gap: 6,
+      dotSize: 7,
+      fontSize: 12,
+      lineHeight: 16,
+      dot: { success: webColors.text.successDot, warning: "#B26A00", neutral: webColors.text.tertiary },
+    },
+    /** 3525:15215 — ячейки «Дата / Время / Гости / Код» через 24, подпись
+     * 12/16 Medium трекинг 0.2, значение 15/22 SemiBold, между ними 2. */
+    info: { gap: 24, innerGap: 2, labelFontSize: 12, labelLineHeight: 16, labelTracking: 0.2, valueFontSize: 15, valueLineHeight: 22 },
+    /** 3525:15232 — кнопки 42 высотой, паддинг 11/18, радиус 12, через 10. */
+    actions: { gap: 10, height: 42, paddingX: 18, radius: webRadius.md },
+  },
+  /** 3525:15392 — избранное: три карточки в ряд через 16; карточка радиуса
+   * 18, фото 168, тело с паддингом 16/18/18 и просветом 16, название 17/24
+   * SemiBold, подпись 14/20, кнопка 42 с радиусом 12 на всю ширину. */
+  favorites: {
+    columns: 3,
+    gap: 16,
+    card: { radius: 18, imageHeight: 168, paddingTop: 16, paddingX: 18, paddingBottom: 18, gap: 16, titleFontSize: 17, titleLineHeight: 24 },
+  },
+} as const;
