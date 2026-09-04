@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import type { SearchQuery, SearchResult } from "@bookeat/api/client";
 
@@ -187,6 +187,14 @@ describe("листинг заведений", () => {
 
     const link = await screen.findByRole("link", { name: "Auyl" });
     expect(link.getAttribute("href")).toBe("/venues/abc");
+  });
+
+  it("хлебные крошки ведут «Главная / город / Заведения» — с городом выдачи", async () => {
+    renderScreen(<CatalogScreen />);
+
+    const nav = await screen.findByRole("navigation", { name: "Путь по сайту" });
+    await waitFor(() => expect(nav.textContent).toBe("Главная / Алматы / Заведения"));
+    expect(within(nav).getByRole("link", { name: "Главная" }).getAttribute("href")).toBe("/");
   });
 
   it("галочка кухни МЕНЯЕТ запрос к серверу, а не только вид чипа", async () => {

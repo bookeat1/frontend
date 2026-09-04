@@ -100,12 +100,22 @@ export function CatalogScreen() {
         <FiltersRail state={state} onChange={update} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {/* Хлебные крошки — узел 3525:14462: «Главная / Алматы / Рестораны»,
+              одна строка 13/18 третичным цветом, текущий раздел НЕ выделен.
+              Город — тот, по которому строится выдача (`useCity`); пока он не
+              выбран, звена нет, а не стоит пустое место между слэшами. */}
           <nav aria-label={t.web.venue.breadcrumbLabel} className="text-[13px] leading-[18px] text-ink-tertiary">
             <Link href="/" className="hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
               {t.web.venue.breadcrumbHome}
             </Link>
-            <span aria-hidden="true"> / </span>
-            <span>{t.web.venue.breadcrumbVenues}</span>
+            {city ? (
+              <>
+                <span aria-hidden="true">{BREADCRUMB_SEPARATOR}</span>
+                <span>{city}</span>
+              </>
+            ) : null}
+            <span aria-hidden="true">{BREADCRUMB_SEPARATOR}</span>
+            <span aria-current="page">{t.web.venue.breadcrumbVenues}</span>
           </nav>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -260,6 +270,11 @@ export function CatalogScreen() {
     </SiteChrome>
   );
 }
+
+/** Разделитель звеньев хлебных крошек (узел 3525:14462) — пробел, слэш,
+ * пробел; в макете вокруг слэша по два пробела, но это набор в одной
+ * текстовой строке, а не отступ, и второй пробел браузер всё равно схлопнул бы. */
+const BREADCRUMB_SEPARATOR = " / ";
 
 /** Чип применённого фильтра с крестиком — узел 3525:14477: паддинг 8 по
  * вертикали, 14 слева и 12 справа, крестик 20. */
