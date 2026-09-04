@@ -5,6 +5,7 @@ import {
   webBookingFlow,
   webBookingTicket,
   webCatalog,
+  webCatalogPagination,
   webColors,
   webControls,
   webCuisineTile,
@@ -175,6 +176,25 @@ const fontSize: Record<string, FontSizeEntry> = {
     {
       lineHeight: px(webCuisineTile.labelLineHeight),
       fontWeight: String(webCuisineTile.labelFontWeight),
+    },
+  ],
+  /**
+   * Квадрат нумерации выдачи (узел 3525:14500): 15/22, Medium у неактивных
+   * и многоточия, SemiBold у текущей страницы — две утилиты, как у пар
+   * `flow-summary-*`, а не переопределение веса поверх одной.
+   */
+  page: [
+    px(webCatalogPagination.label.fontSize),
+    {
+      lineHeight: px(webCatalogPagination.label.lineHeight),
+      fontWeight: String(webCatalogPagination.label.weight),
+    },
+  ],
+  "page-current": [
+    px(webCatalogPagination.label.fontSize),
+    {
+      lineHeight: px(webCatalogPagination.label.lineHeight),
+      fontWeight: String(webCatalogPagination.label.currentWeight),
     },
   ],
 };
