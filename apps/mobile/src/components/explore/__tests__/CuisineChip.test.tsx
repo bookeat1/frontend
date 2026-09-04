@@ -1,166 +1,112 @@
 import { render, screen } from "@testing-library/react";
-import { exploreLayout } from "@bookeat/design-tokens";
+import { exploreLayout, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * ПОДПИСЬ КУХНИ ПОКАЗЫВАЕТСЯ ЦЕЛИКОМ.
+ * ПОДПИСЬ КУХНИ: ОДИН КЕГЛЬ У ВСЕХ, ЦЕЛИКОМ, ПЕРЕНОС ТОЛЬКО ПО СЛОГУ.
  *
- * Баг 1 (правка владельца 2026-08-24): в кружке кухни стояло «Ср.морская».
- * Сокращения в коде не было — подпись была зажата в одну строку шириной с сам
- * круг (72), и React Native обрезал единственное длинное слово. Данные трогать
- * нельзя: название приходит из каталога (`cuisine_type`).
+ * История: «Ср.морская» (2026-08-24) → две строки + auto-shrink →
+ * «Морепродукт / ы» (2026-09-01) → правило по длине слова + auto-shrink →
+ * «Морепродукты» и «Средиземноморская» МЕЛЬЧЕ соседей (скриншоты владельца
+ * 2026-09-04). Auto-shrink и есть источник «разного кегля», поэтому он убран
+ * совсем: кегль у всех подписей один (14/20 Medium из макета 3447:12767),
+ * ячейка hug по подписи, длинное слово переносится явным `-\n` по слогу
+ * (см. cuisine-label.ts).
  *
- * Баг 2 (правка владельца 2026-09-01): «Морепродукты» разорвалось на
- * «Морепродукт / ы». Лечение первого бага дало подписи ДВЕ строки — и этим же
- * разрешило React Native ломать единственное слово посередине: в две строки
- * оно помещается, значит `adjustsFontSizeToFit` сжимать шрифт не обязан.
- *
- * Баг 3 (ревью PR #102, 2026-09-01): первая редакция лечения считала СЛОВА, а
- * не их длину, и «Средиземноморская кухня» — два слова, значит две строки —
- * снова рвалась по букве. Названия кухонь правит редакция из кабинета, так
- * что это рабочий сценарий, а не теория.
- *
- * Действующее правило: решает ДЛИНА САМОГО ДЛИННОГО СЛОВА. Помещается в
- * строку при базовом кегле — две строки (перенос пойдёт по пробелу, слова
- * целые). Не помещается или слово одно — одна строка: ломать нечего, и шрифт
- * обязан ужаться.
- *
- * ЧЕГО ЭТИ ТЕСТЫ НЕ ДОКАЗЫВАЮТ: что подпись реально помещается. Ширину текста
- * меряет платформа, а `adjustsFontSizeToFit` в react-native-web не
- * реализован вовсе — сжатие шрифта проверяется только на устройстве.
+ * ЧЕГО ЭТИ ТЕСТЫ НЕ ДОКАЗЫВАЮТ: как платформа меряет ширину текста. В
+ * react-native-web ячейка hug рисуется как flex-колонка с `min-width`, и это
+ * проверяется здесь; что на iOS/Android ячейка действительно раздвигается под
+ * «Морепродукты», проверяется только глазами на устройстве.
  */
 
 // require(jpg/png) Node разобрать не может — подменяется только источник
 // картинки, разметка подписи остаётся настоящей.
 vi.mock("../cuisine-photos", () => ({ cuisinePhoto: () => undefined }));
 
-const { CuisineChip, cuisineLabelCharsPerLine, cuisineLabelLines } = await import(
-  "../CuisineChip"
-);
+const { CuisineChip } = await import("../CuisineChip");
 
-const LONGEST_LIVE_CUISINE = "Средиземноморская";
+const LIVE_NAMES = [
+  "Европейская",
+  "Казахская",
+  "Грузинская",
+  "Греческая",
+  "Морепродукты",
+  "Средиземноморская",
+];
+
+function renderChip(name: string) {
+  render(<CuisineChip cuisine={{ id: name.toLowerCase(), name }} onSelect={vi.fn()} />);
+  return screen.getByRole("button", { name: new RegExp(name) });
+}
+
+function labelOf(button: HTMLElement): HTMLElement {
+  const label = Array.from(button.querySelectorAll("div, span")).find(
+    (el) => el.childElementCount === 0 && (el.textContent ?? "").trim().length > 0,
+  );
+  if (!label) throw new Error("подпись под кругом не найдена");
+  return label as HTMLElement;
+}
 
 describe("подпись под кружком кухни", () => {
-  it("рисует полное название, а не его обрезок", () => {
-    render(
-      <CuisineChip
-        cuisine={{ id: "средиземноморская", name: LONGEST_LIVE_CUISINE }}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText(LONGEST_LIVE_CUISINE)).toBeTruthy();
-    // Тот самый обрезок, ради которого правка и делалась.
-    expect(screen.queryByText("Ср.морская")).toBeNull();
+  it("у всех кухонь один и тот же кегль из макета — без auto-shrink", () => {
+    const sizes = new Set<string>();
+    const lineHeightClasses = new Set<string>();
+    for (const name of LIVE_NAMES) {
+      const label = labelOf(renderChip(name));
+      sizes.add(getComputedStyle(label).getPropertyValue("font-size"));
+      // jsdom не резолвит line-height из таблицы стилей (отдаёт «normal»),
+      // поэтому интерлиньяж сверяется по классу react-native-web и его правилу.
+      const cls = Array.from(label.classList).find((c) => c.startsWith("r-lineHeight-"));
+      if (cls) lineHeightClasses.add(cls);
+    }
+    expect(sizes).toEqual(new Set([`${typography.labelMedium.fontSize}px`]));
+    expect(lineHeightClasses.size).toBe(1);
+    const [lineHeightClass] = lineHeightClasses;
+    const rule = Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .find((r) => r.cssText.startsWith(`.${lineHeightClass} `));
+    expect(rule?.cssText).toContain(`line-height: ${typography.labelMedium.lineHeight}px`);
+    expect(typography.labelMedium.fontSize).toBe(14);
+    expect(typography.labelMedium.lineHeight).toBe(20);
   });
 
-  it("одному слову даёт ОДНУ строку — иначе его ломает посередине", () => {
-    render(
-      <CuisineChip
-        cuisine={{ id: "морепродукты", name: "Морепродукты" }}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    // react-native-web разводит два случая разными свойствами: одна строка —
-    // это `white-space: nowrap` (перенос запрещён вовсе, в том числе внутри
-    // слова), две и больше — `-webkit-line-clamp`. Проверяем то самое
-    // свойство, которое и запрещает разрыв «Морепродукт / ы».
-    const label = screen.getByText("Морепродукты");
-    const style = getComputedStyle(label);
-    expect(style.getPropertyValue("white-space")).toBe("nowrap");
-    expect(style.getPropertyValue("-webkit-line-clamp")).toBe("");
+  it("не использует adjustsFontSizeToFit / minimumFontScale", () => {
+    // Проп до DOM не доезжает, поэтому проверяем по исходнику компонента:
+    // это тот самый механизм, который давал «разный кегль».
+    const source = JSON.stringify(CuisineChip.toString());
+    expect(source).not.toContain("adjustsFontSizeToFit");
+    expect(source).not.toContain("minimumFontScale");
   });
 
-  it("составному названию из КОРОТКИХ слов даёт ДВЕ строки", () => {
-    // Здесь перенос действительно есть по чему: оба слова помещаются в строку,
-    // и разрывать RN ничего не придётся.
-    render(
-      <CuisineChip
-        cuisine={{ id: "азиатская кухня", name: "Азиатская кухня" }}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    const label = screen.getByText("Азиатская кухня");
-    expect(getComputedStyle(label).getPropertyValue("-webkit-line-clamp")).toBe("2");
-  });
-
-  it("СОСТАВНОЕ название с длинным словом тоже получает одну строку", () => {
-    // Тот самый случай с ревью: слов два, но «Средиземноморская» само по себе
-    // в строку не помещается. Две строки разрешили бы разорвать именно его.
-    render(
-      <CuisineChip
-        cuisine={{ id: "средиземноморская кухня", name: "Средиземноморская кухня" }}
-        onSelect={vi.fn()}
-      />,
-    );
-
-    const label = screen.getByText("Средиземноморская кухня");
+  it("«Морепродукты» стоит в одну строку целиком, без переноса и без сжатия", () => {
+    const label = labelOf(renderChip("Морепродукты"));
+    expect(label.textContent).toBe("Морепродукты");
+    // react-native-web: numberOfLines={1} → white-space: nowrap. Разрыв
+    // «Морепродукт / ы» при этом невозможен.
     expect(getComputedStyle(label).getPropertyValue("white-space")).toBe("nowrap");
   });
 
-  it("правило числа строк держится на боевых названиях всех трёх языков", () => {
-    // Одно слово — всегда одна строка.
-    expect(cuisineLabelLines("Морепродукты")).toBe(1);
-    expect(cuisineLabelLines(LONGEST_LIVE_CUISINE)).toBe(1);
-    expect(cuisineLabelLines("Seafood")).toBe(1);
-    expect(cuisineLabelLines("Итальянская")).toBe(1);
-
-    // Слов несколько, но самое длинное в строку НЕ помещается — одна строка.
-    expect(cuisineLabelLines("Средиземноморская кухня")).toBe(1);
-    expect(cuisineLabelLines("Ближневосточная кухня")).toBe(1);
-
-    // Слов несколько и каждое помещается — две строки, перенос по пробелу.
-    expect(cuisineLabelLines("Теңіз өнімдері")).toBe(2);
-    expect(cuisineLabelLines("Middle Eastern")).toBe(2);
-    expect(cuisineLabelLines("Жерорта теңізі асханасы")).toBe(2);
-    expect(cuisineLabelLines("Азиатская кухня")).toBe(2);
-
-    // Мусор во входных данных не должен давать ноль строк.
-    expect(cuisineLabelLines("  Греческая  ")).toBe(1);
-    expect(cuisineLabelLines("")).toBe(1);
-    expect(cuisineLabelLines("   ")).toBe(1);
+  it("«Средиземноморская» переносится по слогу: «Средиземно-» / «морская»", () => {
+    const button = renderChip("Средиземноморская");
+    const label = labelOf(button);
+    expect(label.textContent).toBe("Средиземно-\nморская");
+    expect(getComputedStyle(label).getPropertyValue("-webkit-line-clamp")).toBe("2");
+    // Скринридеру — полное имя без дефиса.
+    expect(button.getAttribute("aria-label")).toContain("Средиземноморская");
   });
 
-  it("неразрывный пробел НЕ считается разделителем — по нему RN не переносит", () => {
-    // Он приезжает из кабинета копипастой. Раскладке это одно слово, значит
-    // и правилу тоже: иначе мы дали бы две строки тексту, который перенести
-    // не по чему, и он снова разорвался бы по букве.
-    expect(cuisineLabelLines("Теңіз\u00a0өнімдері")).toBe(1);
-    expect(cuisineLabelLines("Средиземноморская\u00a0кухня")).toBe(1);
-  });
-
-  it("вместимость строки считается из токенов макета, а не вписана числом", () => {
-    // Модель откалибрована по наблюдению владельца: «Морепродукты» (12
-    // символов) в ячейку 96 при кегле 14 не поместились. Значит вместимость
-    // строго меньше 12 — иначе RN не стал бы их переносить.
-    expect(cuisineLabelCharsPerLine()).toBeLessThan("Морепродукты".length);
-    // И не абсурдно мала: «кухня» и «Теңіз» обязаны помещаться, иначе
-    // составные названия никогда не получат вторую строку.
-    expect(cuisineLabelCharsPerLine()).toBeGreaterThanOrEqual("Теңіз".length);
-  });
-
-  it("держит подпись не уже ячейки макета — иначе длинному слову негде поместиться", () => {
-    // Раньше здесь стояло «подпись шире круга»: круг был 72, снятые с
-    // отрендеренного экрана, а подпись 96. С 2026-08-26 круг тоже 96 — размер
-    // из макета, — поэтому «шире» перестало выполняться, хотя места под
-    // подпись ровно столько же. Проверяем то, что и защищали: 96 точек под
-    // «Средиземноморская».
-    expect(exploreLayout.cuisineChipLabel).toBe(96);
-    expect(exploreLayout.cuisineChipLabel).toBeGreaterThanOrEqual(exploreLayout.cuisineChip);
+  it("ячейка не уже круга и не зажата его шириной — подпись вправе быть шире", () => {
+    const button = renderChip("Морепродукты");
+    const style = getComputedStyle(button);
+    expect(style.getPropertyValue("min-width")).toBe(`${exploreLayout.cuisineChip}px`);
+    expect(style.getPropertyValue("width")).not.toBe(`${exploreLayout.cuisineChip}px`);
+    expect(style.getPropertyValue("align-items")).toBe("center");
+    // И у самой подписи ширина не задана — она меряет себя по тексту.
+    expect(getComputedStyle(labelOf(button)).getPropertyValue("width")).not.toBe("100%");
   });
 
   it("остаётся кнопкой с названием кухни для скринридера", () => {
-    const onSelect = vi.fn();
-    render(
-      <CuisineChip
-        cuisine={{ id: "греческая", name: "Греческая" }}
-        onSelect={onSelect}
-      />,
-    );
-
-    expect(screen.getByRole("button", { name: /Греческая/ })).toBeTruthy();
+    expect(renderChip("Греческая")).toBeTruthy();
   });
 });
