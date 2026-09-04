@@ -39,7 +39,8 @@ export function DateField({
   min: string | null;
   label: string;
   shown: string | null;
-  /** Бронь в полёте: менять день нельзя. */
+  /** Запрос в полёте — бронь на странице бронирования или доступность в
+   * карточке заведения: менять день нельзя. */
   disabled: boolean;
   onChange: (next: string) => void;
 }) {
@@ -140,7 +141,8 @@ export function GuestsField({
   id: string;
   value: number;
   label: string;
-  /** Бронь в полёте: менять компанию нельзя. */
+  /** Запрос в полёте — бронь на странице бронирования или доступность в
+   * карточке заведения: менять компанию нельзя. */
   disabled: boolean;
   onChange: (next: number) => void;
 }) {
