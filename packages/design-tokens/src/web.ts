@@ -70,6 +70,10 @@ export const webPalette = {
   warning50: "#FFF7E6",
   /** Текст того же бейджа (узел 3274:48). Своего образца в ките нет. */
   warning700: "#8A4F00",
+  /** Точка статуса «ждём подтверждения» (узел 3525:15212). Своего образца в
+   * ките тоже нет, снята с самого ярлыка — держим здесь, чтобы третий оттенок
+   * warning не жил литералом в другом конце файла. */
+  warning600: "#B26A00",
 
   /** danger/500 — обводка поля с ошибкой, текст бейджа «Отменено». */
   danger500: "#C62828",
@@ -1133,8 +1137,8 @@ export const webProfile = {
     addressFontSize: 13,
     addressLineHeight: 18,
     /** 3525:15212 — ярлык статуса: 32 высотой, паддинг 8/12, точка 7 и
-     * подпись 12/16 SemiBold через 6, радиус полный. Точка «ждём» #B26A00 —
-     * своего образца в ките у неё нет, снята с самого ярлыка. */
+     * подпись 12/16 SemiBold через 6, радиус полный. Точка «ждём» берёт
+     * warning600 из палитры. */
     statusPill: {
       height: 32,
       paddingX: 12,
@@ -1142,7 +1146,7 @@ export const webProfile = {
       dotSize: 7,
       fontSize: 12,
       lineHeight: 16,
-      dot: { success: webColors.text.successDot, warning: "#B26A00", neutral: webColors.text.tertiary },
+      dot: { success: webColors.text.successDot, warning: webPalette.warning600, neutral: webColors.text.tertiary },
     },
     /** 3525:15215 — ячейки «Дата / Время / Гости / Код» через 24, подпись
      * 12/16 Medium трекинг 0.2, значение 15/22 SemiBold, между ними 2. */
