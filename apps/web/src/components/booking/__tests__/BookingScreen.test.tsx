@@ -151,6 +151,20 @@ describe("страница бронирования — состояния", () 
     );
     expect(screen.queryByRole("button", { name: "Забронировать" })).toBeNull();
   });
+
+  it("сессия ещё читается — кнопка «Забронировать» стоит выключенной, а не ссылкой на вход", async () => {
+    // Узел 3525:14971, облик «waiting»: подпись честная (не «Бронируем…»),
+    // нажать нельзя, и гостя не гонят на вход, пока не ясно, вошёл ли он.
+    auth = { signedIn: false, isLoading: true, user: null };
+    renderBooking();
+    await chooseSlot();
+
+    const button = submitButton();
+    expect(button).toHaveProperty("disabled", true);
+    expect(button.getAttribute("aria-busy")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Войти и забронировать" })).toBeNull();
+    expect(screen.queryByText("Код придёт на ваш номер. Заполненное вернётся на место.")).toBeNull();
+  });
 });
 
 describe("страница бронирования — имя и телефон", () => {
@@ -271,6 +285,21 @@ describe("страница бронирования — отправка", () =>
 
     await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
     expect(nameField().disabled).toBe(true);
+  });
+
+  it("пока запрос идёт — кнопка занята: «Бронируем…», disabled и aria-busy", async () => {
+    // Узел 3525:14971, облик «submitting»: индикатор отправки есть, подпись
+    // меняется на «Бронируем…», кнопка выключена, а «Забронировать» исчезает.
+    signIn();
+    repository.createBooking = vi.fn(() => pending<Booking>());
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    const busy = await screen.findByRole("button", { name: "Бронируем…" });
+    expect(busy).toHaveProperty("disabled", true);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Забронировать" })).toBeNull();
   });
 
   it("повтор ТОЙ ЖЕ брони после обрыва уходит с тем же ключом идемпотентности", async () => {
