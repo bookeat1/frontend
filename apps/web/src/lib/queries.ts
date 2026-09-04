@@ -9,6 +9,7 @@ import {
 import type {
   Amenity,
   Booking,
+  BookingPage,
   CreateBookingInput,
   RescheduleBookingInput,
   Cuisine,
@@ -24,7 +25,7 @@ import type {
 
 import { isApiConfigured, repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
-import { BOOKING_KEY, FAVORITES_KEY } from "@web/lib/query-keys";
+import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -351,6 +352,65 @@ export function useRescheduleBooking() {
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
       // И сама бронь в кэше — тоже: страница успеха читает её по ключу ниже.
       client.setQueryData([...BOOKING_KEY, booking.id], booking);
+    },
+  });
+}
+
+/**
+ * Сколько броней просим для страницы профиля. `GET /bookings` отдаёт
+ * страницами; сегменты «Активные / Прошедшие / Отменённые» считаются на
+ * клиенте, поэтому берём одну крупную страницу, а не листаем. Если у гостя
+ * броней больше — экран честно пишет «показаны N из M», а не выдумывает счёт.
+ */
+export const MY_BOOKINGS_PAGE_SIZE = 50;
+
+/**
+ * Брони гостя (`GET /bookings`). Ключ без локали — в ответе время, числа и
+ * машинный статус. Ходим только у вошедшего, пока сессия читается — нет
+ * (иначе гарантированный 401 после перезагрузки). Ключ привязан к сессии:
+ * его чистит `AuthProvider`.
+ */
+export function useMyBookings(): UseQueryResult<BookingPage> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: MY_BOOKINGS_KEY,
+    queryFn: () => repository.listMyBookings({ page: 1, perPage: MY_BOOKINGS_PAGE_SIZE }),
+    enabled: isApiConfigured && signedIn && !isLoading,
+  });
+}
+
+/**
+ * Избранные заведения целиком (`GET /favorites`) — для вкладки «Избранное».
+ *
+ * Ключ — ПОД префиксом `FAVORITES_KEY`: чистка сессии по префиксу снимает и
+ * его, а `invalidateQueries` в `useToggleFavorite` после каждого нажатия
+ * сердца перезапрашивает список — снятая карточка исчезает сама. Локаль в
+ * ключе есть: названия кухонь в ответе переведены сервером.
+ */
+export function useFavoriteVenues(): UseQueryResult<RestaurantSummary[]> {
+  const { locale } = useLocale();
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: [...FAVORITES_KEY, "venues", locale],
+    queryFn: () => repository.getFavorites(),
+    enabled: isApiConfigured && signedIn && !isLoading,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Отмена брони гостем (`POST /bookings/:id/cancel`). Повторов нет: сеть
+ * могла оборваться после того, как сервер уже отменил. После ответа список
+ * профиля перезапрашивается, а сама бронь кладётся в кэш по своему ключу.
+ */
+export function useCancelBooking() {
+  const client = useQueryClient();
+  return useMutation<Booking, unknown, { bookingId: string }>({
+    mutationFn: ({ bookingId }) => repository.cancelBooking(bookingId),
+    onSuccess: (booking) => {
+      client.setQueryData([...BOOKING_KEY, booking.id], booking);
+      void client.invalidateQueries({ queryKey: MY_BOOKINGS_KEY });
+      void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
     },
   });
 }
