@@ -232,7 +232,9 @@ export function CatalogScreen() {
                 <button
                   type="button"
                   onClick={() => update({ ...EMPTY_CATALOG_STATE })}
-                  className="px-2 text-[13px] font-medium leading-[18px] text-ink-tertiary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  // Без своего паддинга: в макете (узел 3525:14493) ссылка стоит
+                  // через тот же просвет 8, что и чипы между собой.
+                  className="text-[13px] font-medium leading-[18px] text-ink-tertiary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   {t.web.catalog.active.clearAll}
                 </button>
@@ -302,9 +304,10 @@ function ActiveChip({ label, onClear }: { label: string; onClear: () => void }) 
         aria-label={t.web.catalog.active.clear(label)}
         className="inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-brand hover:text-ink-on-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+        {/* Крестик 8×8 внутри квадрата 20 — узел 3525:14480. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path
-            d="M3 3l6 6M9 3l-6 6"
+            d="M6 6l8 8M14 6l-8 8"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.6"
