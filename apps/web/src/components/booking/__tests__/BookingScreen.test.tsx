@@ -165,6 +165,25 @@ describe("страница бронирования — состояния", () 
     expect(screen.queryByRole("link", { name: "Войти и забронировать" })).toBeNull();
     expect(screen.queryByText("Код придёт на ваш номер. Заполненное вернётся на место.")).toBeNull();
   });
+
+  /** Ниже `lg` сводка свёрнута за настоящей кнопкой (`docs/responsive.md`,
+   * дыра № 10): диктор слышит состояние, тело связано через `aria-controls`.
+   * Кнопка отправки при этом одна на оба экрана — `submitButton()` в тестах
+   * отправки (`getByRole`) упал бы на второй. */
+  it("сводка раскрывается кнопкой «Ваша бронь»", async () => {
+    renderBooking();
+    await chooseSlot();
+
+    const toggle = screen.getByRole("button", { name: "Ваша бронь" });
+    const body = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+    expect(body).not.toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(body?.className).toContain("hidden");
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(body?.className).not.toContain("hidden");
+  });
 });
 
 describe("страница бронирования — имя и телефон", () => {
