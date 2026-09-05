@@ -8,16 +8,18 @@ import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
  * так, чтобы это было слышно, а не только видно по красному подчёркиванию.
  */
 describe("SiteHeader", () => {
-  it("рисует все пункты меню из макета — их ТРИ", () => {
+  it("рисует все пункты меню с существующими роутами — их ЧЕТЫРЕ", () => {
     render(<SiteHeader />);
 
     const nav = screen.getByRole("navigation", { name: "Основная навигация" });
     expect(nav.querySelectorAll("a")).toHaveLength(HEADER_NAV.length);
-    // Узел 3549:5727: «Главная», «Заведения», «Гастрогид». «Афиша» и «Статьи»
-    // достались от старого компонента шапки и вели в 404 Next.
+    // Узел 5034:9569 (шапка кадра «Афиша»): «Главная», «Заведения», «Афиша»,
+    // «Гастрогид», «Статьи». «Статьи» не показываем — роута /articles нет,
+    // ссылка вела бы в 404 Next. «Афиша» появилась вместе с роутом /events.
     expect([...nav.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
       "Главная",
       "Заведения",
+      "Афиша",
       "Гастрогид",
     ]);
   });

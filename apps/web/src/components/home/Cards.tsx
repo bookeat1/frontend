@@ -15,8 +15,9 @@ import { useLocale, useT } from "@web/lib/locale";
  *   • событие — «Card / Event», 384×324, плашка с датой поверх фото;
  *   • подборка — «Card / Article», 588×464, надзаголовок «От редакции».
  *
- * Все ведут на страницу заведения-хозяина, а не на собственные экраны акции,
- * события и подборки: этих экранов в вебе ещё нет, и ссылка на них была бы
+ * Акция и подборка ведут на страницу заведения-хозяина, а не на собственные
+ * экраны: этих экранов в вебе ещё нет (событие с 2026-09-05 ведёт на
+ * `/events/[id]`), и ссылка на них была бы
  * обещанием несуществующего маршрута. Исключение — подборка: у неё нет
  * заведения-хозяина, поэтому её карточка ведёт на страницу подборки, и эта
  * ссылка живёт за флагом `SHOW_SECTION_LINKS` до появления роута.
@@ -35,11 +36,19 @@ import { useLocale, useT } from "@web/lib/locale";
  */
 export const SHOW_SECTION_LINKS: boolean = false;
 
+/**
+ * Роут `/events` ЕСТЬ с 2026-09-05 (узлы 5033:6703 и 5033:6922), поэтому
+ * ссылка «Вся афиша» и карточка события включены отдельным флагом, а не общим
+ * `SHOW_SECTION_LINKS`: тот всё ещё держит выключенным `/guide`, которого нет.
+ */
+export const SHOW_EVENTS_LINK: boolean = true;
+
 /** Адреса, которые появятся вместе с роутами; собраны в одном месте, чтобы
  * при включении флага не искать их по вёрстке. */
 export const EVENTS_PATH = "/events";
 export const GUIDE_PATH = "/guide";
 export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
+export const eventHref = (id: string) => `${EVENTS_PATH}/${id}`;
 
 /**
  * Размеры обложек трёх карточек. Числа макета (260, 196/324, 300) живут только
@@ -123,7 +132,7 @@ export function EventCard({ event }: { event: EventSummary }) {
         <div className="flex flex-col gap-1.5">
           <h3 className="break-words text-[20px] font-semibold leading-[26px] text-ink">
             <Link
-              href={`/venues/${event.restaurantId}`}
+              href={SHOW_EVENTS_LINK ? eventHref(event.id) : `/venues/${event.restaurantId}`}
               className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {event.title}

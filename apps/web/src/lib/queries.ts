@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
+  type UseInfiniteQueryResult,
+  type InfiniteData,
   type UseQueryResult,
 } from "@tanstack/react-query";
 import type {
@@ -14,6 +17,7 @@ import type {
   RescheduleBookingInput,
   Cuisine,
   DayAvailability,
+  EventPage,
   EventSummary,
   GuideCollection,
   HomePromo,
@@ -90,6 +94,48 @@ export function useEvents(city: string | undefined): UseQueryResult<EventSummary
         .listUpcomingEvents({ city, perPage: EVENTS_LIMIT })
         .then((page) => page.items),
     enabled: isApiConfigured && Boolean(city),
+  });
+}
+
+/** Страница афиши: сетка 3×2 (узел 5033:6737), «Показать ещё» грузит следующую. */
+export const EVENTS_PAGE_SIZE = 6;
+
+/**
+ * Полная афиша /events. Бесконечный запрос: страницы накапливаются, кнопка
+ * «Показать ещё» дёргает `fetchNextPage`. Сервер отдаёт события по возрастанию
+ * даты начала, фильтра по тегу у `GET /events` нет — чипы фильтруют на клиенте
+ * то, что уже загружено (см. EventsScreen).
+ */
+export function useEventsFeed(
+  city: string | undefined,
+): UseInfiniteQueryResult<InfiniteData<EventPage>> {
+  const { locale } = useLocale();
+  return useInfiniteQuery({
+    queryKey: [locale, "events-feed", city],
+    queryFn: ({ pageParam }) =>
+      repository.listUpcomingEvents({ city, page: pageParam, perPage: EVENTS_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
+    enabled: isApiConfigured && Boolean(city),
+  });
+}
+
+/**
+ * Одно событие для /events/[id]. У публичного API НЕТ `GET /events/:id`
+ * (то же ограничение обходит `useEvent` в apps/mobile): берём максимальную
+ * страницу листинга БЕЗ города — по прямой ссылке гость может открыть событие
+ * другого города — и ищем по id. `null` в данных = «не найдено» (прошло или
+ * снято с публикации), это не ошибка сети.
+ */
+export function useEventById(id: string): UseQueryResult<EventSummary | null> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "event", id],
+    queryFn: () =>
+      repository
+        .listUpcomingEvents({ perPage: 100 })
+        .then((page) => page.items.find((item) => item.id === id) ?? null),
+    enabled: isApiConfigured && Boolean(id),
   });
 }
 
