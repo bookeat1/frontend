@@ -14,6 +14,7 @@ import {
   GuideCard,
   PROMO_CARD_FRAME,
   PromoCard,
+  SHOW_EVENTS_LINK,
   SHOW_SECTION_LINKS,
   guideCollectionHref,
 } from "@web/components/home/Cards";
@@ -225,7 +226,7 @@ export function HomeScreen() {
           <SectionHeader
             title={t.web.home.events.title}
             subtitle={t.web.home.events.subtitle}
-            linkHref={SHOW_SECTION_LINKS ? EVENTS_PATH : undefined}
+            linkHref={SHOW_EVENTS_LINK ? EVENTS_PATH : undefined}
             linkLabel={t.web.home.events.all}
           />
           <AsyncBlock
