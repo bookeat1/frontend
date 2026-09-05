@@ -27,8 +27,19 @@ export const FAVORITES_KEY = ["favorites"] as const;
  */
 export const BOOKING_KEY = ["booking"] as const;
 
+/**
+ * Список броней гостя (`GET /bookings`) на странице профиля. Отдельный ключ,
+ * а не `[...BOOKING_KEY, "list"]`: тот префикс — про ОДНУ бронь по id, и
+ * строка «list» на месте id читалась бы как бронь с таким идентификатором.
+ */
+export const MY_BOOKINGS_KEY = ["my-bookings"] as const;
+
 /** Всё, что нельзя показывать следующему гостю в этой же вкладке. */
-const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [FAVORITES_KEY, BOOKING_KEY];
+const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
+  FAVORITES_KEY,
+  BOOKING_KEY,
+  MY_BOOKINGS_KEY,
+];
 
 /**
  * Выбросить данные прежней сессии.

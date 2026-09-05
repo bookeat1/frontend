@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Card } from "@web/components/ui/Card";
 import { HeartIcon } from "@web/components/ui/HeartIcon";
@@ -46,6 +47,9 @@ export interface VenueCardProps {
   favoritePending?: boolean;
   onToggleFavorite?: () => void;
   onSelectSlot?: (time: string) => void;
+  /** Нижний слот тела — кнопка «Забронировать» в избранном профиля
+   * (узел 3525:15403). Кнопка стоит ПОВЕРХ растянутой ссылки заголовка. */
+  action?: ReactNode;
   className?: string;
 }
 
@@ -60,6 +64,7 @@ export function VenueCard({
   favoritePending = false,
   onToggleFavorite,
   onSelectSlot,
+  action,
   className,
 }: VenueCardProps) {
   const t = useT();
@@ -158,6 +163,7 @@ export function VenueCard({
         ) : (
           <p className="text-[13px] leading-[18px] text-ink-tertiary">{t.web.ui.noSlots}</p>
         )}
+        {action ? <div className="relative z-10 mt-auto">{action}</div> : null}
       </div>
     </Card>
   );

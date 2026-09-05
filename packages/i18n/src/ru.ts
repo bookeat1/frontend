@@ -22,6 +22,20 @@ function bookingsWord(count: number): string {
   return "броней";
 }
 
+/** Русская форма слова «визит» для статистики профиля: 1 визит, 2 визита,
+ * 5 визитов. Возврат `: string` нарочно: у `ru` стоит `as const`, и инлайновый
+ * тернарник сузил бы тип до русских литералов — kk и en перестали бы
+ * собираться. */
+function visitsWord(count: number): string {
+  return pluralRu(count, "визит", "визита", "визитов");
+}
+
+/** Русская форма слова «избранное» для счётчика профиля: 1 избранное,
+ * 2 избранных, 5 избранных. Число стоит отдельным узлом, поэтому только слово. */
+function favoritesWord(count: number): string {
+  return pluralRu(count, "избранное", "избранных", "избранных");
+}
+
 /** Русская форма слова «день» для числа: 1 день, 2 дня, 5 дней. */
 function daysWord(count: number): string {
   const mod10 = count % 10;
@@ -3912,6 +3926,80 @@ export const ru = {
       signInTitle: "Нужен вход",
       signInText: "Бронь видна только тому, кто её создал. Войдите по номеру телефона.",
       signInAction: "Войти",
+    },
+    /** Страница гостя — узлы 3525:15153 и 3525:15365. */
+    profile: {
+      metaTitle: "BookEat — профиль",
+      title: "Профиль",
+      /** «с BookEat с марта 2025» — месяц и год приходят из `createdAt`. */
+      since: (monthYear: string) => `с BookEat с ${monthYear}`,
+      /** Только слово: число стоит отдельным жирным узлом (3525:15165). */
+      visitsWord,
+      favoritesWord,
+      avatarLabel: "Аватар",
+      nav: {
+        label: "Разделы профиля",
+        bookings: "Мои брони",
+        favorites: "Избранное",
+        settings: "Настройки",
+        signOut: "Выйти",
+      },
+      bookings: {
+        title: "Мои брони",
+        segmentsLabel: "Фильтр броней",
+        segments: { active: "Активные", past: "Прошедшие", cancelled: "Отменённые" },
+        segment: (name: string, count: number) => `${name} · ${count}`,
+        emptyActive: "Активных броней нет. Выберите заведение — и столик ваш.",
+        emptyPast: "Прошедших броней пока нет.",
+        emptyCancelled: "Отменённых броней нет.",
+        findVenue: "Найти заведение",
+        /** Список приходит страницами; на экране — первая. */
+        partial: (shown: number, total: number) => `Показаны ${shown} из ${total} броней`,
+        info: { date: "Дата", time: "Время", guests: "Гости", code: "Код" },
+        status: {
+          confirmed: "Подтверждено",
+          pending: "Ждём подтверждения",
+          waitlist: "В листе ожидания",
+          arrived: "Вы за столом",
+          completed: "Завершено",
+          cancelled: "Отменено",
+          noShow: "Не состоялась",
+          expired: "Истекла",
+        },
+        today: "сегодня",
+        withDate: (label: string, date: string) => `${label} · ${date}`,
+        actions: { showCode: "Показать код", change: "Изменить", cancel: "Отменить", rebook: "Повторить бронь" },
+        cancelDialog: {
+          title: "Отменить бронь?",
+          text: "Столик освободится, и заведение получит уведомление. Отменить можно не позже чем за два часа до визита.",
+          confirm: "Да, отменить",
+          keep: "Оставить",
+          failed: "Не удалось отменить бронь. Проверьте связь и попробуйте ещё раз.",
+        },
+        venueFallback: "Заведение",
+      },
+      favorites: {
+        title: "Избранное",
+        empty: "В избранном пока пусто. Нажмите сердце на карточке заведения — оно появится здесь.",
+        browse: "Смотреть заведения",
+        book: "Забронировать",
+      },
+      settings: {
+        title: "Настройки",
+        name: "Имя",
+        namePlaceholder: "Как к вам обращаться",
+        nameRequired: "Введите имя",
+        email: "Почта",
+        /** `PATCH /users/me` почту не принимает — поле только показывается. */
+        emailReadOnly: "Почту пока можно изменить только в мобильном приложении.",
+        phone: "Телефон",
+        phoneReadOnly: "Номер меняется через подтверждение кодом в приложении.",
+        notSet: "не указано",
+        save: "Сохранить",
+        saved: "Сохранено",
+        failed: "Не удалось сохранить. Проверьте связь и попробуйте ещё раз.",
+      },
+      signInText: "Профиль доступен после входа. Перенаправляем…",
     },
     kit: {
       title: "BookEat Web · UI Kit",

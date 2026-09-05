@@ -168,6 +168,9 @@ export function repositoryStub(
     // (`?change=`) на странице бронирования зовёт `PATCH /bookings/:id`.
     getBooking: vi.fn(async () => booking()),
     rescheduleBooking: vi.fn(async () => booking()),
+    // Страница гостя: список броней и отмена.
+    listMyBookings: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 50 })),
+    cancelBooking: vi.fn(async () => booking({ status: "cancelled" })),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
 }

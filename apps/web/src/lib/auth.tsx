@@ -55,6 +55,9 @@ export interface AuthContextValue {
   signedIn: boolean;
   /** Записать сессию после успешного `verifyOtp` и подтянуть профиль. */
   completeSignIn(session: AuthSession): Promise<void>;
+  /** Профиль изменили (настройки): положить свежий ответ `PATCH /users/me`
+   * в хранилище и в состояние, чтобы шапка и карточка гостя не отстали. */
+  applyUser(user: AuthUser): void;
   signOut(): void;
 }
 
@@ -63,6 +66,7 @@ const AuthContext = createContext<AuthContextValue>({
   isLoading: true,
   signedIn: false,
   completeSignIn: async () => {},
+  applyUser: () => {},
   signOut: () => {},
 });
 
@@ -187,9 +191,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
+  const applyUser = useCallback((fresh: AuthUser) => {
+    storeUser(browserStorage(), fresh);
+    setUser(fresh);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, signedIn, completeSignIn, signOut: forget }),
-    [user, isLoading, signedIn, completeSignIn, forget],
+    () => ({ user, isLoading, signedIn, completeSignIn, applyUser, signOut: forget }),
+    [user, isLoading, signedIn, completeSignIn, applyUser, forget],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
