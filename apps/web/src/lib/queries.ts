@@ -17,6 +17,7 @@ import type {
   EventSummary,
   GuideCollection,
   GuideCollectionDetail,
+  GuideRoute,
   HomePromo,
   Restaurant,
   RestaurantSummary,
@@ -124,6 +125,21 @@ export function useArticle(slug: string): UseQueryResult<GuideCollectionDetail> 
     queryFn: () => repository.getArticle(slug),
     enabled: isApiConfigured && slug.length > 0,
     retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
+  });
+}
+
+/**
+ * Гастропрогулки `GET /gastroguide/routes?city=` — зеркало
+ * `useGuideRoutes` из `apps/mobile/src/components/explore/use-explore-data.ts`:
+ * маршруты городские, поэтому город входит в ключ, а без города запрос не
+ * уходит (в приложении то же условие `enabled: city.length > 0`).
+ */
+export function useGuideRoutes(city: string | undefined): UseQueryResult<GuideRoute[]> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "guide-routes", city],
+    queryFn: () => repository.getGuideRoutes(city ?? ""),
+    enabled: isApiConfigured && Boolean(city),
   });
 }
 

@@ -15,6 +15,7 @@ import {
   webHomeEventCard,
   webArticles,
   webHomeGuideCard,
+  webGuidePage,
   webHomePromoCard,
   webLayout,
   webLoginModal,
@@ -259,6 +260,11 @@ const config: Config = {
       "2xl": px(webLayout.breakpoints[0]),
     },
     extend: {
+      fontFamily: {
+        // Слоган гастрогида (5039:10252) — Playfair Display Italic; шрифт не
+        // подключён через next/font (сборка без сети), стек с запасными.
+        serif: ['"Playfair Display"', "Georgia", "serif"],
+      },
       colors: {
         canvas: webColors.background.canvas,
         subtle: webColors.background.subtle,
@@ -269,6 +275,11 @@ const config: Config = {
           DEFAULT: webColors.background.brand,
           subtle: webColors.background.brandSubtle,
           text: webColors.text.brand,
+        },
+        guide: {
+          gold: webGuidePage.gold,
+          pick: webGuidePage.editorPickFill,
+          "pick-subtitle": webGuidePage.editorPickSubtitle,
         },
         ink: {
           DEFAULT: webColors.text.primary,
@@ -540,6 +551,12 @@ const config: Config = {
         "article-photo": px(webArticles.venuePhotoHeight),
         "article-back": px(webArticles.backLink.height),
         "guide-body": px(webHomeGuideCard.bodyHeight),
+        "guide-rubric": px(webGuidePage.rubric.height),
+        "guide-rubric-m": px(webGuidePage.rubric.mobileHeight),
+        "guide-pick": px(webGuidePage.editorPick.height),
+        "guide-pick-m": px(webGuidePage.editorPick.mobileHeight),
+        "guide-walk": px(webGuidePage.walk.height),
+        "guide-walk-m": px(webGuidePage.walk.mobileHeight),
         "sort-select": px(webCatalog.sortSelect.height),
         "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
