@@ -41,16 +41,37 @@ export const EVENTS_PATH = "/events";
 export const GUIDE_PATH = "/guide";
 export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
 
+/**
+ * Размеры обложек трёх карточек. Числа макета (260, 196/324, 300) живут только
+ * под `lg:` — ниже структуру задаёт приложение (`docs/responsive.md`, § 5,
+ * дыра № 6): у акции и подборки обложка держит пропорцию мобильной карточки
+ * ряда (`aspect-home-cover`, 256×148), у события — фиксированную высоту
+ * карточки «Афиши» приложения (`h-event-image-mobile`, 198).
+ *
+ * Константы экспортируются, чтобы скелеты лент в `HomeScreen` были собраны из
+ * ТЕХ ЖЕ классов, что и карточки: высота скелета обязана совпадать с высотой
+ * содержимого на каждой ширине, иначе страница прыгает при появлении данных
+ * (правило из `conventions/bookeat-web.md`).
+ */
+export const PROMO_CARD_FRAME = "aspect-home-cover w-full lg:aspect-auto lg:h-promo-card";
+export const EVENT_CARD_IMAGE = "h-event-image-mobile w-full lg:h-event-image";
+export const GUIDE_CARD_IMAGE = "aspect-home-cover w-full lg:aspect-auto lg:h-guide-image";
+
+/** `sizes` для `RemoteImage`: ниже `md` карточка занимает всю колонку. */
+const THIRD_COLUMN_SIZES = "(min-width: 1280px) 384px, (min-width: 768px) 33vw, 100vw";
+const HALF_COLUMN_SIZES = "(min-width: 1280px) 588px, (min-width: 768px) 50vw, 100vw";
+
 export function PromoCard({ promo }: { promo: HomePromo }) {
   const t = useT();
 
   return (
-    <article className="relative flex h-[260px] w-full flex-col justify-end overflow-hidden rounded-card bg-muted p-5">
-      <RemoteImage
-        src={promo.coverImageUrl}
-        alt={promo.title}
-        sizes="(min-width: 1280px) 384px, 33vw"
-      />
+    <article
+      className={cx(
+        "relative flex flex-col justify-end overflow-hidden rounded-card bg-muted p-5",
+        PROMO_CARD_FRAME,
+      )}
+    >
+      <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={THIRD_COLUMN_SIZES} />
       {/* Затемнение снизу: белый текст поверх произвольной фотографии иначе
           читается через раз. Градиент, а не сплошная плашка, — как в макете. */}
       <div
@@ -86,13 +107,9 @@ export function EventCard({ event }: { event: EventSummary }) {
   const place = [event.restaurant.name, date?.time].filter(Boolean).join(t.web.format.metaSeparator);
 
   return (
-    <Card className="relative flex h-full min-h-event-card w-full flex-col">
-      <div className="relative h-event-image w-full shrink-0 bg-muted">
-        <RemoteImage
-          src={event.coverImageUrl}
-          alt={event.title}
-          sizes="(min-width: 1280px) 384px, 33vw"
-        />
+    <Card className="relative flex h-full w-full flex-col lg:min-h-event-card">
+      <div className={cx("relative shrink-0 bg-muted", EVENT_CARD_IMAGE)}>
+        <RemoteImage src={event.coverImageUrl} alt={event.title} sizes={THIRD_COLUMN_SIZES} />
         {date ? (
           <span className="absolute left-4 top-4 flex h-[60px] w-[60px] flex-col items-center justify-center rounded-field bg-canvas">
             <span className="text-[22px] font-bold leading-[26px] text-ink">{date.day}</span>
@@ -145,12 +162,8 @@ export function GuideCard({ collection, href }: { collection: GuideCollection; h
 
   return (
     <Card className={cx("flex w-full flex-col", href ? "relative" : null)}>
-      <div className="relative h-[300px] w-full bg-muted">
-        <RemoteImage
-          src={collection.coverImageUrl}
-          alt={collection.title}
-          sizes="(min-width: 1280px) 588px, 50vw"
-        />
+      <div className={cx("relative bg-muted", GUIDE_CARD_IMAGE)}>
+        <RemoteImage src={collection.coverImageUrl} alt={collection.title} sizes={HALF_COLUMN_SIZES} />
       </div>
       <div className="flex flex-col gap-2 px-7 pb-7 pt-6">
         <p className="text-[13px] font-medium leading-[18px] tracking-[0.2px] text-ink-tertiary">

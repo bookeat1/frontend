@@ -40,3 +40,28 @@ describe("карточка подборки", () => {
     expect(screen.getByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
   });
 });
+
+/**
+ * Контракт адаптива (`docs/responsive.md`, § 5, дыра № 6): высоты обложек из
+ * макета (260, 196, 300) живут ТОЛЬКО под `lg:`, ниже — размер мобильной
+ * карточки. Замок против возврата голого `h-[300px]`: он не ломает 360, и
+ * глазами его пропустить проще всего.
+ */
+describe("обложки карточек ниже lg", () => {
+  it("событие: обложка с мобильной высотой, число макета — под lg", () => {
+    const { container } = renderScreen(<EventCard event={eventSummary()} />);
+
+    const cover = container.querySelector(".h-event-image-mobile");
+    expect(cover?.className).toContain("lg:h-event-image");
+    expect(container.querySelector(".h-event-image")).toBeNull();
+    expect(container.querySelector(".min-h-event-card")).toBeNull();
+  });
+
+  it("подборка: обложка держит мобильную пропорцию, высота макета — под lg", () => {
+    const { container } = renderScreen(<GuideCard collection={guideCollection()} />);
+
+    const cover = container.querySelector(".aspect-home-cover");
+    expect(cover?.className).toContain("lg:h-guide-image");
+    expect(container.querySelector(".h-\\[300px\\]")).toBeNull();
+  });
+});

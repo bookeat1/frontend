@@ -13,6 +13,8 @@ import {
   webHeader,
   webHero,
   webHomeEventCard,
+  webHomeGuideCard,
+  webHomePromoCard,
   webLayout,
   webLoginModal,
   webProfile,
@@ -46,6 +48,28 @@ const fontSize: Record<string, FontSizeEntry> = {
       ],
     ]),
   ),
+  /**
+   * Герой и секция «Приложение» главной. Кегли из Figma WEB (48/52 и 38/46)
+   * живут ТОЛЬКО под `lg:`; ниже — `*-mobile`, размер мобильной шапки
+   * главной (`webHero.mobileTitleFontSize`, см. комментарий в токене и
+   * `docs/responsive.md`, § 5, дыры № 4 и 5).
+   */
+  "hero-title": [
+    px(webHero.titleFontSize),
+    { lineHeight: px(webHero.titleLineHeight), fontWeight: "700" },
+  ],
+  "hero-title-mobile": [
+    px(webHero.mobileTitleFontSize),
+    { lineHeight: px(webHero.mobileTitleLineHeight), fontWeight: "700" },
+  ],
+  "app-title": [
+    px(webAppSection.titleFontSize),
+    { lineHeight: px(webAppSection.titleLineHeight), fontWeight: "700" },
+  ],
+  "app-title-mobile": [
+    px(webAppSection.mobileTitleFontSize),
+    { lineHeight: px(webAppSection.mobileTitleLineHeight), fontWeight: "700" },
+  ],
   /**
    * Карточка брони (узел 3525:14731). Своих строк в шкале кита у этих пар
    * нет — они сняты с текстовых узлов самой карточки, поэтому утилиты собраны
@@ -501,6 +525,15 @@ const config: Config = {
         "wide-card": px(webCatalog.wideCard.height),
         "event-card": px(webHomeEventCard.height),
         "event-image": px(webHomeEventCard.imageHeight),
+        /** Обложка события ниже `lg` — из карточки «Афиши» приложения. */
+        "event-image-mobile": px(webHomeEventCard.mobileImageHeight),
+        /** Тела карточек событий и подборок — для скелетов лент главной:
+         * ниже `lg` высота карточки складывается из обложки и тела, и
+         * скелет должен быть собран из тех же частей. */
+        "event-body": px(webHomeEventCard.bodyHeight),
+        "promo-card": px(webHomePromoCard.height),
+        "guide-image": px(webHomeGuideCard.imageHeight),
+        "guide-body": px(webHomeGuideCard.bodyHeight),
         "sort-select": px(webCatalog.sortSelect.height),
         "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
@@ -583,6 +616,11 @@ const config: Config = {
       aspectRatio: {
         /** Карта в контактах (3264:69): 788×280. */
         "venue-map": `${webVenuePage.map.width} / ${webVenuePage.map.height}`,
+        /** Обложки акции и подборки на главной ниже `lg` — пропорция
+         * карточки горизонтального ряда приложения (256×148). Одно значение
+         * на обе: у `webHomePromoCard` и `webHomeGuideCard` один и тот же
+         * мобильный источник. */
+        "home-cover": `${webHomePromoCard.mobileCover.width} / ${webHomePromoCard.mobileCover.height}`,
       },
       maxWidth: {
         container: px(webLayout.containerWidth),
