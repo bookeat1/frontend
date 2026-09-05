@@ -1227,3 +1227,27 @@ export const webHomeEventCard = {
   bodyHeight: 128,
   tagHeight: 28,
 } as const;
+
+/**
+ * Прибитая к низу полоса с кнопкой на узком экране (ниже `lg`). Числа НЕ из
+ * Figma WEB — там нет ни одного кадра у́же 1024 — а из мобильного приложения:
+ * `apps/mobile/app/restaurant/[id]/index.tsx` (`footerSafeArea` / `footer`,
+ * кнопка «Забронировать стол») и `.../book/index.tsx` (`footer` с подсказкой
+ * над кнопкой «Продолжить», узел 471:3967). Контракт: `apps/web/docs/responsive.md`,
+ * § 5, дыры № 8 и № 10.
+ */
+export const webBottomBar = {
+  /** `styles.footer.padding = spacing.md` (12) — со всех сторон. */
+  padding: 12,
+  /** Просвет «подсказка → кнопка» в футере брони: `spacing.sm`. */
+  gap: 8,
+  /** Кнопка `controlHeight.pill` — 48, то же, что `Button size="submit"`. */
+  buttonHeight: 48,
+  /** `shadowOffset 0/−8, radius 16, чёрный 8%` — `colors.overlay.footerShadow`. */
+  shadow: "0 -8px 16px rgba(0, 0, 0, 0.08)",
+  /**
+   * `DETAIL_FOOTER_CLEARANCE` = pill + padding × 2 + spacing.xxl (24): столько
+   * снизу оставляет прокрутка, чтобы последний блок не уходил под полосу.
+   */
+  clearance: 48 + 12 * 2 + 24,
+} as const;

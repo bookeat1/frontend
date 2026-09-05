@@ -3,6 +3,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
 import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
+import { bookingHref } from "@web/lib/booking-link";
 
 /**
  * Страница заведения. Важнее всего два состояния, которые легко перепутать:
@@ -283,5 +284,17 @@ describe("карточка заведения", () => {
 
     expect(await screen.findByRole("heading", { name: "Забронировать столик" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Часы работы" })).toBeNull();
+  });
+
+  /** Ниже `lg` карточки нет — прибитая полоса с одной кнопкой, как футер
+   * экрана заведения в приложении (`docs/responsive.md`, дыра № 8). Кнопка —
+   * ссылка на экран брони без параметров: выбор делается там. */
+  it("прибитая полоса ведёт на страницу брони этого заведения", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const link = await screen.findByRole("link", { name: "Забронировать стол" });
+    expect(link.getAttribute("href")).toBe(bookingHref("venue-1"));
   });
 });

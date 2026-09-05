@@ -8,6 +8,7 @@ import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { BookingCard } from "@web/components/venue/BookingCard";
+import { BottomBar } from "@web/components/ui/BottomBar";
 import { Button } from "@web/components/ui/Button";
 import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { Modal } from "@web/components/ui/Modal";
@@ -16,6 +17,7 @@ import { Tag } from "@web/components/ui/Tag";
 import { repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
+import { bookingHref } from "@web/lib/booking-link";
 import { cx } from "@web/lib/cx";
 import { instagramHandle, venueMeta, websiteHost } from "@web/lib/format";
 import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
@@ -59,7 +61,10 @@ export function VenueScreen({ id }: { id: string }) {
   return (
     <SiteChrome active="venues">
       {/* 24 сверху и 80 снизу — паддинги узлов 3261:30 и 3262:2. */}
-      <Container className="pb-20 pt-6">
+      {/* Ниже `lg` снизу прибита полоса с кнопкой брони (`VenueBookingBar`),
+          и последний блок должен в неё не упираться — просвет из приложения
+          (`DETAIL_FOOTER_CLEARANCE`). С `lg` — прежние 80 по макету. */}
+      <Container className="pb-bottom-bar-clearance pt-6 lg:pb-20">
         <nav aria-label={t.web.venue.breadcrumbLabel} className="text-[13px] leading-[18px] text-ink-tertiary">
           <Link href="/" className="hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
             {t.web.venue.breadcrumbHome}
@@ -181,8 +186,14 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           </div>
         </div>
 
-        <aside className="w-full lg:w-venue-aside lg:shrink-0">
-          {/* Правая колонка — узел 3525:14730 «Right column (sticky)»: 380
+        <aside className="hidden lg:block lg:w-venue-aside lg:shrink-0">
+          {/* НИЖЕ `lg` КОЛОНКИ НЕТ (контракт `docs/responsive.md`, дыра № 8):
+              в приложении на экране заведения слоты не выбирают — внизу
+              прибита одна кнопка «Забронировать стол», а выбор живёт на
+              экране брони. Карточка со слотами под контактами, в самом низу
+              страницы, была бы третьей выдумкой, а не адаптивом.
+
+              Правая колонка — узел 3525:14730 «Right column (sticky)»: 380
               фиксированной ширины, вертикальный auto-layout с просветом 16 и
               РОВНО ОДИН ребёнок, карточка брони 3525:14731. Просвет 16 заложен
               под второй блок, но второго блока в макете нет, поэтому и здесь
@@ -205,7 +216,29 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           </div>
         </aside>
       </div>
+
+      <VenueBookingBar venueId={venue.id} />
     </div>
+  );
+}
+
+/**
+ * Прибитая к низу кнопка «Забронировать стол» ниже `lg` — дословно футер
+ * `apps/mobile/app/restaurant/[id]/index.tsx` (строки 221–231): одна красная
+ * кнопка, ведущая на экран брони, без телефонного запасного варианта и без
+ * неактивного состояния — их в макете приложения нет. Заведение офлайн
+ * тоже ведёт на `/book`: там стоит то же объяснение, что и в карточке.
+ * Подпись — мобильный ключ `t.restaurant.bookTable` (есть в ru/kk/en), новых
+ * ключей под адаптив контракт не заводит.
+ */
+function VenueBookingBar({ venueId }: { venueId: string }) {
+  const t = useT();
+  return (
+    <BottomBar>
+      <Button size="submit" block asLink href={bookingHref(venueId)}>
+        {t.restaurant.bookTable}
+      </Button>
+    </BottomBar>
   );
 }
 
