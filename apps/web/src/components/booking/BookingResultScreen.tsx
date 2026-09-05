@@ -75,7 +75,9 @@ export function BookingResultScreen({ id }: { id: string }) {
   }
 
   return (
-    <SiteChrome>
+    // Кадр 3525:15019 залит `background/subtle`: белый билет стоит на серой
+    // подложке, а не сливается с белой страницей.
+    <SiteChrome tone="subtle">
       {/* Узел 3525:15021: 72 сверху, 96 снизу, блоки по центру через 32. */}
       <Container className="flex flex-col items-center gap-8 pb-ticket-bottom pt-ticket-top">
         <div className="w-full max-w-ticket">{body}</div>
@@ -171,9 +173,11 @@ function Ticket({ booking }: { booking: Booking }) {
 
           <Divider />
 
-          {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. */}
+          {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. Рамка
+              (3525:15048) обведена `border/strong` #DADADA, как и сам билет,
+              а не обводкой контрола #B2B2B2: QR — не кнопка и не поле. */}
           <div className="flex items-center gap-5">
-            <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-control bg-canvas p-1.5 text-ink">
+            <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-strong bg-canvas p-1.5 text-ink">
               <QrCode value={bookingQrPayload(booking.id)} label={texts.qrLabel} />
             </div>
             <div className="flex min-w-0 flex-col gap-1">
@@ -233,7 +237,7 @@ function VenueHeader({ venue }: { venue: Restaurant | undefined }) {
         {venue ? (
           <>
             <p className="text-ticket-venue-name tracking-[-0.4px]">{venue.name}</p>
-            {meta ? <p className="text-[14px] leading-5">{meta}</p> : null}
+            {meta ? <p className="text-ticket-venue-meta">{meta}</p> : null}
           </>
         ) : (
           <Skeleton className="h-9 w-1/2 bg-on-inverse-surface" />
@@ -244,12 +248,17 @@ function VenueHeader({ venue }: { venue: Restaurant | undefined }) {
 }
 
 /** Ячейка 3525:15034: 72 высотой, радиус 14, паддинг 14/16, подпись 12/16
- * Medium с трекингом 0.2, значение 17/24 SemiBold. */
+ * Medium с трекингом 0.2, значение 17/24 SemiBold.
+ *
+ * Значение НЕ обрезается: в макете все четыре значения короткие, а у нас в
+ * четвёртой ячейке стоит статус, и «В листе ожидания» в 122 px на 17/600 не
+ * помещается. Многоточие спрятало бы именно то слово, ради которого ячейка
+ * есть, поэтому ячейка растёт по высоте (`min-h`), а строка переносится. */
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-h-ticket-detail flex-col gap-1 rounded-field bg-subtle px-ticket-detail-x py-ticket-detail-y">
       <dt className="text-ticket-detail-label tracking-[0.2px] text-ink-tertiary">{label}</dt>
-      <dd className="truncate text-ticket-detail-value text-ink">{value}</dd>
+      <dd className="break-words text-ticket-detail-value text-ink">{value}</dd>
     </div>
   );
 }
@@ -258,8 +267,10 @@ function Divider() {
   return <hr className="border-0 border-t border-line" />;
 }
 
-/** Кружок 76 с галочкой 44 (узлы 3525:15023…15025). У отменённой брони
- * галочка неуместна — тот же кружок, но серый и без неё. */
+/** Кружок 76 с галочкой 44 (узлы 3525:15023…15025). Сама галочка обведена
+ * `#1B5E20` — это `text/success` (success/700), а не точка «Открыто»
+ * (success/500). У отменённой брони галочка неуместна — тот же кружок, но
+ * серый и без неё. */
 function SuccessIcon({ muted }: { muted: boolean }) {
   return (
     <span
@@ -267,7 +278,7 @@ function SuccessIcon({ muted }: { muted: boolean }) {
       className={
         muted
           ? "flex h-ticket-icon w-ticket-icon items-center justify-center rounded-full bg-muted"
-          : "flex h-ticket-icon w-ticket-icon items-center justify-center rounded-full bg-success text-success-dot"
+          : "flex h-ticket-icon w-ticket-icon items-center justify-center rounded-full bg-success text-success-text"
       }
     >
       {muted ? null : (

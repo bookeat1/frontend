@@ -86,7 +86,10 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
           ))}
         </div>
 
-        <div className="flex flex-col gap-8">
+        {/* Линия и нижняя строка — такие же дети подвала, как колонки: между
+            всеми тремя один просвет 48 (405 = 64 + 192 + 48 + 1 + 48 + 20 + 32,
+            узел 3525:15109). Раньше линия и строка стояли через 32. */}
+        <div className="flex flex-col gap-12">
           <div className="h-px w-full bg-on-inverse-line" />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p className="text-[13px] leading-5 text-ink-tertiary">{t.web.footer.copyright}</p>

@@ -150,6 +150,10 @@ const fontSize: Record<string, FontSizeEntry> = {
     px(webBookingTicket.venueHeader.nameFontSize),
     { lineHeight: px(webBookingTicket.venueHeader.nameLineHeight), fontWeight: "700" },
   ],
+  "ticket-venue-meta": [
+    px(webBookingTicket.venueHeader.metaFontSize),
+    { lineHeight: px(webBookingTicket.venueHeader.metaLineHeight), fontWeight: "400" },
+  ],
   "ticket-detail-label": [
     px(webBookingTicket.detail.labelFontSize),
     { lineHeight: px(webBookingTicket.detail.labelLineHeight), fontWeight: "500" },
