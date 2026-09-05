@@ -458,6 +458,16 @@ export const webHero = {
   /** 18/28 Regular (узел 3253:35) — тоже своя ступень, между bodyL и h3. */
   subtitleFontSize: 18,
   subtitleLineHeight: 28,
+  /**
+   * Кегль заголовка НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`, § 5,
+   * дыра № 4): на телефоне 48/52 занимал три строки и весь первый экран.
+   * Число — из мобильной шапки главной: `HomeHeader.greeting` в
+   * `apps/mobile/src/components/explore/HomeHeader.tsx` набран
+   * `typography.titleXxl` (24/32 Bold, `packages/design-tokens/src/typography.ts`).
+   * Держим копией, а не импортом: сайт берёт только `web*`-экспорты.
+   */
+  mobileTitleFontSize: 24,
+  mobileTitleLineHeight: 32,
   /** Три стопа заливки узла 3253:30: rgba(13,8,8) с прозрачностью
    * 0.55 → 0.62 на 45% → 0.88. */
   scrim:
@@ -526,6 +536,15 @@ export const webAppSection = {
   titleFontSize: 38,
   titleLineHeight: 46,
   titleTracking: -0.6,
+  /**
+   * Кегль заголовка НИЖЕ `lg` (контракт `responsive.md`, § 5, дыра № 5).
+   * У секции нет мобильного аналога — приложению незачем звать скачать себя,
+   * — поэтому взята самая крупная ступень приложения `typography.titleXxl`
+   * (24/32), та же, что у героя (`webHero.mobileTitleFontSize`): два
+   * фирменных блока главной на телефоне не должны спорить кеглем.
+   */
+  mobileTitleFontSize: 24,
+  mobileTitleLineHeight: 32,
   /** 17/26 Regular, белый 85% (узел 3256:65). */
   textFontSize: 17,
   textLineHeight: 26,
@@ -1226,4 +1245,42 @@ export const webHomeEventCard = {
   imageHeight: 196,
   bodyHeight: 128,
   tagHeight: 28,
+  /**
+   * Высота обложки НИЖЕ `lg` (контракт `responsive.md`, § 5, дыра № 6) —
+   * из карточки списка «Афиша» приложения: `eventListCard.coverHeight` в
+   * `packages/design-tokens/src/spacing.ts` (198, узел 3452:13199). Там это
+   * нарочно ФИКСИРОВАННАЯ высота, а не пропорция, поэтому и здесь число,
+   * а не `aspect-ratio`, как у акции и подборки.
+   */
+  mobileImageHeight: 198,
+} as const;
+
+/**
+ * Карточка акции на главной — «Card / Promo», 384×260 (кадр 3253:2).
+ * На сайте это фото во всю карточку с текстом поверх, поэтому высота обложки
+ * и есть высота карточки.
+ *
+ * НИЖЕ `lg` (контракт `responsive.md`, § 5, дыра № 6) фиксированные 260 в
+ * колонке 328 давали почти квадрат; вместо высоты — пропорция обложки
+ * мобильной карточки акции: `exploreLayout.cardWidth × cardPhotoHeight`
+ * (256×148, `packages/design-tokens/src/spacing.ts`, узлы 3447:12749 и
+ * соседние, `apps/mobile/src/components/explore/PromoCard.tsx`).
+ */
+export const webHomePromoCard = {
+  height: 260,
+  mobileCover: { width: 256, height: 148 },
+} as const;
+
+/**
+ * Карточка подборки гастрогида на главной — «Card / Article», 588×464
+ * (кадр 3253:2): обложка 300, тело 164 (паддинг 24/28/28/28, надзаголовок 18
+ * + просвет 8 + заголовок 32 + просвет 8 + подпись 24).
+ *
+ * НИЖЕ `lg` (дыра № 6) — пропорция обложки мобильной карточки статьи,
+ * та же 256×148 (`apps/mobile/src/components/explore/ArticleCard.tsx`).
+ */
+export const webHomeGuideCard = {
+  imageHeight: 300,
+  bodyHeight: 164,
+  mobileCover: { width: 256, height: 148 },
 } as const;
