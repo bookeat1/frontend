@@ -141,8 +141,8 @@ function ArticleBody({ article }: { article: GuideCollectionDetail }) {
  * Чем заполнять строки, диктуют данные (`GuideCollectionVenue`):
  *   • с подсветкой (событие/акция) — надзаголовок «Событие»/«Акция», фото
  *     обложка + галерея подсветки, заголовок и описание подсветки;
- *   • без подсветки — надзаголовок «кухня», фото заведения, заголовок —
- *     название, описание — редакторская заметка `note`.
+ *   • без подсветки — надзаголовок «кухня», фото заведения, заголовка нет
+ *     (название уже в ссылке), описание — редакторская заметка `note`.
  * Ровно так собирает блок приложение (`GuideVenueBlock.tsx`).
  */
 export function ArticleVenueBlock({ venue }: { venue: GuideCollectionVenue }) {
@@ -152,7 +152,9 @@ export function ArticleVenueBlock({ venue }: { venue: GuideCollectionVenue }) {
     .filter((url): url is string => Boolean(url && url.trim()))
     .slice(0, 2);
   const eyebrow = highlight ? t.web.articles.highlight[highlight.kind] : venue.cuisineType;
-  const title = highlight?.title || venue.name;
+  // Без подсветки заголовком блока служит сама ссылка с названием — второй
+  // раз печатать «Mongol Bar» строкой ниже незачем (так же в приложении).
+  const title = highlight?.title ?? "";
   const description = highlight?.description || venue.note;
   const footer = [venue.address.trim(), venue.instagram.trim()].filter(Boolean).join(" · ");
 
@@ -190,17 +192,23 @@ export function ArticleVenueBlock({ venue }: { venue: GuideCollectionVenue }) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <p className="break-words text-[16px] font-semibold leading-6 text-ink">{title}</p>
-          {description ? (
-            <p className="break-words text-[14px] leading-5 text-ink-secondary">{description}</p>
+      {title || description || footer ? (
+        <div className="flex flex-col gap-4">
+          {title || description ? (
+            <div className="flex flex-col gap-2">
+              {title ? (
+                <p className="break-words text-[16px] font-semibold leading-6 text-ink">{title}</p>
+              ) : null}
+              {description ? (
+                <p className="break-words text-[14px] leading-5 text-ink-secondary">{description}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {footer ? (
+            <p className="break-words text-[12px] leading-4 text-ink-tertiary">{footer}</p>
           ) : null}
         </div>
-        {footer ? (
-          <p className="break-words text-[12px] leading-4 text-ink-tertiary">{footer}</p>
-        ) : null}
-      </div>
+      ) : null}
     </section>
   );
 }

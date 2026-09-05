@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
-import { RepositoryError } from "@bookeat/api/client";
+import { RepositoryError, type GuideCollectionDetail } from "@bookeat/api/client";
 
 import { articleDetail, guideVenue, pending, renderScreen, repositoryStub } from "@web/test/harness";
 
@@ -29,7 +29,7 @@ const { ArticleScreen } = await import("@web/components/articles/ArticleScreen")
 
 describe("страница статьи", () => {
   it("пока запрос летит — скелет и ссылка «Все статьи» уже на месте", () => {
-    repository.getArticle = vi.fn(() => pending());
+    repository.getArticle = vi.fn(() => pending<GuideCollectionDetail>());
     renderScreen(<ArticleScreen slug="week-picks" />);
 
     expect(screen.getByRole("status")).toBeTruthy();
@@ -45,7 +45,7 @@ describe("страница статьи", () => {
     expect(screen.getByText("От BookEat")).toBeTruthy();
     expect(repository.getArticle).toHaveBeenCalledWith("week-picks");
 
-    const block = screen.getByRole("listitem");
+    const block = within(screen.getByRole("list", { name: "Заведения из статьи" })).getByRole("listitem");
     expect(within(block).getByText("Событие")).toBeTruthy();
     expect(within(block).getByText("в Mongol Bar")).toBeTruthy();
     expect(within(block).getByText("Коктейльная среда")).toBeTruthy();
@@ -60,8 +60,8 @@ describe("страница статьи", () => {
     );
     renderScreen(<ArticleScreen slug="week-picks" />);
 
-    const block = await screen.findByRole("listitem");
-    expect(within(block).getByText("Mongol Bar")).toBeTruthy();
+    const block = within(await screen.findByRole("list", { name: "Заведения из статьи" })).getByRole("listitem");
+    expect(within(block).getByRole("link", { name: "Открыть заведение Mongol Bar" }).textContent).toBe("Mongol Bar");
     expect(within(block).getByText("Лучшие завтраки")).toBeTruthy();
     expect(within(block).queryByText("Событие")).toBeNull();
   });

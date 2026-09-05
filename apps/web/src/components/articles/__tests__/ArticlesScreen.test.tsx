@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
+import type { GuideCollection } from "@bookeat/api/client";
 
 import { guideCollection, pending, renderScreen, repositoryStub } from "@web/test/harness";
 
@@ -29,7 +30,7 @@ const { ArticlesScreen } = await import("@web/components/articles/ArticlesScreen
 
 describe("список статей", () => {
   it("пока запрос летит — скелет со статусом загрузки", () => {
-    repository.listArticles = vi.fn(() => pending());
+    repository.listArticles = vi.fn(() => pending<GuideCollection[]>());
     renderScreen(<ArticlesScreen />);
 
     expect(screen.getByRole("status")).toBeTruthy();
@@ -45,7 +46,7 @@ describe("список статей", () => {
 
     const link = await screen.findByRole("link", { name: "Куда сходить на неделе" });
     expect(link.getAttribute("href")).toBe("/articles/week-picks");
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getAllByRole("article")).toHaveLength(2);
     expect(screen.getAllByText("От BookEat")).toHaveLength(2);
   });
 
