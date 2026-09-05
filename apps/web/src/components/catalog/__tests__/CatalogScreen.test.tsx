@@ -243,3 +243,78 @@ describe("листинг заведений", () => {
     expect(headings.map((node) => node.textContent)).toEqual(["Лучше", "Тише"]);
   });
 });
+
+/**
+ * Ниже `lg` фильтры живут в шторке за кнопкой «Фильтры» — как в приложении
+ * (`apps/mobile/app/__tests__/search-filter-panel-closed.test.tsx`). jsdom не
+ * знает брейкпоинтов, поэтому проверяется не «что видно», а поведение:
+ * шторка закрыта до нажатия, внутри неё ЧЕРНОВИК, и в адрес он уходит только
+ * по «Применить».
+ */
+describe("шторка фильтров ниже lg", () => {
+  it("открывается только кнопкой и показывает список фильтров, не адрес", async () => {
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    renderScreen(<CatalogScreen />);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // Имя кнопки без счётчика, пока ничего не выбрано.
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+    expect(await within(dialog).findByRole("checkbox", { name: "Казахская" })).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("галочка в шторке — черновик: адрес меняется только по «Применить»", async () => {
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    renderScreen(<CatalogScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+
+    fireEvent.click(await within(dialog).findByRole("checkbox", { name: "Казахская" }));
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Применить" }));
+
+    expect(replace).toHaveBeenCalledWith("/venues?cuisine=kazakh", { scroll: false });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("закрыть крестиком — отмена: черновик не уходит в адрес", async () => {
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    renderScreen(<CatalogScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+    fireEvent.click(await within(dialog).findByRole("checkbox", { name: "Казахская" }));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Закрыть" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("кнопка называет число выбранных, а «Сбросить» в шторке чистит черновик", async () => {
+    search = "cuisine=kazakh&features=terrace";
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    repository.getAmenities = vi.fn(async () => [{ id: "terrace", name: "Терраса" }]);
+    renderScreen(<CatalogScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры, выбрано: 2" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+    const kazakh = await within(dialog).findByRole<HTMLInputElement>("checkbox", {
+      name: "Казахская",
+    });
+    expect(kazakh.checked).toBe(true);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Сбросить" }));
+    expect(kazakh.checked).toBe(false);
+    // Сброс черновика — ещё не сброс адреса.
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Применить" }));
+    expect(replace).toHaveBeenCalledWith("/venues", { scroll: false });
+  });
+});
