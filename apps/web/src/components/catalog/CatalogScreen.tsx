@@ -100,12 +100,22 @@ export function CatalogScreen() {
         <FiltersRail state={state} onChange={update} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {/* Хлебные крошки — узел 3525:14462: «Главная / Алматы / Рестораны»,
+              одна строка 13/18 третичным цветом, текущий раздел НЕ выделен.
+              Город — тот, по которому строится выдача (`useCity`); пока он не
+              выбран, звена нет, а не стоит пустое место между слэшами. */}
           <nav aria-label={t.web.venue.breadcrumbLabel} className="text-[13px] leading-[18px] text-ink-tertiary">
             <Link href="/" className="hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
               {t.web.venue.breadcrumbHome}
             </Link>
-            <span aria-hidden="true"> / </span>
-            <span>{t.web.venue.breadcrumbVenues}</span>
+            {city ? (
+              <>
+                <span aria-hidden="true">{BREADCRUMB_SEPARATOR}</span>
+                <span>{city}</span>
+              </>
+            ) : null}
+            <span aria-hidden="true">{BREADCRUMB_SEPARATOR}</span>
+            <span aria-current="page">{t.web.venue.breadcrumbVenues}</span>
           </nav>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -121,21 +131,34 @@ export function CatalogScreen() {
               </p>
             </div>
 
-            <label className="flex items-center gap-2 text-[14px] font-medium leading-5 text-ink">
-              <span className="text-ink-secondary">{t.web.catalog.sort.label}</span>
-              {/* Выпадашка макета (узел 3525:14473) — белая, 42 высотой, без
-                  обводки: её роль играет мягкая тень контрола. */}
+            {/* Выпадашка макета (узел 3525:14473): 150×46, белая, без обводки
+                и без подписи снаружи — её роль играет мягкая тень контрола;
+                справа шеврон 24 через просвет 8. Подпись «Сортировка» остаётся
+                только для скринридера: без неё три варианта в списке ни о чём. */}
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">{t.web.catalog.sort.label}</span>
               <select
                 value={state.sort}
                 onChange={(event) =>
                   update({ ...state, sort: event.target.value as CatalogSort, page: 1 })
                 }
-                className="h-sort-select cursor-pointer rounded-md border border-transparent bg-canvas px-4 text-[14px] font-medium leading-5 text-ink shadow-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="h-sort-select cursor-pointer appearance-none rounded-md border border-transparent bg-canvas pl-sort-select-l pr-sort-select-text-r text-[14px] font-medium leading-5 text-ink shadow-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <option value="recommended">{t.web.catalog.sort.recommended}</option>
                 <option value="rating">{t.web.catalog.sort.rating}</option>
                 <option value="name">{t.web.catalog.sort.name}</option>
               </select>
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                className="pointer-events-none absolute right-sort-select-r top-1/2 -translate-y-1/2 text-ink"
+              >
+                {/* Шеврон 4.8×11.2 из узла 3525:14475, повёрнутый вниз. */}
+                <path d="M6.4 9.6l5.6 5.6 5.6-5.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </label>
           </div>
 
@@ -209,7 +232,9 @@ export function CatalogScreen() {
                 <button
                   type="button"
                   onClick={() => update({ ...EMPTY_CATALOG_STATE })}
-                  className="px-2 text-[13px] font-medium leading-[18px] text-ink-tertiary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  // Без своего паддинга: в макете (узел 3525:14493) ссылка стоит
+                  // через тот же просвет 8, что и чипы между собой.
+                  className="text-[13px] font-medium leading-[18px] text-ink-tertiary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   {t.web.catalog.active.clearAll}
                 </button>
@@ -231,7 +256,7 @@ export function CatalogScreen() {
             skeleton={
               <div className="flex flex-col gap-4">
                 {["a", "b", "c", "d", "e"].map((key) => (
-                  <Skeleton key={key} className="h-[229px] rounded-card" />
+                  <Skeleton key={key} className="h-wide-card rounded-wide-card" />
                 ))}
               </div>
             }
@@ -261,6 +286,11 @@ export function CatalogScreen() {
   );
 }
 
+/** Разделитель звеньев хлебных крошек (узел 3525:14462) — пробел, слэш,
+ * пробел; в макете вокруг слэша по два пробела, но это набор в одной
+ * текстовой строке, а не отступ, и второй пробел браузер всё равно схлопнул бы. */
+const BREADCRUMB_SEPARATOR = " / ";
+
 /** Чип применённого фильтра с крестиком — узел 3525:14477: паддинг 8 по
  * вертикали, 14 слева и 12 справа, крестик 20. */
 function ActiveChip({ label, onClear }: { label: string; onClear: () => void }) {
@@ -274,9 +304,10 @@ function ActiveChip({ label, onClear }: { label: string; onClear: () => void }) 
         aria-label={t.web.catalog.active.clear(label)}
         className="inline-flex h-5 w-5 items-center justify-center rounded-full hover:bg-brand hover:text-ink-on-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+        {/* Крестик 8×8 внутри квадрата 20 — узел 3525:14480. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path
-            d="M3 3l6 6M9 3l-6 6"
+            d="M6 6l8 8M14 6l-8 8"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.6"

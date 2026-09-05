@@ -20,7 +20,7 @@ export function CatalogFallback() {
         <div role="status" aria-live="polite" aria-busy="true" className="flex min-w-0 flex-1 flex-col gap-4">
           <span className="sr-only">{t.web.states.loading}</span>
           {["a", "b", "c", "d", "e"].map((key) => (
-            <Skeleton key={key} className="h-[229px] rounded-card" />
+            <Skeleton key={key} className="h-wide-card rounded-wide-card" />
           ))}
         </div>
       </Container>

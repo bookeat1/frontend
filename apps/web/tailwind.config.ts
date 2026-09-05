@@ -5,11 +5,13 @@ import {
   webBookingFlow,
   webBookingTicket,
   webCatalog,
+  webCatalogPagination,
   webColors,
   webControls,
   webCuisineTile,
   webHeader,
   webHero,
+  webHomeEventCard,
   webLayout,
   webLoginModal,
   webProfile,
@@ -151,6 +153,10 @@ const fontSize: Record<string, FontSizeEntry> = {
     px(webBookingTicket.venueHeader.nameFontSize),
     { lineHeight: px(webBookingTicket.venueHeader.nameLineHeight), fontWeight: "700" },
   ],
+  "ticket-venue-meta": [
+    px(webBookingTicket.venueHeader.metaFontSize),
+    { lineHeight: px(webBookingTicket.venueHeader.metaLineHeight), fontWeight: "400" },
+  ],
   "ticket-detail-label": [
     px(webBookingTicket.detail.labelFontSize),
     { lineHeight: px(webBookingTicket.detail.labelLineHeight), fontWeight: "500" },
@@ -194,6 +200,25 @@ const fontSize: Record<string, FontSizeEntry> = {
   "pbook-label": [px(webProfile.bookingCard.info.labelFontSize), { lineHeight: px(webProfile.bookingCard.info.labelLineHeight), fontWeight: "500" }],
   "pbook-value": [px(webProfile.bookingCard.info.valueFontSize), { lineHeight: px(webProfile.bookingCard.info.valueLineHeight), fontWeight: "600" }],
   "fav-title": [px(webProfile.favorites.card.titleFontSize), { lineHeight: px(webProfile.favorites.card.titleLineHeight), fontWeight: "600" }],
+  /**
+   * Квадрат нумерации выдачи (узел 3525:14500): 15/22, Medium у неактивных
+   * и многоточия, SemiBold у текущей страницы — две утилиты, как у пар
+   * `flow-summary-*`, а не переопределение веса поверх одной.
+   */
+  page: [
+    px(webCatalogPagination.label.fontSize),
+    {
+      lineHeight: px(webCatalogPagination.label.lineHeight),
+      fontWeight: String(webCatalogPagination.label.weight),
+    },
+  ],
+  "page-current": [
+    px(webCatalogPagination.label.fontSize),
+    {
+      lineHeight: px(webCatalogPagination.label.lineHeight),
+      fontWeight: String(webCatalogPagination.label.currentWeight),
+    },
+  ],
 };
 
 const config: Config = {
@@ -281,6 +306,8 @@ const config: Config = {
         /** Широкая карточка выдачи скруглена на 18 — не как карточка кита (24)
          * и не как карточка блюда (16). Узел 3525:14495. */
         "wide-card": px(webCatalog.wideCard.radius),
+        /** Пилюля нижнего ряда широкой карточки — 10 (узел I3525:14495;3367:11047). */
+        "wide-card-pill": px(webCatalog.wideCard.pill.radius),
         /** Слот в сетке карточки брони — 10, а не 12 как у слота кита.
          * Узел 3525:14751. */
         "slot-grid": px(webBookingCard.slots.radius),
@@ -358,7 +385,18 @@ const config: Config = {
         "venue-tabs-label-gap": px(webVenuePage.tabs.labelGap),
         "section-y": px(webLayout.sectionPaddingY),
         "wide-card-x": px(webCatalog.wideCard.bodyPaddingX),
+        "wide-card-pill-x": px(webCatalog.wideCard.pill.paddingX),
+        "wide-card-pill-y": px(webCatalog.wideCard.pill.paddingY),
         "wide-card-y": px(webCatalog.wideCard.bodyPaddingY),
+        "sort-select-l": px(webCatalog.sortSelect.paddingLeft),
+        "sort-select-r": px(webCatalog.sortSelect.paddingRight),
+        /** Правый паддинг самого `<select>`: место под шеврон 24 и просвет 8
+         * плюс паддинг кадра 14 (узел 3525:14473). */
+        "sort-select-text-r": px(
+          webCatalog.sortSelect.paddingRight +
+            webCatalog.sortSelect.gap +
+            webCatalog.sortSelect.iconSize,
+        ),
         "active-chip-l": px(webCatalog.activeChip.paddingLeft),
         "active-chip-r": px(webCatalog.activeChip.paddingRight),
         "booking-field-x": px(webBookingCard.field.paddingX),
@@ -455,7 +493,10 @@ const config: Config = {
         "venue-tabs-underline": px(webVenuePage.tabs.underlineHeight),
         "venue-map": px(webVenuePage.map.height),
         "wide-card": px(webCatalog.wideCard.height),
+        "event-card": px(webHomeEventCard.height),
+        "event-image": px(webHomeEventCard.imageHeight),
         "sort-select": px(webCatalog.sortSelect.height),
+        "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
         "slot-grid": px(webBookingCard.slots.height),
         "booking-field-icon": px(webBookingCard.field.iconSize),
@@ -514,6 +555,7 @@ const config: Config = {
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
+        "event-card": px(webHomeEventCard.height),
       },
       gridTemplateColumns: {
         /** Сетка свободного времени (узел 3525:14749) — четыре равные

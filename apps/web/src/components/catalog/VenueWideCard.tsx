@@ -32,7 +32,12 @@ import { useT } from "@web/lib/locale";
  * ОТДЕЛЬНЫМ запросом на заведение и на конкретную дату, а выдача — это до ста
  * карточек. Показывать пять кнопок времени, за которыми нет запроса, значит
  * рисовать данные; вместо них — правдивые признаки «открыто сейчас» и
- * «онлайн-бронь», которые уже есть в ответе листинга.
+ * «онлайн-бронь», которые уже есть в ответе листинга, — в геометрии слота
+ * макета, чтобы нижний ряд карточки читался как в кадре.
+ *
+ * Чего ещё нет в данных листинга (и потому нет на карточке): бейдж «Столики
+ * сегодня» / «Гастрогид» на фото, расстояние «1,2 км» в мета-строке, подпись
+ * «Сегодня» и ссылка «Все слоты».
  */
 export function VenueWideCard({
   venue,
@@ -100,14 +105,18 @@ export function VenueWideCard({
           </p>
         ) : null}
 
+        {/* Нижний ряд — геометрия слота макета (узел I3525:14495;3367:11047:
+            34 высотой, паддинг 8/14, радиус 10, подложка `background/subtle`),
+            просвет 8 как между слотами. Внутри — не время, а правдивые
+            признаки из ответа листинга; цветом отличается только «Открыто». */}
         <ul className="mt-auto flex flex-wrap gap-2">
           {venue.schedule?.openNow === true ? (
-            <li className="inline-flex items-center rounded-sm bg-success px-3 py-1.5 text-[13px] font-medium leading-[18px] text-success-text">
+            <li className="inline-flex h-wide-card-pill items-center rounded-wide-card-pill bg-subtle px-wide-card-pill-x py-wide-card-pill-y text-[13px] font-medium leading-[18px] text-success-text">
               {t.web.catalog.card.open}
             </li>
           ) : null}
           {venue.acceptsOnlineBookings ? (
-            <li className="inline-flex items-center rounded-sm bg-brand-subtle px-3 py-1.5 text-[13px] font-medium leading-[18px] text-brand-text">
+            <li className="inline-flex h-wide-card-pill items-center rounded-wide-card-pill bg-subtle px-wide-card-pill-x py-wide-card-pill-y text-[13px] font-medium leading-[18px] text-ink">
               {t.web.catalog.card.bookable}
             </li>
           ) : null}
