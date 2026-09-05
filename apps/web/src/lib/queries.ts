@@ -16,6 +16,7 @@ import type {
   DayAvailability,
   EventSummary,
   GuideCollection,
+  GuideCollectionDetail,
   HomePromo,
   Restaurant,
   RestaurantSummary,
@@ -24,6 +25,7 @@ import type {
 } from "@bookeat/api/client";
 
 import { isApiConfigured, repository } from "@web/lib/api";
+import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
 import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
@@ -99,6 +101,29 @@ export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
     queryKey: [locale, "guide-collections"],
     queryFn: () => repository.getGuideCollections(),
     enabled: isApiConfigured,
+  });
+}
+
+/** Раздел «Статьи» — `GET /articles`, только `kind: "article"` (см.
+ * `RestaurantRepository.listArticles`). Тот же запрос, что читает приложение. */
+export function useArticles(): UseQueryResult<GuideCollection[]> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "articles"],
+    queryFn: () => repository.listArticles(),
+    enabled: isApiConfigured,
+  });
+}
+
+/** Одна статья с блоками заведений — `GET /articles/:slug`. Слаг глобально
+ * уникален, поэтому старая ссылка на подборку тоже откроется здесь. */
+export function useArticle(slug: string): UseQueryResult<GuideCollectionDetail> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "article", slug],
+    queryFn: () => repository.getArticle(slug),
+    enabled: isApiConfigured && slug.length > 0,
+    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
   });
 }
 

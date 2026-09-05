@@ -8,6 +8,8 @@ import type {
   DayAvailability,
   EventSummary,
   GuideCollection,
+  GuideCollectionDetail,
+  GuideCollectionVenue,
   Restaurant,
   RestaurantRepository,
   RestaurantSummary,
@@ -151,6 +153,8 @@ export function repositoryStub(
     getPromotions: vi.fn(async () => []),
     listUpcomingEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 3 })),
     getGuideCollections: vi.fn(async () => []),
+    listArticles: vi.fn(async () => []),
+    getArticle: vi.fn(async () => articleDetail()),
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
     getRestaurant: vi.fn(async () => venueDetail()),
     getMapPreviewUrl: vi.fn(() => undefined),
@@ -211,6 +215,40 @@ export function guideCollection(overrides: Partial<GuideCollection> = {}): Guide
     coverImageUrl: null,
     venueCount: 5,
     categorySlugs: [],
+    ...overrides,
+  };
+}
+
+/** Блок заведения внутри статьи — как узел 5033:7485: событие с двумя фото. */
+export function guideVenue(overrides: Partial<GuideCollectionVenue> = {}): GuideCollectionVenue {
+  return {
+    restaurantId: "r-mongol",
+    name: "Mongol Bar",
+    note: "",
+    address: "Курмангазы, 43",
+    cuisineType: "Бар",
+    city: "Алматы",
+    priceCategory: "₸₸",
+    imageUrl: null,
+    instagram: "@mongol.almaty",
+    highlight: {
+      kind: "event",
+      id: "e-1",
+      title: "Коктейльная среда",
+      description: "Традиция середины недели.",
+      startsAt: "",
+      coverImageUrl: null,
+      images: [],
+    },
+    ...overrides,
+  };
+}
+
+/** Статья с одним блоком — `GET /articles/:slug`. */
+export function articleDetail(overrides: Partial<GuideCollectionDetail> = {}): GuideCollectionDetail {
+  return {
+    ...guideCollection({ slug: "week-picks", kind: "article", title: "Куда сходить на неделе", subtitle: "" }),
+    venues: [guideVenue()],
     ...overrides,
   };
 }
