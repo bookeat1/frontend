@@ -2777,6 +2777,11 @@ export const kk: LocaleOverride<Dictionary> = {
       signInText: "Бронды тек оны жасаған адам көреді. Телефон нөмірімен кіріңіз.",
       signInAction: "Кіру",
     },
+    /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
+     * берутся из `articles.*`, здесь только то, чего у приложения нет. */
+    guide: {
+      metaTitle: "BookEat — гастрогид",
+    },
     profile: {
       metaTitle: "BookEat — профиль",
       title: "Профиль",
