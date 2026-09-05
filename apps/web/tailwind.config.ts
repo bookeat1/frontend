@@ -3,6 +3,7 @@ import {
   webAppSection,
   webBookingCard,
   webBookingFlow,
+  webBottomBar,
   webBookingTicket,
   webCatalog,
   webCatalogPagination,
@@ -327,6 +328,8 @@ const config: Config = {
         panel: webSearchPanel.shadow,
         aside: webVenuePage.asideCard.shadow,
         "photo-action": webVenuePage.galleryButton.shadow,
+        /** Полоса с кнопкой у нижнего края экрана ниже `lg` (из приложения). */
+        "bottom-bar": webBottomBar.shadow,
       },
       backgroundImage: {
         "hero-scrim": webHero.scrim,
@@ -339,6 +342,9 @@ const config: Config = {
         gutter: px(webLayout.gutter),
         "page-gutter": px(webLayout.pageGutter),
         "btn-l-x": px(webControls.buttonL.paddingX),
+        "bottom-bar": px(webBottomBar.padding),
+        "bottom-bar-gap": px(webBottomBar.gap),
+        "bottom-bar-clearance": px(webBottomBar.clearance),
         "btn-m-x": px(webControls.buttonM.paddingX),
         "chip-x": px(webControls.chip.paddingX),
         "slot-x": px(webControls.slot.paddingX),

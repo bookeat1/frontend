@@ -75,7 +75,9 @@ export function BookingScreen({ id }: { id: string }) {
   return (
     <SiteChrome active="venues">
       {/* Узел 3525:14817: 32 сверху, 80 снизу. */}
-      <Container className="pb-20 pt-8">
+      {/* Ниже `lg` кнопка отправки прибита к низу (`BottomBar` в сводке) —
+          под неё нужен просвет, как в приложении. С `lg` — 80 по макету. */}
+      <Container className="pb-bottom-bar-clearance pt-8 lg:pb-20">
         <div className="flex flex-col gap-6">
           <nav aria-label={t.web.venue.breadcrumbLabel} className="text-[13px] leading-[18px] text-ink-tertiary">
             <Link

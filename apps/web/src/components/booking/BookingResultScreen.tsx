@@ -164,7 +164,10 @@ function Ticket({ booking }: { booking: Booking }) {
 
         {/* Узел 3525:15032: паддинг 28, блоки через 24. */}
         <div className="flex flex-col gap-6 p-ticket-body">
-          <dl className="grid grid-cols-2 gap-4 md:grid-cols-ticket-details">
+          {/* Ниже `md` — одна колонка, как `BookingDetailsCard` в приложении:
+              «Пятница, 5 сентября» в половине от 328 рвётся на три строки
+              (`docs/responsive.md`, дыра № 12). Четыре доли макета — с `lg`. */}
+          <dl className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-ticket-details">
             <Detail label={texts.details.date} value={dateCompact} />
             <Detail label={texts.details.time} value={time} />
             <Detail label={texts.details.guests} value={t.web.format.guests(booking.guests)} />

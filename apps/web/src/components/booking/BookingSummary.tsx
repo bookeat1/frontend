@@ -1,10 +1,12 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { Restaurant } from "@bookeat/api/client";
 
 import { StateMessage } from "@web/components/state/AsyncBlock";
+import { BottomBar } from "@web/components/ui/BottomBar";
 import { Button } from "@web/components/ui/Button";
+import { cx } from "@web/lib/cx";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import type { SubmitFailure } from "@web/lib/booking-submit";
 import { useLocale } from "@web/lib/locale";
@@ -18,6 +20,13 @@ import { useLocale } from "@web/lib/locale";
  * кнопка вела бы в никуда. Осталась одна кнопка — «Забронировать»
  * (по макету это «Забронировать без предзаказа», 3525:14973), и раз она
  * единственная, она главная: заливка, а не обводка.
+ *
+ * НИЖЕ `lg` (контракт `docs/responsive.md`, дыра № 10) карточка ведёт себя как
+ * экран брони приложения (`apps/mobile/app/restaurant/[id]/book/index.tsx`):
+ * кнопка отправки — в прибитой к низу полосе, причина отказа над ней, а
+ * сама сводка (заведение, строки, сумма) свёрнута в раскрываемый блок и
+ * стоит в потоке под формой. Кнопка при этом ОДНА в DOM на оба экрана —
+ * `BottomBar desktop="inline"` возвращает её в карточку с `lg`.
  */
 export interface SummaryRow {
   label: string;
@@ -51,6 +60,10 @@ export function BookingSummary({
   const { t } = useLocale();
   const texts = t.web.booking.summary;
   const titleId = useId();
+  const bodyId = useId();
+  /** Раскрыта ли сводка на узком экране. С `lg` состояние не читается:
+   * тело всегда видно, переключатель спрятан. */
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <section
@@ -61,6 +74,23 @@ export function BookingSummary({
         {texts.title}
       </h2>
 
+      {/* Переключатель только ниже `lg`: заголовок «Ваша бронь» и стрелка.
+          Настоящая кнопка — доступна с клавиатуры, диктор слышит состояние. */}
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={bodyId}
+        onClick={() => setExpanded((current) => !current)}
+        className="-m-1 flex items-center justify-between gap-3 rounded-md p-1 text-left text-flow-total text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:hidden"
+      >
+        <span>{texts.title}</span>
+        <Chevron up={expanded} />
+      </button>
+
+      <div
+        id={bodyId}
+        className={cx("flex-col gap-flow-summary-gap lg:flex", expanded ? "flex" : "hidden")}
+      >
       {/* Узел 3525:14941: фото 64 радиуса 14, «фото → текст» через 14. */}
       <div className="flex items-center gap-3.5">
         <div className="relative h-flow-summary-photo w-flow-summary-photo shrink-0 overflow-hidden rounded-field bg-muted">
@@ -108,11 +138,34 @@ export function BookingSummary({
           <p className="text-bodyS text-ink-tertiary">{texts.totalHint}</p>
         </div>
       )}
+      </div>
 
-      {failure ? <StateMessage title={failure.title} text={failure.text} tone="danger" /> : null}
-
-      <Actions action={action} reschedule={reschedule} />
+      {/* Отказ сервера стоит НАД кнопкой и в одном с ней контейнере — как
+          `continueHint` в футере приложения: он объясняет именно её и
+          отдельно от неё уехать не может (в свёрнутой сводке его бы не
+          увидели). */}
+      <BottomBar desktop="inline" className="lg:gap-flow-summary-gap">
+        {failure ? <StateMessage title={failure.title} text={failure.text} tone="danger" /> : null}
+        <Actions action={action} reschedule={reschedule} />
+      </BottomBar>
     </section>
+  );
+}
+
+function Chevron({ up }: { up: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className={cx("h-5 w-5 shrink-0 text-ink-secondary transition-transform", up && "rotate-180")}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 8l5 5 5-5" />
+    </svg>
   );
 }
 
