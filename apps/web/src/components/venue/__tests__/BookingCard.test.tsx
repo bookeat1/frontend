@@ -248,6 +248,48 @@ describe("карточка брони — данные и пустоты", () =>
   });
 });
 
+describe("карточка брони — поля заперты, пока доступность едет", () => {
+  it("пока первая выдача едет, дату и гостей менять нельзя", async () => {
+    repository.getAvailability = vi.fn(() => pending<DayAvailability>());
+
+    renderCard();
+
+    // Скелет на экране — значит, запрос в полёте и показывать нечего.
+    expect(await screen.findByRole("status")).toBeTruthy();
+    expect(screen.getByLabelText("Дата")).toHaveProperty("disabled", true);
+    expect(screen.getByLabelText("Гости")).toHaveProperty("disabled", true);
+  });
+
+  it("когда выдача приехала, поля снова открыты — и запираются только на время перезапроса", async () => {
+    renderCard();
+    await slotsShown();
+
+    expect(screen.getByLabelText("Дата")).toHaveProperty("disabled", false);
+    expect(screen.getByLabelText("Гости")).toHaveProperty("disabled", false);
+
+    // Смена компании — новый запрос: пока он летит, поля заперты, чтобы гость
+    // не менял выбор под ответ, которого ещё нет.
+    let deliver: (value: DayAvailability) => void = () => {};
+    repository.getAvailability = vi.fn(
+      (input) =>
+        new Promise<DayAvailability>((resolve) => {
+          deliver = () => resolve(dayAvailability({ guests: input.guests, slots: [slot()] }));
+        }),
+    );
+    fireEvent.change(screen.getByLabelText("Гости"), { target: { value: "6" } });
+
+    expect(await screen.findByRole("status")).toBeTruthy();
+    expect(screen.getByLabelText("Дата")).toHaveProperty("disabled", true);
+    expect(screen.getByLabelText("Гости")).toHaveProperty("disabled", true);
+
+    deliver(dayAvailability());
+    await slotsShown();
+    expect(screen.getByLabelText("Дата")).toHaveProperty("disabled", false);
+    expect(screen.getByLabelText("Гости")).toHaveProperty("disabled", false);
+    expect((screen.getByLabelText("Гости") as HTMLSelectElement).value).toBe("6");
+  });
+});
+
 describe("карточка брони — выбор переживает уход на вход", () => {
   it("дата, гости и слот восстанавливаются для того же заведения", async () => {
     const first = renderCard();
