@@ -11,6 +11,7 @@ import {
   webCuisineTile,
   webHeader,
   webHero,
+  webHomeEventCard,
   webLayout,
   webLoginModal,
   webRadius,
@@ -150,6 +151,10 @@ const fontSize: Record<string, FontSizeEntry> = {
   "ticket-venue-name": [
     px(webBookingTicket.venueHeader.nameFontSize),
     { lineHeight: px(webBookingTicket.venueHeader.nameLineHeight), fontWeight: "700" },
+  ],
+  "ticket-venue-meta": [
+    px(webBookingTicket.venueHeader.metaFontSize),
+    { lineHeight: px(webBookingTicket.venueHeader.metaLineHeight), fontWeight: "400" },
   ],
   "ticket-detail-label": [
     px(webBookingTicket.detail.labelFontSize),
@@ -431,6 +436,8 @@ const config: Config = {
         "venue-tabs-underline": px(webVenuePage.tabs.underlineHeight),
         "venue-map": px(webVenuePage.map.height),
         "wide-card": px(webCatalog.wideCard.height),
+        "event-card": px(webHomeEventCard.height),
+        "event-image": px(webHomeEventCard.imageHeight),
         "sort-select": px(webCatalog.sortSelect.height),
         "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
@@ -477,6 +484,7 @@ const config: Config = {
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
+        "event-card": px(webHomeEventCard.height),
       },
       gridTemplateColumns: {
         /** Сетка свободного времени (узел 3525:14749) — четыре равные

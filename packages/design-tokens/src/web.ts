@@ -1028,6 +1028,9 @@ export const webBookingTicket = {
     nameFontSize: 28,
     nameLineHeight: 36,
     nameTracking: -0.4,
+    /** 3525:15031 — «кухня · адрес» под названием: 14/20 Regular белым. */
+    metaFontSize: 14,
+    metaLineHeight: 20,
     /** Затемнение под белым текстом. В макете шапка залита ФОТОГРАФИЕЙ плюс
      * сплошным чёрным; без затемнения белое название на светлом снимке
      * нечитаемо, поэтому градиент — часть токена, а не украшение. Тот же
@@ -1096,4 +1099,25 @@ export const webBookingTicket = {
 export const webCatalogPagination = {
   label: { fontSize: 15, lineHeight: 22, weight: 500, currentWeight: 600 },
   border: webColors.border.strong,
+} as const;
+
+/**
+ * Карточка события на главной — «Card / Event», узлы 3525:14279, 3525:14280 и
+ * 3525:14281 секции «Афиша» 3525:14272 (файл QovvuAoI9YxsLMwWkfgKN8). Разбор:
+ * `/home/tai/work/design-specs/web/spec-afisha.md`.
+ *
+ * Все три карточки ровно 384×324: фото 384×196, тело 384×128 (паддинг
+ * 16/20/20/20, заголовок 26 + просвет 6 + подпись 20 + просвет 12 + тег 28).
+ * Тег в карточке ОДИН, высотой 28 — он не переносится на вторую строку,
+ * а обрезается многоточием, чтобы тело осталось 128.
+ *
+ * Высота карточки в вёрстке — `min-height`, а не `height`: длинное русское
+ * название переносится на вторую строку, и резать его ради числа нельзя;
+ * при коротком названии карточка ровно 324, как в макете.
+ */
+export const webHomeEventCard = {
+  height: 324,
+  imageHeight: 196,
+  bodyHeight: 128,
+  tagHeight: 28,
 } as const;

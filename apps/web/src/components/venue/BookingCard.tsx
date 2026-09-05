@@ -98,6 +98,20 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
 
   const slots = availability.data?.slots;
   const chosen = slots?.find((item) => item.startsAt === slot && item.available) ?? null;
+  /**
+   * Поля дня и компании заперты, пока доступность на выбранную пару ЕДЕТ и
+   * показывать нечего — ровно тогда, когда внизу скелет. Именно `isLoading`
+   * (= в полёте И данных нет), а не `isPending` и не `isFetching`:
+   *   • `isPending` истинен и у ВЫКЛЮЧЕННОГО запроса — до гидратации и когда
+   *     гость стёр дату; запереть поле даты в этот момент значило бы не дать
+   *     ему ввести новую;
+   *   • `isFetching` истинен и при фоновом обновлении уже показанной сетки
+   *     (`staleTime: 0`, возврат фокуса в окно) — поля мигали бы серым на
+   *     каждый переход из календаря и обратно.
+   * Заведение офлайн (`acceptsOnlineBookings === false`) полей не рисует
+   * вовсе — см. ветку ниже, — поэтому в условии его нет.
+   */
+  const fieldsLocked = availability.isLoading;
 
   function pickDate(next: string) {
     setDate(next);
@@ -162,14 +176,14 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
               min={today}
               label={t.web.venue.booking.dateLabel}
               shown={dateText}
-              disabled={false}
+              disabled={fieldsLocked}
               onChange={pickDate}
             />
             <GuestsField
               id="venue-booking-guests"
               value={guests}
               label={t.web.venue.booking.guestsLabel}
-              disabled={false}
+              disabled={fieldsLocked}
               onChange={pickGuests}
             />
           </div>

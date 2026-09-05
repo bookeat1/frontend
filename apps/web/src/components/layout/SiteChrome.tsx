@@ -18,7 +18,23 @@ import { useLocale } from "@web/lib/locale";
  * Здесь же живёт сессия гостя: шапка показывает либо «Войти»/«Регистрация»
  * (обе ведут на `/login`), либо имя вошедшего и «Выйти».
  */
-export function SiteChrome({ active, children }: { active?: NavKey; children: ReactNode }) {
+/**
+ * Фон содержимого между шапкой и подвалом. Главная, каталог и заведение
+ * нарисованы на белом (`background/canvas`); кадры потока бронирования
+ * (`3525:14815` и `3525:15019`) — на `background/subtle` (#F8F8F8), чтобы
+ * белые карточки читались на подложке. Шапка и подвал от этого не зависят.
+ */
+export type ChromeTone = "canvas" | "subtle";
+
+export function SiteChrome({
+  active,
+  tone = "canvas",
+  children,
+}: {
+  active?: NavKey;
+  tone?: ChromeTone;
+  children: ReactNode;
+}) {
   const { city, cities, setCity } = useCity();
   const { locale, setLocale, t } = useLocale();
   const { user, signedIn, isLoading, signOut } = useAuth();
@@ -43,7 +59,7 @@ export function SiteChrome({ active, children }: { active?: NavKey; children: Re
         account={account}
         onSignOut={signOut}
       />
-      <main className="flex-1">{children}</main>
+      <main className={tone === "subtle" ? "flex-1 bg-subtle" : "flex-1"}>{children}</main>
       <SiteFooter locale={locale} onLocaleChange={setLocale} />
     </div>
   );

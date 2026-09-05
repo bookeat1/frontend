@@ -6,6 +6,8 @@ import type {
   AvailabilitySlot,
   Booking,
   DayAvailability,
+  EventSummary,
+  GuideCollection,
   Restaurant,
   RestaurantRepository,
   RestaurantSummary,
@@ -168,4 +170,44 @@ export function repositoryStub(
     rescheduleBooking: vi.fn(async () => booking()),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
+}
+
+/** Событие афиши — как в макете 3525:14279: три тега, из которых карточка
+ * показывает один. */
+export function eventSummary(overrides: Partial<EventSummary> = {}): EventSummary {
+  return {
+    id: "evt-1",
+    restaurantId: "r-1",
+    title: "BBQ-бранч на террасе",
+    description: "",
+    startsAt: "2026-05-18T13:00:00+05:00",
+    endsAt: "2026-05-18T16:00:00+05:00",
+    venue: "Терраса",
+    coverImageUrl: null,
+    images: [],
+    ticketed: false,
+    ticketPriceMinor: null,
+    capacity: null,
+    ticketsRefundable: false,
+    ticketRefundCutoffMinutes: 0,
+    restaurant: { id: "r-1", name: "INZHU Terrace", city: "almaty" },
+    tags: ["Живая музыка", "Терраса", "Бранч"],
+    recurrenceId: null,
+    ...overrides,
+  };
+}
+
+/** Подборка гастрогида для карточки главной. */
+export function guideCollection(overrides: Partial<GuideCollection> = {}): GuideCollection {
+  return {
+    slug: "winter-terraces",
+    kind: "collection",
+    title: "Зимние террасы",
+    subtitle: "Где греться с видом",
+    description: "",
+    coverImageUrl: null,
+    venueCount: 5,
+    categorySlugs: [],
+    ...overrides,
+  };
 }

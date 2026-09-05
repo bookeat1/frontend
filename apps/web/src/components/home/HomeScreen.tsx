@@ -5,7 +5,15 @@ import Link from "next/link";
 import { webAppSection } from "@bookeat/design-tokens";
 
 import { Section, SectionHeader } from "@web/components/home/SectionHeader";
-import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
+import {
+  EVENTS_PATH,
+  EventCard,
+  GUIDE_PATH,
+  GuideCard,
+  PromoCard,
+  SHOW_SECTION_LINKS,
+  guideCollectionHref,
+} from "@web/components/home/Cards";
 import { CuisineRow, CuisineRowSkeleton } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
 import { Container } from "@web/components/layout/Container";
@@ -210,14 +218,19 @@ export function HomeScreen() {
 
       <Section tone="subtle">
         <Container className="flex flex-col gap-7">
-          <SectionHeader title={t.web.home.events.title} subtitle={t.web.home.events.subtitle} />
+          <SectionHeader
+            title={t.web.home.events.title}
+            subtitle={t.web.home.events.subtitle}
+            linkHref={SHOW_SECTION_LINKS ? EVENTS_PATH : undefined}
+            linkLabel={t.web.home.events.all}
+          />
           <AsyncBlock
             query={events}
             emptyText={t.web.home.events.empty}
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {PLACEHOLDERS.slice(0, 3).map((key) => (
-                  <Skeleton key={key} className="h-[324px] rounded-card" />
+                  <Skeleton key={key} className="h-event-card rounded-card" />
                 ))}
               </div>
             }
@@ -237,7 +250,12 @@ export function HomeScreen() {
 
       <Section>
         <Container className="flex flex-col gap-7">
-          <SectionHeader title={t.web.home.guide.title} subtitle={t.web.home.guide.subtitle} />
+          <SectionHeader
+            title={t.web.home.guide.title}
+            subtitle={t.web.home.guide.subtitle}
+            linkHref={SHOW_SECTION_LINKS ? GUIDE_PATH : undefined}
+            linkLabel={t.web.home.guide.all}
+          />
           <AsyncBlock
             query={guide}
             emptyText={t.web.home.guide.empty}
@@ -253,7 +271,10 @@ export function HomeScreen() {
               <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2">
                 {items.slice(0, 2).map((collection) => (
                   <li key={collection.slug}>
-                    <GuideCard collection={collection} />
+                    <GuideCard
+                      collection={collection}
+                      href={SHOW_SECTION_LINKS ? guideCollectionHref(collection.slug) : undefined}
+                    />
                   </li>
                 ))}
               </ul>

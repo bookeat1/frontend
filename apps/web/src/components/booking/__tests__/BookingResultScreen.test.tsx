@@ -123,6 +123,25 @@ describe("страница брони — билет", () => {
     expect(screen.getByText("Ждём заведение")).toBeTruthy();
   });
 
+  it("страница стоит на подложке кадра (background/subtle), а шапка и подвал — нет", async () => {
+    renderResult();
+
+    await screen.findByText("Столик забронирован");
+    expect(screen.getByRole("main").className).toContain("bg-subtle");
+    expect(screen.getByRole("banner").className).not.toContain("bg-subtle");
+    expect(screen.getByRole("contentinfo").className).not.toContain("bg-subtle");
+  });
+
+  it("длинный статус в ячейке билета показывается целиком, а не с многоточием", async () => {
+    repository.getBooking = vi.fn(async () => booking({ id: ID, status: "waitlist" }));
+
+    renderResult();
+
+    const value = await screen.findByText("В листе ожидания");
+    expect(value.className).not.toContain("truncate");
+    expect(value.className).toContain("break-words");
+  });
+
   it("отменённая: свой заголовок и без кнопки переноса", async () => {
     repository.getBooking = vi.fn(async () => booking({ id: ID, status: "cancelled" }));
 
