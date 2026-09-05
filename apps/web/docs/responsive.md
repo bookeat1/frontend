@@ -79,7 +79,7 @@ Native), а не новый макет. Документ фиксирует, ч�
 | `restaurant/[id]/book/menu.tsx` — предзаказ | — | нет (предзаказа на сайте нет, см. `conventions/bookeat-web.md` § «Поток бронирования») | — |
 | `booking/[id]/index.tsx` — билет брони | `/bookings/[id]` → `booking/BookingResultScreen.tsx` | есть | venue |
 | `auth/sign-in.tsx` — вход по OTP | `/login` → `auth/LoginScreen.tsx` | есть | chrome |
-| `events.tsx`, `event/[id].tsx` — афиша | — (на главной есть лента `t.web.home.events`) | **нет роута**; словарь `t.afisha.*` готов на ru/kk/en | — |
+| `events.tsx`, `event/[id].tsx` — афиша | `/events` → `events/EventsScreen.tsx`, `/events/[id]` → `events/EventScreen.tsx` (2026-09-05, узлы 5033:6703 и 5033:6922) | есть | events |
 | `articles.tsx`, `articles/[slug].tsx` — статьи | — (на главной есть лента `t.web.home.guide`) | **нет роута**; словарь `t.articles.*` готов | — |
 | `gastroguide/index.tsx`, `gastroguide/rubrics.tsx`, `gastroguide/rubric/[slug].tsx`, `gastroguide/collections/[slug].tsx`, `routes/[slug].tsx`, `brand/ocean-basket.tsx` | — (пункт шапки `/guide` ведёт в 404) | **нет роута** | — |
 | `promotions.tsx`, `promotion/[id].tsx` — акции | — | **не переносим** (см. § 8) | — |
