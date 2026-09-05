@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { AuthUser, Booking, BookingPage, RestaurantSummary } from "@bookeat/api/client";
 
 import { booking, pending, renderScreen, repositoryStub, venueSummary } from "@web/test/harness";
@@ -70,7 +70,7 @@ beforeEach(() => {
     page([
       booking({ id: "b1", status: "completed", startsAt: "2025-05-12T14:00:00Z" }),
       booking({ id: "b2", status: "completed", startsAt: "2025-06-01T14:00:00Z" }),
-      booking({ id: "b3", status: "confirmed", startsAt: "2099-01-01T14:00:00Z" }),
+      booking({ id: "b3", status: "confirmed", startsAt: "2099-01-01T14:00:00Z", endsAt: "2099-01-01T16:00:00Z" }),
     ]),
   );
   repository.getFavorites = vi.fn(async (): Promise<RestaurantSummary[]> => [venueSummary()]);
@@ -100,7 +100,9 @@ describe("ProfileScreen — сессия", () => {
   it("«Выйти» — кнопка: завершает сессию и ведёт на главную, а не на /login", async () => {
     renderScreen(<ProfileScreen />);
 
-    const button = await screen.findByRole("button", { name: "Выйти" });
+    // В шапке своя кнопка «Выйти» — нужна та, что в меню разделов.
+    const nav = await screen.findByRole("navigation", { name: "Разделы профиля" });
+    const button = within(nav).getByRole("button", { name: "Выйти" });
     fireEvent.click(button);
 
     expect(signOut).toHaveBeenCalledTimes(1);
@@ -148,8 +150,9 @@ describe("ProfileScreen — карточка гостя", () => {
 
     renderScreen(<ProfileScreen />);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Аккаунт" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Аватар" }).textContent).toBe("А");
+    // `t.web.header.account` — та же подпись, что шапка показывает вошедшему без профиля.
+    expect(await screen.findByRole("heading", { level: 1, name: "Мой профиль" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Аватар" }).textContent).toBe("М");
   });
 });
 
@@ -159,10 +162,12 @@ describe("ProfileScreen — меню и сегменты", () => {
 
     renderScreen(<ProfileScreen />);
 
+    // Ссылки ищем ВНУТРИ меню: в подвале сайта есть своё «Избранное».
     const nav = await screen.findByRole("navigation", { name: "Разделы профиля" });
-    expect(screen.getByRole("link", { name: "Избранное" }).getAttribute("aria-current")).toBe("page");
-    expect(screen.getByRole("link", { name: "Мои брони" }).getAttribute("href")).toBe("/profile");
-    expect(screen.getByRole("link", { name: "Настройки" }).getAttribute("href")).toBe("/profile?section=settings");
+    const links = within(nav);
+    expect(links.getByRole("link", { name: "Избранное" }).getAttribute("aria-current")).toBe("page");
+    expect(links.getByRole("link", { name: "Мои брони" }).getAttribute("href")).toBe("/profile");
+    expect(links.getByRole("link", { name: "Настройки" }).getAttribute("href")).toBe("/profile?section=settings");
     expect(nav.querySelectorAll("a")).toHaveLength(3);
     expect(screen.getByRole("heading", { level: 2, name: "Избранное" })).toBeTruthy();
   });
