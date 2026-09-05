@@ -14,6 +14,7 @@ import {
   webHero,
   webHomeEventCard,
   webHomeGuideCard,
+  webGuidePage,
   webHomePromoCard,
   webLayout,
   webLoginModal,
@@ -268,6 +269,11 @@ const config: Config = {
           DEFAULT: webColors.background.brand,
           subtle: webColors.background.brandSubtle,
           text: webColors.text.brand,
+        },
+        guide: {
+          gold: webGuidePage.gold,
+          pick: webGuidePage.editorPickFill,
+          "pick-subtitle": webGuidePage.editorPickSubtitle,
         },
         ink: {
           DEFAULT: webColors.text.primary,
@@ -534,6 +540,12 @@ const config: Config = {
         "promo-card": px(webHomePromoCard.height),
         "guide-image": px(webHomeGuideCard.imageHeight),
         "guide-body": px(webHomeGuideCard.bodyHeight),
+        "guide-rubric": px(webGuidePage.rubric.height),
+        "guide-rubric-m": px(webGuidePage.rubric.mobileHeight),
+        "guide-pick": px(webGuidePage.editorPick.height),
+        "guide-pick-m": px(webGuidePage.editorPick.mobileHeight),
+        "guide-walk": px(webGuidePage.walk.height),
+        "guide-walk-m": px(webGuidePage.walk.mobileHeight),
         "sort-select": px(webCatalog.sortSelect.height),
         "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */

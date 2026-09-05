@@ -2771,6 +2771,11 @@ export const en: LocaleOverride<Dictionary> = {
       signInText: "A booking is visible only to the person who made it. Sign in with your phone number.",
       signInAction: "Sign in",
     },
+    /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
+     * берутся из `articles.*`, здесь только то, чего у приложения нет. */
+    guide: {
+      metaTitle: "BookEat — gastro guide",
+    },
     profile: {
       metaTitle: "BookEat — profile",
       title: "Profile",
