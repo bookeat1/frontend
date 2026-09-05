@@ -314,3 +314,26 @@ export function slotDateIso(startsAt: string): string | null {
   const match = /^(\d{4}-\d{2}-\d{2})[T ]/.exec(startsAt.trim());
   return match ? match[1] : null;
 }
+
+/**
+ * «марта 2025» для строки карточки гостя «с BookEat с марта 2025» (узел
+ * 3525:15162). Месяц нужен в РОДИТЕЛЬНОМ падеже, а `{ month: "long" }` сам по
+ * себе даёт именительный («март»). Родительный Intl печатает только рядом с
+ * числом дня, поэтому форматируем полную дату и берём из частей месяц и год.
+ * Для kk и en это ничего не меняет. `null` — когда даты нет или она битая:
+ * строка контактов тогда просто короче, а не «с BookEat с undefined».
+ */
+export function membershipMonthYear(createdAt: string | null, locale: WebLocale): string | null {
+  if (!createdAt) return null;
+  const started = new Date(createdAt);
+  if (Number.isNaN(started.getTime())) return null;
+  const parts = new Intl.DateTimeFormat(INTL_TAG[locale], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).formatToParts(started);
+  const month = parts.find((part) => part.type === "month")?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
+  if (!month || !year) return null;
+  return `${month} ${year}`;
+}
