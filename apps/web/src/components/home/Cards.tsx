@@ -18,8 +18,28 @@ import { useLocale, useT } from "@web/lib/locale";
  * Все ведут на страницу заведения-хозяина, а не на собственные экраны акции,
  * события и подборки: этих экранов в вебе ещё нет, и ссылка на них была бы
  * обещанием несуществующего маршрута. Исключение — подборка: у неё нет
- * заведения-хозяина, поэтому её карточка сейчас вообще не ссылка.
+ * заведения-хозяина, поэтому её карточка ведёт на страницу подборки, и эта
+ * ссылка живёт за флагом `SHOW_SECTION_LINKS` до появления роута.
  */
+
+/**
+ * ВРЕМЕННО: ссылки «Вся афиша» / «Все подборки» в шапках секций главной и
+ * ссылка с карточки гастрогида выключены — роутов `/events` и `/guide` на
+ * сайте ещё нет, они появятся отдельной задачей после снятия макетов, и ссылка
+ * вела бы в 404 Next. Включить, когда появятся роуты /events и /guide: ОДНА
+ * строка — поставить здесь `true`. Разметку, словарь (`t.web.home.events.all`,
+ * `t.web.home.guide.all` во всех трёх языках) и тесты трогать не надо.
+ *
+ * В макете (узел I3525:14277 секции 3525:14272) ссылка ЕСТЬ — расхождение
+ * сознательное. Приём тот же, что у `SHOW_FOR_BUSINESS` в `SiteHeader`.
+ */
+export const SHOW_SECTION_LINKS: boolean = false;
+
+/** Адреса, которые появятся вместе с роутами; собраны в одном месте, чтобы
+ * при включении флага не искать их по вёрстке. */
+export const EVENTS_PATH = "/events";
+export const GUIDE_PATH = "/guide";
+export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
 
 export function PromoCard({ promo }: { promo: HomePromo }) {
   const t = useT();
@@ -66,8 +86,8 @@ export function EventCard({ event }: { event: EventSummary }) {
   const place = [event.restaurant.name, date?.time].filter(Boolean).join(t.web.format.metaSeparator);
 
   return (
-    <Card className="relative flex w-full flex-col">
-      <div className="relative h-[196px] w-full bg-muted">
+    <Card className="relative flex h-full min-h-event-card w-full flex-col">
+      <div className="relative h-event-image w-full shrink-0 bg-muted">
         <RemoteImage
           src={event.coverImageUrl}
           alt={event.title}
@@ -94,12 +114,15 @@ export function EventCard({ event }: { event: EventSummary }) {
           </h3>
           {place ? <p className="text-[14px] leading-5 text-ink-secondary">{place}</p> : null}
         </div>
+        {/* Тег ровно ОДИН (узлы I3525:1427x;3280:5591) и в одну строку:
+            длинный обрезается многоточием, полный текст — в title. */}
         {event.tags.length > 0 ? (
-          <ul className="flex flex-wrap gap-2">
-            {event.tags.slice(0, 3).map((tag) => (
+          <ul className="flex gap-2">
+            {event.tags.slice(0, 1).map((tag) => (
               <li
                 key={tag}
-                className="inline-flex items-center rounded-sm bg-brand-subtle px-3 py-1.5 text-[14px] font-medium leading-4 text-brand-text"
+                title={tag}
+                className="max-w-full truncate rounded-sm bg-brand-subtle px-3 py-1.5 text-[14px] font-medium leading-4 text-brand-text"
               >
                 {tag}
               </li>
@@ -111,11 +134,17 @@ export function EventCard({ event }: { event: EventSummary }) {
   );
 }
 
-export function GuideCard({ collection }: { collection: GuideCollection }) {
+/**
+ * Карточка подборки. `href` — адрес страницы подборки; пока роута нет,
+ * `HomeScreen` передаёт его только при включённом `SHOW_SECTION_LINKS`, и без
+ * него карточка остаётся статьёй без ссылки. Со ссылкой — тот же приём
+ * растянутой ссылки, что у `EventCard` и `PromoCard`.
+ */
+export function GuideCard({ collection, href }: { collection: GuideCollection; href?: string }) {
   const t = useT();
 
   return (
-    <Card className="flex w-full flex-col">
+    <Card className={cx("flex w-full flex-col", href ? "relative" : null)}>
       <div className="relative h-[300px] w-full bg-muted">
         <RemoteImage
           src={collection.coverImageUrl}
@@ -128,7 +157,16 @@ export function GuideCard({ collection }: { collection: GuideCollection }) {
           {t.web.home.guide.eyebrow}
         </p>
         <h3 className="break-words text-[24px] font-bold leading-8 tracking-[-0.3px] text-ink">
-          {collection.title}
+          {href ? (
+            <Link
+              href={href}
+              className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {collection.title}
+            </Link>
+          ) : (
+            collection.title
+          )}
         </h3>
         <p className={cx("break-words text-bodyM text-ink-secondary")}>
           {collection.subtitle || t.web.home.guide.venues(collection.venueCount)}
