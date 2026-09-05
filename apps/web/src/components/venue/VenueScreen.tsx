@@ -14,6 +14,7 @@ import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { Modal } from "@web/components/ui/Modal";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Tag } from "@web/components/ui/Tag";
+import { isNotFound } from "@web/lib/not-found";
 import { repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
@@ -110,17 +111,6 @@ export function VenueScreen({ id }: { id: string }) {
         </div>
       </Container>
     </SiteChrome>
-  );
-}
-
-/** 404 — это ответ сервера «такого заведения нет», а не сбой связи, и экран
- * говорит об этом другими словами. */
-function isNotFound(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    (error as { status?: number }).status === 404
   );
 }
 
