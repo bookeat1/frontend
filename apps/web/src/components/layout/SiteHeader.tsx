@@ -27,7 +27,7 @@ import { useT } from "@web/lib/locale";
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
  * и заранее посчитанная подпись осталась бы на прежнем языке.
  */
-export type NavKey = "home" | "venues" | "guide" | "articles";
+export type NavKey = "home" | "venues" | "events" | "guide" | "articles";
 
 export interface NavItem {
   key: NavKey;
@@ -83,6 +83,8 @@ export const SHOW_PROFILE_LINK: boolean = true;
 export const HEADER_NAV: readonly NavItem[] = [
   { key: "home", href: "/" },
   { key: "venues", href: "/venues" },
+  // «Афиша» — роут /events появился 2026-09-05 (узел 5033:6703).
+  { key: "events", href: "/events" },
   { key: "guide", href: "/guide" },
   /** Пункт «Статьи» (узел I5034:9889;5034:8724): роут `/articles` есть. */
   { key: "articles", href: "/articles" },
