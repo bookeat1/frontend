@@ -151,6 +151,8 @@ export function repositoryStub(
     getPromotions: vi.fn(async () => []),
     listUpcomingEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 3 })),
     getGuideCollections: vi.fn(async () => []),
+    // Гастропрогулки страницы `/guide` — по городу, как у приложения.
+    getGuideRoutes: vi.fn(async () => []),
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
     getRestaurant: vi.fn(async () => venueDetail()),
     getMapPreviewUrl: vi.fn(() => undefined),

@@ -1308,3 +1308,42 @@ export const webBottomBar = {
    */
   clearance: 48 + 12 * 2 + 24,
 } as const;
+
+/**
+ * Страница гастрогида `/guide` — Figma «WEB / 08 · Гастрогид», узел 5033:7096
+ * (кадр 1440×2451). Числа — из кэшированного спека
+ * `design-specs/web/spec-gastroguide-web.md`, не из живой Figma.
+ *
+ *   • шапка-«издание» (5033:7100): чёрный кадр 1440×324, паддинг 126 сверху,
+ *     32 снизу, текст прижат к низу, просвет строк 6; надпись-рубрика 16
+ *     semibold с разрядкой 8 % золотом #EDD19E, слоган Playfair Display
+ *     Italic 48, подпись 20/20;
+ *   • «Рубрики» (5033:7107): паддинг 32/120, заголовок 26/24 w600, просвет
+ *     24, плитки 588×200 по две в ряд, радиус 24, поле 16, текст у нижнего
+ *     края поверх затемнения (золотая надпись 14 semibold 8 %, название 20
+ *     semibold);
+ *   • «Выбор редакции» (5033:7134): просвет 16, карточка 1200×476, радиус 24,
+ *     поле 24, надпись 18 semibold 8 %, заголовок 26 w700, подпись 20 #EBEBEB;
+ *     заливка карточки без обложки — #0A3D6E (5040:10277);
+ *   • «Гастропрогулки» (5033:7143): паддинг 32/120/96, карточки 588×354 по
+ *     две в ряд, поле 20/27, заголовок 26 w700, подпись 20.
+ *
+ * НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`) высоты берутся из
+ * мобильного экрана `apps/mobile/app/gastroguide/index.tsx`
+ * (`guideLayout`): плитка 158, «выбор редакции» 214, прогулка 206.
+ */
+export const webGuidePage = {
+  hero: { paddingTop: 126, paddingBottom: 32, copyGap: 6, eyebrowSize: 16, headlineSize: 48, sublineSize: 20 },
+  sectionPaddingTop: 32,
+  sectionPaddingBottom: 32,
+  lastSectionPaddingBottom: 96,
+  title: { fontSize: 26, lineHeight: 24, fontWeight: 600 },
+  rubric: { height: 200, radius: 24, padding: 16, gap: 24, headerGap: 24, mobileHeight: 158 },
+  editorPick: { height: 476, radius: 24, padding: 24, headerGap: 16, mobileHeight: 214 },
+  walk: { height: 354, radius: 24, paddingY: 20, paddingX: 27, headerGap: 16, mobileHeight: 206 },
+  gold: "#EDD19E",
+  /** Заливка карточки «Выбор редакции» без обложки — тёмно-синий макета. */
+  editorPickFill: "#0A3D6E",
+  /** Подпись под заголовком «Выбора редакции» — #EBEBEB (5040:10281). */
+  editorPickSubtitle: "#EBEBEB",
+} as const;

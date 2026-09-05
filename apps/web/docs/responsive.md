@@ -81,7 +81,8 @@ Native), а не новый макет. Документ фиксирует, ч�
 | `auth/sign-in.tsx` — вход по OTP | `/login` → `auth/LoginScreen.tsx` | есть | chrome |
 | `events.tsx`, `event/[id].tsx` — афиша | — (на главной есть лента `t.web.home.events`) | **нет роута**; словарь `t.afisha.*` готов на ru/kk/en | — |
 | `articles.tsx`, `articles/[slug].tsx` — статьи | — (на главной есть лента `t.web.home.guide`) | **нет роута**; словарь `t.articles.*` готов | — |
-| `gastroguide/index.tsx`, `gastroguide/rubrics.tsx`, `gastroguide/rubric/[slug].tsx`, `gastroguide/collections/[slug].tsx`, `routes/[slug].tsx`, `brand/ocean-basket.tsx` | — (пункт шапки `/guide` ведёт в 404) | **нет роута** | — |
+| `gastroguide/index.tsx` — корень гастрогида | `/guide` → `guide/GuideScreen.tsx` (2026-09-05, узел 5033:7096; ниже `lg` — высоты карточек из `guideLayout` приложения) | есть | guide |
+| `gastroguide/rubrics.tsx`, `gastroguide/rubric/[slug].tsx`, `gastroguide/collections/[slug].tsx`, `routes/[slug].tsx`, `brand/ocean-basket.tsx` | — (карточки на `/guide` без ссылок) | **нет роута** | — |
 | `promotions.tsx`, `promotion/[id].tsx` — акции | — | **не переносим** (см. § 8) | — |
 | `bookings.tsx` — список броней | — | нет | — |
 | `favorites.tsx` | — | нет | — |
