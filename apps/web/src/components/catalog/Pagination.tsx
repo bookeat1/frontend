@@ -8,8 +8,12 @@ import { useT } from "@web/lib/locale";
  * 44×44, радиус 12, просвет 8, активная страница залита фирменным, между
  * далёкими номерами многоточие.
  *
- * Обводка неактивных квадратов — `border/default` (#E7E7E7), а не
- * `border/strong` (#DADADA): в макете (узел 3525:14505) стоит первая.
+ * Обводка неактивных квадратов — `border/strong` (#DADADA): в дереве узла
+ * (`spec-filter-page.md`, 3525:14501 и 3525:14505…14515) стоит
+ * `strokeColor #dadada`. Раньше стояла `border/default` по замеру живого
+ * файла 2026-09-02 — спека 2026-09-03 говорит иное, и она источник истины
+ * (см. `webCatalogPagination`). Многоточие (3525:14511) — без заливки и
+ * обводки. Кегль и вес подписи — утилиты `text-page` / `text-page-current`.
  *
  * Резать выдачу на страницы приходится на клиенте: `/restaurants/search` не
  * принимает номер страницы, а всю выдачу (до сотни записей) отдаёт разом —
@@ -42,7 +46,7 @@ export function Pagination({
             // и различить их можно только позицией.
             key={`gap-${index}`}
             aria-hidden="true"
-            className="inline-flex h-page w-page items-center justify-center text-[15px] leading-[22px] text-ink"
+            className="inline-flex h-page w-page items-center justify-center text-page text-ink"
           >
             …
           </span>
@@ -87,12 +91,12 @@ function PageButton({
       aria-label={title}
       aria-current={current ? "page" : undefined}
       className={cx(
-        "inline-flex h-page w-page items-center justify-center rounded-md border text-[15px] leading-[22px]",
+        "inline-flex h-page w-page items-center justify-center rounded-md border",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "disabled:cursor-not-allowed disabled:text-ink-disabled",
         current
-          ? "border-brand bg-brand font-semibold text-ink-on-brand"
-          : "border-line bg-canvas font-medium text-ink hover:bg-subtle",
+          ? "border-brand bg-brand text-page-current text-ink-on-brand"
+          : "border-line-strong bg-canvas text-page text-ink hover:bg-subtle",
       )}
     >
       <span aria-hidden="true">{label}</span>
