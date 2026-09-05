@@ -13,6 +13,7 @@ import {
   webHeader,
   webHero,
   webHomeEventCard,
+  webArticles,
   webHomeGuideCard,
   webHomePromoCard,
   webLayout,
@@ -533,6 +534,11 @@ const config: Config = {
         "event-body": px(webHomeEventCard.bodyHeight),
         "promo-card": px(webHomePromoCard.height),
         "guide-image": px(webHomeGuideCard.imageHeight),
+        /** Раздел «Статьи» (узлы 5033:7382 и 5033:7466), только под `lg:`. */
+        "article-image": px(webArticles.card.imageHeight),
+        "article-hero": px(webArticles.heroImageHeight),
+        "article-photo": px(webArticles.venuePhotoHeight),
+        "article-back": px(webArticles.backLink.height),
         "guide-body": px(webHomeGuideCard.bodyHeight),
         "sort-select": px(webCatalog.sortSelect.height),
         "wide-card-pill": px(webCatalog.wideCard.pill.height),
@@ -624,6 +630,8 @@ const config: Config = {
       },
       maxWidth: {
         container: px(webLayout.containerWidth),
+        /** Колонка страницы статьи — 760 (узел 5033:7484, паддинг 340). */
+        "article-body": px(webArticles.bodyWidth),
         modal: px(webLayout.modalWidth),
         /** Блок успеха и карточка-билет — оба 720 (узлы 3525:15022 и
          * 3525:15028). */

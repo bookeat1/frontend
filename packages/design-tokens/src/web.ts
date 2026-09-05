@@ -1286,6 +1286,29 @@ export const webHomeGuideCard = {
 } as const;
 
 /**
+ * Раздел «Статьи» — Figma «BookEat (Copy) (Copy)», кадры 5033:7382 (список)
+ * и 5033:7466 (страница статьи), спеки `design-specs/web/spec-articles.md`
+ * и `spec-article-page.md`.
+ *
+ *   • карточка списка (узел 5033:7391): 384×320, обложка 384×260 радиус 20,
+ *     тело — заголовок 16/24 + подпись 14/20, просвет 12 и 4;
+ *   • страница: колонка содержимого 760 (паддинг кадра 340), фото героя
+ *     760×440 радиус 20, фото блока заведения 374×240 радиус 16, просвет 12;
+ *   • ссылка «Все статьи» (5047:10518): высота 40, паддинг 8/12, радиус 16.
+ *
+ * НИЖЕ `lg` (docs/responsive.md) обложки держат пропорцию мобильной карточки
+ * статьи 256×148 (`aspect-home-cover`), как и карточка подборки главной.
+ */
+export const webArticles = {
+  card: { width: 384, imageHeight: 260, radius: 20, gap: 12, bodyGap: 4 },
+  bodyWidth: 760,
+  heroImageHeight: 440,
+  venuePhotoHeight: 240,
+  venuePhotoRadius: 16,
+  backLink: { height: 40, radius: 16 },
+} as const;
+
+/**
  * Прибитая к низу полоса с кнопкой на узком экране (ниже `lg`). Числа НЕ из
  * Figma WEB — там нет ни одного кадра у́же 1024 — а из мобильного приложения:
  * `apps/mobile/app/restaurant/[id]/index.tsx` (`footerSafeArea` / `footer`,
