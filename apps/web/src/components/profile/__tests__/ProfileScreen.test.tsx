@@ -1,5 +1,6 @@
+import { useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { AuthUser, Booking, BookingPage, RestaurantSummary } from "@bookeat/api/client";
 
 import { booking, pending, renderScreen, repositoryStub, venueSummary } from "@web/test/harness";
@@ -12,6 +13,8 @@ import { booking, pending, renderScreen, repositoryStub, venueSummary } from "@w
  *   • карточка показывает то, что есть у профиля, и не выдумывает «0», пока
  *     статистика едет или упала;
  *   • меню помечает активный раздел, «Выйти» — кнопка, а не ссылка;
+ *   • «Выйти» в ШАПКЕ (не знает о странице) тоже ведёт на главную: сессия
+ *     была и кончилась — это выход, а не гость без входа;
  *   • строка «с BookEat с …» — месяц в родительном падеже.
  */
 
@@ -36,17 +39,31 @@ const user: AuthUser = {
   birthDate: null,
 };
 
-let auth: { signedIn: boolean; isLoading: boolean; user: AuthUser | null } = {
-  signedIn: true,
-  isLoading: false,
-  user,
-};
+type AuthState = { signedIn: boolean; isLoading: boolean; user: AuthUser | null };
+let auth: AuthState = { signedIn: true, isLoading: false, user };
 const signOut = vi.fn();
 const replace = vi.fn();
 let search = "";
 
+// Сессия — внешнее хранилище: `setAuth` посреди теста перерисовывает всех
+// подписчиков `useAuth` (и экран, и шапку), как это делает настоящий провайдер.
+const authListeners = new Set<() => void>();
+function setAuth(next: AuthState) {
+  auth = next;
+  authListeners.forEach((listener) => listener());
+}
+
 vi.mock("@web/lib/auth", () => ({
-  useAuth: () => ({ ...auth, completeSignIn: vi.fn(), applyUser: vi.fn(), signOut }),
+  useAuth: () => {
+    const state = useSyncExternalStore(
+      (listener) => {
+        authListeners.add(listener);
+        return () => authListeners.delete(listener);
+      },
+      () => auth,
+    );
+    return { ...state, completeSignIn: vi.fn(), applyUser: vi.fn(), signOut };
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -108,6 +125,27 @@ describe("ProfileScreen — сессия", () => {
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(replace).toHaveBeenCalledWith("/");
     expect(button.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("«Выйти» в шапке: сессия кончилась — на главную, а не на /login с возвратом", async () => {
+    renderScreen(<ProfileScreen />);
+    await screen.findByRole("heading", { level: 1, name: "Камила Ахметова" });
+
+    const header = screen.getByRole("banner");
+    fireEvent.click(within(header).getByRole("button", { name: "Выйти" }));
+    expect(signOut).toHaveBeenCalledTimes(1);
+    // Шапка про страницу не знает — сама она никуда не ведёт.
+    expect(replace).not.toHaveBeenCalled();
+
+    // Провайдер сбросил сессию: `signedIn` true → false при `isLoading=false`.
+    act(() => setAuth({ signedIn: false, isLoading: false, user: null }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).not.toHaveBeenCalledWith(expect.stringContaining("/login"));
+    // На тик до перехода — скелет, а не «доступен после входа, перенаправляем».
+    expect(screen.queryByText("Профиль доступен после входа. Перенаправляем…")).toBeNull();
+    expect(screen.getByRole("status")).toBeTruthy();
   });
 });
 
@@ -182,7 +220,13 @@ describe("ProfileScreen — меню и сегменты", () => {
     expect(screen.getByRole("tab", { name: "Прошедшие · 2" }).getAttribute("aria-selected")).toBe("false");
     expect(screen.getByRole("tab", { name: "Отменённые · 0" })).toBeTruthy();
 
+    // Панель названа выбранной вкладкой, а не безымянная.
+    expect(active.id).toBeTruthy();
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(active.id);
+
     fireEvent.keyDown(screen.getByRole("tablist", { name: "Фильтр броней" }), { key: "ArrowRight" });
-    expect(screen.getByRole("tab", { name: "Прошедшие · 2" }).getAttribute("aria-selected")).toBe("true");
+    const past = screen.getByRole("tab", { name: "Прошедшие · 2" });
+    expect(past.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(past.id);
   });
 });

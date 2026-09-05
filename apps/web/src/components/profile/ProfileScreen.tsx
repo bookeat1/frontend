@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { Booking } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { ProfileCard, type ProfileStat } from "@web/components/profile/ProfileCard";
+import { ProfileSkeleton } from "@web/components/profile/ProfileFallback";
 import { ProfileNav, SECTION_PARAM, parseSection, type ProfileSection } from "@web/components/profile/ProfileNav";
-import { ProfileSegmented } from "@web/components/profile/ProfileSegmented";
+import { ProfileSegmented, segmentTabId } from "@web/components/profile/ProfileSegmented";
 import { Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { useAuth } from "@web/lib/auth";
 import { useLocale } from "@web/lib/locale";
@@ -32,6 +34,13 @@ import { loginHref } from "@web/lib/return-to";
  * хранилища, НИЧЕГО не решаем: иначе перезагрузка страницы у вошедшего гостя
  * мигала бы экраном входа.
  *
+ * ВЫХОД С ЭТОЙ СТРАНИЦЫ ведёт на главную, а не на `/login?next=/profile`:
+ * гость, который только что вышел, не должен видеть экран входа с возвратом
+ * туда, откуда ушёл. Кнопок «Выйти» на странице две — в меню разделов и в
+ * шапке (`SiteChrome`), и шапка про эту страницу не знает, поэтому переход
+ * true→false у `signedIn` (сессия БЫЛА и кончилась) сторож трактует как выход
+ * и сам ведёт на главную; на `/login` уходит только тот, у кого сессии не было.
+ *
  * НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`): структура «Профиля»
  * приложения — карточка, под ней меню на всю ширину, под ним раздел; числа из
  * Figma WEB стоят только под `lg:`. Просветы узкого экрана — шкала Tailwind, как
@@ -46,15 +55,22 @@ export function ProfileScreen() {
   const { user, signedIn, isLoading, signOut } = useAuth();
   const section = parseSection(params.get(SECTION_PARAM));
 
-  // Выход, начатый с этой страницы, ведёт на главную, а не на экран входа:
-  // сторож ниже увидит `signedIn=false` в тот же тик и без этого флага
-  // перебил бы переход своим редиректом на /login.
+  // Сессия была замечена на этой странице: её исчезновение — выход, а не
+  // «гость пришёл без входа». Ссылка, а не состояние: перерисовка тут не нужна.
+  const hadSession = useRef(false);
+  // Выход, начатый кнопкой меню: она сама ведёт на главную, и сторож ниже
+  // не должен перебивать переход вторым `replace`.
   const leaving = useRef(false);
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    if (isLoading || signedIn || leaving.current) return;
-    router.replace(loginHref(pathname));
+    if (isLoading) return;
+    if (signedIn) {
+      hadSession.current = true;
+      return;
+    }
+    if (leaving.current) return;
+    router.replace(hadSession.current ? "/" : loginHref(pathname));
   }, [isLoading, signedIn, pathname, router]);
 
   const bookings = useMyBookings();
@@ -80,8 +96,11 @@ export function ProfileScreen() {
   };
 
   let body: React.ReactNode;
-  if (isLoading) {
-    body = <PageSkeleton />;
+  if (isLoading || (!signedIn && (hadSession.current || signingOut))) {
+    // Пока сессия читается — скелет. После выхода — тот же скелет на тик до
+    // перехода на главную: «доступен после входа, перенаправляем» здесь
+    // соврал бы, гость выходит по своей воле.
+    body = <ProfileSkeleton />;
   } else if (!signedIn) {
     body = <StateMessage text={texts.signInText} />;
   } else {
@@ -114,7 +133,7 @@ export function ProfileScreen() {
   );
 }
 
-function segmentCounts(items: readonly import("@bookeat/api/client").Booking[]): Record<BookingSegment, number> {
+function segmentCounts(items: readonly Booking[]): Record<BookingSegment, number> {
   const split = splitBySegment(items, new Date());
   return { active: split.active.length, past: split.past.length, cancelled: split.cancelled.length };
 }
@@ -158,7 +177,12 @@ function BookingsSectionFrame({ counts }: { counts?: Record<BookingSegment, numb
           panelId={panelId}
         />
       </div>
-      <div id={panelId} role="tabpanel" className="flex flex-col gap-pbook-gap">
+      <div
+        id={panelId}
+        role="tabpanel"
+        aria-labelledby={segmentTabId(panelId, segment)}
+        className="flex flex-col gap-pbook-gap"
+      >
         {/* Место под карточки броней (T2.1b): высота карточки — фото 214. */}
         <Skeleton className="h-pbook-image w-full rounded-pbook" />
       </div>
@@ -174,18 +198,5 @@ function SectionFrame({ title }: { title: string }) {
       <h2 className="text-profile-title tracking-[-0.5px] text-ink">{title}</h2>
       <Skeleton className="h-fav-image w-full rounded-pbook" />
     </section>
-  );
-}
-
-/** Пока сессия читается: карточка и колонки той же высоты, что настоящие. */
-function PageSkeleton() {
-  return (
-    <div role="status" aria-busy="true" className="flex flex-col gap-6 lg:gap-profile-page-gap">
-      <Skeleton className="h-[156px] w-full rounded-xl" />
-      <div className="flex flex-col gap-8 lg:flex-row lg:gap-profile-content-gap">
-        <Skeleton className="h-[220px] w-full rounded-card lg:w-profile-nav" />
-        <Skeleton className="h-pbook-image w-full flex-1 rounded-pbook" />
-      </div>
-    </div>
   );
 }

@@ -24,6 +24,11 @@ export interface SegmentOption<K extends string> {
   label: string;
 }
 
+/** `id` вкладки: панель ссылается на выбранную через `aria-labelledby`. */
+export function segmentTabId(panelId: string, key: string): string {
+  return `${panelId}-tab-${key}`;
+}
+
 export interface ProfileSegmentedProps<K extends string> {
   options: readonly SegmentOption<K>[];
   value: K;
@@ -80,6 +85,7 @@ export function ProfileSegmented<K extends string>({
         return (
           <button
             key={option.key}
+            id={panelId ? segmentTabId(panelId, option.key) : undefined}
             type="button"
             role="tab"
             aria-selected={selected}

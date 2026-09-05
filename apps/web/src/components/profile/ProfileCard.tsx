@@ -82,7 +82,7 @@ export function ProfileCard({ user, fallbackName, stats, className }: ProfileCar
         <h1 className="max-w-full break-words text-profile-name tracking-[-0.5px] text-ink">{name}</h1>
         {contacts.length > 0 ? (
           <p className="max-w-full text-profile-contact text-ink-secondary [overflow-wrap:anywhere]">
-            {contacts.join(" · ")}
+            {contacts.join(t.web.format.metaSeparator)}
           </p>
         ) : null}
         <StatsRow stats={stats} />
