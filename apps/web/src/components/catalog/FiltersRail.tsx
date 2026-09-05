@@ -1,11 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { webCatalog } from "@bookeat/design-tokens";
 
 import { AsyncBlock, Skeleton } from "@web/components/state/AsyncBlock";
+import { Button } from "@web/components/ui/Button";
+import { Modal } from "@web/components/ui/Modal";
 import { cx } from "@web/lib/cx";
-import { PRICE_LEVELS, toggleInList, type CatalogState } from "@web/lib/catalog-params";
+import {
+  PRICE_LEVELS,
+  clearFilters,
+  countActiveFilters,
+  toggleInList,
+  type CatalogState,
+} from "@web/lib/catalog-params";
 import { useT } from "@web/lib/locale";
 import { useAmenities, useCuisines } from "@web/lib/queries";
 
@@ -38,8 +46,186 @@ import { useAmenities, useCuisines } from "@web/lib/queries";
  * Кнопки «Показать N мест» из макета здесь нет: фильтр применяется сразу, и
  * кнопка «применить» рядом с уже применённым фильтром — это обещание второго
  * шага, которого нет.
+ *
+ * НИЖЕ `lg` КОЛОНКИ НЕТ (`apps/web/docs/responsive.md`, § 5, дыра № 7).
+ * Раньше `<aside>` стоял первым в `flex-col`, и на телефоне гость скроллил
+ * мимо экрана галочек, чтобы увидеть первое заведение. Источник правды для
+ * узких экранов — мобильное приложение (`apps/mobile/app/search.tsx`): на
+ * экране только кнопка-ползунки со счётчиком выбранных фасетов и чипы
+ * выбранного, сами фильтры — в шторке (`FilterSheet`). Здесь то же самое:
+ * `FiltersRail` — `hidden lg:flex`, `FiltersSheetButton` — `lg:hidden`, а
+ * группы флажков у них общие (`FiltersForm`), чтобы два набора фильтров не
+ * разъехались в первую же правку.
+ *
+ * ШТОРКА — ЧЕРНОВИК, как в приложении: всё, что гость трогает внутри, живёт
+ * в локальном состоянии и уходит в адрес только по «Применить»; крестик, Esc и
+ * клик по затемнению — отмена; «Сбросить» очищает черновик, а не адрес.
+ * Колонка `lg:` по-прежнему применяет каждую галочку сразу — на десктопе выдача
+ * рядом и видна, второго шага там не нужно.
+ *
+ * Сама шторка — общий `Modal`, а не своя разметка снизу: контракт (§ 4) не
+ * переносит компонент шторки, только поведение, а раскладку окна ниже `lg`
+ * правит задача `chrome` (дыра № 11) — прямо в `Modal`, и фильтры получат её
+ * автоматически.
  */
+
+/**
+ * Каркас колонки — общий с заглушкой `CatalogFallback`: у скелета и настоящего
+ * блока одни и те же классы видимости и ширины, иначе заглушка на телефоне
+ * снова показывала бы 560 px серого над выдачей (дыра № 9).
+ */
+export const FILTERS_RAIL_FRAME = "hidden w-full flex-col lg:flex lg:w-filters-rail lg:shrink-0";
+
+/** Каркас кнопки «Фильтры» ниже `lg` — тоже общий с заглушкой. Высота чипа
+ * (`h-chip`), как у мобильного `FilterButton`: он стоит в одном ряду с чипами
+ * и не должен торчать над ними. */
+export const FILTERS_BUTTON_FRAME = "h-chip shrink-0 rounded-full lg:hidden";
+
 export function FiltersRail({
+  state,
+  onChange,
+}: {
+  state: CatalogState;
+  onChange: (next: CatalogState) => void;
+}) {
+  const t = useT();
+
+  return (
+    <aside
+      aria-label={t.web.catalog.filters.title}
+      className={cx(FILTERS_RAIL_FRAME, "gap-6 rounded-lg bg-canvas p-5 shadow-card")}
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="text-[19px] font-bold leading-[26px] text-ink">
+          {t.web.catalog.filters.title}
+        </h2>
+        <button
+          type="button"
+          onClick={() => onChange(clearFilters(state))}
+          className="text-[14px] font-medium leading-5 text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {t.web.catalog.filters.reset}
+        </button>
+      </div>
+
+      <FiltersForm state={state} onChange={onChange} />
+    </aside>
+  );
+}
+
+/**
+ * Кнопка «Фильтры» со счётчиком и шторка за ней — то, что видно ниже `lg`
+ * вместо колонки. Аналог `FilterButton` + `FilterSheet` приложения.
+ *
+ * Шторка МОНТИРУЕТСЯ при каждом открытии заново, поэтому её черновик всегда
+ * заводится из применённого состояния, а не из остатков прошлой правки — тот
+ * же эффект, что `useEffect` на `visible` в мобильном `FilterSheet`.
+ */
+export function FiltersSheetButton({
+  state,
+  onChange,
+}: {
+  state: CatalogState;
+  onChange: (next: CatalogState) => void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const count = countActiveFilters(state);
+
+  // Стабильная ссылка: `Modal` держит `onClose` в зависимостях эффекта, и
+  // новая функция на каждый рендер переставляла бы фокус на первую галочку
+  // при каждом тапе по черновику.
+  const close = useCallback(() => setOpen(false), []);
+  const apply = useCallback(
+    (next: CatalogState) => {
+      onChange(next);
+      setOpen(false);
+    },
+    [onChange],
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Имя со счётчиком, как у мобильной кнопки: немой кружок с цифрой
+        // скринридеру ничего не говорит.
+        aria-label={count > 0 ? t.a11y.openFiltersWithCount(count) : t.a11y.openFilters}
+        onClick={() => setOpen(true)}
+        className={cx(
+          FILTERS_BUTTON_FRAME,
+          "inline-flex items-center gap-2 bg-subtle pl-3 pr-4 text-[14px] font-medium leading-5 text-ink",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        )}
+      >
+        {/* Ползунки 20×20 — тот же знак, что `FadersHorizontal` в приложении. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            d="M3 6h9M15 6h2M3 14h2M8 14h9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <circle cx="13.5" cy="6" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="6.5" cy="14" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+        {t.web.catalog.filters.title}
+        {count > 0 ? (
+          <span
+            aria-hidden="true"
+            className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[12px] font-semibold leading-4 text-ink-on-brand"
+          >
+            {count}
+          </span>
+        ) : null}
+      </button>
+
+      {open ? <FiltersSheet state={state} onApply={apply} onClose={close} /> : null}
+    </>
+  );
+}
+
+function FiltersSheet({
+  state,
+  onApply,
+  onClose,
+}: {
+  state: CatalogState;
+  onApply: (next: CatalogState) => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const [draft, setDraft] = useState<CatalogState>(state);
+
+  return (
+    <Modal title={t.web.catalog.filters.title} onClose={onClose}>
+      {/* Список прокручивается внутри окна, а кнопки остаются под рукой:
+          иначе «Применить» уезжало бы под 14 кухонь и 19 удобств. Отступ
+          `-mx-1 px-1` — место под рамку фокуса галочек, не поле. */}
+      <div className="-mx-1 max-h-[min(60dvh,560px)] overflow-y-auto px-1">
+        <FiltersForm state={draft} onChange={setDraft} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Button size="l" block onClick={() => onApply(draft)}>
+          {t.search.filters.apply}
+        </Button>
+        <Button size="l" variant="secondary" block onClick={() => setDraft(clearFilters(draft))}>
+          {t.web.catalog.filters.reset}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Группы фильтров — одна разметка для колонки и для шторки. `onChange`
+ * получает уже готовое состояние: колонка отправляет его в адрес, шторка — в
+ * черновик.
+ */
+function FiltersForm({
   state,
   onChange,
 }: {
@@ -55,37 +241,7 @@ export function FiltersRail({
   const patch = (partial: Partial<CatalogState>) => onChange({ ...state, ...partial, page: 1 });
 
   return (
-    <aside
-      aria-label={t.web.catalog.filters.title}
-      className="flex w-full flex-col gap-6 rounded-lg bg-canvas p-5 shadow-card lg:w-filters-rail lg:shrink-0"
-    >
-      <div className="flex items-center justify-between">
-        <h2 className="text-[19px] font-bold leading-[26px] text-ink">
-          {t.web.catalog.filters.title}
-        </h2>
-        <button
-          type="button"
-          onClick={() =>
-            onChange({
-              ...state,
-              text: state.text,
-              cuisines: [],
-              features: [],
-              price: undefined,
-              date: undefined,
-              time: undefined,
-              guests: undefined,
-              openNow: false,
-              onlineOnly: false,
-              page: 1,
-            })
-          }
-          className="text-[14px] font-medium leading-5 text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-        >
-          {t.web.catalog.filters.reset}
-        </button>
-      </div>
-
+    <div className="flex flex-col gap-6">
       <fieldset className="flex flex-col gap-3">
         <legend className="text-[15px] font-semibold leading-[22px] text-ink">
           {t.web.catalog.filters.cuisine}
@@ -187,7 +343,7 @@ export function FiltersRail({
           onChange={() => patch({ onlineOnly: !state.onlineOnly })}
         />
       </fieldset>
-    </aside>
+    </div>
   );
 }
 

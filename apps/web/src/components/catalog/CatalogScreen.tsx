@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
-import { FiltersRail } from "@web/components/catalog/FiltersRail";
+import { FiltersRail, FiltersSheetButton } from "@web/components/catalog/FiltersRail";
 import { Pagination } from "@web/components/catalog/Pagination";
 import { VenueWideCard } from "@web/components/catalog/VenueWideCard";
 import { SearchPanel } from "@web/components/home/SearchPanel";
@@ -97,6 +97,8 @@ export function CatalogScreen() {
       </div>
 
       <Container className="flex flex-col gap-8 py-8 lg:flex-row">
+        {/* Колонка фильтров — только `lg:`; ниже неё нет вовсе, там кнопка
+            «Фильтры» в ряду чипов (см. FiltersRail и docs/responsive.md, № 7). */}
         <FiltersRail state={state} onChange={update} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-5">
@@ -162,85 +164,100 @@ export function CatalogScreen() {
             </label>
           </div>
 
-          {hasActiveFilters(state) ? (
-            <ul aria-label={t.web.catalog.active.label} className="flex flex-wrap items-center gap-2">
-              {state.cuisines.map((code) => (
-                <li key={`cuisine-${code}`}>
-                  <ActiveChip
-                    label={nameOfCuisine(code)}
-                    onClear={() =>
-                      update({ ...state, cuisines: toggleInList(state.cuisines, code), page: 1 })
-                    }
-                  />
-                </li>
-              ))}
-              {state.features.map((code) => (
-                <li key={`feature-${code}`}>
-                  <ActiveChip
-                    label={nameOfFeature(code)}
-                    onClear={() =>
-                      update({ ...state, features: toggleInList(state.features, code), page: 1 })
-                    }
-                  />
-                </li>
-              ))}
-              {state.price ? (
+          {/* Ряд «кнопка фильтров + чипы выбранного» — как `filterRow` в
+              мобильном `search.tsx`. Кнопка есть только ниже `lg`, чипы — на
+              всех ширинах; когда нет ни того, ни другого, ряд не занимает
+              просвет `gap-5`. */}
+          <div
+            className={cx(
+              "flex flex-wrap items-center gap-2",
+              !hasActiveFilters(state) && "lg:hidden",
+            )}
+          >
+            <FiltersSheetButton state={state} onChange={update} />
+            {hasActiveFilters(state) ? (
+              <ul
+                aria-label={t.web.catalog.active.label}
+                className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+              >
+                {state.cuisines.map((code) => (
+                  <li key={`cuisine-${code}`}>
+                    <ActiveChip
+                      label={nameOfCuisine(code)}
+                      onClear={() =>
+                        update({ ...state, cuisines: toggleInList(state.cuisines, code), page: 1 })
+                      }
+                    />
+                  </li>
+                ))}
+                {state.features.map((code) => (
+                  <li key={`feature-${code}`}>
+                    <ActiveChip
+                      label={nameOfFeature(code)}
+                      onClear={() =>
+                        update({ ...state, features: toggleInList(state.features, code), page: 1 })
+                      }
+                    />
+                  </li>
+                ))}
+                {state.price ? (
+                  <li>
+                    <ActiveChip
+                      label={state.price}
+                      onClear={() => update({ ...state, price: undefined, page: 1 })}
+                    />
+                  </li>
+                ) : null}
+                {state.date ? (
+                  <li>
+                    {/* «31 авг», а не «2026-08-31»: в чипе стоит то же, что
+                        гость видел в поле. Слово «Сегодня» здесь НЕ считаем —
+                        для этого нужен браузерный «сегодня», а чип рисуется и
+                        на сервере (см. searchDateLabel). */}
+                    <ActiveChip
+                      label={searchDateLabel(state.date, locale, t) ?? state.date}
+                      onClear={() => update({ ...state, date: undefined, page: 1 })}
+                    />
+                  </li>
+                ) : null}
+                {state.time ? (
+                  <li>
+                    <ActiveChip
+                      label={state.time}
+                      onClear={() => update({ ...state, time: undefined, page: 1 })}
+                    />
+                  </li>
+                ) : null}
+                {state.openNow ? (
+                  <li>
+                    <ActiveChip
+                      label={t.web.catalog.filters.openNow}
+                      onClear={() => update({ ...state, openNow: false, page: 1 })}
+                    />
+                  </li>
+                ) : null}
+                {state.onlineOnly ? (
+                  <li>
+                    <ActiveChip
+                      label={t.web.catalog.filters.onlineBookable}
+                      onClear={() => update({ ...state, onlineOnly: false, page: 1 })}
+                    />
+                  </li>
+                ) : null}
                 <li>
-                  <ActiveChip
-                    label={state.price}
-                    onClear={() => update({ ...state, price: undefined, page: 1 })}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => update({ ...EMPTY_CATALOG_STATE })}
+                    // Без своего паддинга: в макете (узел 3525:14493) ссылка стоит
+                    // через тот же просвет 8, что и чипы между собой.
+                    className="text-[13px] font-medium leading-[18px] text-ink-tertiary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    {t.web.catalog.active.clearAll}
+                  </button>
                 </li>
-              ) : null}
-              {state.date ? (
-                <li>
-                  {/* «31 авг», а не «2026-08-31»: в чипе стоит то же, что
-                      гость видел в поле. Слово «Сегодня» здесь НЕ считаем —
-                      для этого нужен браузерный «сегодня», а чип рисуется и
-                      на сервере (см. searchDateLabel). */}
-                  <ActiveChip
-                    label={searchDateLabel(state.date, locale, t) ?? state.date}
-                    onClear={() => update({ ...state, date: undefined, page: 1 })}
-                  />
-                </li>
-              ) : null}
-              {state.time ? (
-                <li>
-                  <ActiveChip
-                    label={state.time}
-                    onClear={() => update({ ...state, time: undefined, page: 1 })}
-                  />
-                </li>
-              ) : null}
-              {state.openNow ? (
-                <li>
-                  <ActiveChip
-                    label={t.web.catalog.filters.openNow}
-                    onClear={() => update({ ...state, openNow: false, page: 1 })}
-                  />
-                </li>
-              ) : null}
-              {state.onlineOnly ? (
-                <li>
-                  <ActiveChip
-                    label={t.web.catalog.filters.onlineBookable}
-                    onClear={() => update({ ...state, onlineOnly: false, page: 1 })}
-                  />
-                </li>
-              ) : null}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => update({ ...EMPTY_CATALOG_STATE })}
-                  // Без своего паддинга: в макете (узел 3525:14493) ссылка стоит
-                  // через тот же просвет 8, что и чипы между собой.
-                  className="text-[13px] font-medium leading-[18px] text-ink-tertiary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  {t.web.catalog.active.clearAll}
-                </button>
-              </li>
-            </ul>
-          ) : null}
+              </ul>
+            ) : null}
+          </div>
 
           <AsyncBlock
             query={query}
