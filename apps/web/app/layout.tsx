@@ -30,8 +30,14 @@ const notoSans = Noto_Sans({
  * Italic 48. `next/font/google` тут не годится: сборка идёт без сети (см.
  * `apps/web/app/fonts/`), поэтому файл лежит в репозитории — это подсет
  * `hb-subset` из официального переменного шрифта (OFL, `PlayfairDisplay-OFL.txt`
- * рядом), урезанный до latin + cyrillic (кириллица кита, без `-ext`) и
- * зафиксированный на начертании 400 italic. 25 КБ, `display: swap`.
+ * рядом), урезанный до latin + весь блок U+0400–04FF (кириллица целиком, не
+ * только базовый русский алфавит — заголовок берёт город из GET /cities, а
+ * там есть Түркістан, Қарағанды и т.п.) и зафиксированный на начертании 400
+ * italic. Это Modified Version по OFL §3: субсет не эквивалентен оригиналу
+ * (урезаны глифы, снята вариативность), поэтому в name-таблице (1/4/6/16)
+ * оригинальное имя заменено на нейтральное «BookEat Serif» — Reserved Font
+ * Name «Playfair Display» там оставаться не может (OFL-FAQ 2.6/2.8); copyright
+ * (name0) по-прежнему указывает на оригинальный проект. ~31 КБ, `display: swap`.
  */
 const playfairDisplay = localFont({
   src: "./fonts/PlayfairDisplay-Italic.woff2",
