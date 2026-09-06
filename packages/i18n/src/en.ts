@@ -2630,6 +2630,10 @@ export const en: LocaleOverride<Dictionary> = {
         label: "Venue photos",
         empty: "The venue has not uploaded any photos yet.",
         count: (count: number) => `All photos · ${count}`,
+        openPhoto: (index: number) => `Open photo ${index}`,
+        photoOf: (index: number, total: number) => `${index} of ${total}`,
+        previousPhoto: "Previous photo",
+        nextPhoto: "Next photo",
       },
       status: {
         open: "Open now",

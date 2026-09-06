@@ -460,6 +460,10 @@ function Gallery({
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useT();
+  /** Индекс фото, открытого во весь экран, ПОВЕРХ сетки (окно кита). `null` —
+   * лайтбокс закрыт. Своё состояние, а не поле сетки: сетку не нужно
+   * размонтировать, чтобы вернуться к ней «Esc»-ом или крестиком лайтбокса. */
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   if (photos.length === 0) {
     return <StateMessage text={t.web.venue.gallery.empty} />;
@@ -529,15 +533,160 @@ function Gallery({
           className="!max-w-[960px]"
         >
           <ul className="grid max-h-[70vh] grid-cols-2 gap-venue-mosaic-gap overflow-y-auto md:grid-cols-3">
-            {photos.map((photo) => (
+            {photos.map((photo, index) => (
               <li key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
-                <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="300px" />
+                {/* Клик по плитке открывает её же во весь экран (лайтбокс
+                    ниже), а не просто показывает сетку сеткой. */}
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(index)}
+                  aria-label={t.web.venue.gallery.openPhoto(index + 1)}
+                  className="absolute inset-0 h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="300px" />
+                </button>
               </li>
             ))}
           </ul>
         </Modal>
       ) : null}
+
+      {lightboxIndex !== null ? (
+        <PhotoLightbox
+          photos={photos}
+          name={name}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * Полноэкранный просмотр ОДНОГО фото поверх сетки — второй, более глубокий
+ * слой, чем `Modal` со всеми снимками. На мобильном это отдельный экран
+ * `app/restaurant/[id]/photo/[photoId].tsx` с горизонтальным свайпом; на вебе
+ * страницы нет, поэтому это состояние внутри `Gallery`, а не роут.
+ *
+ * `z-[60]`: окно всех фото уже стоит на `z-50` (сам `Modal`), лайтбокс должен
+ * лечь строго поверх него, а не рядом.
+ *
+ * Стрелки и Escape ловятся В ФАЗЕ ПЕРЕХВАТА (`capture: true`) и глушатся
+ * `stopPropagation`: `Modal` вешает свой обработчик Escape на `document` тоже,
+ * и без перехвата один и тот же Escape успевал закрыть сразу оба слоя —
+ * гость терял сетку фото, хотя хотел закрыть только фото.
+ */
+function PhotoLightbox({
+  photos,
+  name,
+  index,
+  onIndexChange,
+  onClose,
+}: {
+  photos: Photo[];
+  name: string;
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const total = photos.length;
+  const photo = photos[index];
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      } else if (event.key === "ArrowLeft") {
+        event.stopPropagation();
+        onIndexChange((index - 1 + total) % total);
+      } else if (event.key === "ArrowRight") {
+        event.stopPropagation();
+        onIndexChange((index + 1) % total);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [index, total, onIndexChange, onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t.web.venue.gallery.label}
+      className="fixed inset-0 z-[60] flex flex-col bg-scrim"
+    >
+      <header className="flex items-center justify-between gap-4 p-4 text-ink-on-inverse">
+        <span className="text-[14px] font-medium leading-5">
+          {t.web.venue.gallery.photoOf(index + 1, total)}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.web.ui.close}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-ink-on-inverse hover:bg-on-inverse-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path
+              d="M3 3l10 10M13 3L3 13"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <div className="relative min-h-0 flex-1">
+        <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="100vw" priority />
+
+        {total > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onIndexChange((index - 1 + total) % total)}
+              aria-label={t.web.venue.gallery.previousPhoto}
+              className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-photo-control text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <ArrowIcon direction="left" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onIndexChange((index + 1) % total)}
+              aria-label={t.web.venue.gallery.nextPhoto}
+              className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-photo-control text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <ArrowIcon direction="right" />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ArrowIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+      className={direction === "left" ? "" : "rotate-180"}
+    >
+      <path
+        d="M10 3L5 8l5 5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
   );
 }
 

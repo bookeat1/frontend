@@ -2636,6 +2636,10 @@ export const kk: LocaleOverride<Dictionary> = {
         label: "Орын фотосуреттері",
         empty: "Орын әзірге фотосурет жүктемеген.",
         count: (count: number) => `Барлық фото · ${count}`,
+        openPhoto: (index: number) => `${index}-фотоны ашу`,
+        photoOf: (index: number, total: number) => `${index} / ${total}`,
+        previousPhoto: "Алдыңғы фото",
+        nextPhoto: "Келесі фото",
       },
       status: {
         open: "Қазір ашық",

@@ -3702,6 +3702,10 @@ export const ru = {
         label: "Фотографии заведения",
         empty: "Заведение пока не загрузило фотографии.",
         count: (count: number) => `Все фото · ${count}`,
+        openPhoto: (index: number) => `Открыть фото ${index}`,
+        photoOf: (index: number, total: number) => `${index} из ${total}`,
+        previousPhoto: "Предыдущее фото",
+        nextPhoto: "Следующее фото",
       },
       /**
        * Ярлык в шапке (узел 3525:14586 файла QovvuAoI9YxsLMwWkfgKN8): в макете
