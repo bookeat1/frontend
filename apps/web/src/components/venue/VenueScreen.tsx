@@ -499,14 +499,22 @@ function Gallery({
           grid.length > 0 ? "md:grid-cols-mosaic" : "md:grid-cols-1",
         )}
       >
-        <div className="relative h-[300px] bg-muted md:h-full">
+        {/* Плитки мозаики — сразу лайтбокс на своём индексе, БЕЗ обязательного
+            захода через модалку «все фото» (владелец, живой клик по фото на
+            `/venues/[id]` открывал только кнопку-счётчик, сама плитка молчала). */}
+        <button
+          type="button"
+          onClick={() => setLightboxIndex(0)}
+          aria-label={t.web.venue.gallery.openPhoto(1)}
+          className="relative h-[300px] bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:h-full"
+        >
           <RemoteImage
             src={main.uri}
             alt={main.alt || name}
             sizes="(min-width: 1280px) 788px, 100vw"
             priority
           />
-        </div>
+        </button>
         {grid.length > 0 ? (
           <div
             className={cx(
@@ -515,16 +523,19 @@ function Gallery({
             )}
           >
             {grid.map((photo, index) => (
-              <div
+              <button
+                type="button"
                 key={photo.id}
+                onClick={() => setLightboxIndex(index + 1)}
+                aria-label={t.web.venue.gallery.openPhoto(index + 2)}
                 className={cx(
-                  "relative bg-muted",
+                  "relative bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   grid.length === 1 ? "h-[200px] md:h-full" : "h-[110px] md:h-venue-tile",
                   grid.length === 3 && index === 2 ? "col-span-2" : "",
                 )}
               >
                 <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="198px" />
-              </div>
+              </button>
             ))}
           </div>
         ) : null}
