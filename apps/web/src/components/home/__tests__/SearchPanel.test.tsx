@@ -83,4 +83,46 @@ describe("панель поиска", () => {
     expect(target).toContain("time=19%3A30");
     expect(target).toContain("guests=2");
   });
+
+  /**
+   * Баг, найденный владельцем вживую 2026-09-06: гость печатает название
+   * заведения и жмёт «Найти» — дата/время НИКЕМ не тронуты, это черновик
+   * автозаполнения («сегодня» + «сейчас»). Раньше они всё равно уезжали в
+   * запрос вместе с `q`, включая на сервере фильтр доступности «прямо
+   * сейчас», и заведение, которое сейчас просто закрыто, пропадало из
+   * выдачи по имени — хотя оно есть в каталоге (проверено на бою: `q=Abay`
+   * без даты/времени — 1 совпадение, с автоподставленными — 0). Поиск по
+   * названию не должен зависеть от того, открыто ли заведение в эту минуту.
+   */
+  it("поиск по названию без ручного выбора даты не уносит автозаполненные дату/время", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const textField = await screen.findByLabelText("Место или кухня");
+    fireEvent.change(textField, { target: { value: "Abay" } });
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+
+    expect(push).toHaveBeenCalledTimes(1);
+    const target = String(push.mock.calls[0][0]);
+    expect(target).toContain("q=Abay");
+    expect(target).not.toContain("date=");
+    expect(target).not.toContain("time=");
+  });
+
+  /** Но если гость САМ тронул дату или время, это уже не черновик, а выбор —
+   * «покажи заведения по имени X, у которых есть стол в это время» законный
+   * запрос, и фильтр доступности остаётся. */
+  it("поиск по названию с руками выбранной датой сохраняет дату", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const textField = await screen.findByLabelText("Место или кухня");
+    fireEvent.change(textField, { target: { value: "Abay" } });
+    const date = screen.getByLabelText("Дата") as HTMLInputElement;
+    fireEvent.change(date, { target: { value: "2026-09-10" } });
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+
+    expect(push).toHaveBeenCalledTimes(1);
+    const target = String(push.mock.calls[0][0]);
+    expect(target).toContain("q=Abay");
+    expect(target).toContain("date=2026-09-10");
+  });
 });
