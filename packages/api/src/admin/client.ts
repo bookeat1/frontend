@@ -1837,8 +1837,10 @@ export class AdminApiClient {
   /**
    * `PUT /admin/pages/:slug` — прямое сохранение, без черновика и без
    * версионирования: правка видна гостю сразу же после ответа 200 (в пределах
-   * кэша `GET /pages/:slug` — см. `PlatformContentFailure` для того, что
-   * значит отказ). Тело — ровно `{title, body}`.
+   * кэша `GET /pages/:slug`). PATCH-семантика: поле, которого нет в теле,
+   * бэкенд не трогает — `published` шлют ТОЛЬКО когда его действительно нужно
+   * поменять. 422 с кодом `page_body_empty` — попытка выставить
+   * `published: true` с пустым `body`, страница остаётся в прежнем статусе.
    */
   updatePlatformPage(slug: PlatformPageSlug, input: PlatformPageInput): Promise<PlatformPageAdmin> {
     return this.request<PlatformPageAdmin>("PUT", `/admin/pages/${encodeURIComponent(slug)}`, {

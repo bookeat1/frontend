@@ -17,7 +17,12 @@ import remarkGfm from "remark-gfm";
  *     dropped, never parsed into DOM.
  *   - `allowedElements`: only the tags product actually asked for render;
  *     anything else (e.g. a stray `<h1>` that would fight the page's own
- *     title) is silently omitted rather than rendered.
+ *     title) is silently omitted rather than rendered. IMPORTANT:
+ *     `allowedElements` without `unwrapDisallowed` drops the DISALLOWED
+ *     NODE'S CONTENT TOO, not just the tag — `code`/`pre`/`del` must be on
+ *     this list or inline code, fenced code blocks, and `~~strikethrough~~`
+ *     vanish along with their text, not just lose their styling. `input` is
+ *     here for GFM task-list checkboxes (`- [ ] item`).
  *   - links get `target="_blank" rel="noopener noreferrer"` — every link in
  *     this content is to something outside the page — and go through
  *     react-markdown's own `defaultUrlTransform`, which already turns
@@ -61,14 +66,39 @@ const ALLOWED_ELEMENTS = [
   "hr",
   "br",
   "img",
+  "code",
+  "pre",
+  "del",
+  "input",
 ];
 
 const COMPONENTS: Components = {
-  a: ({ href, children, ...rest }) => (
+  // react-markdown v10 always runs rehype-react with `passNode: true`
+  // (internal, not a prop we control), so every custom component gets an
+  // extra `node` prop carrying the hast node. It has to be destructured out
+  // by name — spreading it into `...rest` on a real DOM element leaks it as
+  // an invalid `node="[object Object]"` DOM attribute and React warns.
+  a: ({ node: _node, href, children, ...rest }) => (
     <a {...rest} href={href} target="_blank" rel="noopener noreferrer">
       {children}
     </a>
   ),
+  pre: ({ node: _node, children, ...rest }) => (
+    <pre {...rest} className="overflow-x-auto rounded-card bg-chip p-sm text-[0.85em]">
+      {children}
+    </pre>
+  ),
+  code: ({ node: _node, children, ...rest }) => (
+    <code {...rest} className="break-words font-mono text-[0.85em]">
+      {children}
+    </code>
+  ),
+  // GFM task-list checkboxes are read-only reflections of `- [x]`/`- [ ]` in
+  // the source, never an editable control in rendered output.
+  input: ({ node: _node, type, checked, ...rest }) =>
+    type === "checkbox" ? (
+      <input {...rest} type="checkbox" checked={checked ?? false} disabled readOnly />
+    ) : null,
   // `src` has already passed through react-markdown's `defaultUrlTransform`
   // (javascript:/data: already neutralized) by the time this renders — this
   // guard is specifically the "http, not https" case that transform does not

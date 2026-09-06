@@ -15,7 +15,7 @@ import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { useIsPlatformAdmin } from "@/lib/use-venue-catalog";
 import { Button } from "../ui/Button";
-import { Field, TextArea, TextInput } from "../ui/FormControls";
+import { CheckboxRow, Field, TextArea, TextInput } from "../ui/FormControls";
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 import { PublishBadge } from "../ui/PublishBadge";
 import { copy, sitePageErrorText } from "./copy";
@@ -26,12 +26,13 @@ import { copy, sitePageErrorText } from "./copy";
  * фиксирован на бэкенде (bookeat-backend PR #115) — создать восьмую или
  * удалить одну из семи нельзя, и в этом экране такой кнопки нет.
  *
- * ПРОСТОЙ РЕДАКТОР, БЕЗ ЧЕРНОВИКА. `PUT` сохраняет `title`/`body` сразу —
- * ни версий, ни отдельного шага публикации в этом контракте нет (см.
- * `PlatformPageAdmin` в `@bookeat/api/admin`: `published_at` в списке —
- * ТОЛЬКО информация, править его отсюда нельзя). Кнопка «Сохранить» поэтому
- * одна и делает ровно одно действие, а не «сохранить черновик» /
- * «опубликовать».
+ * ПРОСТОЙ РЕДАКТОР, БЕЗ ЧЕРНОВИКА-ВЕРСИИ. `PUT` сохраняет `title`/`body`/
+ * `published` сразу — версий нет, но публикация — ОТДЕЛЬНЫЙ явный
+ * переключатель (см. `PlatformPageAdmin`/`PlatformPageInput` в
+ * `@bookeat/api/admin`: поле называется `published`, bool, и все семь сидов
+ * заведены с `published = false`). Без этого переключателя, отправляющего
+ * `published: true` явно, ни одна страница не станет видна гостю никогда —
+ * PUT на бэкенде PATCH-семантики, отсутствующее поле молча не меняется.
  *
  * Список и редактор — один экран, выбор записи через `?page=<slug>`, а не
  * `[slug]`: кабинет собирается статикой (`output: "export"`), у него нет
@@ -97,7 +98,7 @@ function SitePagesList({ client }: { client: SitePagesClient }) {
                     <span className="break-words text-sm font-semibold text-text">
                       {copy.slugLabel[s]}
                     </span>
-                    <PublishBadge status={page?.published_at ? "published" : "draft"} />
+                    <PublishBadge status={page?.published ? "published" : "draft"} />
                   </div>
                   <p className="mt-xxs font-mono text-[12px] text-text-muted">/{s}</p>
                 </div>
@@ -125,7 +126,9 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [published, setPublished] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
 
   // Форма заполняется ОДИН РАЗ, когда данные приезжают — а не на каждый
   // рендер `detailQuery.data`, иначе набор текста сбрасывался бы фоновым
@@ -135,6 +138,7 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
     if (detailQuery.data) {
       setTitle(detailQuery.data.title);
       setBody(detailQuery.data.body);
+      setPublished(detailQuery.data.published);
     }
   }, [detailQuery.data]);
 
@@ -142,13 +146,17 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
     mutationFn: (input: PlatformPageInput) => client.updatePlatformPage(slug, input),
     onSuccess: (saved) => {
       setSaveError(null);
+      setJustSaved(true);
       queryClient.setQueryData(["site-page", slug], saved);
       void queryClient.invalidateQueries({ queryKey: LIST_QUERY_KEY });
     },
     // Введённый текст НЕ сбрасывается при отказе — форма остаётся как была,
     // меняется только сообщение под кнопкой (hard rule: форма не теряет ввод
     // при неудаче).
-    onError: (error) => setSaveError(sitePageErrorText(error)),
+    onError: (error) => {
+      setJustSaved(false);
+      setSaveError(sitePageErrorText(error));
+    },
   });
 
   if (detailQuery.isPending) return <LoadingState title={copy.loading} />;
@@ -164,7 +172,7 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
 
       <header className="flex flex-wrap items-center gap-sm">
         <h1 className="text-xl font-bold text-text">{copy.slugLabel[slug]}</h1>
-        <PublishBadge status={detailQuery.data.published_at ? "published" : "draft"} />
+        <PublishBadge status={detailQuery.data.published ? "published" : "draft"} />
         <span className="font-mono text-[12px] text-text-muted">/{slug}</span>
       </header>
 
@@ -179,8 +187,15 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
             setSaveError(t.admin.common.required);
             return;
           }
+          // То же самое бэкенд отклонит 422-м page_body_empty — проверяем на
+          // клиенте только ради мгновенного ответа, сервер всё равно
+          // перепроверит сам (client validation for UX only).
+          if (published && !body.trim()) {
+            setSaveError(copy.errorBodyEmpty);
+            return;
+          }
           setSaveError(null);
-          mutation.mutate({ title: title.trim(), body });
+          mutation.mutate({ title: title.trim(), body, published });
         }}
         noValidate
       >
@@ -190,7 +205,10 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
             value={title}
             maxLength={200}
             disabled={mutation.isPending}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setJustSaved(false);
+            }}
           />
         </Field>
 
@@ -202,7 +220,10 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
               rows={24}
               disabled={mutation.isPending}
               className="font-mono text-[13px]"
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => {
+                setBody(e.target.value);
+                setJustSaved(false);
+              }}
             />
           </Field>
 
@@ -220,11 +241,26 @@ function SitePageEditor({ slug, client }: { slug: PlatformPageSlug; client: Site
           </div>
         </div>
 
+        <CheckboxRow
+          label={copy.publishedLabel}
+          checked={published}
+          disabled={mutation.isPending}
+          hint={published ? undefined : copy.publishedHintOff}
+          onChange={(next) => {
+            setPublished(next);
+            setJustSaved(false);
+          }}
+        />
+
         <p className="text-[12px] text-text-muted">{copy.publishHint}</p>
 
         {saveError ? (
           <p role="alert" className="break-words text-sm text-brand">
             {saveError}
+          </p>
+        ) : justSaved ? (
+          <p role="status" aria-live="polite" className="text-[13px] text-text-muted">
+            {copy.saved}
           </p>
         ) : null}
 

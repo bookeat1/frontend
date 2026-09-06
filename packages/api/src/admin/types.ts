@@ -1593,16 +1593,18 @@ export interface HomePicksInput {
 
 /**
  * Семь редактируемых текстовых страниц сайта (T4). Фиксированный аллоулист —
- * ни создать, ни удалить страницу нельзя, только править title/body.
+ * ни создать, ни удалить страницу нельзя, только править title/body/published.
  *
- * КОНТРАКТ, КАК ОН ДАН backend-dev'ом (bookeat-backend PR #115,
- * `feat/platform-pages`, не смёржен в `develop` на момент написания этого
- * типа, 2026-09-06) — он ПРОЩЕ черновика в `specs/web-fixes-20260906.md`
- * (раздел T4): там были ещё `title_i18n`/`body_i18n` и тумблер «Опубликовано»
- * в PUT; в реально переданном контракте PUT принимает ТОЛЬКО `title`/`body`,
- * никаких переводов и никакого явного флага публикации. Панель следует этому
- * контракту, а не черновику — расхождение стоит перепроверить, когда PR #115
- * смёржится в `develop`.
+ * КОНТРАКТ ПРОВЕРЕН ПО РЕАЛЬНОМУ DTO (bookeat-backend PR #115,
+ * `feat/platform-pages`, `internal/transport/rest/platformpages/dto.go`,
+ * сверено 2026-09-06). Черновик в `specs/web-fixes-20260906.md` был неточен в
+ * обе стороны: `title_i18n`/`body_i18n`/`format` на проводе ЕСТЬ (в отличие
+ * от первой версии этого файла, которая по прозе спеки решила, что бэкенд их
+ * упростил), а поле публикации в admin-ответе называется `published` (bool),
+ * а не `published_at`. PUT — PATCH-семантика: `published` optional, его
+ * отсутствие ничего не меняет. Все 7 сидов написаны с `published = false` —
+ * без явного `published: true` в PUT страница НИКОГДА не станет видна на
+ * сайте.
  */
 export const PLATFORM_PAGE_SLUGS = [
   "about",
@@ -1617,21 +1619,43 @@ export const PLATFORM_PAGE_SLUGS = [
 export type PlatformPageSlug = (typeof PLATFORM_PAGE_SLUGS)[number];
 
 /**
- * `published_at` — как её видит кабинет: `null` значит гость получит 404 на
- * `GET /pages/:slug`. Ни список, ни правка НЕ дают способа переключить его
- * напрямую (контракт PR #115 не предусматривает такого поля в PUT) — статус
- * в списке информационный, не редактируемый.
+ * Матчит `adminResponse` (bookeat-backend
+ * `internal/transport/rest/platformpages/dto.go`, PR #115, merged into
+ * `feat/platform-pages`) — CONFIRMED against the real DTO on 2026-09-06, not
+ * against the earlier draft in `specs/web-fixes-20260906.md` (that draft was
+ * simpler on this one point and is stale).
+ *
+ * `published` (a plain bool, NOT `published_at`) — `false` means the guest
+ * gets 404 on `GET /pages/:slug`. All seven pages seed with `published =
+ * false`; the editor's PUT MUST send `published: true` explicitly to ever
+ * make one visible — there is no other way to flip it.
+ *
+ * `title_i18n`/`body_i18n` and `format` are real fields on the wire (the
+ * admin view resolves nothing, unlike the public response) but this panel
+ * only edits the base `title`/`body` — no per-language UI yet.
  */
 export interface PlatformPageAdmin {
   slug: PlatformPageSlug;
   title: string;
+  title_i18n?: Record<string, string>;
   body: string;
-  published_at: string | null;
+  body_i18n?: Record<string, string>;
+  format: string;
+  published: boolean;
+  updated_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
-/** Тело `PUT /admin/pages/:slug` — ровно два поля, без переводов и без
- * тумблера публикации (см. `PlatformPageAdmin`). */
+/**
+ * Тело `PUT /admin/pages/:slug`. PATCH-семантика на бэкенде (`updateRequest`
+ * в dto.go): поле, которого нет в JSON, значение не меняет. `published`
+ * optional и явный — если не передать `true`, страница НИКОГДА не
+ * опубликуется (сиды все с `published = false`). Пустой `body` при
+ * `published: true` бэкенд отклоняет 422-м `page_body_empty`.
+ */
 export interface PlatformPageInput {
   title: string;
   body: string;
+  published?: boolean;
 }

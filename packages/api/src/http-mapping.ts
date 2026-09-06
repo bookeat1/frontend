@@ -1703,17 +1703,21 @@ export function mapFavoriteItems(api: ApiFavoriteItems | null | undefined): Favo
 
 /* ------------------------------------------------------------------------ *
  * Platform text pages — `GET /pages/:slug` (bookeat-backend PR #115,
- * `feat/platform-pages`, not merged into develop at the time this mapper was
- * written, 2026-09-06). Response shape per the PR's contract: exactly
- * `{ title, body, published_at }`. There is no `slug` or `format` field on
- * the wire — `slug` is the request parameter (the caller already knows it),
- * and every body is Markdown, there being no other format the backend emits.
+ * `feat/platform-pages`, `internal/transport/rest/platformpages/dto.go`
+ * `publicResponse` — confirmed against the real DTO 2026-09-06). The wire
+ * shape is `{ slug, title, body, format, updated_at }`; there is no
+ * `published_at` here at all (an earlier version of this mapper assumed one
+ * — it was never real). `slug`/`format`/`updated_at` are read but not
+ * mapped: `slug` duplicates the request parameter the caller already has,
+ * `format` is always Markdown (the only format the backend emits), and
+ * `updated_at` has no UI yet. A page that is not published never reaches
+ * this mapper — the backend answers 404 for that case, indistinguishable
+ * from an unknown slug on purpose.
  * ------------------------------------------------------------------------ */
 
 export interface ApiPlatformPage {
   title?: string | null;
   body?: string | null;
-  published_at?: string | null;
 }
 
 /**

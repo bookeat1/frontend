@@ -1,13 +1,15 @@
-import type { PlatformPageAdmin, PlatformPageInput } from "@bookeat/api/admin";
+import { AdminApiError, type PlatformPageAdmin, type PlatformPageInput } from "@bookeat/api/admin";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * «Страницы сайта» (T4) — простой markdown-редактор без черновика: `PUT`
- * сохраняет `title`/`body` немедленно, и это ровно то, что панель обязана
- * делать, не подсовывая суперадмину лишний шаг «опубликовать».
+ * «Страницы сайта» (T4) — markdown-редактор без черновика-версии: `PUT`
+ * сохраняет `title`/`body`/`published` немедленно. `published` — реальный
+ * bool с бэкенда (bookeat-backend PR #115, dto.go), а не `published_at`: все
+ * семь сидов заведены с `published = false`, и без явного переключателя,
+ * шлющего `published: true`, ни одна страница не станет видна гостю.
  */
 
 const auth = { role: "admin" as string, token: "t" as string | null };
@@ -22,7 +24,8 @@ function makePage(overrides: Partial<PlatformPageAdmin> = {}): PlatformPageAdmin
     slug: "offer",
     title: "Оферта",
     body: "Текст оферты.",
-    published_at: "2026-08-01T10:00:00Z",
+    format: "markdown",
+    published: true,
     ...overrides,
   };
 }
@@ -31,7 +34,7 @@ function makeClient(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     listPlatformPages: vi.fn(async () => [
       makePage({ slug: "about", title: "О BookEat" }),
-      makePage({ slug: "jobs", title: "Вакансии", published_at: null }),
+      makePage({ slug: "jobs", title: "Вакансии", published: false }),
       makePage({ slug: "contacts", title: "Контакты" }),
       makePage({ slug: "how-it-works", title: "Как это работает" }),
       makePage({ slug: "cancellation", title: "Отмена брони" }),
@@ -40,7 +43,7 @@ function makeClient(overrides: Partial<Record<string, unknown>> = {}) {
     ]),
     getPlatformPage: vi.fn(async () => makePage()),
     updatePlatformPage: vi.fn(async (_slug: string, input: PlatformPageInput) =>
-      makePage({ title: input.title, body: input.body }),
+      makePage({ title: input.title, body: input.body, published: input.published ?? true }),
     ),
     ...overrides,
   };
@@ -91,7 +94,7 @@ describe("страницы сайта — список", () => {
     ]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
-    // «Вакансии» не опубликованы (published_at: null в фикстуре).
+    // «Вакансии» не опубликованы (published: false в фикстуре).
     const jobsRow = screen.getByText("Вакансии").closest("li");
     expect(jobsRow).not.toBeNull();
     expect(jobsRow?.textContent).toContain("Черновик");
@@ -109,7 +112,7 @@ describe("страницы сайта — список", () => {
 });
 
 describe("страницы сайта — редактор", () => {
-  it("сохраняет ровно {title, body} через PUT, без переводов и без флага публикации", async () => {
+  it("сохраняет {title, body, published} через PUT, включая текущее состояние переключателя", async () => {
     const client = makeClient();
     renderView(client, "offer");
 
@@ -126,7 +129,64 @@ describe("страницы сайта — редактор", () => {
     expect(client.updatePlatformPage).toHaveBeenCalledWith("offer", {
       title: "Публичная оферта",
       body: "## Раздел 1\n\nТекст оферты.",
+      published: true,
     });
+    expect(await screen.findByText("Сохранено")).toBeTruthy();
+  });
+
+  it("переключатель «Опубликовано» отражает состояние страницы и явно шлёт published:false при выключении", async () => {
+    const client = makeClient({ getPlatformPage: vi.fn(async () => makePage({ published: true })) });
+    renderView(client, "offer");
+
+    const toggle = await screen.findByLabelText("Опубликовано");
+    expect((toggle as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(toggle);
+    expect((toggle as HTMLInputElement).checked).toBe(false);
+    // Причина, почему выключено, видна сразу, не только после сохранения.
+    expect(screen.getByText(/увидит «страница не найдена»/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(client.updatePlatformPage).toHaveBeenCalledTimes(1));
+    expect(client.updatePlatformPage).toHaveBeenCalledWith(
+      "offer",
+      expect.objectContaining({ published: false }),
+    );
+  });
+
+  it("публикация с пустым текстом отклоняется на клиенте, запрос не уходит", async () => {
+    const client = makeClient({ getPlatformPage: vi.fn(async () => makePage({ published: true, body: "" })) });
+    renderView(client, "offer");
+
+    await screen.findByLabelText(/^Заголовок/);
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Нельзя опубликовать страницу с пустым текстом",
+    );
+    expect(client.updatePlatformPage).not.toHaveBeenCalled();
+  });
+
+  it("сервер отклоняет публикацию пустой страницы 422-м page_body_empty — показывает понятную причину, состояние не сброшено", async () => {
+    const client = makeClient({
+      updatePlatformPage: vi.fn(async () => {
+        throw new AdminApiError("validation failed", 422, undefined, "page_body_empty");
+      }),
+    });
+    renderView(client, "offer");
+
+    // Обходим клиентскую проверку — текст непустой на момент клика, важно
+    // только серверное поведение.
+    fireEvent.change(await screen.findByLabelText(/Текст \(Markdown\)/), {
+      target: { value: "текст" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Нельзя опубликовать страницу с пустым текстом",
+    );
+    expect((screen.getByLabelText(/Текст \(Markdown\)/) as HTMLTextAreaElement).value).toBe("текст");
   });
 
   it("предпросмотр — тот же Markdown-рендерер: ## становится h2", async () => {

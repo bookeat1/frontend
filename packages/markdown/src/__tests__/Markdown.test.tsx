@@ -54,4 +54,43 @@ describe("Markdown", () => {
     expect(images).toHaveLength(1);
     expect(images[0]?.getAttribute("src")).toBe("https://example.com/a.png");
   });
+
+  // Regression: allowedElements without unwrapDisallowed drops a disallowed
+  // node's TEXT too, not just the tag — code/pre/del must be on the allowlist
+  // or their content vanishes silently instead of just losing styling.
+  it("keeps inline code text and renders it as <code>", () => {
+    render(<Markdown>{`Запустите \`npm install\` в корне репозитория.`}</Markdown>);
+    expect(screen.getByText("npm install").tagName).toBe("CODE");
+  });
+
+  it("keeps fenced code block text and renders it as <pre><code>", () => {
+    const { container } = render(<Markdown>{"```\nconst x = 1;\n```"}</Markdown>);
+    expect(container.querySelector("pre code")?.textContent).toContain("const x = 1;");
+  });
+
+  it("keeps strikethrough text and renders it as <del>", () => {
+    render(<Markdown>{`~~устарело~~`}</Markdown>);
+    expect(screen.getByText("устарело").tagName).toBe("DEL");
+  });
+
+  it("renders a GFM task-list checkbox as a disabled checkbox, keeping the item text", () => {
+    const { container } = render(<Markdown>{`- [x] Готово\n- [ ] Не готово`}</Markdown>);
+    const boxes = container.querySelectorAll('input[type="checkbox"]');
+    expect(boxes).toHaveLength(2);
+    expect((boxes[0] as HTMLInputElement).checked).toBe(true);
+    expect((boxes[0] as HTMLInputElement).disabled).toBe(true);
+    expect((boxes[1] as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText("Готово")).not.toBeNull();
+    expect(screen.getByText("Не готово")).not.toBeNull();
+  });
+
+  // Regression: react-markdown v10 always passes an extra `node` prop to
+  // custom components (internal passNode:true) — spreading it into ...rest
+  // on <a> used to leak it into the DOM as an invalid `node` attribute.
+  it("does not leak the internal `node` prop onto the rendered <a>", () => {
+    const { container } = render(<Markdown>{`[BookEat](https://book-eat.com)`}</Markdown>);
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("node")).toBeNull();
+    expect(link?.hasAttribute("node")).toBe(false);
+  });
 });

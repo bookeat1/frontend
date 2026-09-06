@@ -1172,8 +1172,11 @@ export const en: LocaleOverride<Dictionary> = {
         "Markdown: ## / ### headings, lists, **bold**, *italic*, [links](https://…), tables. HTML tags are not rendered",
       previewLabel: "Preview — exactly what a guest sees on the site",
       previewEmpty: "Nothing to show yet — start typing",
+      publishedLabel: "Published",
+      publishedHintOff: "Off — guests see \"page not found\" instead of this text",
       publishHint:
-        "Appears on the site within a minute of saving. Empty text means guests see \"page not found\"",
+        "A save is live on the site within a minute. Publishing with empty text is refused — saving fails with an error and the previously published text stays live",
+      errorBodyEmpty: "Can't publish an empty page — fill in the Body field or turn off Published",
       save: "Save",
       saving: "Saving…",
       saved: "Saved",
