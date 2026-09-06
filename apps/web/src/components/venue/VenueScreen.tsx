@@ -178,7 +178,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           </section>
 
           <div className="flex flex-col gap-8">
-            <MenuSection venue={venue} />
+            {venue.menuHighlights.length > 0 ? <MenuSection venue={venue} /> : null}
             {hasPromos ? <PromoSection venue={venue} /> : null}
             <Contacts venue={venue} />
           </div>

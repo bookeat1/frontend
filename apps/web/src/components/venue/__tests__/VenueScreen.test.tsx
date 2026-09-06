@@ -65,16 +65,21 @@ describe("карточка заведения", () => {
     expect(screen.getByRole("button", { name: "Повторить" })).toBeTruthy();
   });
 
-  it("пустое меню и отсутствие фотографий сказаны словами", async () => {
+  it("пустое меню убирает весь блок «Меню» со страницы, а не заглушку", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({ menuHighlights: [], photos: [], description: "" }),
     );
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByText("Меню пока не заполнено.")).toBeTruthy();
-    expect(screen.getByText("Заведение пока не загрузило фотографии.")).toBeTruthy();
+    // Отсутствие фотографий и описания по-прежнему сказано словами — это
+    // работает как раньше и меняться не должно.
+    expect(await screen.findByText("Заведение пока не загрузило фотографии.")).toBeTruthy();
     expect(screen.getByText("Заведение пока не рассказало о себе.")).toBeTruthy();
+    // А пустое меню — не заглушка, а полное отсутствие секции и вкладки.
+    expect(screen.queryByText("Меню пока не заполнено.")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Меню" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Популярное в меню" })).toBeNull();
   });
 
   it("удобства заведения — ряд ярлыков из ответа сервера, а не выдумка", async () => {
