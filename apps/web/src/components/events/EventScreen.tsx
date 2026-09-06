@@ -10,7 +10,7 @@ import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
-import { bookingDateLabel, eventDateParts, formatNumber, slotDateIso } from "@web/lib/format";
+import { eventDateParts, formatNumber, instantDateLabel, slotDateIso } from "@web/lib/format";
 import { isNotFound } from "@web/lib/not-found";
 import { useLocale, useT } from "@web/lib/locale";
 import { useEvent, useVenue } from "@web/lib/queries";
@@ -101,8 +101,12 @@ function EventSkeleton() {
 function EventBody({ event }: { event: EventSummary }) {
   const t = useT();
   const { locale } = useLocale();
+  // Дата и время — из ОДНОГО источника (`new Date(event.startsAt)`), см.
+  // комментарий у `instantDateLabel`: смешивать литеральную дату из строки со
+  // временем, посчитанным через `new Date`, нельзя — при пересечении полуночи
+  // по UTC они называют разные дни.
   const date = eventDateParts(event.startsAt, locale);
-  const longDate = bookingDateLabel(slotDateIso(event.startsAt) ?? "", locale, "weekdayLong");
+  const longDate = instantDateLabel(event.startsAt, locale, "weekdayLong");
   const meta = t.afisha.subtitle([event.restaurant?.name ?? "", longDate ?? "", date?.time ?? ""]);
   const shownDate = [longDate, date?.time].filter(Boolean).join(t.web.format.metaSeparator) || null;
 
@@ -178,6 +182,7 @@ function EventBody({ event }: { event: EventSummary }) {
             title={t.afisha.bookAction}
             subtitle={price}
             restaurantId={venue.id}
+            date={slotDateIso(event.startsAt)}
             dateField={{ shown: shownDate }}
             footNote={event.capacity !== null ? t.web.events.capacity(event.capacity) : null}
           />

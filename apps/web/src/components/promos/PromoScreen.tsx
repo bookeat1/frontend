@@ -9,7 +9,7 @@ import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
-import { bookingDateLabel, slotDateIso } from "@web/lib/format";
+import { instantDateLabel } from "@web/lib/format";
 import { isNotFound } from "@web/lib/not-found";
 import { useLocale, useT } from "@web/lib/locale";
 import { usePromo, useVenue } from "@web/lib/queries";
@@ -100,8 +100,10 @@ function PromoSkeleton() {
 function PromoBody({ promo }: { promo: Promo }) {
   const t = useT();
   const { locale } = useLocale();
-  const endsIso = slotDateIso(promo.endsAt);
-  const untilDate = endsIso ? bookingDateLabel(endsIso, locale) : null;
+  // `promo.endsAt` — настоящий момент (сервер отдаёт UTC `...Z`), а не
+  // литеральная дата без времени: `instantDateLabel`, не `slotDateIso` +
+  // `bookingDateLabel` (тот же анти-паттерн, что чинили в `EventScreen`).
+  const untilDate = instantDateLabel(promo.endsAt, locale);
   const meta = t.afisha.subtitle([
     promo.restaurant?.name ?? "",
     untilDate ? t.promotions.until(untilDate) : "",

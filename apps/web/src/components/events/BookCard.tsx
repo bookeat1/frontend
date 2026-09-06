@@ -23,12 +23,17 @@ export function BookCard({
   title,
   subtitle,
   restaurantId,
+  date,
   dateField,
   footNote,
 }: {
   title: string;
   subtitle?: string | null;
   restaurantId: string;
+  /** «YYYY-MM-DD» дня события — предзаполняет дату на странице брони, чтобы
+   * гость не попал на бронь с сегодняшней датой по умолчанию. Битую строку
+   * молча отфильтрует сам `bookingHref` (`DATE_RE`). */
+  date?: string | null;
   /** Дата события, только для чтения — акции предзаполнять нечем, поле
    * тогда не передаётся вовсе (не «пустое поле», а его отсутствие). */
   dateField?: { shown: string | null } | null;
@@ -58,7 +63,12 @@ export function BookCard({
         />
       </div>
 
-      <Button asLink href={bookingHref(restaurantId, { guests })} block className="h-afisha-book rounded-field">
+      <Button
+        asLink
+        href={bookingHref(restaurantId, { guests, date: date ?? null })}
+        block
+        className="h-afisha-book rounded-field"
+      >
         {title}
       </Button>
       {footNote ? <p className="text-center text-[12px] leading-4 text-ink-tertiary">{footNote}</p> : null}

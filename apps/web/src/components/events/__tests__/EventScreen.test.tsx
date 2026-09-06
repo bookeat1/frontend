@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 
 import { RepositoryError } from "@bookeat/api/client";
+import type { EventSummary } from "@bookeat/api/client";
 
 import { eventSummary, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
 
@@ -35,7 +36,7 @@ beforeEach(() => {
 
 describe("EventScreen", () => {
   it("загрузка — статус, без заголовка события", () => {
-    repository.getEvent = vi.fn(() => pending());
+    repository.getEvent = vi.fn(() => pending<EventSummary>());
     renderScreen(<EventScreen id="evt-1" />);
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });

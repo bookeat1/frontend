@@ -214,6 +214,37 @@ export function bookingDateLabel(
   return capitalize(text, locale);
 }
 
+/**
+ * То же самое, что `bookingDateLabel`, но для настоящего МОМЕНТА времени
+ * (`Event.startsAt` / `Promo.endsAt` — RFC3339, сервер отдаёт `...Z`), а не
+ * для литеральной даты без времени.
+ *
+ * `bookingDateLabel`/`slotDateIso` тут не годятся: `slotDateIso` вырезает из
+ * строки литеральный «YYYY-MM-DD» ДО учёта часового пояса, а сервер шлёт этот
+ * момент в UTC — календарный день в самой строке ЭТО ДЕНЬ В UTC, а не в поясе
+ * заведения. Смешивание такого литерала с `eventDateParts` (который берёт
+ * время из `new Date`, то есть уже в поясе среды исполнения) даёт дату и
+ * время из РАЗНЫХ дней при переходе через полночь по UTC (событие в Алматы
+ * 12.09 00:30 → `startsAt` `2026-09-11T19:30:00Z` → литерал даёт «11
+ * сентября», а `new Date` в поясе Алматы — 00:30). Поэтому здесь, как и в
+ * `eventDateParts`, дата тоже считается через `new Date`: оба значения из
+ * ОДНОГО инстанта и одного (пусть и неявного) часового пояса среды не
+ * разъедутся между собой.
+ */
+export function instantDateLabel(
+  iso: string,
+  locale: WebLocale,
+  style: BookingDateStyle = "dayMonth",
+): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const text = new Intl.DateTimeFormat(INTL_TAG[locale], DATE_STYLE_OPTIONS[style])
+    .format(date)
+    // «25 авг.» → «25 авг»: точку в макете не рисуют, а Intl её ставит.
+    .replace(/\.$/, "");
+  return capitalize(text, locale);
+}
+
 function capitalize(text: string, locale: WebLocale): string {
   if (!text) return text;
   return text[0].toLocaleUpperCase(INTL_TAG[locale]) + text.slice(1);
