@@ -2303,6 +2303,9 @@ export const kk: LocaleOverride<Dictionary> = {
   },
   /** Десктоптық веб (apps/web) — қазақша нұсқасы. */
   web: {
+    a11y: {
+      opensInNewTab: (label: string) => `${label}, жаңа қойындыда ашылады`,
+    },
     header: {
       brand: "BookEat",
       skipToContent: "Мазмұнға өту",
