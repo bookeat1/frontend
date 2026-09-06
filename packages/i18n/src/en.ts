@@ -2662,6 +2662,7 @@ export const en: LocaleOverride<Dictionary> = {
         addDish: (name: string) => `Add ${name}`,
         qtyLess: "Decrease quantity",
         qtyMore: "Increase quantity",
+        preorderTotal: (amount: string) => `Total ≈ ${amount}`,
       },
       promos: {
         title: "Venue deals",

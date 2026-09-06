@@ -2668,6 +2668,7 @@ export const kk: LocaleOverride<Dictionary> = {
         addDish: (name: string) => `${name} қосу`,
         qtyLess: "Санын азайту",
         qtyMore: "Санын арттыру",
+        preorderTotal: (amount: string) => `Барлығы ≈ ${amount}`,
       },
       promos: {
         title: "Орын акциялары",
