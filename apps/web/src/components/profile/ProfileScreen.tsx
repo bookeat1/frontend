@@ -1,20 +1,43 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Booking } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
+import { Badge } from "@web/components/ui/Badge";
+import { Modal } from "@web/components/ui/Modal";
+import { Button } from "@web/components/ui/Button";
+import { RemoteImage } from "@web/components/ui/RemoteImage";
+import { VenueCard } from "@web/components/ui/VenueCard";
 import { ProfileCard, type ProfileStat } from "@web/components/profile/ProfileCard";
 import { ProfileSkeleton } from "@web/components/profile/ProfileFallback";
 import { ProfileNav, SECTION_PARAM, parseSection, type ProfileSection } from "@web/components/profile/ProfileNav";
 import { ProfileSegmented, segmentTabId } from "@web/components/profile/ProfileSegmented";
-import { Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
+import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { useAuth } from "@web/lib/auth";
+import { useFavoriteControl } from "@web/lib/favorites";
+import { bookingHref, bookingResultPath } from "@web/lib/booking-link";
+import { bookingDateLabel, venueMeta, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
-import { type BookingSegment, countVisits, splitBySegment } from "@web/lib/profile-bookings";
-import { useFavoriteIds, useMyBookings } from "@web/lib/queries";
+import {
+  canCancel,
+  canChange,
+  canShowCode,
+  type BookingSegment,
+  countVisits,
+  splitBySegment,
+  statusPill,
+} from "@web/lib/profile-bookings";
+import {
+  useCancelBooking,
+  useFavoriteIds,
+  useFavoriteVenues,
+  useMyBookings,
+  useVenue,
+} from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
 
 /**
@@ -111,11 +134,14 @@ export function ProfileScreen() {
           <ProfileNav active={section} onSignOut={handleSignOut} signingOut={signingOut} />
           <div className="min-w-0 flex-1">
             {section === "bookings" ? (
-              <BookingsSectionFrame
+              <BookingsSection
+                query={bookings}
                 counts={bookings.data ? segmentCounts(bookings.data.items) : undefined}
               />
+            ) : section === "favorites" ? (
+              <FavoritesSection />
             ) : (
-              <SectionFrame title={section === "favorites" ? texts.favorites.title : texts.settings.title} />
+              <SectionFrame title={texts.settings.title} />
             )}
           </div>
         </div>
@@ -141,14 +167,22 @@ function segmentCounts(items: readonly Booking[]): Record<BookingSegment, number
 const SEGMENTS: readonly BookingSegment[] = ["active", "past", "cancelled"];
 
 /**
- * Каркас раздела «Мои брони» (узел 3525:15194): заголовок 28/36 и сегменты в
- * одной строке, ниже через 20 — список. Списка здесь ещё нет (задача T2.1b);
- * его место держит заглушка высотой карточки брони, чтобы страница не
- * меняла высоту, когда список появится. Счётчики в сегментах — настоящие,
- * из того же запроса, что и «визиты» в карточке; пока запрос едет, подписи
- * без чисел, а не с нулями.
+ * Раздел «Мои брони» (узел 3525:15194): заголовок 28/36 и сегменты в одной
+ * строке, ниже через 20 — список карточек. Счётчики в сегментах — настоящие,
+ * из того же запроса, что и «визиты» в карточке гостя; пока запрос едет,
+ * подписи без чисел, а не с нулями.
+ *
+ * Список — ПЕРВАЯ страница `GET /bookings` (`MY_BOOKINGS_PAGE_SIZE`), без
+ * подгрузки следующих: у гостя это разумный потолок, а вторая страница —
+ * отдельная задача, а не то, что можно дорисовать «на глаз».
  */
-function BookingsSectionFrame({ counts }: { counts?: Record<BookingSegment, number> }) {
+function BookingsSection({
+  query,
+  counts,
+}: {
+  query: import("@tanstack/react-query").UseQueryResult<import("@bookeat/api/client").BookingPage>;
+  counts?: Record<BookingSegment, number>;
+}) {
   const { t } = useLocale();
   const texts = t.web.profile.bookings;
   const [segment, setSegment] = useState<BookingSegment>("active");
@@ -183,15 +217,262 @@ function BookingsSectionFrame({ counts }: { counts?: Record<BookingSegment, numb
         aria-labelledby={segmentTabId(panelId, segment)}
         className="flex flex-col gap-pbook-gap"
       >
-        {/* Место под карточки броней (T2.1b): высота карточки — фото 214. */}
-        <Skeleton className="h-pbook-image w-full rounded-pbook" />
+        <AsyncBlock
+          query={query}
+          isEmpty={() => false}
+          emptyText=""
+          skeleton={<Skeleton className="h-pbook-image w-full rounded-pbook" />}
+        >
+          {(page) => {
+            const items = splitBySegment(page.items)[segment];
+            if (items.length === 0) {
+              const emptyText =
+                segment === "active"
+                  ? texts.emptyActive
+                  : segment === "past"
+                    ? texts.emptyPast
+                    : texts.emptyCancelled;
+              return (
+                <StateMessage text={emptyText}>
+                  {segment === "active" ? (
+                    <Link
+                      href="/venues"
+                      className="text-[16px] font-semibold leading-6 text-brand-text underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                      {texts.findVenue}
+                    </Link>
+                  ) : null}
+                </StateMessage>
+              );
+            }
+            return (
+              <>
+                <ul className="flex flex-col gap-pbook-gap">
+                  {items.map((booking) => (
+                    <li key={booking.id}>
+                      <BookingCard booking={booking} />
+                    </li>
+                  ))}
+                </ul>
+                {page.total > page.items.length ? (
+                  <p className="text-[13px] leading-[18px] text-ink-tertiary">
+                    {texts.partial(page.items.length, page.total)}
+                  </p>
+                ) : null}
+              </>
+            );
+          }}
+        </AsyncBlock>
       </div>
     </section>
   );
 }
 
-/** Разделы «Избранное» и «Настройки» — свои задачи; здесь только заголовок и
- * место под содержимое той же геометрии. */
+/**
+ * Одна карточка брони (узел 3525:15205, `webProfile.bookingCard`).
+ *
+ * `GET /bookings` не несёт ни названия заведения, ни фото, ни адреса — только
+ * `restaurant_id` (см. `packages/api/src/http-mapping.ts` `ApiBooking`). Тот
+ * же приём, что у мобильного `BookingListCard`: карточка сама донашивает
+ * сводку заведения (`useVenue`, React Query дедуплицирует по id), а пока она
+ * не пришла или упала — название честно подменяется служебной строкой, фото
+ * и адрес просто не рисуются.
+ */
+function BookingCard({ booking }: { booking: Booking }) {
+  const { t, locale } = useLocale();
+  const texts = t.web.profile.bookings;
+  const venueQuery = useVenue(booking.restaurantId);
+  const venue = venueQuery.data;
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const now = useMemo(() => new Date(), []);
+
+  const pill = statusPill(booking, now);
+  const wallClock = venueWallClock(booking.startsAt, venue?.schedule?.timezone);
+  const dateLabel = wallClock ? bookingDateLabel(wallClock.date, locale) : null;
+
+  return (
+    <div className="flex flex-col overflow-hidden rounded-pbook bg-canvas shadow-card md:flex-row">
+      <div className="relative h-[180px] w-full shrink-0 bg-muted md:h-pbook-image md:w-pbook-image">
+        <RemoteImage
+          src={venue?.coverPhoto?.uri}
+          alt={venue?.name ?? texts.venueFallback}
+          sizes="(min-width: 768px) 200px, 100vw"
+        />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-pbook-body-gap px-pbook-body-x py-pbook-body-y">
+        <div className="flex flex-wrap items-start justify-between gap-pbook-top-gap">
+          <div className="flex min-w-0 flex-col gap-pbook-titles-gap">
+            <h3 className="break-words text-pbook-title tracking-[-0.2px] text-ink">
+              {venue?.name ?? texts.venueFallback}
+            </h3>
+            {venue?.address ? (
+              <p className="break-words text-pbook-address text-ink-secondary">{venue.address}</p>
+            ) : null}
+          </div>
+          {/* Тон бейджа даёт и заливку, и цвет точки (`bg-current`) — своего
+              отдельного значения «цвет точки» Figma в этой сессии не отдал
+              (429 на весь файл), поэтому точка не придумывает новый оттенок,
+              а берёт уже измеренный цвет текста бейджа того же тона. */}
+          <Badge tone={pill.tone} className="shrink-0 gap-1.5">
+            <span aria-hidden="true" className="h-[7px] w-[7px] shrink-0 rounded-full bg-current" />
+            {texts.status[pill.key]}
+          </Badge>
+        </div>
+
+        <dl className="flex flex-wrap gap-x-pbook-info-gap gap-y-2">
+          <div className="flex flex-col gap-pbook-info-inner">
+            <dt className="text-pbook-label uppercase tracking-[0.2px] text-ink-tertiary">{texts.info.date}</dt>
+            <dd className="text-pbook-value text-ink">{dateLabel ?? "—"}</dd>
+          </div>
+          <div className="flex flex-col gap-pbook-info-inner">
+            <dt className="text-pbook-label uppercase tracking-[0.2px] text-ink-tertiary">{texts.info.time}</dt>
+            <dd className="text-pbook-value text-ink">{wallClock?.time ?? "—"}</dd>
+          </div>
+          <div className="flex flex-col gap-pbook-info-inner">
+            <dt className="text-pbook-label uppercase tracking-[0.2px] text-ink-tertiary">{texts.info.guests}</dt>
+            <dd className="text-pbook-value text-ink">{booking.guests}</dd>
+          </div>
+          {canShowCode(booking, now) ? (
+            <div className="flex flex-col gap-pbook-info-inner">
+              <dt className="text-pbook-label uppercase tracking-[0.2px] text-ink-tertiary">{texts.info.code}</dt>
+              <dd className="text-pbook-value text-ink">{booking.id.slice(0, 8).toUpperCase()}</dd>
+            </div>
+          ) : null}
+        </dl>
+
+        <div className="mt-auto flex flex-wrap gap-pbook-actions-gap">
+          {canChange(booking, now) ? (
+            <Button asLink href={bookingHref(booking.restaurantId, { changeBookingId: booking.id })} variant="secondary" size="m">
+              {texts.actions.change}
+            </Button>
+          ) : null}
+          {canCancel(booking) ? (
+            <Button variant="secondary" size="m" onClick={() => setCancelOpen(true)}>
+              {texts.actions.cancel}
+            </Button>
+          ) : null}
+          {pill.key === "completed" || pill.key === "noShow" || pill.key === "cancelled" ? (
+            <Button asLink href={`/venues/${encodeURIComponent(booking.restaurantId)}`} variant="secondary" size="m">
+              {texts.actions.rebook}
+            </Button>
+          ) : null}
+          {canShowCode(booking, now) ? (
+            <Button asLink href={bookingResultPath(booking.id)} variant="outline" size="m">
+              {texts.actions.showCode}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {cancelOpen ? <CancelBookingDialog booking={booking} onClose={() => setCancelOpen(false)} /> : null}
+    </div>
+  );
+}
+
+/** Подтверждение отмены (узел брони, текст `t.web.profile.bookings.cancelDialog`).
+ * Отдельная модалка, а не `window.confirm`: та не даёт заблокировать кнопку
+ * на время запроса и не покажет текст отказа при 4xx/5xx. */
+function CancelBookingDialog({ booking, onClose }: { booking: Booking; onClose: () => void }) {
+  const { t } = useLocale();
+  const texts = t.web.profile.bookings.cancelDialog;
+  const cancelMutation = useCancelBooking();
+
+  const handleConfirm = () => {
+    if (cancelMutation.isPending) return;
+    cancelMutation.mutate(
+      { bookingId: booking.id },
+      {
+        onSuccess: () => onClose(),
+      },
+    );
+  };
+
+  return (
+    <Modal title={texts.title} onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        <p className="text-[15px] leading-[22px] text-ink-secondary">{texts.text}</p>
+        {cancelMutation.isError ? (
+          <p role="alert" className="text-[13px] leading-[18px] text-danger-strong">
+            {texts.failed}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button variant="secondary" size="m" onClick={onClose} disabled={cancelMutation.isPending}>
+            {texts.keep}
+          </Button>
+          <Button variant="primary" size="m" onClick={handleConfirm} loading={cancelMutation.isPending}>
+            {texts.confirm}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Раздел «Избранное» (узел 3525:15365-...): ряд карточек заведений — тот же
+ * `VenueCard`, что и на главной/в каталоге (правило «не плодить вторую
+ * карточку»), с кнопкой «Забронировать» как нижним слотом карточки и
+ * сердечком, снятие которого сразу убирает карточку из списка (тот же
+ * `useToggleFavorite`/`invalidateQueries`, что и везде).
+ */
+function FavoritesSection() {
+  const { t } = useLocale();
+  const texts = t.web.profile.favorites;
+  const query = useFavoriteVenues();
+  const favoriteProps = useFavoriteControl();
+
+  return (
+    <section className="flex flex-col gap-profile-section-gap">
+      <h2 className="text-profile-title tracking-[-0.5px] text-ink">{texts.title}</h2>
+      <AsyncBlock
+        query={query}
+        emptyText={texts.empty}
+        empty={
+          <StateMessage text={texts.empty}>
+            <Link
+              href="/venues"
+              className="text-[16px] font-semibold leading-6 text-brand-text underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {texts.browse}
+            </Link>
+          </StateMessage>
+        }
+        skeleton={
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {["a", "b", "c"].map((key) => (
+              <Skeleton key={key} className="h-fav-image w-full rounded-pbook" />
+            ))}
+          </div>
+        }
+      >
+        {(venues) => (
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {venues.map((venue) => (
+              <li key={venue.id} className="h-full">
+                <VenueCard
+                  name={venue.name}
+                  meta={venueMeta(venue, t)}
+                  imageUrl={venue.coverPhoto?.uri}
+                  href={`/venues/${venue.id}`}
+                  action={
+                    <Button asLink href={`/venues/${venue.id}/book`} variant="secondary" size="m" className="w-full">
+                      {texts.book}
+                    </Button>
+                  }
+                  {...favoriteProps(venue.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </AsyncBlock>
+    </section>
+  );
+}
+
+/** Раздел «Настройки» — своя задача; здесь только заголовок и место под
+ * содержимое той же геометрии. */
 function SectionFrame({ title }: { title: string }) {
   return (
     <section className="flex flex-col gap-profile-section-gap">

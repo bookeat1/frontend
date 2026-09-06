@@ -93,7 +93,15 @@ export function PromoCard({ promo }: { promo: HomePromo }) {
           {t.web.format.discount(promo.discountPercent)}
         </span>
       ) : null}
-      <div className="relative flex flex-col gap-0.5">
+      {/* БЕЗ `relative` здесь: растянутая ссылка (`after:absolute after:inset-0`
+          у `Link` ниже) стилизуется относительно БЛИЖАЙШЕГО позиционированного
+          предка — если сделать этот div тоже `relative`, он и станет этим
+          предком, и кликабельной останется только полоска с заголовком, а не
+          вся карточка (было именно так — баг «карточка акции не кликается»,
+          поймано вживую: клик по фото карточки на `/` не переходил на
+          `/promos/[id]`, клик по заголовку — переходил). Единственный
+          `relative` в дереве — у внешнего `article`, как у `EventCard`. */}
+      <div className="flex flex-col gap-0.5">
         <h3 className="text-[20px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-inverse">
           <Link
             href={promoHref(promo.id)}

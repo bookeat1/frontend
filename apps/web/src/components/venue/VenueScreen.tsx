@@ -20,7 +20,13 @@ import { useLoginHref } from "@web/lib/favorites";
 import { bookingHref } from "@web/lib/booking-link";
 import { promoHref } from "@web/components/home/Cards";
 import { cx } from "@web/lib/cx";
-import { instagramHandle, instantDateLabel, venueMeta, websiteHost } from "@web/lib/format";
+import {
+  formatMoneyMinor,
+  instagramHandle,
+  instantDateLabel,
+  venueMeta,
+  websiteHost,
+} from "@web/lib/format";
 import { usePreorderDraft } from "@web/lib/use-preorder-draft";
 import { DishStepper } from "@web/components/venue/DishStepper";
 import {
@@ -128,6 +134,14 @@ export function VenueScreen({ id }: { id: string }) {
 function VenueBody({ venue }: { venue: Restaurant }) {
   const t = useT();
   const status = scheduleStatus(venue.schedule, t);
+  /** ОДИН инстанс на страницу, поднят сюда из `MenuSection`: хук читает и
+   * пишет один и тот же `sessionStorage`, но React-состояние он держит СВОЙ —
+   * два отдельных вызова `usePreorderDraft(venue.id)` в разных компонентах
+   * этой же страницы НЕ видят обновлений друг друга (только после
+   * перемонтирования/навигации). Клик «+» на карточке блюда обязан сразу
+   * обновить сумму рядом с заголовком меню — на той же странице, без похода
+   * на `/venues/[id]/book` (владелец, 2026-09-06). */
+  const preorder = usePreorderDraft(venue.id);
   const photos = venue.coverPhoto
     ? [venue.coverPhoto, ...venue.photos.filter((photo) => photo.id !== venue.coverPhoto?.id)]
     : venue.photos;
@@ -181,7 +195,9 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           </section>
 
           <div className="flex flex-col gap-8">
-            {venue.menuHighlights.length > 0 ? <MenuSection venue={venue} /> : null}
+            {venue.menuHighlights.length > 0 ? (
+              <MenuSection venue={venue} preorder={preorder} />
+            ) : null}
             {hasPromos ? <PromoSection venue={venue} /> : null}
             <Contacts venue={venue} />
           </div>
@@ -483,14 +499,22 @@ function Gallery({
           grid.length > 0 ? "md:grid-cols-mosaic" : "md:grid-cols-1",
         )}
       >
-        <div className="relative h-[300px] bg-muted md:h-full">
+        {/* Плитки мозаики — сразу лайтбокс на своём индексе, БЕЗ обязательного
+            захода через модалку «все фото» (владелец, живой клик по фото на
+            `/venues/[id]` открывал только кнопку-счётчик, сама плитка молчала). */}
+        <button
+          type="button"
+          onClick={() => setLightboxIndex(0)}
+          aria-label={t.web.venue.gallery.openPhoto(1)}
+          className="relative h-[300px] bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:h-full"
+        >
           <RemoteImage
             src={main.uri}
             alt={main.alt || name}
             sizes="(min-width: 1280px) 788px, 100vw"
             priority
           />
-        </div>
+        </button>
         {grid.length > 0 ? (
           <div
             className={cx(
@@ -499,16 +523,19 @@ function Gallery({
             )}
           >
             {grid.map((photo, index) => (
-              <div
+              <button
+                type="button"
                 key={photo.id}
+                onClick={() => setLightboxIndex(index + 1)}
+                aria-label={t.web.venue.gallery.openPhoto(index + 2)}
                 className={cx(
-                  "relative bg-muted",
+                  "relative bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   grid.length === 1 ? "h-[200px] md:h-full" : "h-[110px] md:h-venue-tile",
                   grid.length === 3 && index === 2 ? "col-span-2" : "",
                 )}
               >
                 <RemoteImage src={photo.uri} alt={photo.alt || name} sizes="198px" />
-              </div>
+              </button>
             ))}
           </div>
         ) : null}
@@ -707,14 +734,29 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
  * `apps/mobile` степпер НЕ переносится (решение владельца 2026-09-06,
  * см. спеку), `DishDetailSheet` там не тронут.
  */
-function MenuSection({ venue }: { venue: Restaurant }) {
+function MenuSection({
+  venue,
+  preorder,
+}: {
+  venue: Restaurant;
+  /** Один инстанс на всю страницу — см. комментарий в `VenueBody`. */
+  preorder: ReturnType<typeof usePreorderDraft>;
+}) {
   const t = useT();
-  const preorder = usePreorderDraft(venue.id);
   const canPreorder = venue.acceptsOnlineBookings;
 
   return (
     <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
-      <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.menu.title}</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.menu.title}</h2>
+        {/* Растёт сразу по клику «+» на карточке блюда ниже — общий
+            `preorder` с родителем, без второго вызова хука (см. VenueBody). */}
+        {canPreorder && preorder.totalMinor > 0 ? (
+          <p className="text-[15px] font-semibold leading-5 text-ink">
+            {t.web.venue.menu.preorderTotal(formatMoneyMinor(preorder.totalMinor))}
+          </p>
+        ) : null}
+      </div>
       {venue.menuHighlights.length === 0 ? (
         <StateMessage text={t.web.venue.menu.empty} />
       ) : (

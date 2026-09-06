@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
 
 import { DEFAULT_GUESTS, GUEST_OPTIONS } from "@web/lib/booking-options";
 import { cx } from "@web/lib/cx";
@@ -50,6 +50,22 @@ export function SearchPanel({
   const [time, setTime] = useState(state.time ?? "");
   const [guests, setGuests] = useState(state.guests ?? DEFAULT_GUESTS);
   const [today, setToday] = useState<string | null>(null);
+  /**
+   * Дата/время пришли из адреса (гость их выбирал раньше — на листинге, до
+   * возврата сюда) или гость руками тронул поле в ЭТОЙ форме — тогда «когда
+   * есть свободный столик» действительно то, что он спрашивает, и парой
+   * `date`+`guests` стоит включать серверный фильтр доступности.
+   *
+   * Если же оба поля пустые и подставлены ТОЛЬКО автозаполнением (см. ниже),
+   * это черновик, а не выбор: обычный поиск заведения по названию иначе
+   * находил бы 0 совпадений всякий раз, когда искомое заведение просто
+   * закрыто в эту самую минуту (проверено вживую 2026-09-06: `q=Abay` без
+   * даты/времени — 1 совпадение, тот же запрос с автоподставленными
+   * «сегодня» + «сейчас» — 0, при том что `Abay` совпадает по имени и просто
+   * не работает по воскресеньям). Гость, который печатает конкретное имя,
+   * ищет ЗАВЕДЕНИЕ, а не «стол прямо сейчас».
+   */
+  const availabilityTouched = useRef(Boolean(state.date || state.time));
 
   useEffect(() => {
     const iso = todayIso();
@@ -65,11 +81,17 @@ export function SearchPanel({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Поиск по названию (`text` непустой) без того, чтобы гость САМ выбрал
+    // дату/время в этой форме, — просто поиск заведения: автозаполненные
+    // «сегодня»/«сейчас» здесь не отправляются, иначе они молча фильтруют
+    // выдачу по доступности прямо в эту минуту и находят 0 совпадений у
+    // заведения, которое сейчас закрыто, хотя оно есть в каталоге.
+    const applyAvailability = availabilityTouched.current || !text.trim();
     const query = serializeCatalogParams({
       ...state,
       text,
-      date: date || undefined,
-      time: time || undefined,
+      date: applyAvailability ? date || undefined : undefined,
+      time: applyAvailability ? time || undefined : undefined,
       guests,
       // Любой новый поиск начинается с первой страницы: остаться на седьмой
       // после смены запроса значит показать пустоту.
@@ -131,7 +153,10 @@ export function SearchPanel({
             id="catalog-search-date"
             type="date"
             value={date}
-            onChange={(event) => setDate(event.target.value)}
+            onChange={(event) => {
+              availabilityTouched.current = true;
+              setDate(event.target.value);
+            }}
             onClick={openPicker}
             className={cx(input, nativeValue)}
           />
@@ -152,7 +177,10 @@ export function SearchPanel({
             id="catalog-search-time"
             type="time"
             value={time}
-            onChange={(event) => setTime(event.target.value)}
+            onChange={(event) => {
+              availabilityTouched.current = true;
+              setTime(event.target.value);
+            }}
             onClick={openPicker}
             className={cx(input, nativeValue)}
           />

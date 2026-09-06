@@ -50,7 +50,7 @@ export function BookCard({
         {subtitle ? <p className="text-[14px] leading-5 text-ink-secondary">{subtitle}</p> : null}
       </header>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 md:flex-row">
         {dateField ? (
           <ReadOnlyDateField label={t.web.venue.booking.dateLabel} shown={dateField.shown} />
         ) : null}
