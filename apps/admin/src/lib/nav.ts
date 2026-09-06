@@ -80,6 +80,10 @@ export const NAV: NavGroup[] = [
       { href: "/platform-promos", label: t.admin.nav.platformPromos },
       { href: "/platform-events", label: t.admin.nav.platformEvents },
       { href: "/feed-moderation", label: t.admin.nav.feedModeration },
+      // Семь текстовых страниц футера сайта (T4). Тот же расклад, что у
+      // гастрогида и «Выбрали для вас»: витрина всей платформы, у неё нет
+      // заведения, и правит её только суперадмин.
+      { href: "/site-pages", label: t.admin.nav.sitePages },
     ],
   },
 ];

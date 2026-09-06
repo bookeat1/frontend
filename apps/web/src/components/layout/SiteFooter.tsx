@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
+
 import { Container } from "@web/components/layout/Container";
 import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { cx } from "@web/lib/cx";
 import { useT, type WebLocale } from "@web/lib/locale";
-import { BUSINESS_URL, CABINET_URL, PRICING_URL } from "@web/lib/site-links";
+import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/lib/site-links";
 
 /**
  * Подвал сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, «Web / Footer» (узел 3256:77):
@@ -19,13 +21,15 @@ import { BUSINESS_URL, CABINET_URL, PRICING_URL } from "@web/lib/site-links";
  * `@bookeat/i18n` существуют для мобильного приложения; выдавать их здесь за
  * доступные было бы обещанием, которого веб пока не держит.
  *
- * Колонка «Ресторанам» (2026-09-06, спека `web-fixes-20260906.md`, T3) —
- * единственная с живыми ссылками сегодня: лендинг для бизнеса и боевой
- * кабинет существуют, а страниц остальных трёх колонок (`/about`, `/jobs`,
- * `/privacy` и т.д. — задача T4) на сайте ещё нет, поэтому там оставлены
- * прежние заглушки `href="#"`. Пункта «Поддержка» в колонке нет вовсе —
- * владелец попросил отложить его до появления номера WhatsApp-бота; рисовать
- * мёртвую ссылку не нужно.
+ * Колонка «Ресторанам» (T3, спека `web-fixes-20260906.md`) ведёт на внешний
+ * лендинг для бизнеса и боевой кабинет (`RESTAURANT_LINKS`). Пункта
+ * «Поддержка» в колонке нет вовсе — владелец попросил отложить его до
+ * появления номера WhatsApp-бота; рисовать мёртвую ссылку не нужно.
+ *
+ * Колонки «Компания»/«Помощь» (T4) ведут на семь текстовых страниц платформы
+ * там, где для ключа есть слаг в `FOOTER_KEY_TO_PAGE_SLUG`; ключи без слуга
+ * (заведения, афиша, гастрогид, брони, избранное, блог) остаются заглушкой
+ * `href="#"` — это отдельные разделы сайта, не задача T4.
  */
 const RESTAURANT_LINKS = {
   connect: BUSINESS_URL,
@@ -39,6 +43,23 @@ export interface SiteFooterProps {
   onLocaleChange?: (locale: WebLocale) => void;
   className?: string;
 }
+
+/**
+ * Ключи словаря `t.web.footer.company`/`.help`, у которых уже есть настоящая
+ * страница (T4). Остальные пункты подвала (заведения, афиша, гастрогид,
+ * брони, избранное, «Подключить заведение», тарифы, кабинет, поддержка,
+ * блог) — это T3, отдельная задача (см. `bookeat-web-scope.md`); их ссылки
+ * здесь намеренно не трогаем и оставляем как были.
+ */
+const FOOTER_KEY_TO_PAGE_SLUG = {
+  about: "about",
+  jobs: "jobs",
+  contacts: "contacts",
+  how: "how-it-works",
+  cancel: "cancellation",
+  offer: "offer",
+  privacy: "privacy",
+} as const;
 
 const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
   // Собственное имя языка не переводится: «Қазақша» читается одинаково в
@@ -82,9 +103,9 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
           </div>
 
           {columns.map((column) => {
-            // «Ресторанам» — единственная колонка с ключами, которым уже
-            // назначен реальный адрес (см. RESTAURANT_LINKS выше); ключ
-            // "support" в словаре остаётся, но сюда сознательно не входит.
+            // «Ресторанам» — единственная колонка с внешними ссылками
+            // (см. RESTAURANT_LINKS выше); ключ "support" в словаре
+            // остаётся, но сюда сознательно не входит (T3).
             const isRestaurants = column === t.web.footer.restaurants;
             const restaurantEntries = isRestaurants
               ? (Object.keys(RESTAURANT_LINKS) as Array<keyof typeof RESTAURANT_LINKS>).map((key) => ({
@@ -93,6 +114,8 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
                   href: RESTAURANT_LINKS[key],
                 }))
               : [];
+            const linkClassName =
+              "text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 
             return (
               <nav key={column.title} aria-label={column.title} className="flex flex-col gap-3">
@@ -101,27 +124,29 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
                   {isRestaurants
                     ? restaurantEntries.map(({ key, label, href }) => (
                         <li key={key}>
-                          <ExternalLink
-                            href={href}
-                            label={label}
-                            className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                          >
+                          <ExternalLink href={href} label={label} className={linkClassName}>
                             {label}
                           </ExternalLink>
                         </li>
                       ))
                     : Object.entries(column)
                         .filter(([key]) => key !== "title")
-                        .map(([key, label]) => (
-                          <li key={key}>
-                            <a
-                              href="#"
-                              className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                            >
-                              {label}
-                            </a>
-                          </li>
-                        ))}
+                        .map(([key, label]) => {
+                          const slug = FOOTER_KEY_TO_PAGE_SLUG[key as keyof typeof FOOTER_KEY_TO_PAGE_SLUG];
+                          return (
+                            <li key={key}>
+                              {slug ? (
+                                <Link href={SITE_PAGE_PATHS[slug]} className={linkClassName}>
+                                  {label}
+                                </Link>
+                              ) : (
+                                <a href="#" className={linkClassName}>
+                                  {label}
+                                </a>
+                              )}
+                            </li>
+                          );
+                        })}
                 </ul>
               </nav>
             );

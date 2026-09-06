@@ -45,6 +45,8 @@ import type {
   HomePromo,
   PaymentStatus,
   Photo,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PriceLevel,
   PriceRange,
@@ -1782,4 +1784,38 @@ export function mapFavoriteItems(api: ApiFavoriteItems | null | undefined): Favo
     promos: count(api?.counts?.promos),
   };
   return { items, counts };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Platform text pages — `GET /pages/:slug` (bookeat-backend PR #115,
+ * `feat/platform-pages`, `internal/transport/rest/platformpages/dto.go`
+ * `publicResponse` — confirmed against the real DTO 2026-09-06). The wire
+ * shape is `{ slug, title, body, format, updated_at }`; there is no
+ * `published_at` here at all (an earlier version of this mapper assumed one
+ * — it was never real). `slug`/`format`/`updated_at` are read but not
+ * mapped: `slug` duplicates the request parameter the caller already has,
+ * `format` is always Markdown (the only format the backend emits), and
+ * `updated_at` has no UI yet. A page that is not published never reaches
+ * this mapper — the backend answers 404 for that case, indistinguishable
+ * from an unknown slug on purpose.
+ * ------------------------------------------------------------------------ */
+
+export interface ApiPlatformPage {
+  title?: string | null;
+  body?: string | null;
+}
+
+/**
+ * `slug` is not read from `api` — it comes from the request. Body is passed
+ * through `text()` (trim only), NOT `plainText()`: that helper strips `<...>`
+ * and HTML entities for old-CMS HTML fields, and would silently mangle
+ * Markdown that happens to contain a literal `<` (e.g. inside a link or a
+ * table cell).
+ */
+export function mapPlatformPage(slug: PlatformPageSlug, api: ApiPlatformPage): PlatformPage {
+  return {
+    slug,
+    title: text(api.title),
+    body: text(api.body),
+  };
 }

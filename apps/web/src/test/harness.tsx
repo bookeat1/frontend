@@ -11,6 +11,7 @@ import type {
   GuideCollection,
   GuideCollectionDetail,
   GuideCollectionVenue,
+  PlatformPage,
   Promo,
   Restaurant,
   RestaurantRepository,
@@ -158,6 +159,7 @@ export function repositoryStub(
     getGuideCategories: vi.fn(async () => []),
     listArticles: vi.fn(async () => []),
     getArticle: vi.fn(async () => articleDetail()),
+    getPage: vi.fn(async () => sitePage()),
     // Гастропрогулки страницы `/guide` — по городу, как у приложения.
     getGuideRoutes: vi.fn(async () => []),
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
@@ -279,6 +281,16 @@ export function guideVenue(overrides: Partial<GuideCollectionVenue> = {}): Guide
       coverImageUrl: null,
       images: [],
     },
+    ...overrides,
+  };
+}
+
+/** Одна из семи текстовых страниц платформы — `GET /pages/:slug` (T4). */
+export function sitePage(overrides: Partial<PlatformPage> = {}): PlatformPage {
+  return {
+    slug: "offer",
+    title: "Оферта",
+    body: "Текст публичной оферты.",
     ...overrides,
   };
 }

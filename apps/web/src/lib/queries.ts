@@ -24,6 +24,8 @@ import type {
   GuideCollectionDetail,
   GuideRoute,
   HomePromo,
+  PlatformPage,
+  PlatformPageSlug,
   Promo,
   Restaurant,
   RestaurantSummary,
@@ -205,6 +207,22 @@ export function useArticle(slug: string): UseQueryResult<GuideCollectionDetail> 
     queryKey: [locale, "article", slug],
     queryFn: () => repository.getArticle(slug),
     enabled: isApiConfigured && slug.length > 0,
+    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
+  });
+}
+
+/**
+ * Одна из семи редактируемых текстовых страниц платформы (T4,
+ * `GET /pages/:slug`) — «Как это работает», «Отмена брони», «Оферта»,
+ * «Политика данных», «Контакты», «Вакансии», «О BookEat». Неопубликованная
+ * страница — 404, повтор запроса на 404 бессмысленен (ровно как у статьи).
+ */
+export function useSitePage(slug: PlatformPageSlug): UseQueryResult<PlatformPage> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "site-page", slug],
+    queryFn: () => repository.getPage(slug),
+    enabled: isApiConfigured,
     retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
   });
 }

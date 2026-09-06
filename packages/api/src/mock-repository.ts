@@ -16,7 +16,7 @@ import {
   upcomingEvents,
 } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
-import { favoriteEventKey, isCancellableBookingStatus } from "./types";
+import { favoriteEventKey, isCancellableBookingStatus, PLATFORM_PAGE_SLUGS } from "./types";
 import type {
   Amenity,
   AppNotification,
@@ -48,6 +48,8 @@ import type {
   MenuSection,
   NotificationFeed,
   OtpRequest,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
@@ -64,6 +66,52 @@ import type {
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Fixture text for the seven platform pages, `Record` keyed by
+ * `PLATFORM_PAGE_SLUGS` so a slug added there and forgotten here is a
+ * compile error, not a silent 404 in the mock. Content is placeholder —
+ * the real text is written by a superadmin in the cabinet editor
+ * (`apps/admin`) and comes from the live backend; this exists so the site's
+ * loading/success states are exercisable with `pnpm dev` and no backend.
+ */
+const MOCK_PLATFORM_PAGES: Record<PlatformPageSlug, PlatformPage> = {
+  about: {
+    slug: "about",
+    title: "О BookEat",
+    body: "BookEat — сервис бронирования столиков в Казахстане.",
+  },
+  jobs: {
+    slug: "jobs",
+    title: "Вакансии",
+    body: "Открытых вакансий пока нет.",
+  },
+  contacts: {
+    slug: "contacts",
+    title: "Контакты",
+    body: "Свяжитесь с нами: support@book-eat.com",
+  },
+  "how-it-works": {
+    slug: "how-it-works",
+    title: "Как это работает",
+    body: "1. Выберите заведение.\n2. Забронируйте столик.\n3. Приходите вовремя.",
+  },
+  cancellation: {
+    slug: "cancellation",
+    title: "Отмена брони",
+    body: "Отменить бронь можно в разделе «Мои брони» не позднее чем за час до визита.",
+  },
+  offer: {
+    slug: "offer",
+    title: "Оферта",
+    body: "Текст публичной оферты.",
+  },
+  privacy: {
+    slug: "privacy",
+    title: "Политика данных",
+    body: "Текст политики обработки персональных данных.",
+  },
+};
 
 function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
   const text = query.text.trim().toLowerCase();
@@ -327,6 +375,19 @@ export class MockRestaurantRepository implements RestaurantRepository {
       throw new RepositoryError(`Article ${slug} not found`, undefined, 404);
     }
     return article;
+  }
+
+  /**
+   * Одна из семи текстовых страниц платформы. Слаг вне
+   * `PLATFORM_PAGE_SLUGS` — 404, как у живой ручки для неизвестного/
+   * неопубликованного слага.
+   */
+  async getPage(slug: PlatformPageSlug): Promise<PlatformPage> {
+    await this.simulateNetwork();
+    if (!PLATFORM_PAGE_SLUGS.includes(slug)) {
+      throw new RepositoryError(`Page ${slug} not found`, undefined, 404);
+    }
+    return MOCK_PLATFORM_PAGES[slug];
   }
 
   /* --- reservation flow --- */

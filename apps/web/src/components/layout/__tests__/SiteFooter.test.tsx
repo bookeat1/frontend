@@ -4,10 +4,15 @@ import { render, screen, within } from "@testing-library/react";
 import { SiteFooter } from "@web/components/layout/SiteFooter";
 
 /**
- * T3 (спека `web-fixes-20260906.md`, 2026-09-06). Этот PR закрывает только
- * блок «для бизнеса» колонки «Ресторанам» (критерии 22–23, частично);
- * остальные колонки подвала и «Поддержка» — вне скоупа, см. комментарий в
- * `SiteFooter.tsx`.
+ * Подвал: T3 (спека `web-fixes-20260906.md`, 2026-09-06) сделал реальными три
+ * ссылки блока «для бизнеса» в колонке «Ресторанам» — «Подключить
+ * заведение», «Тарифы», «Кабинет ресторана». T4 сделал реальными ровно семь
+ * текстовых страниц платформы — «О BookEat», «Вакансии», «Контакты», «Как
+ * это работает», «Отмена брони», «Оферта», «Политика данных». Пункт
+ * «Поддержка» в колонке «Ресторанам» отсутствует вовсе — владелец попросил
+ * отложить его до появления номера WhatsApp-бота. Остальные пункты
+ * (заведения, афиша, гастрогид, брони, избранное, блог) остаются заглушками
+ * `href="#"` — не задача ни T3, ни T4, см. `apps/web/src/lib/site-links.ts`.
  */
 describe("SiteFooter", () => {
   it("«Подключить заведение» и «Кабинет ресторана» ведут на боевые внешние адреса в новой вкладке", () => {
@@ -51,6 +56,32 @@ describe("SiteFooter", () => {
     expect(links).toHaveLength(3);
     for (const link of links) {
       expect(link.getAttribute("href")).not.toBe("#");
+    }
+  });
+
+  it("семь текстовых страниц ведут на свои реальные роуты", () => {
+    render(<SiteFooter />);
+
+    const expected: Record<string, string> = {
+      "О BookEat": "/about",
+      Вакансии: "/jobs",
+      Контакты: "/contacts",
+      "Как это работает": "/how-it-works",
+      "Отмена брони": "/cancellation",
+      Оферта: "/offer",
+      "Политика данных": "/privacy",
+    };
+
+    for (const [label, href] of Object.entries(expected)) {
+      expect(screen.getByRole("link", { name: label }).getAttribute("href")).toBe(href);
+    }
+  });
+
+  it("пункты вне T3/T4 остаются заглушками — ни одна из задач их не трогает", () => {
+    render(<SiteFooter />);
+
+    for (const label of ["Заведения", "Блог"]) {
+      expect(screen.getByRole("link", { name: label }).getAttribute("href")).toBe("#");
     }
   });
 });
