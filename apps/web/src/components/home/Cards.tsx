@@ -88,7 +88,7 @@ export function PromoCard({ promo }: { promo: HomePromo }) {
         aria-hidden="true"
         className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.72)] via-[rgba(0,0,0,0.25)] to-transparent"
       />
-      {promo.discountPercent !== null ? (
+      {promo.discountPercent !== null && promo.discountPercent > 0 ? (
         <span className="absolute left-5 top-5 inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold leading-[18px] text-ink-on-brand">
           {t.web.format.discount(promo.discountPercent)}
         </span>

@@ -137,26 +137,39 @@ const schedule = (openNow: boolean, days: ScheduleDay[]): VenueSchedule => ({
 });
 
 function banners(restaurantId: string): PromoBanner[] {
+  const endsAt = "2026-12-31T18:59:59Z";
   return [
     {
       id: `${restaurantId}-banner-1`,
       title: "Сладкий четверг",
-      photo: photo("foodDessertBerry", `${restaurantId}-banner-1`, "Десерт дня"),
+      coverImageUrl: photo("foodDessertBerry", `${restaurantId}-banner-1`, "Десерт дня").uri,
+      discountPercent: null,
+      terms: "по четвергам",
+      endsAt,
     },
     {
       id: `${restaurantId}-banner-2`,
       title: "2 стейка за 8990 ₸",
-      photo: photo("foodGrillSkewers", `${restaurantId}-banner-2`, "Стейки на гриле"),
+      coverImageUrl: photo("foodGrillSkewers", `${restaurantId}-banner-2`, "Стейки на гриле").uri,
+      discountPercent: 25,
+      terms: "будни до 18:00",
+      endsAt,
     },
     {
       id: `${restaurantId}-banner-3`,
       title: "Поднимем бокалы",
-      photo: photo("interiorCheers", `${restaurantId}-banner-3`, "Гости поднимают бокалы"),
+      coverImageUrl: photo("interiorCheers", `${restaurantId}-banner-3`, "Гости поднимают бокалы").uri,
+      discountPercent: null,
+      terms: "",
+      endsAt,
     },
     {
       id: `${restaurantId}-banner-4`,
       title: "Бизнес ланч 4000 ₸",
-      photo: photo("foodPlateTasting", `${restaurantId}-banner-4`, "Бизнес-ланч"),
+      coverImageUrl: photo("foodPlateTasting", `${restaurantId}-banner-4`, "Бизнес-ланч").uri,
+      discountPercent: 10,
+      terms: "",
+      endsAt,
     },
   ];
 }

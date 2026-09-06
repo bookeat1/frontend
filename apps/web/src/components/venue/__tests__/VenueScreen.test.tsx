@@ -303,3 +303,169 @@ describe("карточка заведения", () => {
     expect(link.getAttribute("href")).toBe(bookingHref("venue-1"));
   });
 });
+
+describe("степпер предзаказа на карточке блюда (A1-A4)", () => {
+  afterEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  const dish = {
+    id: "dish-1",
+    name: "Стейк рибай",
+    description: "",
+    price: "8 990 ₸",
+    priceMinor: 899000,
+    isTopPick: false,
+  };
+
+  it("у блюда с ценой — контрол; у блюда без цены — нет (A1)", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        menuHighlights: [dish, { ...dish, id: "dish-2", name: "Соус дня", priceMinor: null }],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByRole("button", { name: "Добавить Стейк рибай" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Добавить Соус дня" })).toBeNull();
+  });
+
+  it("«+» превращает кнопку в пилюлю «− 1 +», ещё «+» — «2» (A2-A3)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const add = await screen.findByRole("button", { name: "Добавить Стейк рибай" });
+    fireEvent.click(add);
+
+    expect(await screen.findByText("1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Увеличить количество" }));
+    expect(await screen.findByText("2")).toBeTruthy();
+  });
+
+  it("«−» при 1 убирает строку и возвращает одиночный «+» (A4)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Добавить Стейк рибай" }));
+    await screen.findByText("1");
+    fireEvent.click(screen.getByRole("button", { name: "Уменьшить количество" }));
+
+    expect(await screen.findByRole("button", { name: "Добавить Стейк рибай" })).toBeTruthy();
+    expect(screen.queryByText("1")).toBeNull();
+  });
+
+  it("на потолке 20 «+» помечена aria-disabled и не растёт дальше (A3)", async () => {
+    window.sessionStorage.setItem(
+      "bookeat.web.preorder-draft.venue-1",
+      JSON.stringify({ lines: [{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 20 }] }),
+    );
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const more = await screen.findByRole("button", { name: "Увеличить количество" });
+    expect(more.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(more);
+    expect(await screen.findByText("20")).toBeTruthy();
+  });
+
+  it("черновик переживает перезагрузку страницы (A5)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    const first = renderScreen(<VenueScreen id="venue-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Добавить Стейк рибай" }));
+    await screen.findByText("1");
+    first.unmount();
+
+    renderScreen(<VenueScreen id="venue-1" />);
+    expect(await screen.findByText("1")).toBeTruthy();
+  });
+
+  it("заведение без acceptsOnlineBookings — контрола нет вовсе", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ menuHighlights: [dish], acceptsOnlineBookings: false }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByText(dish.name);
+    expect(screen.queryByRole("button", { name: "Добавить Стейк рибай" })).toBeNull();
+  });
+});
+
+describe("карточка акции — данные, которые раньше терялись (B1-B6)", () => {
+  it("бейдж только при discountPercent > 0, подзаголовок «заведение · условия», обложка вместо заливки", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        name: "Flour Demi",
+        promoBanners: [
+          {
+            id: "promo-1",
+            title: "Два стейка за 8 990 ₸",
+            coverImageUrl: "https://cdn/promo.jpg",
+            discountPercent: 25,
+            terms: "будни до 18:00",
+            endsAt: "2026-12-31T18:59:59Z",
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const link = await screen.findByRole("link", { name: /Два стейка за 8 990 ₸/ });
+    expect(link.getAttribute("href")).toBe("/promos/promo-1");
+    expect(within(link).getByText("−25%")).toBeTruthy();
+    expect(within(link).getByText("Flour Demi · будни до 18:00")).toBeTruthy();
+    expect(link.querySelector("img")?.getAttribute("src")).toBe("https://cdn/promo.jpg");
+  });
+
+  it("без discountPercent и без terms — нет бейджа, подзаголовок «до {дата}»", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        name: "Flour Demi",
+        promoBanners: [
+          {
+            id: "promo-2",
+            title: "Бизнес-ланч",
+            coverImageUrl: null,
+            discountPercent: null,
+            terms: "",
+            endsAt: "2026-09-30T18:59:59+05:00",
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByText("Бизнес-ланч");
+    expect(screen.queryByText("−0%")).toBeNull();
+    expect(screen.getByText(/Flour Demi · до/)).toBeTruthy();
+  });
+
+  it("discountPercent: 0 — бейдж не рисуется (сервер допускает 0..100)", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        promoBanners: [
+          {
+            id: "promo-3",
+            title: "Скоро",
+            coverImageUrl: null,
+            discountPercent: 0,
+            terms: "",
+            endsAt: "2026-09-30T18:59:59Z",
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByText("Скоро");
+    expect(screen.queryByText("−0%")).toBeNull();
+  });
+});

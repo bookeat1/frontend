@@ -2659,6 +2659,9 @@ export const en: LocaleOverride<Dictionary> = {
         title: "Popular on the menu",
         empty: "The menu is not filled in yet.",
         noPrice: "Price is not set",
+        addDish: (name: string) => `Add ${name}`,
+        qtyLess: "Decrease quantity",
+        qtyMore: "Increase quantity",
       },
       promos: {
         title: "Venue deals",
@@ -2804,6 +2807,12 @@ export const en: LocaleOverride<Dictionary> = {
         reschedule: "Move the booking",
         rescheduling: "Moving…",
         rescheduleHint: "We change the time and party size of the existing booking. No second one appears.",
+        preorder: {
+          title: "Pre-order",
+          hint: "Pick dishes in advance — the table will be set by the time you arrive.",
+          lineQty: (qty: number, price: string) => `${qty} × ${price}`,
+          totalApprox: (amount: string) => `Total ≈ ${amount}`,
+        },
       },
       errors: {
         slotTakenTitle: "That time has just been taken",
@@ -2864,6 +2873,13 @@ export const en: LocaleOverride<Dictionary> = {
       signInTitle: "Sign-in required",
       signInText: "A booking is visible only to the person who made it. Sign in with your phone number.",
       signInAction: "Sign in",
+      preorder: {
+        title: "Pre-order",
+        line: (name: string, qty: number) => `${name} × ${qty}`,
+        total: (amount: string) => `Total: ${amount}`,
+        failedNotice:
+          "The booking is confirmed, but the pre-order did not attach — tell the venue what you picked when they confirm.",
+      },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

@@ -147,14 +147,32 @@ export interface RestaurantTable {
   isAvailableNow: boolean;
 }
 
-/** A promo banner card in the horizontal strip under the Обзор/Фото tabs. */
+/**
+ * A promo banner card in the "Акции заведения" section of `/venues/:id`.
+ *
+ * `GET /restaurants/:id/promos` DOES carry a cover image, a discount and
+ * terms (`cover_image_url`, `discount_percent`, `terms` — migrations 0032,
+ * 0060, 0066, 0101) — an earlier version of this type modelled a contract
+ * that had none of them, and `mapPromoBanners` silently dropped all three on
+ * the wire. Fixed 2026-09-06 (spec `venue-menu-stepper-promo-card`).
+ */
 export interface PromoBanner {
   id: string;
   title: string;
-  /** Optional: the backend's promo entity (GET /restaurants/:id/promos) has no
-   * image field at all, so a real promo renders as a caption over the brand
-   * placeholder background. Present only for the mock fixtures. */
-  photo?: Photo;
+  /** null when the promo has no cover — the card then falls back to the
+   * brand placeholder fill, same as before this field existed. */
+  coverImageUrl: string | null;
+  /** Percentage for the «−N%» badge. `null` — no discount set; a badge is
+   * also hidden at `0` (server allows 0..100, but «−0%» is noise) — that
+   * `> 0` rule lives at the call site, same as `Promo.discountPercent`. */
+  discountPercent: number | null;
+  /** Free-text conditions, e.g. "будни до 18:00". Empty string, never
+   * undefined, when the venue left the field blank — the card then falls
+   * back to "до {ends_at}" instead. */
+  terms: string;
+  /** RFC3339 instant the promo stops being shown — the fallback subtitle
+   * source when `terms` is empty. */
+  endsAt: string;
 }
 
 /** A dish shown in the "Популярное в меню" section. */

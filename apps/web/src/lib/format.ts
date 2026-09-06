@@ -54,6 +54,18 @@ export function formatNumber(value: number): string {
 }
 
 /**
+ * Деньги из тийинов — «8 990 ₸». Неразрывный пробел между разрядами и перед
+ * знаком валюты, как в `apps/mobile/src/lib/format.ts formatMoneyMinor`: цена
+ * предзаказа не должна переноситься на вторую строку внутри пилюли степпера
+ * или строки сводки (`docs/responsive.md`).
+ */
+export function formatMoneyMinor(minor: number): string {
+  const NBSP = " ";
+  const whole = Math.round(minor / 100).toString();
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}${NBSP}₸`;
+}
+
+/**
  * «flourdemi.kz» из `https://www.instagram.com/flourdemi.kz/` — заголовок
  * плашки соцсетей (узел 3525:14728) показывает имя аккаунта, а не адрес.
  * Ссылка без пути (или не разбираемая) отдаёт `null`, и заголовком остаётся

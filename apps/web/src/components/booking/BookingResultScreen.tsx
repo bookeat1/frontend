@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Booking, BookingStatus, Restaurant } from "@bookeat/api/client";
 
@@ -13,10 +14,11 @@ import { bookingCode, bookingQrPayload } from "@web/lib/booking-code";
 import { bookingHref } from "@web/lib/booking-link";
 import { isNotFoundError } from "@web/lib/booking-submit";
 import { useAuth } from "@web/lib/auth";
-import { bookingDateLabel, venueWallClock } from "@web/lib/format";
+import { bookingDateLabel, formatMoneyMinor, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
-import { useBooking, useVenue } from "@web/lib/queries";
+import { consumePreorderFailedFlag } from "@web/lib/preorder-failed-flag";
+import { useBooking, usePreorder, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
 
 /**
@@ -134,6 +136,18 @@ function Ticket({ booking }: { booking: Booking }) {
   // билет уже стоит: время считается по запасной зоне и не меняется, когда
   // приедет казахстанское заведение (зона та же).
   const venue = useVenue(booking.restaurantId);
+  const preorder = usePreorder(booking.id);
+
+  // A14: уведомление читается ОДИН раз, из sessionStorage, а не из URL —
+  // ссылку на эту страницу можно переслать, и «предзаказ не прикрепился» не
+  // должно всплывать у КАЖДОГО, кто её откроет (в т.ч. у самого гостя при
+  // повторном заходе). Эффект, а не начальное состояние: чтение хранилища
+  // недоступно при серверном рендере.
+  const [preorderFailedNotice, setPreorderFailedNotice] = useState(false);
+  useEffect(() => {
+    setPreorderFailedNotice(consumePreorderFailedFlag(booking.id));
+  }, [booking.id]);
+
   const wall = venueWallClock(booking.startsAt, venue.data?.schedule?.timezone);
   const dateLong = wall ? bookingDateLabel(wall.date, locale, "dayMonth") ?? "" : "";
   const dateCompact = wall ? bookingDateLabel(wall.date, locale, "weekdayCompact") ?? "" : "";
@@ -158,6 +172,15 @@ function Ticket({ booking }: { booking: Booking }) {
         <p className="text-ticket-lead text-ink-secondary">{heading[1]}</p>
       </div>
 
+      {/* A10/A14: бронь СОЗДАНА, только прикрепление предзаказа не вышло —
+          не смешивать с ошибкой самой брони (`role="status"` выше). Один раз
+          за переход, см. `consumePreorderFailedFlag`. */}
+      {preorderFailedNotice ? (
+        <p className="w-full rounded-xl bg-warning px-4 py-3 text-center text-bodyS text-warning-text">
+          {texts.preorder.failedNotice}
+        </p>
+      ) : null}
+
       {/* Узел 3525:15028: карточка-билет 720, радиус 24, обводка, тень. */}
       <article className="w-full overflow-hidden rounded-2xl border border-line-strong bg-canvas shadow-card">
         <VenueHeader venue={venue.data} />
@@ -173,6 +196,30 @@ function Ticket({ booking }: { booking: Booking }) {
             <Detail label={texts.details.guests} value={t.web.format.guests(booking.guests)} />
             <Detail label={texts.details.status} value={texts.status[STATUS_KEY[booking.status]]} />
           </dl>
+
+          {/* Блок «Предзаказ» (A13) — сумма ИЗ ОТВЕТА СЕРВЕРА (`totalMinor`),
+              не оценка клиентского черновика. Отказ `GET` не рушит билет:
+              `preorder.data` тогда просто `undefined`, и блока нет. */}
+          {preorder.data && preorder.data.items.length > 0 ? (
+            <>
+              <Divider />
+              <div className="flex flex-col gap-3">
+                <p className="text-ticket-detail-label tracking-[0.2px] text-ink-tertiary">
+                  {texts.preorder.title}
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {preorder.data.items.map((item) => (
+                    <li key={item.id} className="flex items-center justify-between gap-3 text-bodyM text-ink">
+                      <span className="min-w-0 truncate">{texts.preorder.line(item.name, item.quantity)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-flow-summary-label text-ink">
+                  {texts.preorder.total(formatMoneyMinor(preorder.data.totalMinor))}
+                </p>
+              </div>
+            </>
+          ) : null}
 
           <Divider />
 
