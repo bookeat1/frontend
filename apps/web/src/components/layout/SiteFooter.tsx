@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
+
 import { Container } from "@web/components/layout/Container";
 import { cx } from "@web/lib/cx";
 import { useT, type WebLocale } from "@web/lib/locale";
+import { SITE_PAGE_PATHS } from "@web/lib/site-links";
 
 /**
  * Подвал сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, «Web / Footer» (узел 3256:77):
@@ -23,6 +26,23 @@ export interface SiteFooterProps {
   onLocaleChange?: (locale: WebLocale) => void;
   className?: string;
 }
+
+/**
+ * Ключи словаря `t.web.footer.company`/`.help`, у которых уже есть настоящая
+ * страница (T4). Остальные пункты подвала (заведения, афиша, гастрогид,
+ * брони, избранное, «Подключить заведение», тарифы, кабинет, поддержка,
+ * блог) — это T3, отдельная задача (см. `bookeat-web-scope.md`); их ссылки
+ * здесь намеренно не трогаем и оставляем как были.
+ */
+const FOOTER_KEY_TO_PAGE_SLUG = {
+  about: "about",
+  jobs: "jobs",
+  contacts: "contacts",
+  how: "how-it-works",
+  cancel: "cancellation",
+  offer: "offer",
+  privacy: "privacy",
+} as const;
 
 const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
   // Собственное имя языка не переводится: «Қазақша» читается одинаково в
@@ -71,16 +91,25 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
               <ul className="flex flex-col gap-3">
                 {Object.entries(column)
                   .filter(([key]) => key !== "title")
-                  .map(([key, label]) => (
-                    <li key={key}>
-                      <a
-                        href="#"
-                        className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                      >
-                        {label}
-                      </a>
-                    </li>
-                  ))}
+                  .map(([key, label]) => {
+                    const slug =
+                      FOOTER_KEY_TO_PAGE_SLUG[key as keyof typeof FOOTER_KEY_TO_PAGE_SLUG];
+                    const linkClassName =
+                      "text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+                    return (
+                      <li key={key}>
+                        {slug ? (
+                          <Link href={SITE_PAGE_PATHS[slug]} className={linkClassName}>
+                            {label}
+                          </Link>
+                        ) : (
+                          <a href="#" className={linkClassName}>
+                            {label}
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
               </ul>
             </nav>
           ))}

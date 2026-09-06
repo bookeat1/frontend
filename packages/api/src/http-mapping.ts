@@ -44,6 +44,8 @@ import type {
   HomePromo,
   PaymentStatus,
   Photo,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PriceLevel,
   PriceRange,
@@ -1697,4 +1699,34 @@ export function mapFavoriteItems(api: ApiFavoriteItems | null | undefined): Favo
     promos: count(api?.counts?.promos),
   };
   return { items, counts };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Platform text pages — `GET /pages/:slug` (bookeat-backend PR #115,
+ * `feat/platform-pages`, not merged into develop at the time this mapper was
+ * written, 2026-09-06). Response shape per the PR's contract: exactly
+ * `{ title, body, published_at }`. There is no `slug` or `format` field on
+ * the wire — `slug` is the request parameter (the caller already knows it),
+ * and every body is Markdown, there being no other format the backend emits.
+ * ------------------------------------------------------------------------ */
+
+export interface ApiPlatformPage {
+  title?: string | null;
+  body?: string | null;
+  published_at?: string | null;
+}
+
+/**
+ * `slug` is not read from `api` — it comes from the request. Body is passed
+ * through `text()` (trim only), NOT `plainText()`: that helper strips `<...>`
+ * and HTML entities for old-CMS HTML fields, and would silently mangle
+ * Markdown that happens to contain a literal `<` (e.g. inside a link or a
+ * table cell).
+ */
+export function mapPlatformPage(slug: PlatformPageSlug, api: ApiPlatformPage): PlatformPage {
+  return {
+    slug,
+    title: text(api.title),
+    body: text(api.body),
+  };
 }

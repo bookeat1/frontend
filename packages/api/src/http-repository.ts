@@ -22,6 +22,7 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
+  mapPlatformPage,
   mapPreorder,
   mapRestaurantDetail,
   mapRestaurantStories,
@@ -42,6 +43,7 @@ import {
   type ApiMenuItem,
   type ApiNotificationFeed,
   type ApiPayment,
+  type ApiPlatformPage,
   type ApiPreorder,
   type ApiPromo,
   type ApiRestaurant,
@@ -82,6 +84,8 @@ import type {
   MenuSection,
   NotificationFeed,
   OtpRequest,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
@@ -577,6 +581,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       `/articles/${encodeURIComponent(slug)}`,
     );
     return mapGuideCollectionDetail(api);
+  }
+
+  /**
+   * GET /pages/:slug — редактируемая текстовая страница платформы
+   * (bookeat-backend PR #115). Неопубликованная страница или слаг вне
+   * `PLATFORM_PAGE_SLUGS` — 404 (`RepositoryError.isNotFound`), ровно как у
+   * статьи.
+   */
+  async getPage(slug: PlatformPageSlug): Promise<PlatformPage> {
+    const api = await this.client.get<ApiPlatformPage>(`/pages/${encodeURIComponent(slug)}`);
+    return mapPlatformPage(slug, api);
   }
 
   /* --- reservation flow --- */

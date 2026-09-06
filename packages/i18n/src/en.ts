@@ -485,6 +485,7 @@ export const en: LocaleOverride<Dictionary> = {
       cities: "Cities",
       platformPromos: "Platform deals",
       platformEvents: "Platform events",
+      sitePages: "Site pages",
     },
     common: {
       retry: "Retry",
@@ -1146,6 +1147,36 @@ export const en: LocaleOverride<Dictionary> = {
       approved: "Request approved",
       rejected: "Request rejected",
       actionFailed: "Couldn't complete the action. Please try again.",
+    },
+    sitePages: {
+      title: "Site pages",
+      subtitle:
+        "The seven text pages the site's footer links to. A save is live for guests right away — there is no draft or version history",
+      adminOnlyTitle: "This section is for platform admins only",
+      adminOnlyDescription: "Site text pages belong to BookEat, not to a single restaurant.",
+      loading: "Loading pages…",
+      back: "← Site pages",
+      slugLabel: {
+        about: "About BookEat",
+        jobs: "Careers",
+        contacts: "Contacts",
+        "how-it-works": "How it works",
+        cancellation: "Cancelling a booking",
+        offer: "Terms of service",
+        privacy: "Privacy policy",
+      },
+      openEditor: "Open",
+      fieldTitle: "Title",
+      fieldBody: "Body (Markdown)",
+      fieldBodyHint:
+        "Markdown: ## / ### headings, lists, **bold**, *italic*, [links](https://…), tables. HTML tags are not rendered",
+      previewLabel: "Preview — exactly what a guest sees on the site",
+      previewEmpty: "Nothing to show yet — start typing",
+      publishHint:
+        "Appears on the site within a minute of saving. Empty text means guests see \"page not found\"",
+      save: "Save",
+      saving: "Saving…",
+      saved: "Saved",
     },
     homePicks: {
       adminOnlyTitle: "This section is for platform admins only",
@@ -2555,6 +2586,20 @@ export const en: LocaleOverride<Dictionary> = {
       atVenue: (name: string) => `at ${name}`,
       openVenue: (name: string) => `Open ${name}`,
       venuesHeading: "Venues from this article",
+    },
+    pages: {
+      tabTitle: {
+        about: "About BookEat",
+        jobs: "Careers",
+        contacts: "Contacts",
+        "how-it-works": "How it works",
+        cancellation: "Cancelling a booking",
+        offer: "Terms of service",
+        privacy: "Privacy policy",
+      },
+      notFoundTitle: "Page not found",
+      notFoundDescription: "Looks like this page hasn't been published yet.",
+      backHome: "Back to home",
     },
     venue: {
       breadcrumbLabel: "Breadcrumb",

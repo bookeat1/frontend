@@ -1590,3 +1590,48 @@ export interface HomePicksInput {
   city: string;
   restaurant_ids: string[];
 }
+
+/**
+ * Семь редактируемых текстовых страниц сайта (T4). Фиксированный аллоулист —
+ * ни создать, ни удалить страницу нельзя, только править title/body.
+ *
+ * КОНТРАКТ, КАК ОН ДАН backend-dev'ом (bookeat-backend PR #115,
+ * `feat/platform-pages`, не смёржен в `develop` на момент написания этого
+ * типа, 2026-09-06) — он ПРОЩЕ черновика в `specs/web-fixes-20260906.md`
+ * (раздел T4): там были ещё `title_i18n`/`body_i18n` и тумблер «Опубликовано»
+ * в PUT; в реально переданном контракте PUT принимает ТОЛЬКО `title`/`body`,
+ * никаких переводов и никакого явного флага публикации. Панель следует этому
+ * контракту, а не черновику — расхождение стоит перепроверить, когда PR #115
+ * смёржится в `develop`.
+ */
+export const PLATFORM_PAGE_SLUGS = [
+  "about",
+  "jobs",
+  "contacts",
+  "how-it-works",
+  "cancellation",
+  "offer",
+  "privacy",
+] as const;
+
+export type PlatformPageSlug = (typeof PLATFORM_PAGE_SLUGS)[number];
+
+/**
+ * `published_at` — как её видит кабинет: `null` значит гость получит 404 на
+ * `GET /pages/:slug`. Ни список, ни правка НЕ дают способа переключить его
+ * напрямую (контракт PR #115 не предусматривает такого поля в PUT) — статус
+ * в списке информационный, не редактируемый.
+ */
+export interface PlatformPageAdmin {
+  slug: PlatformPageSlug;
+  title: string;
+  body: string;
+  published_at: string | null;
+}
+
+/** Тело `PUT /admin/pages/:slug` — ровно два поля, без переводов и без
+ * тумблера публикации (см. `PlatformPageAdmin`). */
+export interface PlatformPageInput {
+  title: string;
+  body: string;
+}

@@ -24,6 +24,8 @@ import type {
   MenuSection,
   NotificationFeed,
   OtpRequest,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
@@ -200,6 +202,16 @@ export interface RestaurantRepository {
    * слаг — 404 (`RepositoryError.isNotFound`).
    */
   getArticle(slug: string): Promise<GuideCollectionDetail>;
+
+  /**
+   * One editable platform text page (`GET /pages/:slug`, bookeat-backend
+   * PR #115). Публичная, без сессии.
+   *
+   * Неопубликованная страница и страница вне `PLATFORM_PAGE_SLUGS` отвечают
+   * одинаково — 404 (`RepositoryError.isNotFound`): гость не должен уметь
+   * отличить «черновик суперадмина» от «такого слага не существует».
+   */
+  getPage(slug: PlatformPageSlug): Promise<PlatformPage>;
 
   /* --- reservation flow --- */
 

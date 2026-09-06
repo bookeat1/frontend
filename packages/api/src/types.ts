@@ -1392,3 +1392,36 @@ export interface NotificationFeed {
   unreadCount: number;
   nextCursor: string | null;
 }
+
+/**
+ * Fixed allowlist of editable platform text pages (footer links: «Как это
+ * работает», «Отмена брони», «Оферта», «Политика данных», «Контакты»,
+ * «Вакансии», «О BookEat»). Backend contract: bookeat-backend PR #115
+ * (`feat/platform-pages`, not yet merged at the time this type was added,
+ * 2026-09-06) — there is no create/delete, exactly these seven slugs exist.
+ * «Блог» is NOT one of them — it stays the existing `/articles` section.
+ */
+export const PLATFORM_PAGE_SLUGS = [
+  "about",
+  "jobs",
+  "contacts",
+  "how-it-works",
+  "cancellation",
+  "offer",
+  "privacy",
+] as const;
+
+export type PlatformPageSlug = (typeof PLATFORM_PAGE_SLUGS)[number];
+
+/**
+ * One platform text page, guest-facing shape (`GET /pages/:slug`).
+ *
+ * `body` is Markdown, rendered with `@bookeat/markdown`'s `<Markdown>` — the
+ * SAME component the cabinet's editor preview uses, so what a superadmin sees
+ * while typing is what a guest sees on the site.
+ */
+export interface PlatformPage {
+  slug: PlatformPageSlug;
+  title: string;
+  body: string;
+}

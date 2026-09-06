@@ -26,7 +26,7 @@ const nextConfig = {
   ...(basePath ? { basePath } : {}),
   // The shared workspace packages ship raw TypeScript source (no build step),
   // so Next must transpile them itself.
-  transpilePackages: ["@bookeat/api", "@bookeat/design-tokens", "@bookeat/i18n"],
+  transpilePackages: ["@bookeat/api", "@bookeat/design-tokens", "@bookeat/i18n", "@bookeat/markdown"],
 };
 
 export default nextConfig;

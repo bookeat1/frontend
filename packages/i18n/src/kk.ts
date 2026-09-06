@@ -490,6 +490,7 @@ export const kk: LocaleOverride<Dictionary> = {
       cities: "Қалалар",
       platformPromos: "Платформа акциялары",
       platformEvents: "Платформа афишасы",
+      sitePages: "Сайт беттері",
     },
     common: {
       retry: "Қайталау",
@@ -1152,6 +1153,36 @@ export const kk: LocaleOverride<Dictionary> = {
       approved: "Өтінім мақұлданды",
       rejected: "Өтінім қабылданбады",
       actionFailed: "Әрекетті орындау мүмкін болмады. Қайталап көріңіз.",
+    },
+    sitePages: {
+      title: "Сайт беттері",
+      subtitle:
+        "Сайттың төменгі жолы сілтеме беретін жеті мәтіндік бет. Сақтау қонаққа бірден көрінеді — жоба нұсқасы да, нұсқалар тарихы да жоқ",
+      adminOnlyTitle: "Бөлім тек платформа әкімшілері үшін",
+      adminOnlyDescription: "Сайттың мәтіндік беттерін BookEat жүргізеді, жеке орын емес.",
+      loading: "Беттерді жүктеп жатырмыз…",
+      back: "← Сайт беттері",
+      slugLabel: {
+        about: "BookEat туралы",
+        jobs: "Бос орындар",
+        contacts: "Байланыс",
+        "how-it-works": "Бұл қалай жұмыс істейді",
+        cancellation: "Броньды болдырмау",
+        offer: "Оферта",
+        privacy: "Деректер саясаты",
+      },
+      openEditor: "Ашу",
+      fieldTitle: "Тақырып",
+      fieldBody: "Мәтін (Markdown)",
+      fieldBodyHint:
+        "Markdown: ## / ### тақырыптар, тізімдер, **қалың**, *курсив*, [сілтемелер](https://…), кестелер. HTML тегтері көрсетілмейді",
+      previewLabel: "Алдын ала қарау — қонақ сайтта дәл осыны көреді",
+      previewEmpty: "Әзірге көрсетуге ештеңе жоқ — мәтін теруді бастаңыз",
+      publishHint:
+        "Сақтағаннан кейін бір минут ішінде сайтта пайда болады. Мәтін бос болса, қонақ «бет табылмады» дегенді көреді",
+      save: "Сақтау",
+      saving: "Сақтап жатырмыз…",
+      saved: "Сақталды",
     },
     homePicks: {
       adminOnlyTitle: "Бөлім тек платформа әкімшілері үшін",
@@ -2561,6 +2592,20 @@ export const kk: LocaleOverride<Dictionary> = {
       atVenue: (name: string) => `${name} мекемесінде`,
       openVenue: (name: string) => `${name} мекемесін ашу`,
       venuesHeading: "Мақаладағы мекемелер",
+    },
+    pages: {
+      tabTitle: {
+        about: "BookEat туралы",
+        jobs: "Бос орындар",
+        contacts: "Байланыс",
+        "how-it-works": "Бұл қалай жұмыс істейді",
+        cancellation: "Броньды болдырмау",
+        offer: "Оферта",
+        privacy: "Деректер саясаты",
+      },
+      notFoundTitle: "Бет табылмады",
+      notFoundDescription: "Бұл бетті әлі жарияламаған сияқты.",
+      backHome: "Басты бетке",
     },
     venue: {
       breadcrumbLabel: "Сайт бойынша жол",
