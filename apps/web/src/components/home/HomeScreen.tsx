@@ -125,7 +125,6 @@ export function HomeScreen() {
                       meta={venueMeta(venue, t)}
                       imageUrl={venue.coverPhoto?.uri}
                       href={`/venues/${venue.id}`}
-                      acceptsOnlineBookings={venue.acceptsOnlineBookings}
                       {...favoriteProps(venue.id)}
                     />
                   </li>
@@ -193,7 +192,6 @@ export function HomeScreen() {
                         meta={venueMeta(venue, t)}
                         imageUrl={venue.coverPhoto?.uri}
                         href={`/venues/${venue.id}`}
-                        acceptsOnlineBookings={venue.acceptsOnlineBookings}
                         {...favoriteProps(venue.id)}
                       />
                     </li>
