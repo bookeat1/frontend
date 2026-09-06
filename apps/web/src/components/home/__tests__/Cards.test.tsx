@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 
-import { EventCard, GuideCard } from "@web/components/home/Cards";
+import type { HomePromo } from "@bookeat/api/client";
+
+import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
 import { eventSummary, guideCollection, renderScreen } from "@web/test/harness";
 
 /**
@@ -22,6 +24,43 @@ describe("карточка события", () => {
     renderScreen(<EventCard event={eventSummary({ tags: [] })} />);
 
     expect(screen.queryByRole("list")).toBeNull();
+  });
+
+  /** Критерий 10 T1: событие платформы (ADR-024) не несёт `restaurant` —
+   * карточка рендерится целиком, строка места состоит только из времени, а
+   * заголовок ведёт на `/events/:id` (у платформы нет `/venues/:id`). */
+  it("без restaurant (событие платформы) рендерится, строка места — только время", () => {
+    renderScreen(
+      <EventCard
+        event={eventSummary({ restaurantId: null, restaurant: null, startsAt: "2026-05-18T13:00:00Z" })}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "BBQ-бранч на террасе" })).toBeTruthy();
+    const link = screen.getByRole("link", { name: "BBQ-бранч на террасе" });
+    expect(link.getAttribute("href")).toBe("/events/evt-1");
+  });
+});
+
+/** Критерий 13 T1b (решение владельца 2026-09-06): карточка акции главной
+ * ведёт на свою страницу `/promos/:id`, а не на страницу заведения. */
+describe("карточка акции", () => {
+  it("ведёт на /promos/:id", () => {
+    const promo: HomePromo = {
+      id: "promo-1",
+      restaurantId: "r-1",
+      restaurantName: "INZHU",
+      title: "−30% на завтраки",
+      description: "",
+      startsAt: "2026-05-01T00:00:00Z",
+      endsAt: "2026-05-31T00:00:00Z",
+      coverImageUrl: null,
+      images: [],
+      discountPercent: 30,
+    };
+    renderScreen(<PromoCard promo={promo} />);
+    const link = screen.getByRole("link", { name: "−30% на завтраки" });
+    expect(link.getAttribute("href")).toBe("/promos/promo-1");
   });
 });
 

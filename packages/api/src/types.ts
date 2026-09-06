@@ -898,7 +898,12 @@ export interface ProfileUpdate {
  */
 export interface EventSummary {
   id: string;
-  restaurantId: string;
+  /**
+   * Null for a PLATFORM event (ADR-024): the backend's public detail route
+   * (`GET /events/:eventId`) and cross-venue listing both omit `restaurant`
+   * entirely for one, and there is no venue id to invent in its place.
+   */
+  restaurantId: string | null;
   title: string;
   description: string;
   /** RFC3339. The card's date line is formatted from this one. */
@@ -924,11 +929,21 @@ export interface EventSummary {
   ticketsRefundable: boolean;
   ticketRefundCutoffMinutes: number;
   /** The hosting venue, so a card can open the restaurant screen without a
-   * second request. */
-  restaurant: EventRestaurant;
+   * second request. Null for a PLATFORM event — it has no venue at all, not
+   * an unknown one, and a card must draw a real "no venue" layout instead of
+   * reading `.name` on a lie. */
+  restaurant: EventRestaurant | null;
   /** Free-text labels shown as grey chips under the «venue · date» line.
    * Always an array — `[]` when the event has none (the chip row then hides). */
   tags: string[];
+  /**
+   * Call-to-action button of a PLATFORM event (the only kind that can carry
+   * one on the public detail page). `target: "event"` means the button is a
+   * link to the event's OWN page (i.e. a no-op there — the guest is already
+   * on it) and must not be drawn; `target: "external"` opens `url` in a new
+   * tab. Null when the event has no button at all.
+   */
+  action: EventAction | null;
   /**
    * Series identifier of a RECURRING event, or null for a one-off.
    *
@@ -946,6 +961,16 @@ export interface EventRestaurant {
   id: string;
   name: string;
   city: string;
+}
+
+/** A platform event's call-to-action button (`eventActionResponse` on the
+ * wire). `target` is server-derived from whether `url` is present — never
+ * sent by the client, only read. */
+export interface EventAction {
+  label: string;
+  target: "event" | "external";
+  /** Present only when `target === "external"`. */
+  url: string | null;
 }
 
 /** Query surface of `GET /events` — every parameter is optional server-side. */
@@ -1001,6 +1026,36 @@ export interface HomePromo {
   images: string[];
   /** Percentage for the «−N%» badge, or `null` when the feed omits it (no badge). */
   discountPercent: number | null;
+}
+
+/**
+ * One promo's own page (`GET /promos/:promoId`, `promoListItemResponse`)
+ * — T1b, `/promos/[id]`. Same shape family as `EventSummary`'s detail: a
+ * PLATFORM promo has no `restaurant` at all (not an unknown one), and there
+ * is no ticket/capacity/action here — a promo has no CTA button of its own,
+ * the detail page always shows the same "book a table" card.
+ */
+export interface Promo {
+  id: string;
+  restaurantId: string | null;
+  restaurant: EventRestaurant | null;
+  title: string;
+  description: string;
+  /** «Условия» section, plain text. Empty string when the promo has none —
+   * the section then hides entirely rather than showing an empty heading. */
+  terms: string;
+  startsAt: string;
+  endsAt: string;
+  coverImageUrl: string | null;
+  /** Extra photos, WITHOUT the cover. Always an array. */
+  images: string[];
+  /** Percentage for the «−N%» cover badge, or `null` when the promo carries
+   * no discount badge. */
+  discountPercent: number | null;
+  /** City override, present only when the promo itself picked a city
+   * different from its venue's (or has none, for a platform promo). Not
+   * shown on the detail page today — kept for parity with the wire. */
+  city: string | null;
 }
 
 /* ------------------------------------------------------------------------ *

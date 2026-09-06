@@ -68,6 +68,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
    */
   asLink?: boolean;
   href?: string;
+  /**
+   * Только вместе с `asLink` — переход на внешний адрес (кнопка «Купить
+   * билет» события платформы, T1): `target="_blank"` открывает вкладку,
+   * `rel` обязателен рядом с `target="_blank"` (иначе новая страница получает
+   * `window.opener`).
+   */
+  target?: "_blank";
+  rel?: string;
   children: ReactNode;
 }
 
@@ -125,6 +133,8 @@ export function Button({
   block = false,
   asLink = false,
   href,
+  target,
+  rel,
   disabled,
   children,
   className,
@@ -135,7 +145,7 @@ export function Button({
 
   if (asLink && href) {
     return (
-      <Link href={href} className={look}>
+      <Link href={href} target={target} rel={rel} className={look}>
         {children}
       </Link>
     );

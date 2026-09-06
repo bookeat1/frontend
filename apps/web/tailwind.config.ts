@@ -10,6 +10,7 @@ import {
   webColors,
   webControls,
   webCuisineTile,
+  webEventDetail,
   webHeader,
   webHero,
   webHomeEventCard,
@@ -584,6 +585,14 @@ const config: Config = {
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
         "pbook-action": px(webProfile.bookingCard.actions.height),
         "fav-image": px(webProfile.favorites.card.imageHeight),
+        /** Карточка события/акции (5033:6922, `webEventDetail`): обложка 426,
+         * мини-карточка заведения 120, её фото 88, карточка контакта 86,
+         * кнопка «Записаться» 52. Карта переиспользует `h-venue-map`. */
+        "afisha-cover": px(webEventDetail.cover.height),
+        "afisha-venue": px(webEventDetail.venueCard.height),
+        "afisha-photo": px(webEventDetail.venueCard.photoSize),
+        "afisha-contact": px(webEventDetail.contactCard.height),
+        "afisha-book": px(webEventDetail.bookButton.height),
       },
       width: {
         cuisine: px(webCuisineTile.size),
@@ -614,10 +623,16 @@ const config: Config = {
         "profile-nav-icon": px(webProfile.nav.item.iconSize),
         "pbook-image": px(webProfile.bookingCard.image.width),
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
+        "afisha-photo": px(webEventDetail.venueCard.photoSize),
+        "afisha-contact": px(webEventDetail.contactCard.width),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
         "event-card": px(webHomeEventCard.height),
+        /** Мини-карточка заведения на странице события/акции: 120 по макету,
+         * но на узких экранах ссылка «Открыть страницу заведения» переносится
+         * строкой ниже, и карточка обязана расти, а не резать содержимое. */
+        "afisha-venue": px(webEventDetail.venueCard.height),
       },
       gridTemplateColumns: {
         /** Сетка свободного времени (узел 3525:14749) — четыре равные

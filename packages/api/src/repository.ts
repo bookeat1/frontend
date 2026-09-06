@@ -13,6 +13,7 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  EventSummary,
   FavoriteItems,
   FavoriteKind,
   GuideCategory,
@@ -27,6 +28,7 @@ import type {
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  Promo,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -115,6 +117,15 @@ export interface RestaurantRepository {
   listUpcomingEvents(query?: EventQuery): Promise<EventPage>;
 
   /**
+   * One event's own page (`GET /events/:eventId`) — `/events/[id]` (T1).
+   * Public, no session. Works for a PLATFORM event too (no `restaurantId`):
+   * that is the only public route that can open one at all. A 404
+   * (`RepositoryError.isNotFound`) means "not found / unpublished", the
+   * caller's honest "not found" state, not an error to retry.
+   */
+  getEvent(id: string): Promise<EventSummary>;
+
+  /**
    * Cross-venue promotions for the Home «Акции» strip, read from the unified
    * home feed (`GET /feed?city=…`) and filtered to `kind: "promo"` — the feed
    * also returns `event` items, which this method drops.
@@ -125,6 +136,13 @@ export interface RestaurantRepository {
    * answer, so the section hides on it rather than showing an error.
    */
   getPromotions(city: string): Promise<HomePromo[]>;
+
+  /**
+   * One promo's own page (`GET /promos/:promoId`) — `/promos/[id]` (T1b).
+   * Public, no session. Works for a PLATFORM promo too (no `restaurantId`).
+   * 404 (`RepositoryError.isNotFound`) is the honest "not found" state.
+   */
+  getPromo(id: string): Promise<Promo>;
 
   /* --- gastroguide / «Статьи» --- */
 

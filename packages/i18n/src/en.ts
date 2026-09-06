@@ -2293,6 +2293,7 @@ export const en: LocaleOverride<Dictionary> = {
     notFoundTitle: "Deal not found",
     notFoundDescription: "It may have ended. Go back to the list of deals and pick another one.",
     card: (title: string, restaurant: string) => (restaurant ? `${title}, ${restaurant}` : title),
+    termsTitle: "Terms",
   },
   /** Desktop web (apps/web) — English strings. */
   web: {
@@ -2391,6 +2392,9 @@ export const en: LocaleOverride<Dictionary> = {
       nonRefundable: "Ticket is non-refundable",
       venuePage: "Venue page",
       noDescription: "The organiser has not added a description yet.",
+      venueSectionTitle: "Venue",
+      openVenuePage: "Open the venue page",
+      eventHours: (from: string, to: string) => `Event from ${from} to ${to}`,
     },
     format: {
       venues: (count: number) => `${count} ${count === 1 ? "venue" : "venues"}`,

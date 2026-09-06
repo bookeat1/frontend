@@ -40,7 +40,9 @@ export default function EventDetailScreen() {
 
   // Host venue — for the contacts block and the map. Stays disabled until the
   // event (and thus its restaurant id) is known.
-  const restaurantId = event?.restaurant.id;
+  // `restaurantId` дублирует `event.restaurant.id`, но не падает у события
+  // платформы (ADR-024), у которого `restaurant` отсутствует вовсе.
+  const restaurantId = event?.restaurantId ?? undefined;
   const { data: restaurant } = useRestaurant(restaurantId);
 
   // Сердечко сохраняет САМО СОБЫТИЕ (`PUT|DELETE /events/:id/favorite`).
@@ -117,7 +119,7 @@ export default function EventDetailScreen() {
   const startsAt = new Date(event.startsAt);
   const dayMonth = Number.isNaN(startsAt.getTime()) ? "" : formatDayMonth(startsAt);
   const time = formatTime(event.startsAt);
-  const venue = event.restaurant.name || event.venue;
+  const venue = event.restaurant?.name || event.venue;
   const subtitle = t.afisha.subtitle([venue, dayMonth, time]);
   const calendarLine = formatDateTime(event.startsAt);
 
@@ -210,7 +212,7 @@ export default function EventDetailScreen() {
               event's host venue id. */}
           <PrimaryButton
             label={t.afisha.bookAction}
-            onPress={() => router.push(`/restaurant/${event.restaurant.id}/book`)}
+            onPress={() => router.push(`/restaurant/${event.restaurantId}/book`)}
           />
         </View>
       </SafeAreaView>

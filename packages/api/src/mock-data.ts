@@ -20,6 +20,7 @@ import type {
   HomePromo,
   MenuHighlight,
   Photo,
+  Promo,
   PromoBanner,
   Restaurant,
   RestaurantStory,
@@ -280,6 +281,77 @@ export function homePromotions(city?: string, now: Date = new Date()): HomePromo
   return promos
     .filter((p) => (city ? p.city === city : true))
     .map(({ city: _city, ...promo }) => promo);
+}
+
+/**
+ * One promo's own page for the offline mock (`GET /promos/:promoId` — see
+ * RestaurantRepository.getPromo, T1b). A separate fixture list from
+ * `homePromotions`: the detail shape carries `restaurant`/`terms`, which the
+ * home feed's `HomePromo` deliberately does not model. One entry has no
+ * `restaurant` at all (a PLATFORM promo, ADR-024) to exercise the "no venue
+ * block" branch with no backend.
+ */
+export function promoDetails(now: Date = new Date()): Promo[] {
+  const at = (days: number): string => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + days);
+    return d.toISOString();
+  };
+  const host = (index: number): Promo["restaurant"] => {
+    const r = restaurants[index];
+    return { id: r.id, name: r.name, city: r.city };
+  };
+
+  return [
+    {
+      id: "promo-1",
+      restaurantId: restaurants[0].id,
+      restaurant: host(0),
+      title: "−30% на завтраки",
+      description: "Скидка на всё меню завтраков до полудня, действует ежедневно с открытия.",
+      terms: "Не суммируется с другими акциями. Действует при заказе от 5000 ₸ на стол.",
+      startsAt: at(0),
+      endsAt: at(14),
+      coverImageUrl: photo("foodDessertBerry", "promo-1-cover", "Завтраки").uri,
+      images: [
+        photo("interiorOpenKitchen", "promo-1-g1", "Завтраки").uri,
+        photo("foodGrillSkewers", "promo-1-g2", "Завтраки").uri,
+      ],
+      discountPercent: 30,
+      city: null,
+    },
+    {
+      id: "promo-2",
+      restaurantId: restaurants[1].id,
+      restaurant: host(1),
+      title: "Дегустационный сет вечера",
+      description: "Специальное предложение по будням — шесть подач вместо четырёх по цене сета.",
+      // Пусто намеренно: секция «Условия» на такой акции не рисуется.
+      terms: "",
+      startsAt: at(0),
+      endsAt: at(7),
+      coverImageUrl: photo("interiorWineTable", "promo-2-cover", "Дегустация").uri,
+      images: [],
+      discountPercent: null,
+      city: null,
+    },
+    /** Акция ПЛАТФОРМЫ: заведения нет вовсе, блок заведения на странице не
+     * рисуется, а не показывает пустую плашку. */
+    {
+      id: "promo-3-platform",
+      restaurantId: null,
+      restaurant: null,
+      title: "Гид по акциям сентября",
+      description: "Подборка лучших предложений месяца от заведений-партнёров BookEat.",
+      terms: "",
+      startsAt: at(0),
+      endsAt: at(30),
+      coverImageUrl: photo("foodPlateTasting", "promo-3-cover", "Гид").uri,
+      images: [],
+      discountPercent: null,
+      city: null,
+    },
+  ];
 }
 
 /**
@@ -767,6 +839,7 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       tags: ["Сет-меню", "Ужин"],
       // Разовое событие: серии нет, ключ сердечка — собственный id.
       recurrenceId: null,
+      action: null,
     },
     {
       id: "e2",
@@ -786,6 +859,7 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       restaurant: host(1),
       tags: ["Дегустация", "Вино"],
       recurrenceId: null,
+      action: null,
     },
     {
       id: "e3",
@@ -812,6 +886,32 @@ export function upcomingEvents(now: Date = new Date()): EventSummary[] {
       // Повторяющийся бранч: специально с серией — сердечко на такой карточке
       // сравнивается по recurrenceId, и офлайн-мок это упражняет.
       recurrenceId: "rec-brunch",
+      action: null,
+    },
+    /**
+     * Событие ПЛАТФОРМЫ (ADR-024): нет заведения вовсе, только внешняя
+     * ссылка-кнопка. Единственный способ открыть его — своя страница
+     * `/events/:id`, в общем списке `/events` оно тоже присутствует.
+     */
+    {
+      id: "e4-platform",
+      restaurantId: null,
+      title: "Фестиваль уличной еды BookEat",
+      description: "Двадцать площадок города в одном парке, вход по билету на сайте организатора.",
+      startsAt: at(14, 12),
+      endsAt: at(14, 21),
+      venue: "",
+      coverImageUrl: photo("foodGrillSkewers", "e4-cover", "Фестиваль").uri,
+      images: [],
+      ticketed: true,
+      ticketPriceMinor: 300_000,
+      capacity: null,
+      ticketsRefundable: false,
+      ticketRefundCutoffMinutes: 0,
+      restaurant: null,
+      tags: ["Фестиваль"],
+      recurrenceId: null,
+      action: { label: "Купить билет", target: "external", url: "https://example.com/food-fest" },
     },
   ];
 }
