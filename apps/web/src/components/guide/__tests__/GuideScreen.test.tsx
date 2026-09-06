@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import type { GuideCollection, GuideRoute } from "@bookeat/api/client";
 
-import { guideCollection, pending, renderScreen, repositoryStub } from "@web/test/harness";
+import { guideCategory, guideCollection, pending, renderScreen, repositoryStub } from "@web/test/harness";
 
 /**
  * Страница гастрогида (узел 5033:7096) — четыре состояния подборок и правило
@@ -53,22 +53,65 @@ describe("страница гастрогида", () => {
   it("делит подборки на рубрики и выбор редакции, рисует прогулки", async () => {
     stub.getGuideCollections = vi.fn(async () => [
       guideCollection({ slug: "kazakh", title: "Казахская кухня", categorySlugs: ["food"] }),
-      guideCollection({ slug: "ocean", title: "Средиземноморье в Алматы", subtitle: "Ocean Basket" }),
+      guideCollection({
+        slug: "ocean",
+        title: "Ocean Basket",
+        subtitle: "Средиземноморье в Алматы",
+        description: "Пять ресторанов сети — от бранча до ужина у моря.",
+        venueCount: 5,
+      }),
     ]);
+    stub.getGuideCategories = vi.fn(async () => [guideCategory({ slug: "food", title: "Еда" })]);
     stub.getGuideRoutes = vi.fn(async () => [guideRoute()]);
 
     await loadScreen();
 
+    // Рубрика: надпись — НАЗВАНИЕ РУБРИКИ из справочника категорий
+    // (`GET /gastroguide/categories`), а не слаг подборки заглавными.
     expect(await screen.findByRole("heading", { name: "Казахская кухня" })).toBeTruthy();
-    expect(screen.getByText("FOOD")).toBeTruthy();
+    expect(screen.getByText("ЕДА")).toBeTruthy();
+    expect(screen.queryByText("FOOD")).toBeNull();
+
+    // «Выбор редакции»: поля НЕ перепутаны — надпись это `title` заглавными,
+    // заголовок это `subtitle`, подпись — счётчик заведений, а не `description`.
     expect(screen.getByRole("heading", { name: "Выбор редакции" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Средиземноморье в Алматы" })).toBeTruthy();
     expect(screen.getByText("OCEAN BASKET")).toBeTruthy();
+    expect(screen.getByText("5 мест в подборке")).toBeTruthy();
+    expect(screen.queryByText(/Пять ресторанов сети/)).toBeNull();
+
     expect(await screen.findByRole("heading", { name: "Гастропрогулки" })).toBeTruthy();
     expect(screen.getByText("1 день · 4 точки")).toBeTruthy();
     // Страниц рубрик/подборок/маршрутов на сайте нет — карточки без ссылок.
     expect(screen.queryByRole("link", { name: "Казахская кухня" })).toBeNull();
     expect(vi.mocked(stub.getGuideRoutes)).toHaveBeenCalledWith("Алматы");
+  });
+
+  it("надпись рубрики скрыта, когда совпадает с названием подборки", async () => {
+    stub.getGuideCollections = vi.fn(async () => [
+      guideCollection({ slug: "food-picks", title: "Еда", categorySlugs: ["food"] }),
+    ]);
+    stub.getGuideCategories = vi.fn(async () => [guideCategory({ slug: "food", title: "еда" })]);
+    stub.getGuideRoutes = vi.fn(async () => []);
+
+    await loadScreen();
+
+    expect(await screen.findByRole("heading", { name: "Еда" })).toBeTruthy();
+    // Совпадение без учёта регистра — надписи над названием нет.
+    expect(screen.queryByText("ЕДА")).toBeNull();
+  });
+
+  it("«Выбор редакции»: пустой subtitle — заголовок держит title, надписи нет", async () => {
+    stub.getGuideCollections = vi.fn(async () => [
+      guideCollection({ slug: "no-subtitle", title: "Зимние террасы", subtitle: "", venueCount: 3 }),
+    ]);
+    stub.getGuideRoutes = vi.fn(async () => []);
+
+    await loadScreen();
+
+    expect(await screen.findByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
+    expect(screen.getByText("3 места в подборке")).toBeTruthy();
+    expect(screen.queryByText("ЗИМНИЕ ТЕРРАСЫ")).toBeNull();
   });
 
   it("шапка называет город из шапки сайта", async () => {

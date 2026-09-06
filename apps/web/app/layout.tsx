@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 
 import { t } from "@web/lib/i18n";
@@ -24,6 +25,22 @@ const notoSans = Noto_Sans({
   variable: "--font-noto-sans",
 });
 
+/**
+ * Слоган гастрогида (`GuideScreen`, узел 5039:10252) — Playfair Display
+ * Italic 48. `next/font/google` тут не годится: сборка идёт без сети (см.
+ * `apps/web/app/fonts/`), поэтому файл лежит в репозитории — это подсет
+ * `hb-subset` из официального переменного шрифта (OFL, `PlayfairDisplay-OFL.txt`
+ * рядом), урезанный до latin + cyrillic (кириллица кита, без `-ext`) и
+ * зафиксированный на начертании 400 italic. 25 КБ, `display: swap`.
+ */
+const playfairDisplay = localFont({
+  src: "./fonts/PlayfairDisplay-Italic.woff2",
+  weight: "400",
+  style: "italic",
+  display: "swap",
+  variable: "--font-playfair-display",
+});
+
 export const metadata: Metadata = {
   title: t.web.header.brand,
   description: t.web.footer.tagline,
@@ -31,7 +48,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru" className={notoSans.variable}>
+    <html lang="ru" className={`${notoSans.variable} ${playfairDisplay.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>

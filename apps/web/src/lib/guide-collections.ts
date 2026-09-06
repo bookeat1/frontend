@@ -1,4 +1,4 @@
-import type { GuideCollection } from "@bookeat/api/client";
+import type { GuideCategory, GuideCollection } from "@bookeat/api/client";
 
 /**
  * Делит ответ `GET /gastroguide/collections` на две секции страницы гастрогида
@@ -24,12 +24,39 @@ export function splitGuideCollections(collections: readonly GuideCollection[]): 
 }
 
 /**
- * Золотая надпись плитки рубрики — первый слаг рубрики заглавными, как в
- * `rubricLabel` приложения: имён рубрик в ответе подборок нет, а ходить за
- * `GET /gastroguide/categories` ради подписи — лишний запрос на страницу.
+ * Слаг → человеческое название рубрики, из `GET /gastroguide/categories`
+ * (`useGuideCategories`). Один справочник на всю страницу, а не запрос на
+ * плитку.
  */
-export function rubricLabel(categorySlugs: readonly string[]): string {
-  const slug = categorySlugs[0]?.trim();
+export function categoryTitleBySlug(categories: readonly GuideCategory[]): ReadonlyMap<string, string> {
+  const map = new Map<string, string>();
+  for (const category of categories) {
+    if (category.slug) map.set(category.slug, category.title);
+  }
+  return map;
+}
+
+/**
+ * Золотая надпись плитки рубрики (узел 5039:10260 — «ЕДА» / «ЛЮДИ» / «МЕСТА»).
+ *
+ * БЫЛО: слаг подборки заглавными («KAZAKH CUISINE RUBRIC») — в данных нет
+ * группировки «еда/люди/места», а печатать технический слаг вместо неё хуже,
+ * чем показать настоящее название рубрики. Берём `title` из справочника
+ * категорий по первому слагу подборки. Если справочник ещё не приехал или
+ * рубрика не нашлась — надписи нет (выдумывать нечем).
+ *
+ * Когда название рубрики СОВПАДАЕТ с названием подборки без учёта регистра
+ * (на стенде это все четыре подборки), надпись дублировала бы заголовок —
+ * не рисуем её, название держит нижнюю строку одно.
+ */
+export function rubricEyebrow(
+  collection: GuideCollection,
+  categoryTitles: ReadonlyMap<string, string>,
+): string {
+  const slug = collection.categorySlugs[0]?.trim();
   if (!slug) return "";
-  return slug.replace(/[-_]+/g, " ").toUpperCase();
+  const title = categoryTitles.get(slug)?.trim();
+  if (!title) return "";
+  if (title.toLocaleLowerCase("ru-RU") === collection.title.trim().toLocaleLowerCase("ru-RU")) return "";
+  return title.toUpperCase();
 }

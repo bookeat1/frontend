@@ -6,7 +6,6 @@ import type { GuideCollection, GuideRoute } from "@bookeat/api/client";
 
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Skeleton } from "@web/components/state/AsyncBlock";
-import { rubricLabel } from "@web/lib/guide-collections";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
 
@@ -76,7 +75,21 @@ function CoverFrame({
   );
 }
 
-export function RubricTile({ collection, href }: { collection: GuideCollection; href?: string }) {
+/**
+ * `eyebrow` — название рубрики из справочника (`GET /gastroguide/categories`,
+ * `rubricEyebrow` в `lib/guide-collections.ts`); экран решает, показывать ли
+ * его (пусто, когда рубрика совпадает с названием подборки без учёта
+ * регистра). Карточка сама ничего не считает — источника рубрик у неё нет.
+ */
+export function RubricTile({
+  collection,
+  eyebrow,
+  href,
+}: {
+  collection: GuideCollection;
+  eyebrow?: string;
+  href?: string;
+}) {
   return (
     <CoverFrame
       src={collection.coverImageUrl}
@@ -85,8 +98,8 @@ export function RubricTile({ collection, href }: { collection: GuideCollection; 
       className="h-guide-rubric-m p-4 lg:h-guide-rubric"
     >
       <div className="flex flex-col gap-0.5">
-        <p className={cx(EYEBROW, "text-[14px] leading-[17px]")}>{rubricLabel(collection.categorySlugs)}</p>
-        <h3 className="break-words text-[20px] font-semibold leading-6 text-inverse">
+        {eyebrow ? <p className={cx(EYEBROW, "text-[14px] leading-[17px]")}>{eyebrow}</p> : null}
+        <h3 className="break-words text-[20px] font-semibold leading-6 text-ink-on-inverse">
           <Title href={href}>{collection.title}</Title>
         </h3>
       </div>
@@ -94,10 +107,22 @@ export function RubricTile({ collection, href }: { collection: GuideCollection; 
   );
 }
 
+/**
+ * Поля карточки — БЫЛИ перепутаны (Figma 5040:10277…10281): надпись «OCEAN
+ * BASKET» заглавными это НАЗВАНИЕ БРЕНДА (`title`), крупная строка
+ * «Средиземноморье в Алматы» — ПОДЗАГОЛОВОК (`subtitle`), а не `title`;
+ * подпись «5 ресторанов · история бренда» — счётчик заведений, а не
+ * `description` (абзац на карточке вообще не рисуем — в макете его нет).
+ *
+ * Пустой `subtitle` — заголовок держит сам `title`, и тогда надпись сверху
+ * не рисуем (иначе он повторился бы дважды подряд).
+ */
 export function EditorPickCard({ collection, href }: { collection: GuideCollection; href?: string }) {
   const t = useT();
-  const eyebrow = collection.subtitle.trim().toUpperCase();
-  const summary = collection.description.trim() || t.web.home.guide.venues(collection.venueCount);
+  const subtitle = collection.subtitle.trim();
+  const heading = subtitle || collection.title;
+  const eyebrow = subtitle ? collection.title.trim().toUpperCase() : "";
+  const summary = t.web.home.guide.venues(collection.venueCount);
 
   return (
     <CoverFrame
@@ -108,11 +133,9 @@ export function EditorPickCard({ collection, href }: { collection: GuideCollecti
       className="h-guide-pick-m p-4 lg:h-guide-pick lg:p-6"
     >
       <div className="flex flex-col gap-2">
-        {/* Надпись — подзаголовок подборки заглавными (в макете «OCEAN
-            BASKET»); пустой подзаголовок — нет надписи, а не выдуманная. */}
         {eyebrow ? <p className={cx(EYEBROW, "text-[16px] leading-[21px] lg:text-[18px]")}>{eyebrow}</p> : null}
-        <h3 className="break-words text-[22px] font-bold leading-7 text-inverse lg:text-[26px] lg:leading-8">
-          <Title href={href}>{collection.title}</Title>
+        <h3 className="break-words text-[22px] font-bold leading-7 text-ink-on-inverse lg:text-[26px] lg:leading-8">
+          <Title href={href}>{heading}</Title>
         </h3>
         <p className="line-clamp-2 break-words text-[16px] leading-6 text-guide-pick-subtitle lg:text-[20px]">
           {summary}
@@ -136,10 +159,10 @@ export function WalkCard({ route, href }: { route: GuideRoute; href?: string }) 
       className="h-guide-walk-m px-4 py-4 lg:h-guide-walk lg:px-[27px] lg:py-5"
     >
       <div className="flex flex-col gap-[7px]">
-        <h3 className="break-words text-[22px] font-bold leading-7 text-inverse lg:text-[26px] lg:leading-8">
+        <h3 className="break-words text-[22px] font-bold leading-7 text-ink-on-inverse lg:text-[26px] lg:leading-8">
           <Title href={href}>{route.title}</Title>
         </h3>
-        <p className="line-clamp-2 break-words text-[16px] leading-6 text-inverse lg:text-[20px]">
+        <p className="line-clamp-2 break-words text-[16px] leading-6 text-ink-on-inverse lg:text-[20px]">
           {summary}
         </p>
       </div>

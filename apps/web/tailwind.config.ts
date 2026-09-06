@@ -261,9 +261,11 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        // Слоган гастрогида (5039:10252) — Playfair Display Italic; шрифт не
-        // подключён через next/font (сборка без сети), стек с запасными.
-        serif: ['"Playfair Display"', "Georgia", "serif"],
+        // Слоган гастрогида (5039:10252) — Playfair Display Italic, подключён
+        // локальным файлом через `next/font/local` (`app/layout.tsx`,
+        // переменная `--font-playfair-display`); Georgia/serif — фолбэк на
+        // случай, если переменная почему-то не долетела до узла.
+        serif: ["var(--font-playfair-display)", "Georgia", "serif"],
       },
       colors: {
         canvas: webColors.background.canvas,
