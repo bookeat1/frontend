@@ -160,7 +160,7 @@ export function VenueBlock({
             unavailableText={t.web.venue.contacts.mapUnavailable}
             noMapText={t.web.venue.contacts.noMap}
           />
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {venue.address.trim() ? (
               <ContactCard
                 className="h-afisha-contact w-full"
