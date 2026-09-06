@@ -23,6 +23,7 @@ import {
   mapNotificationFeed,
   mapPayment,
   mapPreorder,
+  mapPromo,
   mapRestaurantDetail,
   mapRestaurantStories,
   mapRestaurantSummary,
@@ -44,6 +45,7 @@ import {
   type ApiPayment,
   type ApiPreorder,
   type ApiPromo,
+  type ApiPromoListItem,
   type ApiRestaurant,
   type ApiReviewSummary,
   type ApiStory,
@@ -71,6 +73,7 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  EventSummary,
   FavoriteItems,
   FavoriteKind,
   GuideCategory,
@@ -85,6 +88,7 @@ import type {
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  Promo,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -477,6 +481,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   }
 
   /**
+   * GET /events/:eventId — the event's own page (T1). Works for a PLATFORM
+   * event too (no `restaurant_id` at all). A missing/unpublished/foreign id
+   * is a 404, surfaced as `RepositoryError.isNotFound` — the caller's "event
+   * not found" state, not a network error to retry.
+   */
+  async getEvent(id: string): Promise<EventSummary> {
+    const api = await this.client.get<ApiEventListItem>(`/events/${encodeURIComponent(id)}`);
+    return mapEventSummary(api);
+  }
+
+  /**
    * GET /feed?city=… — the unified home feed. Returns `{ items: [...] }` (the
    * standard envelope's `data`), a MIXED list of `promo` and `event` items;
    * this keeps only the promos for the «Акции» strip.
@@ -489,6 +504,15 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   async getPromotions(city: string): Promise<HomePromo[]> {
     const feed = await this.client.get<{ items?: ApiFeedItem[] }>("/feed", { city });
     return mapHomePromos(feed.items);
+  }
+
+  /**
+   * GET /promos/:promoId — one promo's own page (T1b). Works for a PLATFORM
+   * promo too (no `restaurant_id`). 404 surfaces as `RepositoryError.isNotFound`.
+   */
+  async getPromo(id: string): Promise<Promo> {
+    const api = await this.client.get<ApiPromoListItem>(`/promos/${encodeURIComponent(id)}`);
+    return mapPromo(api);
   }
 
   /* --- gastroguide / «Статьи» --- */

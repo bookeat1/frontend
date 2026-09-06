@@ -14,6 +14,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { useEventFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
+import { openWebsite } from "../../src/lib/external-links";
 import { formatDateTime, formatDayMonth, formatTime } from "../../src/lib/format";
 
 const t = getDictionary();
@@ -27,7 +28,9 @@ const t = getDictionary();
  * venue, fetched with `useRestaurant(event.restaurant.id)` and rendered with
  * the very same pieces as the restaurant screen (social icons, contact rows,
  * MapPreview). The bottom CTA routes into the venue's booking flow — the exact
- * nav the restaurant screen uses.
+ * nav the restaurant screen uses — but only when the event HAS a host venue;
+ * a platform event (ADR-024, `restaurantId === null`) shows its own
+ * `action.url` button instead, or no footer at all.
  */
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,7 +43,9 @@ export default function EventDetailScreen() {
 
   // Host venue — for the contacts block and the map. Stays disabled until the
   // event (and thus its restaurant id) is known.
-  const restaurantId = event?.restaurant.id;
+  // `restaurantId` дублирует `event.restaurant.id`, но не падает у события
+  // платформы (ADR-024), у которого `restaurant` отсутствует вовсе.
+  const restaurantId = event?.restaurantId ?? undefined;
   const { data: restaurant } = useRestaurant(restaurantId);
 
   // Сердечко сохраняет САМО СОБЫТИЕ (`PUT|DELETE /events/:id/favorite`).
@@ -117,9 +122,29 @@ export default function EventDetailScreen() {
   const startsAt = new Date(event.startsAt);
   const dayMonth = Number.isNaN(startsAt.getTime()) ? "" : formatDayMonth(startsAt);
   const time = formatTime(event.startsAt);
-  const venue = event.restaurant.name || event.venue;
+  const venue = event.restaurant?.name || event.venue;
   const subtitle = t.afisha.subtitle([venue, dayMonth, time]);
   const calendarLine = formatDateTime(event.startsAt);
+
+  // Футер «Записаться» — ТОЛЬКО когда у события есть заведение (тот же роут,
+  // что и у экрана заведения). У события платформы (ADR-024) `restaurantId`
+  // — `null` (реально приходит с бэкенда, `ListPublicUpcoming` — LEFT JOIN
+  // venue), и `/restaurant/null/book` — не существующий экран, а не «нет
+  // заведения». Кнопки тогда либо нет вовсе, либо она открывает `action.url`
+  // события (тот же `target === "external"`, что и на вебе, `EventScreen.tsx`).
+  const hostRestaurantId = event.restaurantId;
+  const externalAction =
+    !hostRestaurantId && event.action && event.action.target === "external" && event.action.url
+      ? { label: event.action.label, url: event.action.url }
+      : null;
+  const footerAction = hostRestaurantId ? (
+    <PrimaryButton
+      label={t.afisha.bookAction}
+      onPress={() => router.push(`/restaurant/${hostRestaurantId}/book`)}
+    />
+  ) : externalAction ? (
+    <PrimaryButton label={externalAction.label} onPress={() => void openWebsite(externalAction.url)} />
+  ) : null;
 
   return (
     <View style={styles.root}>
@@ -204,16 +229,11 @@ export default function EventDetailScreen() {
         <View style={styles.bottomFloor} />
       </ScrollView>
 
-      <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
-        <View style={styles.footer}>
-          {/* Same booking flow the restaurant screen starts — routed with the
-              event's host venue id. */}
-          <PrimaryButton
-            label={t.afisha.bookAction}
-            onPress={() => router.push(`/restaurant/${event.restaurant.id}/book`)}
-          />
-        </View>
-      </SafeAreaView>
+      {footerAction ? (
+        <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
+          <View style={styles.footer}>{footerAction}</View>
+        </SafeAreaView>
+      ) : null}
     </View>
   );
 }

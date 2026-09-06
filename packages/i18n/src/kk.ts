@@ -2300,6 +2300,7 @@ export const kk: LocaleOverride<Dictionary> = {
     notFoundDescription:
       "Мүмкін, ол аяқталып қалған. Акциялар тізіміне оралып, басқасын таңдаңыз.",
     card: (title: string, restaurant: string) => (restaurant ? `${title}, ${restaurant}` : title),
+    termsTitle: "Шарттар",
   },
   /** Десктоптық веб (apps/web) — қазақша нұсқасы. */
   web: {
@@ -2398,6 +2399,9 @@ export const kk: LocaleOverride<Dictionary> = {
       nonRefundable: "Билет қайтарылмайды",
       venuePage: "Мекеме беті",
       noDescription: "Ұйымдастырушы әлі сипаттама қоспаған.",
+      venueSectionTitle: "Өтетін орны",
+      openVenuePage: "Мекеме бетін ашу",
+      eventHours: (from: string, to: string) => `Іс-шара ${from}-ден ${to}-ге дейін`,
     },
     format: {
       venues: (count: number) => `${count} орын`,

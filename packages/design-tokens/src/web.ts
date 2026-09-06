@@ -1370,3 +1370,60 @@ export const webGuidePage = {
   /** Подпись под заголовком «Выбора редакции» — #EBEBEB (5040:10281). */
   editorPickSubtitle: "#EBEBEB",
 } as const;
+
+/**
+ * Карточка события/акции `/events/[id]` и `/promos/[id]` — Figma
+ * `qmMsg4jO1ggmyEHNIAD2ll`, узел 5033:6922 («WEB / 07b · Карточка события»).
+ * Числа взяты из спеки задачи T1 (`specs/web-fixes-20260906.md`), собранной
+ * владельцем напрямую из макета — отдельного REST-похода в Figma этот файл
+ * не потребовал (кэш спек экономится, MCP по-прежнему 429 на файлах кита).
+ *
+ * Оболочка правой карточки «Записаться» / «Забронировать столик» — это ТОТ ЖЕ
+ * узел, что и `webVenuePage.asideCard` (радиус 20, паддинг 24, просвет 24,
+ * обводка `webPalette.neutral300` = #DADADA): числа совпали один в один,
+ * поэтому здесь не продублированы, только высота и радиус кнопки — свои.
+ */
+export const webEventDetail = {
+  /** 1200×426 радиус 24 (= `webRadius.xxl`), контейнер тот же, что у страницы. */
+  cover: { width: 1200, height: 426, radius: webRadius.xxl },
+  /** Левая колонка 788, правая (карточка «Записаться») 380 = `webVenuePage.asideWidth`,
+   * просвет между ними 32 = `webVenuePage.columnsGap`, паддинг тела 32 сверху/снизу. */
+  leftWidth: 788,
+  bodyPaddingY: 32,
+  /** Просвет между секциями («Об афише» / «Место проведения» / «Контакты…») — 48;
+   * внутри title-блока (теги → название → строка меты) — 16, до первой секции — 32. */
+  sectionGap: 48,
+  titleBlock: { innerGap: 16, bottomGap: 32 },
+  /** Название события/акции — 24/32 Bold, своя ступень: ближе всего `h3` (26/34),
+   * но кегль и интерлиньяж не совпадают, а плодить `h3b` в общей шкале типографики
+   * ради одной страницы не стали — потому здесь, а не в `webTypography`. */
+  title: { fontSize: 24, lineHeight: 32, fontWeight: 700 },
+  /** Заголовок секций «Об афише» / «Место проведения» — 24/24 SemiBold. */
+  sectionTitle: { fontSize: 24, lineHeight: 24, fontWeight: 600 },
+  /** Заголовок «Контакты и как добраться» — 26/34 SemiBold (кегль как `h3`, вес другой). */
+  contactsTitle: { fontSize: 26, lineHeight: 34, fontWeight: 600 },
+  /** Чип тега — фон `webPalette.brand50`, текст `webPalette.brand600` (те же
+   * переменные, что у `brand-subtle`/`brand-text` кита), радиус 8 = `webRadius.sm`. */
+  chip: { fontSize: 12, lineHeight: 16, paddingX: 12, paddingY: 5, radius: webRadius.sm },
+  /** Мини-карточка заведения 788×120, фон `webPalette.neutral50` (= `bg-subtle`),
+   * радиус 16, паддинг 16, фото 88 радиус 12. */
+  venueCard: { height: 120, radius: webRadius.lg, padding: 16, photoSize: 88, photoRadius: 12 },
+  /** Пилюля рейтинга «★ 4.8» на мини-карточке — белая, радиус 6, паддинг 3/8. */
+  ratingPill: { radius: 6, paddingX: 8, paddingY: 3, fontSize: 10, lineHeight: 14 },
+  /** Карта 788×280 = `webVenuePage.map` (те же числа, отдельно не дублируем). */
+  map: webVenuePage.map,
+  /** Карточка контакта в ряду из трёх — 252×86, отличается высотой от
+   * `webVenuePage.contactCard` (72): та плашка одна в ряду из трёх РАЗНОЙ
+   * ширины на странице заведения, здесь — три РАВНЫЕ по 252. Иконка и радиус
+   * общие с той же плашкой (40 / `webRadius.field` = 14). */
+  contactCard: {
+    width: 252,
+    height: 86,
+    radius: webRadius.field,
+    paddingX: 18,
+    paddingY: 16,
+    iconSize: webVenuePage.contactCard.iconSize,
+  },
+  /** Кнопка «Записаться» / «Забронировать столик» — 52 высотой, радиус 14. */
+  bookButton: { height: 52, radius: webRadius.field },
+} as const;

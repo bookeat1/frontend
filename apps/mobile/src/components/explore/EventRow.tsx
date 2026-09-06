@@ -43,7 +43,7 @@ export function EventRow({
 }) {
   const dateBlock = formatEventDateBlock(event.startsAt);
   const time = formatTime(event.startsAt);
-  const venueName = event.restaurant.name || event.venue;
+  const venueName = event.restaurant?.name || event.venue;
 
   const body = (
     <>
@@ -97,7 +97,7 @@ export function EventRow({
       accessibilityLabel={t.explore.eventCard(
         event.title,
         formatRelativeDateTime(event.startsAt),
-        event.restaurant.name,
+        event.restaurant?.name ?? "",
       )}
       onPress={() => onOpenEvent(event.id)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}

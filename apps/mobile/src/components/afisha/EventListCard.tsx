@@ -37,7 +37,7 @@ export function EventListCard({
   const startsAt = new Date(event.startsAt);
   const dayMonth = Number.isNaN(startsAt.getTime()) ? "" : formatDayMonth(startsAt);
   const time = formatTime(event.startsAt);
-  const venue = event.restaurant.name || event.venue;
+  const venue = event.restaurant?.name || event.venue;
   const subtitle = t.afisha.subtitle([venue, dayMonth, time]);
 
   return (
@@ -46,7 +46,7 @@ export function EventListCard({
       accessibilityLabel={t.afisha.card(
         event.title,
         formatRelativeDateTime(event.startsAt),
-        event.restaurant.name,
+        event.restaurant?.name ?? "",
       )}
       onPress={() => onPress(event.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}

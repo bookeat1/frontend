@@ -24,6 +24,7 @@ import type {
   GuideCollectionDetail,
   GuideRoute,
   HomePromo,
+  Promo,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -125,21 +126,36 @@ export function useEventsFeed(
 }
 
 /**
- * Одно событие для /events/[id]. У публичного API НЕТ `GET /events/:id`
- * (то же ограничение обходит `useEvent` в apps/mobile): берём максимальную
- * страницу листинга БЕЗ города — по прямой ссылке гость может открыть событие
- * другого города — и ищем по id. `null` в данных = «не найдено» (прошло или
- * снято с публикации), это не ошибка сети.
+ * Одно событие для `/events/[id]` (T1). `GET /events/:eventId` — прямая
+ * ручка (`internal/transport/rest/events/handler.go:42`), листинг больше не
+ * перебирается. Работает и для события платформы (нет `restaurantId`) — это
+ * единственная публичная ручка, которая его вообще открывает.
+ *
+ * 404 не пересылается повтором — тот же приём, что у `useArticle`: отказ
+ * (снято с публикации / чужой id) это честное «не найдено», а не сбой связи.
  */
-export function useEventById(id: string): UseQueryResult<EventSummary | null> {
+export function useEvent(id: string): UseQueryResult<EventSummary> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "event", id],
-    queryFn: () =>
-      repository
-        .listUpcomingEvents({ perPage: 100 })
-        .then((page) => page.items.find((item) => item.id === id) ?? null),
-    enabled: isApiConfigured && Boolean(id),
+    queryFn: () => repository.getEvent(id),
+    enabled: isApiConfigured && id.length > 0,
+    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
+  });
+}
+
+/**
+ * Одна акция для `/promos/[id]` (T1b). `GET /promos/:promoId` — прямая ручка,
+ * работает и для акции платформы (нет `restaurantId`). Те же правила отказа,
+ * что у `useEvent`.
+ */
+export function usePromo(id: string): UseQueryResult<Promo> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "promo", id],
+    queryFn: () => repository.getPromo(id),
+    enabled: isApiConfigured && id.length > 0,
+    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
   });
 }
 

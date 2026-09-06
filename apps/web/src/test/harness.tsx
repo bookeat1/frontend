@@ -11,6 +11,7 @@ import type {
   GuideCollection,
   GuideCollectionDetail,
   GuideCollectionVenue,
+  Promo,
   Restaurant,
   RestaurantRepository,
   RestaurantSummary,
@@ -161,6 +162,8 @@ export function repositoryStub(
     getGuideRoutes: vi.fn(async () => []),
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
     getRestaurant: vi.fn(async () => venueDetail()),
+    getEvent: vi.fn(async () => eventSummary()),
+    getPromo: vi.fn(async () => promoDetail()),
     getMapPreviewUrl: vi.fn(() => undefined),
     // Избранное. Стоит здесь, а не только в тестах страницы заведения: экран
     // спрашивает его сам, и тест «кнопка не ходила в сеть» должен иметь что
@@ -204,6 +207,27 @@ export function eventSummary(overrides: Partial<EventSummary> = {}): EventSummar
     restaurant: { id: "r-1", name: "INZHU Terrace", city: "almaty" },
     tags: ["Живая музыка", "Терраса", "Бранч"],
     recurrenceId: null,
+    action: null,
+    ...overrides,
+  };
+}
+
+/** Акция — узел 5033:6922 в раскладке T1b: те же секции, что у события,
+ * скидка и условия вместо тегов. */
+export function promoDetail(overrides: Partial<Promo> = {}): Promo {
+  return {
+    id: "promo-1",
+    restaurantId: "r-1",
+    restaurant: { id: "r-1", name: "INZHU Terrace", city: "almaty" },
+    title: "−20% на сет для двоих",
+    description: "",
+    terms: "",
+    startsAt: "2026-05-01T00:00:00+05:00",
+    endsAt: "2026-05-31T23:59:00+05:00",
+    coverImageUrl: null,
+    images: [],
+    discountPercent: 20,
+    city: null,
     ...overrides,
   };
 }

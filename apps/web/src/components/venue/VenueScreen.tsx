@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { type Amenity, type Photo, type Restaurant } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
@@ -15,12 +15,20 @@ import { Modal } from "@web/components/ui/Modal";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Tag } from "@web/components/ui/Tag";
 import { isNotFound } from "@web/lib/not-found";
-import { repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
 import { bookingHref } from "@web/lib/booking-link";
 import { cx } from "@web/lib/cx";
 import { instagramHandle, venueMeta, websiteHost } from "@web/lib/format";
+import {
+  ContactCard,
+  ContactLink,
+  InstagramIcon,
+  LinkIcon,
+  MapPreview,
+  PhoneIcon,
+  PinIcon,
+} from "@web/components/venue/VenueContacts";
 import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
 import { useT } from "@web/lib/locale";
 import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
@@ -645,10 +653,7 @@ function socialChannelTitle(channel: SocialChannel): string {
 
 function Contacts({ venue }: { venue: Restaurant }) {
   const t = useT();
-  const mapUrl =
-    venue.latitude !== undefined && venue.longitude !== undefined
-      ? repository.getMapPreviewUrl(venue.id, { size: "detail" })
-      : undefined;
+  const hasCoords = venue.latitude !== undefined && venue.longitude !== undefined;
   // Каналы в порядке макета (узел 3525:14729 «Instagram · WhatsApp»); сайт
   // в макете не нарисован, но в API есть — идёт последним.
   const channels: SocialChannel[] = [];
@@ -671,26 +676,13 @@ function Contacts({ venue }: { venue: Restaurant }) {
     <section id={SECTION_ID.contacts} className="flex scroll-mt-6 flex-col gap-5">
       <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.contacts.title}</h2>
 
-      {mapUrl ? (
-        <div className="relative h-venue-map w-full overflow-hidden rounded-lg bg-muted">
-          <RemoteImage
-            src={mapUrl}
-            alt={t.web.venue.contacts.mapAlt(venue.name)}
-            sizes="788px"
-            // Координаты есть, а карта не пришла — это НЕ то же самое, что
-            // «координат нет». На тестовом стенде провайдер карт не настроен
-            // (`map_not_configured`, 503), и без подписи здесь оставался
-            // серый прямоугольник 788×280.
-            fallback={
-              <span className="text-bodyM text-ink-tertiary">
-                {t.web.venue.contacts.mapUnavailable}
-              </span>
-            }
-          />
-        </div>
-      ) : (
-        <p className="text-bodyM text-ink-tertiary">{t.web.venue.contacts.noMap}</p>
-      )}
+      <MapPreview
+        venueId={venue.id}
+        hasCoords={hasCoords}
+        alt={t.web.venue.contacts.mapAlt(venue.name)}
+        unavailableText={t.web.venue.contacts.mapUnavailable}
+        noMapText={t.web.venue.contacts.noMap}
+      />
 
       {hasAnything ? (
         // Три плашки со значком слева — узел 3264:73. Значок несёт
@@ -731,81 +723,6 @@ function Contacts({ venue }: { venue: Restaurant }) {
         <p className="text-bodyM text-ink-tertiary">{t.web.venue.contacts.empty}</p>
       )}
     </section>
-  );
-}
-
-/**
- * Плашка контакта — узел 3264:74: 72 высотой, радиус 14, паддинг 16/18,
- * просвет 14, белый кружок значка 40, строка 14/20 SemiBold и подпись 12/16.
- */
-function ContactCard({
-  icon,
-  title,
-  note,
-  href,
-  external = false,
-}: {
-  icon: ReactNode;
-  title: ReactNode;
-  note?: ReactNode;
-  href?: string;
-  external?: boolean;
-}) {
-  const body = (
-    <>
-      <span
-        aria-hidden="true"
-        className="flex h-venue-contact-icon w-venue-contact-icon shrink-0 items-center justify-center rounded-full bg-canvas text-ink-secondary"
-      >
-        {icon}
-      </span>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="break-words text-[14px] font-semibold leading-5 text-ink">{title}</span>
-        {note ? (
-          <span className="break-words text-[12px] leading-4 text-ink-tertiary">{note}</span>
-        ) : null}
-      </span>
-    </>
-  );
-
-  const inner = "flex items-center gap-venue-contact-gap px-venue-contact-x py-4";
-
-  return (
-    <li className="rounded-field bg-subtle">
-      {href ? (
-        <a
-          href={href}
-          {...(external ? { target: "_blank", rel: "noreferrer nofollow" } : {})}
-          className={cx(
-            inner,
-            "rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-          )}
-        >
-          {body}
-        </a>
-      ) : (
-        <span className={inner}>{body}</span>
-      )}
-    </li>
-  );
-}
-
-/**
- * Ссылка внутри плашки контактов — наследует кегль и цвет строки, чтобы
- * заголовок 14/20 SemiBold и подпись 12/16 остались такими, как в макете.
- * Подчёркивание появляется при наведении и с клавиатуры: цветом ссылка от
- * текста не отличается, и это единственный признак, что её можно нажать.
- */
-function ContactLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer nofollow"
-      className="rounded-sm hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-    >
-      {children}
-    </a>
   );
 }
 
@@ -916,51 +833,6 @@ function GridIcon() {
       <rect x="13" y="4" width="7" height="7" rx="1.5" />
       <rect x="4" y="13" width="7" height="7" rx="1.5" />
       <rect x="13" y="13" width="7" height="7" rx="1.5" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M12 21s6-5.3 6-10a6 6 0 1 0-12 0c0 4.7 6 10 6 10Z" strokeLinejoin="round" />
-      <circle cx="12" cy="11" r="2.2" />
-    </svg>
-  );
-}
-
-function PhoneIcon() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path
-        d="M5 4h3.2l1.4 3.5-2 1.3a12 12 0 0 0 5.6 5.6l1.3-2L18 13.8V17a2 2 0 0 1-2.2 2A14.5 14.5 0 0 1 5 6.2 2 2 0 0 1 7 4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/**
- * Значок Instagram на плашке соцсетей (узел 3525:14725). Сам вектор из макета
- * не снят — component set в файле сломан (см. design-specs/web/spec-venue-
- * socials.md), поэтому контур нарисован по скриншоту: скруглённый квадрат,
- * объектив, точка вспышки; та же толщина линии, что у соседних значков.
- */
-function InstagramIcon() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <rect x="4" y="4" width="16" height="16" rx="4.5" />
-      <circle cx="12" cy="12" r="3.6" />
-      <circle cx="16.6" cy="7.4" r="0.6" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
-      <path d="M10.5 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1.2 1.2" strokeLinecap="round" />
-      <path d="M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1.2-1.2" strokeLinecap="round" />
     </svg>
   );
 }

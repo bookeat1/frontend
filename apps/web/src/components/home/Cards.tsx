@@ -15,12 +15,11 @@ import { useLocale, useT } from "@web/lib/locale";
  *   • событие — «Card / Event», 384×324, плашка с датой поверх фото;
  *   • подборка — «Card / Article», 588×464, надзаголовок «От редакции».
  *
- * Акция и подборка ведут на страницу заведения-хозяина, а не на собственные
- * экраны: этих экранов в вебе ещё нет (событие с 2026-09-05 ведёт на
- * `/events/[id]`), и ссылка на них была бы
- * обещанием несуществующего маршрута. Исключение — подборка: у неё нет
- * заведения-хозяина, поэтому её карточка ведёт на страницу подборки, и эта
- * ссылка живёт за флагом `SHOW_SECTION_LINKS` до появления роута.
+ * Событие ведёт на свою страницу `/events/[id]` (с 2026-09-05), акция — на
+ * свою `/promos/[id]` (T1b, 2026-09-06, решение владельца: отдельная страница
+ * по шаблону события, а не на заведение). Подборка своей страницы ещё не
+ * имеет, поэтому её карточка ведёт на страницу подборки только за флагом
+ * `SHOW_SECTION_LINKS`, до появления роута остаётся статьёй без ссылки.
  */
 
 /**
@@ -47,8 +46,10 @@ export const SHOW_EVENTS_LINK: boolean = true;
  * при включении флага не искать их по вёрстке. */
 export const EVENTS_PATH = "/events";
 export const GUIDE_PATH = "/guide";
+export const PROMOS_PATH = "/promos";
 export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
 export const eventHref = (id: string) => `${EVENTS_PATH}/${id}`;
+export const promoHref = (id: string) => `${PROMOS_PATH}/${id}`;
 
 /**
  * Размеры обложек трёх карточек. Числа макета (260, 196/324, 300) живут только
@@ -95,7 +96,7 @@ export function PromoCard({ promo }: { promo: HomePromo }) {
       <div className="relative flex flex-col gap-0.5">
         <h3 className="text-[20px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-inverse">
           <Link
-            href={`/venues/${promo.restaurantId}`}
+            href={promoHref(promo.id)}
             className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             {promo.title}
@@ -113,7 +114,10 @@ export function EventCard({ event }: { event: EventSummary }) {
   const { locale } = useLocale();
   const t = useT();
   const date = eventDateParts(event.startsAt, locale);
-  const place = [event.restaurant.name, date?.time].filter(Boolean).join(t.web.format.metaSeparator);
+  // У события платформы (ADR-024) `restaurant` отсутствует — строка места
+  // тогда состоит только из времени, а не падает на `.name` несуществующего
+  // объекта.
+  const place = [event.restaurant?.name, date?.time].filter(Boolean).join(t.web.format.metaSeparator);
 
   return (
     <Card className="relative flex h-full w-full flex-col lg:min-h-event-card">
@@ -132,7 +136,11 @@ export function EventCard({ event }: { event: EventSummary }) {
         <div className="flex flex-col gap-1.5">
           <h3 className="break-words text-[20px] font-semibold leading-[26px] text-ink">
             <Link
-              href={SHOW_EVENTS_LINK ? eventHref(event.id) : `/venues/${event.restaurantId}`}
+              href={
+                SHOW_EVENTS_LINK || !event.restaurantId
+                  ? eventHref(event.id)
+                  : `/venues/${event.restaurantId}`
+              }
               className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {event.title}

@@ -8,6 +8,7 @@ import {
   guideRoutes,
   guideRoute,
   homePromotions,
+  promoDetails,
   restaurantAmenities,
   restaurants,
   restaurantStories,
@@ -34,6 +35,7 @@ import type {
   DevicePlatform,
   EventPage,
   EventQuery,
+  EventSummary,
   FavoriteItem,
   FavoriteItems,
   FavoriteKind,
@@ -49,6 +51,7 @@ import type {
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  Promo,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -222,7 +225,7 @@ export class MockRestaurantRepository implements RestaurantRepository {
     const page = Math.max(1, query?.page ?? 1);
 
     const all = upcomingEvents()
-      .filter((e) => (query?.city ? e.restaurant.city === query.city : true))
+      .filter((e) => (query?.city ? e.restaurant?.city === query.city : true))
       .filter((e) => (query?.restaurantId ? e.restaurantId === query.restaurantId : true))
       .filter((e) => (query?.from ? e.startsAt >= query.from : true))
       .filter((e) => (query?.to ? e.startsAt <= query.to : true))
@@ -238,12 +241,29 @@ export class MockRestaurantRepository implements RestaurantRepository {
     };
   }
 
+  /** The mock's own copy of `GET /events/:eventId` (T1) — 404 on an unknown id,
+   * same as the real route answering "not found / unpublished". */
+  async getEvent(id: string): Promise<EventSummary> {
+    await this.simulateNetwork();
+    const event = upcomingEvents().find((e) => e.id === id);
+    if (!event) throw new RepositoryError(`Event ${id} not found`, undefined, 404);
+    return event;
+  }
+
   /** The mock's cross-venue promotions, filtered by host city the way the live
    * `GET /feed?city=…` is. An unknown city yields an empty list (the section
    * then hides), never an error. */
   async getPromotions(city: string): Promise<HomePromo[]> {
     await this.simulateNetwork();
     return homePromotions(city);
+  }
+
+  /** The mock's own copy of `GET /promos/:promoId` (T1b) — 404 on an unknown id. */
+  async getPromo(id: string): Promise<Promo> {
+    await this.simulateNetwork();
+    const promo = promoDetails().find((p) => p.id === id);
+    if (!promo) throw new RepositoryError(`Promo ${id} not found`, undefined, 404);
+    return promo;
   }
 
   /* --- gastroguide / «Статьи» --- */
@@ -493,9 +513,9 @@ export class MockRestaurantRepository implements RestaurantRepository {
         favoritedAt: this.favoritedAt(e.id),
         event: {
           id: e.id,
-          restaurantId: e.restaurantId,
-          restaurantName: e.restaurant.name,
-          city: e.restaurant.city,
+          restaurantId: e.restaurantId ?? "",
+          restaurantName: e.restaurant?.name ?? "",
+          city: e.restaurant?.city ?? "",
           title: e.title,
           description: e.description,
           startsAt: e.startsAt,
