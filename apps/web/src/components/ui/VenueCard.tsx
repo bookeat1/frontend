@@ -45,6 +45,10 @@ export interface VenueCardProps {
   favorite?: boolean;
   /** Запрос по этой карточке в полёте — кнопка заблокирована. */
   favoritePending?: boolean;
+  /** Заведение принимает онлайн-бронь — рисует тот же чип, что и широкая
+   * карточка каталога (`VenueWideCard`), одним визуальным языком по всей
+   * выдаче. */
+  acceptsOnlineBookings?: boolean;
   onToggleFavorite?: () => void;
   onSelectSlot?: (time: string) => void;
   /** Нижний слот тела — кнопка «Забронировать» в избранном профиля
@@ -62,6 +66,7 @@ export function VenueCard({
   slots,
   favorite = false,
   favoritePending = false,
+  acceptsOnlineBookings = false,
   onToggleFavorite,
   onSelectSlot,
   action,
@@ -137,6 +142,18 @@ export function VenueCard({
           </h3>
           <p className="break-words text-[14px] leading-5 text-ink-secondary">{meta}</p>
         </div>
+
+        {/* Тот же чип «Онлайн-бронь», что и в широкой карточке каталога
+            (`VenueWideCard`), — те же токены `webCatalog.wideCard.pill`, чтобы
+            признак заведения выглядел одинаково в обеих карточках выдачи.
+            `z-10`: заголовок растягивает ссылку на всю карточку. */}
+        {acceptsOnlineBookings ? (
+          <ul className="relative z-10 flex flex-wrap gap-2">
+            <li className="inline-flex h-wide-card-pill items-center rounded-wide-card-pill bg-subtle px-wide-card-pill-x py-wide-card-pill-y text-[13px] font-medium leading-[18px] text-ink">
+              {t.web.catalog.card.bookable}
+            </li>
+          </ul>
+        ) : null}
 
         {slots === undefined ? null : slots.length > 0 ? (
           // Слоты делят строку поровну (`flex-1`, узел 3280:4392), а не

@@ -107,11 +107,22 @@ export function VenueBlock({
         <h2 className="text-[24px] font-semibold leading-[24px] text-ink">
           {t.web.events.venueSectionTitle}
         </h2>
-        <div className="flex h-auto min-h-afisha-venue w-full flex-wrap items-center gap-4 rounded-lg bg-subtle p-4">
+        {/* Мини-карточка заведения (Figma 5033:6948, "Mini venue card"):
+            HORIZONTAL, itemSpacing 16, padding 16, radius 16 (`rounded-lg` в
+            этой теме = 16, см. `webRadius.lg`), фото и Info выровнены по
+            центру. НИКАКОГО `flex-wrap` на внешнем контейнере: фото
+            фиксированной ширины 88 и Info на всю оставшуюся ширину — перенос
+            строк живёт ВНУТРИ Info, а не между ним и фото. */}
+        <div className="flex h-auto min-h-afisha-venue w-full items-center gap-4 rounded-lg bg-subtle p-4">
           <div className="relative h-afisha-photo w-afisha-photo shrink-0 overflow-hidden rounded-md bg-muted">
             <RemoteImage src={photo?.uri} alt={photo?.alt || venue.name} sizes="88px" />
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
+          {/* Info (Figma "Info"): VERTICAL, itemSpacing 6, выравнивание MIN —
+              три строки ОДНА ПОД ДРУГОЙ: имя+рейтинг, адрес, ссылка. Ссылка
+              «Открыть страницу заведения» — ТРЕТЬЯ строка этой колонки, а не
+              сосед на уровне внешнего flex-контейнера (иначе на узких
+              ширинах её сносило в непредсказуемое место). */}
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 truncate text-[14px] font-semibold leading-5 text-ink">
                 {venue.name}
@@ -123,15 +134,17 @@ export function VenueBlock({
               ) : null}
             </div>
             {addressLine ? (
-              <p className="truncate text-[12px] leading-4 text-ink-tertiary">{addressLine}</p>
+              // `text-ink-secondary` (#595959, `webColors.text.secondary`) —
+              // спека 5033:6948 просит text/secondary, не text/tertiary.
+              <p className="truncate text-[12px] leading-4 text-ink-secondary">{addressLine}</p>
             ) : null}
+            <Link
+              href={`/venues/${encodeURIComponent(venue.id)}`}
+              className="w-fit shrink-0 text-[16px] font-semibold leading-[22px] text-brand-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {t.web.events.openVenuePage} →
+            </Link>
           </div>
-          <Link
-            href={`/venues/${encodeURIComponent(venue.id)}`}
-            className="shrink-0 text-[16px] font-semibold leading-[22px] text-brand-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            {t.web.events.openVenuePage} →
-          </Link>
         </div>
       </section>
 
