@@ -19,6 +19,7 @@ import type {
   DayAvailability,
   EventPage,
   EventSummary,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   GuideRoute,
@@ -148,6 +149,24 @@ export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
     queryKey: [locale, "guide-collections"],
     queryFn: () => repository.getGuideCollections(),
     enabled: isApiConfigured,
+  });
+}
+
+/**
+ * Справочник рубрик гастрогида — `GET /gastroguide/categories`. Единственный
+ * источник ЧЕЛОВЕЧЕСКОГО названия рубрики («Казахская кухня» и т. п.);
+ * подборка знает только слаг (`categorySlugs`). Один запрос на страницу
+ * (кэш общий у всех плиток), `staleTime` тот же, что у подборок — справочник
+ * меняется не чаще редакционного контента. Локаль — в ключе: сервер переводит
+ * `title` по `Accept-Language`.
+ */
+export function useGuideCategories(): UseQueryResult<GuideCategory[]> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "guide-categories"],
+    queryFn: () => repository.getGuideCategories(),
+    enabled: isApiConfigured,
+    staleTime: 5 * 60_000,
   });
 }
 

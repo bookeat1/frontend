@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, type ReactNode } from "react";
 
 import {
@@ -13,11 +14,12 @@ import {
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, StateMessage } from "@web/components/state/AsyncBlock";
+import { assetUrl } from "@web/lib/asset";
 import { useCity } from "@web/lib/city";
 import { cx } from "@web/lib/cx";
-import { splitGuideCollections } from "@web/lib/guide-collections";
+import { categoryTitleBySlug, rubricEyebrow, splitGuideCollections } from "@web/lib/guide-collections";
 import { useT } from "@web/lib/locale";
-import { useGuideCollections, useGuideRoutes } from "@web/lib/queries";
+import { useGuideCategories, useGuideCollections, useGuideRoutes } from "@web/lib/queries";
 
 /**
  * Гастрогид `/guide` — Figma «WEB / 08 · Гастрогид», узел 5033:7096.
@@ -42,6 +44,7 @@ export function GuideScreen() {
   const t = useT();
   const { city, isError: cityFailed } = useCity();
   const collections = useGuideCollections();
+  const categories = useGuideCategories();
   const routes = useGuideRoutes(city);
 
   const { rubrics, editorPicks } = useMemo(
@@ -49,6 +52,7 @@ export function GuideScreen() {
     [collections.data],
   );
   const walks = routes.data ?? [];
+  const categoryTitles = useMemo(() => categoryTitleBySlug(categories.data ?? []), [categories.data]);
 
   return (
     <SiteChrome active="guide">
@@ -77,7 +81,11 @@ export function GuideScreen() {
             rubrics.length > 0 ? (
               <TwoUp>
                 {rubrics.map((collection) => (
-                  <RubricTile key={collection.slug} collection={collection} />
+                  <RubricTile
+                    key={collection.slug}
+                    collection={collection}
+                    eyebrow={rubricEyebrow(collection, categoryTitles)}
+                  />
                 ))}
               </TwoUp>
             ) : (
@@ -125,25 +133,47 @@ export function GuideScreen() {
 }
 
 /**
- * Шапка-«издание» (5033:7100): чёрный кадр, текст прижат к низу. Шрифт
- * слогана в макете — Playfair Display Italic; на сайте он не подключён
- * (`next/font` грузит файлы при сборке, а сборка идёт без сети), поэтому
- * стоит стек с засечками с Playfair первым — где шрифт есть в системе, будет
- * он. Город — из шапки, год из макета («2026») не показываем: его неоткуда
- * взять, а зашитый протухает молча.
+ * Шапка-«издание» (5033:7100): фотография (горы, телебашня — тот же кадр,
+ * что в макете), текст прижат к низу. Фото — статический ассет
+ * `public/brand/guide-hero.webp` (не из CMS: узел один на все города,
+ * фотография не меняется, экспорт `imageRef` узла из Figma REST, обрезка
+ * `scaleMode: FILL` центром 1440×324, ~104 КБ). Поверх — плоское затемнение
+ * 32 % чёрного: это ровно ВТОРОЙ fill узла в Figma (`SOLID #000000 opacity
+ * 0.32`), а не вертикальный градиент — у кадра нет второго слоя под
+ * градиент, только фото и эта заливка.
+ *
+ * Шрифт слогана — Playfair Display Italic, подключён локально
+ * (`app/layout.tsx` → `--font-playfair-display`, см. `fontFamily.serif`);
+ * `text-ink-on-inverse`, а НЕ `text-inverse` — тот класс красит ФОН
+ * (`webColors.background.inverse`), а не текст, из-за чего заголовок и
+ * подзаголовок были тёмными на тёмном (см. `git grep text-inverse apps/web`
+ * — исправлено везде на странице). Город — из шапки, год из макета («2026»)
+ * не показываем: его неоткуда взять, а зашитый протухает молча.
  */
 function GuideHero({ city }: { city: string }) {
   const t = useT();
   return (
-    <section className="bg-black">
-      <Container className="flex flex-col gap-1.5 pb-8 pt-16 lg:pt-[126px]">
+    <section className="relative overflow-hidden bg-black">
+      <Image
+        src={assetUrl("/brand/guide-hero.webp")}
+        alt=""
+        fill
+        sizes="100vw"
+        priority
+        // Тот же кастомный загрузчик, что у главной (lib/image-loader.ts) —
+        // адрес отдаётся как есть, без прогона через оптимизатор Next.
+        unoptimized
+        className="object-cover"
+      />
+      <div aria-hidden="true" className="absolute inset-0 bg-black/[0.32]" />
+      <Container className="relative z-10 flex flex-col gap-1.5 pb-8 pt-16 lg:pt-[126px]">
         <p className="text-[14px] font-semibold uppercase leading-[19px] tracking-[0.08em] text-guide-gold lg:text-[16px]">
           {t.articles.guideEyebrow(city)}
         </p>
-        <h1 className="break-words font-serif text-[36px] italic leading-[1.2] text-inverse lg:text-[48px]">
+        <h1 className="break-words font-serif text-[36px] italic leading-[1.2] text-ink-on-inverse lg:text-[48px]">
           {t.articles.guideHeadline(city)}
         </h1>
-        <p className="text-[18px] leading-6 text-inverse lg:text-[20px] lg:leading-5">
+        <p className="text-[18px] leading-6 text-ink-on-inverse lg:text-[20px] lg:leading-5">
           {t.articles.guideSubheadline}
         </p>
       </Container>

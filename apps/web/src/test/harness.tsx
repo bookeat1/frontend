@@ -7,6 +7,7 @@ import type {
   Booking,
   DayAvailability,
   EventSummary,
+  GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
   GuideCollectionVenue,
@@ -153,6 +154,7 @@ export function repositoryStub(
     getPromotions: vi.fn(async () => []),
     listUpcomingEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 3 })),
     getGuideCollections: vi.fn(async () => []),
+    getGuideCategories: vi.fn(async () => []),
     listArticles: vi.fn(async () => []),
     getArticle: vi.fn(async () => articleDetail()),
     // Гастропрогулки страницы `/guide` — по городу, как у приложения.
@@ -217,6 +219,17 @@ export function guideCollection(overrides: Partial<GuideCollection> = {}): Guide
     coverImageUrl: null,
     venueCount: 5,
     categorySlugs: [],
+    ...overrides,
+  };
+}
+
+/** Рубрика справочника (`GET /gastroguide/categories`) — источник надписи
+ * плитки на странице `/guide`. */
+export function guideCategory(overrides: Partial<GuideCategory> = {}): GuideCategory {
+  return {
+    slug: "food",
+    title: "Еда",
+    position: 0,
     ...overrides,
   };
 }
