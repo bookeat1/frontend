@@ -106,4 +106,18 @@ describe("SiteHeader", () => {
     expect(screen.queryByRole("link", { name: "Войти" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Выйти" })).toBeNull();
   });
+
+  /**
+   * T3 (спека `web-fixes-20260906.md`, 2026-09-06, критерий 21): «Для
+   * бизнеса» ведёт на боевой лендинг `book-eat.app`, а не на несуществующий
+   * `/business` — уходит внешне, в новой вкладке, без `window.opener`.
+   */
+  it("«Для бизнеса» ведёт на book-eat.app в новой вкладке", () => {
+    render(<SiteHeader />);
+
+    const link = screen.getByRole("link", { name: /Для бизнеса/ });
+    expect(link.getAttribute("href")).toBe("https://book-eat.app/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
 });

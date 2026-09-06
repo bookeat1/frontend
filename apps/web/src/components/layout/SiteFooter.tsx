@@ -1,8 +1,10 @@
 "use client";
 
 import { Container } from "@web/components/layout/Container";
+import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { cx } from "@web/lib/cx";
 import { useT, type WebLocale } from "@web/lib/locale";
+import { BUSINESS_URL, CABINET_URL, PRICING_URL } from "@web/lib/site-links";
 
 /**
  * Подвал сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, «Web / Footer» (узел 3256:77):
@@ -16,7 +18,21 @@ import { useT, type WebLocale } from "@web/lib/locale";
  * Языки — те три, что реально собраны в вебе (ru/kk/en). Остальные локали
  * `@bookeat/i18n` существуют для мобильного приложения; выдавать их здесь за
  * доступные было бы обещанием, которого веб пока не держит.
+ *
+ * Колонка «Ресторанам» (2026-09-06, спека `web-fixes-20260906.md`, T3) —
+ * единственная с живыми ссылками сегодня: лендинг для бизнеса и боевой
+ * кабинет существуют, а страниц остальных трёх колонок (`/about`, `/jobs`,
+ * `/privacy` и т.д. — задача T4) на сайте ещё нет, поэтому там оставлены
+ * прежние заглушки `href="#"`. Пункта «Поддержка» в колонке нет вовсе —
+ * владелец попросил отложить его до появления номера WhatsApp-бота; рисовать
+ * мёртвую ссылку не нужно.
  */
+const RESTAURANT_LINKS = {
+  connect: BUSINESS_URL,
+  pricing: PRICING_URL,
+  cabinet: CABINET_URL,
+} as const;
+
 export interface SiteFooterProps {
   /** Активный язык. Меняется здесь же, в нижней строке подвала. */
   locale?: WebLocale;
@@ -65,25 +81,51 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
             </ul>
           </div>
 
-          {columns.map((column) => (
-            <nav key={column.title} aria-label={column.title} className="flex flex-col gap-3">
-              <h2 className="text-[15px] font-semibold leading-[22px] text-ink-on-inverse">{column.title}</h2>
-              <ul className="flex flex-col gap-3">
-                {Object.entries(column)
-                  .filter(([key]) => key !== "title")
-                  .map(([key, label]) => (
-                    <li key={key}>
-                      <a
-                        href="#"
-                        className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                      >
-                        {label}
-                      </a>
-                    </li>
-                  ))}
-              </ul>
-            </nav>
-          ))}
+          {columns.map((column) => {
+            // «Ресторанам» — единственная колонка с ключами, которым уже
+            // назначен реальный адрес (см. RESTAURANT_LINKS выше); ключ
+            // "support" в словаре остаётся, но сюда сознательно не входит.
+            const isRestaurants = column === t.web.footer.restaurants;
+            const restaurantEntries = isRestaurants
+              ? (Object.keys(RESTAURANT_LINKS) as Array<keyof typeof RESTAURANT_LINKS>).map((key) => ({
+                  key,
+                  label: t.web.footer.restaurants[key],
+                  href: RESTAURANT_LINKS[key],
+                }))
+              : [];
+
+            return (
+              <nav key={column.title} aria-label={column.title} className="flex flex-col gap-3">
+                <h2 className="text-[15px] font-semibold leading-[22px] text-ink-on-inverse">{column.title}</h2>
+                <ul className="flex flex-col gap-3">
+                  {isRestaurants
+                    ? restaurantEntries.map(({ key, label, href }) => (
+                        <li key={key}>
+                          <ExternalLink
+                            href={href}
+                            label={label}
+                            className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          >
+                            {label}
+                          </ExternalLink>
+                        </li>
+                      ))
+                    : Object.entries(column)
+                        .filter(([key]) => key !== "title")
+                        .map(([key, label]) => (
+                          <li key={key}>
+                            <a
+                              href="#"
+                              className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                            >
+                              {label}
+                            </a>
+                          </li>
+                        ))}
+                </ul>
+              </nav>
+            );
+          })}
         </div>
 
         {/* Линия и нижняя строка — такие же дети подвала, как колонки: между

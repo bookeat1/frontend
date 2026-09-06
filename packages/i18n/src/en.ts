@@ -2297,6 +2297,9 @@ export const en: LocaleOverride<Dictionary> = {
   },
   /** Desktop web (apps/web) — English strings. */
   web: {
+    a11y: {
+      opensInNewTab: (label: string) => `${label}, opens in a new tab`,
+    },
     header: {
       brand: "BookEat",
       skipToContent: "Skip to content",

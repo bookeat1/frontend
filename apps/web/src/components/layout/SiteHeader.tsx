@@ -4,9 +4,11 @@ import Link from "next/link";
 
 import { Container } from "@web/components/layout/Container";
 import { BrandLogo } from "@web/components/layout/BrandLogo";
+import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { Button } from "@web/components/ui/Button";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
+import { BUSINESS_URL } from "@web/lib/site-links";
 
 /**
  * Шапка сайта — экземпляр «Web» на кадре главной, Figma
@@ -52,14 +54,14 @@ export interface SiteHeaderProps {
 }
 
 /**
- * ВРЕМЕННО: пункт «Для бизнеса» убран из шапки по решению владельца
- * (30.08.2026) — страницы `/business` ещё нет, и ссылка вела в 404 Next.
- * Возврат — ОДНА строка: поставить здесь `true`. Ни разметку, ни словарь
- * (`t.web.header.forBusiness` во всех трёх языках) для этого трогать не надо.
- *
- * В макете (узел 3549:5740) ссылка ЕСТЬ — это расхождение сознательное.
+ * Пункт «Для бизнеса» (узел 3549:5740). Был скрыт 30.08.2026, пока на сайте
+ * не было своей страницы `/business`, и ссылка вела в 404 Next. Решение
+ * 2026-09-06 (спека `web-fixes-20260906.md`, T3): своей страницы по-прежнему
+ * нет, но она и не нужна — ссылка ведёт на готовый лендинг для бизнеса
+ * `book-eat.app` (`BUSINESS_URL`, `@web/lib/site-links`), внешняя, в новой
+ * вкладке.
  */
-export const SHOW_FOR_BUSINESS: boolean = false;
+export const SHOW_FOR_BUSINESS: boolean = true;
 
 /**
  * Имя вошедшего гостя ведёт на `/profile` (узел 3525:15153). Флаг был выключен,
@@ -181,12 +183,13 @@ export function SiteHeader({
             </button>
           ) : null}
           {SHOW_FOR_BUSINESS ? (
-            <Link
-              href="/business"
+            <ExternalLink
+              href={BUSINESS_URL}
+              label={t.web.header.forBusiness}
               className="px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {t.web.header.forBusiness}
-            </Link>
+            </ExternalLink>
           ) : null}
           {account === undefined ? (
             // Сессия ещё читается из localStorage. Место под кнопку держим,
