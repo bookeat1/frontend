@@ -26,17 +26,20 @@ import type {
   HomePromo,
   PlatformPage,
   PlatformPageSlug,
+  Preorder,
+  PreorderLineInput,
   Promo,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
   SearchResult,
 } from "@bookeat/api/client";
+import { RepositoryError } from "@bookeat/api/client";
 
 import { isApiConfigured, repository } from "@web/lib/api";
 import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
-import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY } from "@web/lib/query-keys";
+import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -407,24 +410,70 @@ export interface CreateBookingVariables {
    * автоматический повтор запроса дают гостю два стола.
    */
   idempotencyKey: string;
+  /**
+   * Черновик предзаказа гостя, если он есть (A-WEB-4). Отправляется ВТОРЫМ
+   * запросом, ПОСЛЕ того как бронь создана: `PUT /bookings/:id/preorder`
+   * бронь-скоуп, его нельзя позвать раньше, чем бронь появилась, а
+   * `POST /bookings` цену строк берёт от клиента (риск R-A2 спеки
+   * `venue-menu-stepper-promo-card`) — веб этим путём не пользуется.
+   */
+  preorder: PreorderLineInput[];
+}
+
+export interface CreateBookingOutcome {
+  booking: Booking;
+  /**
+   * Бронь создана, а прикрепить предзаказ не вышло (после одного повтора).
+   * Это НЕ отказ брони — стол за гостем остался, флоу идёт на страницу брони
+   * с честным уведомлением (A10).
+   */
+  preorderFailed: boolean;
+}
+
+/** Сетевой сбой или 5xx — стоит попробовать ещё раз; 4xx детерминирован
+ * (стоп-лист, минимальная сумма, `preorder_locked`) — второй `PUT` даст тот
+ * же ответ, значит достаточно один раз ("A10", 🟡 раздела 6 спеки). */
+function isRetryablePreorderFailure(error: unknown): boolean {
+  if (!(error instanceof RepositoryError)) return true;
+  return error.status === undefined || error.status >= 500;
 }
 
 /**
- * Создание брони гостем (`POST /bookings`).
+ * Создание брони гостем (`POST /bookings`), затем — если гость набрал
+ * предзаказ — `PUT /bookings/:id/preorder` вторым запросом.
  *
- * Предзаказа здесь нет намеренно: в макете карточки его нет, а `PUT
- * /bookings/:id/preorder` — отдельный шаг после того, как бронь уже есть.
+ * `POST /bookings` уходит БЕЗ `items`: в макете карточки его нет, цену строк
+ * должен посчитать сервер по своему меню, а не принять от клиента (A9).
  *
- * Повторов нет тоже. TanStack Query по умолчанию повторяет неудачную мутацию
- * ноль раз, и менять это нельзя: сеть могла оборваться ПОСЛЕ того, как сервер
- * принял запрос, и слепой повтор — это второй стол на то же имя. От двойного
- * нажатия защищает ключ идемпотентности, а не ретрай.
+ * Повторов у `POST /bookings` НЕТ. TanStack Query по умолчанию повторяет
+ * неудачную мутацию ноль раз, и менять это нельзя: сеть могла оборваться
+ * ПОСЛЕ того, как сервер принял запрос, и слепой повтор — это второй стол на
+ * то же имя. От двойного нажатия защищает ключ идемпотентности, а не ретрай.
+ *
+ * У `PUT /bookings/:id/preorder` повтор ЕСТЬ, и он безопасен ровно потому,
+ * что это идемпотентная ЗАМЕНА (не добавление) строк — в отличие от
+ * `POST /bookings`.
  */
 export function useCreateBooking() {
   const client = useQueryClient();
-  return useMutation<Booking, unknown, CreateBookingVariables>({
-    mutationFn: ({ input, idempotencyKey }) => repository.createBooking(input, idempotencyKey),
-    onSuccess: (booking) => {
+  return useMutation<CreateBookingOutcome, unknown, CreateBookingVariables>({
+    mutationFn: async ({ input, idempotencyKey, preorder }) => {
+      const booking = await repository.createBooking(input, idempotencyKey);
+      if (preorder.length === 0) {
+        return { booking, preorderFailed: false };
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await repository.setPreorder(booking.id, preorder);
+          return { booking, preorderFailed: false };
+        } catch (error) {
+          if (attempt === 0 && isRetryablePreorderFailure(error)) continue;
+          return { booking, preorderFailed: true };
+        }
+      }
+      return { booking, preorderFailed: true };
+    },
+    onSuccess: ({ booking }) => {
       // Слот, который заняла эта бронь, больше не свободен — всё, что лежит в
       // кэше по доступности этого заведения, стало неправдой.
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
@@ -432,6 +481,28 @@ export function useCreateBooking() {
       // в кэше она открывается без второго запроса и без скелета.
       client.setQueryData([...BOOKING_KEY, booking.id], booking);
     },
+  });
+}
+
+/**
+ * Предзаказ уже созданной брони (`GET /bookings/:id/preorder`) — страница
+ * «Бронь подтверждена», блок «Предзаказ» (A13). Сумма в ответе СЕРВЕРНАЯ
+ * (`total_minor`), не оценка клиентского черновика.
+ *
+ * Отказ этого запроса не должен рушить страницу билета (A13) — вызывающий
+ * читает `isError`/`data` сам и решает не показывать блок вовсе, билет при
+ * этом остаётся на месте.
+ */
+export function usePreorder(bookingId: string | undefined): UseQueryResult<Preorder> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: [...PREORDER_KEY, bookingId],
+    queryFn: () => {
+      if (!bookingId) throw new Error("Missing booking id");
+      return repository.getPreorder(bookingId);
+    },
+    enabled: isApiConfigured && Boolean(bookingId) && signedIn && !isLoading,
+    retry: 1,
   });
 }
 

@@ -121,7 +121,7 @@ function PromoBody({ promo }: { promo: Promo }) {
           <div className="flex flex-col gap-4">
             <div className="relative aspect-home-cover w-full overflow-hidden rounded-2xl bg-muted lg:aspect-auto lg:h-afisha-cover">
               <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={COVER_SIZES} priority />
-              {promo.discountPercent !== null ? (
+              {promo.discountPercent !== null && promo.discountPercent > 0 ? (
                 <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold leading-[18px] text-ink-on-brand">
                   {t.web.format.discount(promo.discountPercent)}
                 </span>

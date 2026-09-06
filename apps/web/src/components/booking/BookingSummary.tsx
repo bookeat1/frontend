@@ -6,8 +6,11 @@ import type { Restaurant } from "@bookeat/api/client";
 import { StateMessage } from "@web/components/state/AsyncBlock";
 import { BottomBar } from "@web/components/ui/BottomBar";
 import { Button } from "@web/components/ui/Button";
+import { DishStepper } from "@web/components/venue/DishStepper";
 import { cx } from "@web/lib/cx";
+import { formatMoneyMinor } from "@web/lib/format";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
+import type { PreorderDraftLine } from "@web/lib/preorder-draft";
 import type { SubmitFailure } from "@web/lib/booking-submit";
 import { useLocale } from "@web/lib/locale";
 
@@ -15,11 +18,16 @@ import { useLocale } from "@web/lib/locale";
  * Сводка справа — узел 3525:14940 «Card / Summary»: радиус 20, паддинг 24,
  * просвет 18, ширину задаёт колонка (380).
  *
- * ЧТО ИЗ МАКЕТА ЗДЕСЬ НЕТ: строки «Зона» (зон у сервера нет), плашки
- * «Предзаказ» и кнопки «Перейти к предзаказу» — предзаказа на сайте нет, и
- * кнопка вела бы в никуда. Осталась одна кнопка — «Забронировать»
- * (по макету это «Забронировать без предзаказа», 3525:14973), и раз она
- * единственная, она главная: заливка, а не обводка.
+ * ЧТО ИЗ МАКЕТА ЗДЕСЬ НЕТ: строка «Зона» (зон у сервера нет) и кнопка
+ * «Перейти к предзаказу» — страницы полного меню на сайте нет (спека
+ * `venue-menu-stepper-promo-card`, «вне скоупа»), предзаказ набирается только
+ * лентой «Популярное в меню» карточки заведения. Кнопка «Забронировать» —
+ * единственная, поэтому главная: заливка, а не обводка.
+ *
+ * БЛОК «ПРЕДЗАКАЗ» (A8, ДОБАВЛЕН 2026-09-06) стоит над кнопкой отправки:
+ * по строке на блюдо со степпером при непустом черновике, иначе — подсказка
+ * узла 3525:14964 без кнопок. `preorder === null` (режим переноса) прячет
+ * блок целиком — предзаказ существующей брони на сайте не редактируется.
  *
  * НИЖЕ `lg` (контракт `docs/responsive.md`, дыра № 10) карточка ведёт себя как
  * экран брони приложения (`apps/mobile/app/restaurant/[id]/book/index.tsx`):
@@ -31,6 +39,14 @@ import { useLocale } from "@web/lib/locale";
 export interface SummaryRow {
   label: string;
   value: string | null;
+}
+
+export interface PreorderSummary {
+  lines: PreorderDraftLine[];
+  maxQty: number;
+  totalMinor: number;
+  onIncrement: (menuItemId: string) => void;
+  onDecrement: (menuItemId: string) => void;
 }
 
 export type SummaryAction =
@@ -49,6 +65,7 @@ export function BookingSummary({
   reschedule,
   failure,
   action,
+  preorder,
 }: {
   venue: Restaurant;
   rows: SummaryRow[];
@@ -56,6 +73,8 @@ export function BookingSummary({
   reschedule: boolean;
   failure: SubmitFailure | null;
   action: SummaryAction;
+  /** `null` — блока «Предзаказ» нет вовсе (режим переноса брони). */
+  preorder: PreorderSummary | null;
 }) {
   const { t } = useLocale();
   const texts = t.web.booking.summary;
@@ -138,6 +157,13 @@ export function BookingSummary({
           <p className="text-bodyS text-ink-tertiary">{texts.totalHint}</p>
         </div>
       )}
+
+      {preorder ? (
+        <>
+          <Divider />
+          <PreorderBlock preorder={preorder} />
+        </>
+      ) : null}
       </div>
 
       {/* Отказ сервера стоит НАД кнопкой и в одном с ней контейнере — как
@@ -171,6 +197,49 @@ function Chevron({ up }: { up: boolean }) {
 
 function Divider() {
   return <hr className="border-0 border-t border-line" />;
+}
+
+/**
+ * Блок «Предзаказ» — A8: узел 3525:14964 (подсказка при пустом черновике) и
+ * 3525:14967 (строки со степперами, «Итого ≈»). Степпер здесь — тот же
+ * `DishStepper`, что на карточке блюда: количество меняется прямо в сводке
+ * (A3-A4 применяются одинаково в обоих местах).
+ */
+function PreorderBlock({ preorder }: { preorder: PreorderSummary }) {
+  const { t } = useLocale();
+  const texts = t.web.booking.summary.preorder;
+
+  if (preorder.lines.length === 0) {
+    return <p className="text-bodyS text-ink-secondary">{texts.hint}</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-flow-summary-label text-ink-secondary">{texts.title}</p>
+      <ul className="flex flex-col gap-3">
+        {preorder.lines.map((line) => (
+          <li key={line.menuItemId} className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-flow-summary-value text-ink">{line.name}</p>
+              <p className="text-bodyS text-ink-tertiary">
+                {texts.lineQty(line.quantity, formatMoneyMinor(line.priceMinor))}
+              </p>
+            </div>
+            <DishStepper
+              quantity={line.quantity}
+              max={preorder.maxQty}
+              dishName={line.name}
+              size="l"
+              onAdd={() => preorder.onIncrement(line.menuItemId)}
+              onIncrement={() => preorder.onIncrement(line.menuItemId)}
+              onDecrement={() => preorder.onDecrement(line.menuItemId)}
+            />
+          </li>
+        ))}
+      </ul>
+      <p className="text-flow-summary-label text-ink">{texts.totalApprox(formatMoneyMinor(preorder.totalMinor))}</p>
+    </div>
+  );
 }
 
 /**

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { RepositoryError, type Booking } from "@bookeat/api/client";
 
-import { booking, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
+import { booking, pending, preorder, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
 import { bookingHref } from "@web/lib/booking-link";
 
 /**
@@ -150,5 +150,75 @@ describe("страница брони — билет", () => {
     expect(await screen.findByText("Бронь отменена")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Изменить бронь" })).toBeNull();
     expect(screen.getByRole("link", { name: "На главную" })).toBeTruthy();
+  });
+});
+
+describe("блок «Предзаказ» на билете (A13, A14)", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it("items.length > 0 — строки и серверный итог, не оценка черновика", async () => {
+    repository.getPreorder = vi.fn(async () =>
+      preorder({
+        items: [
+          {
+            id: "item-1",
+            menuItemId: "dish-1",
+            name: "Стейк рибай",
+            priceMinor: 899000,
+            quantity: 2,
+            totalMinor: 1798000,
+            comment: null,
+          },
+        ],
+        totalMinor: 1798000,
+      }),
+    );
+
+    renderResult();
+
+    expect(await screen.findByText("Стейк рибай × 2")).toBeTruthy();
+    expect(screen.getByText("Итого: 17 980 ₸")).toBeTruthy();
+  });
+
+  it("items.length === 0 — блока нет вовсе", async () => {
+    repository.getPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
+
+    renderResult();
+
+    await screen.findByText("Столик забронирован");
+    expect(screen.queryByText("Предзаказ")).toBeNull();
+  });
+
+  it("GET /preorder упал — билет остаётся, страница не рушится", async () => {
+    repository.getPreorder = vi.fn(async () => {
+      throw new RepositoryError("offline", undefined, undefined, undefined, undefined, undefined, true);
+    });
+
+    renderResult();
+
+    expect(await screen.findByText("Столик забронирован")).toBeTruthy();
+    expect(screen.queryByText("Предзаказ")).toBeNull();
+  });
+
+  it("уведомление о непрекреплённом предзаказе — один раз, не при повторном открытии", async () => {
+    window.sessionStorage.setItem(`bookeat.web.preorder-failed.${ID}`, "1");
+
+    const first = renderResult();
+    expect(
+      await screen.findByText(
+        "Бронь принята, но предзаказ не прикрепился — назовите блюда заведению при подтверждении.",
+      ),
+    ).toBeTruthy();
+    first.unmount();
+
+    renderResult();
+    await screen.findByText("Столик забронирован");
+    expect(
+      screen.queryByText(
+        "Бронь принята, но предзаказ не прикрепился — назовите блюда заведению при подтверждении.",
+      ),
+    ).toBeNull();
   });
 });

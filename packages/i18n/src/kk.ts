@@ -2661,6 +2661,9 @@ export const kk: LocaleOverride<Dictionary> = {
         title: "Мәзірдегі танымал",
         empty: "Мәзір әлі толтырылмаған.",
         noPrice: "Бағасы көрсетілмеген",
+        addDish: (name: string) => `${name} қосу`,
+        qtyLess: "Санын азайту",
+        qtyMore: "Санын арттыру",
       },
       promos: {
         title: "Орын акциялары",
@@ -2806,6 +2809,12 @@ export const kk: LocaleOverride<Dictionary> = {
         reschedule: "Бронды ауыстыру",
         rescheduling: "Ауыстырудамыз…",
         rescheduleHint: "Бар бронның уақыты мен қонақ санын өзгертеміз. Жаңасы пайда болмайды.",
+        preorder: {
+          title: "Алдын ала тапсырыс",
+          hint: "Тағамдарды алдын ала таңдаңыз — үстел келуіңізге дайын болады.",
+          lineQty: (qty: number, price: string) => `${qty} × ${price}`,
+          totalApprox: (amount: string) => `Жалпы ≈ ${amount}`,
+        },
       },
       errors: {
         slotTakenTitle: "Бұл уақытты жаңа ғана алып қойды",
@@ -2866,6 +2875,13 @@ export const kk: LocaleOverride<Dictionary> = {
       signInTitle: "Кіру қажет",
       signInText: "Бронды тек оны жасаған адам көреді. Телефон нөмірімен кіріңіз.",
       signInAction: "Кіру",
+      preorder: {
+        title: "Алдын ала тапсырыс",
+        line: (name: string, qty: number) => `${name} × ${qty}`,
+        total: (amount: string) => `Жалпы: ${amount}`,
+        failedNotice:
+          "Брон қабылданды, бірақ алдын ала тапсырыс тіркелмеді — растаған кезде орынға тағамдарды атаңыз.",
+      },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

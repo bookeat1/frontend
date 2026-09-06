@@ -18,8 +18,11 @@ import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
 import { bookingHref } from "@web/lib/booking-link";
+import { promoHref } from "@web/components/home/Cards";
 import { cx } from "@web/lib/cx";
-import { instagramHandle, venueMeta, websiteHost } from "@web/lib/format";
+import { instagramHandle, instantDateLabel, venueMeta, websiteHost } from "@web/lib/format";
+import { usePreorderDraft } from "@web/lib/use-preorder-draft";
+import { DishStepper } from "@web/components/venue/DishStepper";
 import {
   ContactCard,
   ContactLink,
@@ -30,7 +33,7 @@ import {
   PinIcon,
 } from "@web/components/venue/VenueContacts";
 import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
-import { useT } from "@web/lib/locale";
+import { useLocale, useT } from "@web/lib/locale";
 import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
 
 /**
@@ -546,9 +549,20 @@ function Gallery({
  * три карточки по 252 при колонке 788. Карточка (узел 3263:95): радиус 16,
  * картинка 150, тело паддинг 12/16 с просветом 6, цена прижата к низу
  * (16/24 Bold).
+ *
+ * СТЕППЕР НА КАРТОЧКЕ (A-WEB-2, `venue-menu-stepper-promo-card`, 2026-09-06) —
+ * только у блюда с `priceMinor !== null` (правило приложения «нет числа — нет
+ * действия», как в `DishDetailSheet`) и только у заведения с
+ * `acceptsOnlineBookings`: без кнопки брони предзаказу некуда прикрепиться.
+ * Черновик — `usePreorderDraft`, `sessionStorage` по заведению; отдельно на
+ * `apps/mobile` степпер НЕ переносится (решение владельца 2026-09-06,
+ * см. спеку), `DishDetailSheet` там не тронут.
  */
 function MenuSection({ venue }: { venue: Restaurant }) {
   const t = useT();
+  const preorder = usePreorderDraft(venue.id);
+  const canPreorder = venue.acceptsOnlineBookings;
+
   return (
     <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
       <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.menu.title}</h2>
@@ -556,40 +570,62 @@ function MenuSection({ venue }: { venue: Restaurant }) {
         <StateMessage text={t.web.venue.menu.empty} />
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {venue.menuHighlights.slice(0, 6).map((dish) => (
-            <li key={dish.id}>
-              {/* Не `Card`: у той радиус 24 и тень карточки заведения
-                  (узел 3280:5482). Карточка блюда — свой узел 3263:95 с
-                  радиусом 16 и той же двойной тенью. */}
-              <div className="flex h-full flex-col overflow-hidden rounded-lg bg-canvas shadow-card">
-                <div className="relative h-venue-dish-image w-full bg-muted">
-                  <RemoteImage
-                    src={dish.photo?.uri}
-                    alt={dish.name}
-                    sizes="(min-width: 1280px) 252px, 33vw"
-                  />
-                </div>
-                {/* Тело карточки: название с описанием сверху, цена прижата к
-                    низу (`justify-between`, узел 3525:14648), а не отодвинута
-                    произвольным отступом. */}
-                <div className="flex flex-1 flex-col justify-between gap-4 px-venue-dish-x py-venue-dish-y">
-                  <div className="flex flex-col gap-1.5">
-                    <p className="break-words text-[15px] font-semibold leading-[22px] text-ink">
-                      {dish.name}
-                    </p>
-                    {dish.description ? (
-                      <p className="line-clamp-2 break-words text-[13px] leading-[18px] text-ink-tertiary">
-                        {dish.description}
-                      </p>
-                    ) : null}
+          {venue.menuHighlights.slice(0, 6).map((dish) => {
+            const canAdd = canPreorder && dish.priceMinor !== null;
+            const quantity = preorder.quantityOf(dish.id);
+            return (
+              <li key={dish.id}>
+                {/* Не `Card`: у той радиус 24 и тень карточки заведения
+                    (узел 3280:5482). Карточка блюда — свой узел 3263:95 с
+                    радиусом 16 и той же двойной тенью. */}
+                <div className="flex h-full flex-col overflow-hidden rounded-lg bg-canvas shadow-card">
+                  <div className="relative h-venue-dish-image w-full bg-muted">
+                    <RemoteImage
+                      src={dish.photo?.uri}
+                      alt={dish.name}
+                      sizes="(min-width: 1280px) 252px, 33vw"
+                    />
                   </div>
-                  <p className="text-[16px] font-bold leading-6 text-ink">
-                    {dish.price || t.web.venue.menu.noPrice}
-                  </p>
+                  {/* Тело карточки: название с описанием сверху, цена и
+                      степпер прижаты к низу (`justify-between`, узел
+                      3525:14648), а не отодвинуты произвольным отступом. */}
+                  <div className="flex flex-1 flex-col justify-between gap-4 px-venue-dish-x py-venue-dish-y">
+                    <div className="flex flex-col gap-1.5">
+                      <p className="break-words text-[15px] font-semibold leading-[22px] text-ink">
+                        {dish.name}
+                      </p>
+                      {dish.description ? (
+                        <p className="line-clamp-2 break-words text-[13px] leading-[18px] text-ink-tertiary">
+                          {dish.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="break-words text-[16px] font-bold leading-6 text-ink">
+                        {dish.price || t.web.venue.menu.noPrice}
+                      </p>
+                      {canAdd && dish.priceMinor !== null ? (
+                        <DishStepper
+                          quantity={quantity}
+                          max={preorder.maxQty}
+                          dishName={dish.name}
+                          onAdd={() =>
+                            preorder.add({
+                              menuItemId: dish.id,
+                              name: dish.name,
+                              priceMinor: dish.priceMinor as number,
+                            })
+                          }
+                          onIncrement={() => preorder.increment(dish.id)}
+                          onDecrement={() => preorder.decrement(dish.id)}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -601,38 +637,68 @@ function MenuSection({ venue }: { venue: Restaurant }) {
  * 18, паддинг 20, фотография с вертикальным затемнением, заголовок 22/30 Bold
  * прижат к низу.
  *
- * ЧЕГО НЕТ В ДАННЫХ: бейдж «−25%» и вторая строка «Flour Demi · будни до
- * 18:00». `GET /restaurants/:id/promos` отдаёт заголовок и всё; поля скидки и
- * условий у сущности акции нет вовсе (`PromoBanner` в `@bookeat/api`).
- * Фотография у настоящей акции тоже отсутствует — тогда вместо снимка
- * фирменная заливка, и затемнение поверх неё не рисуется, чтобы белый текст
- * не темнел дважды.
+ * ПОЧИНЕНО 2026-09-06 (`venue-menu-stepper-promo-card`, задача B-WEB-1):
+ * `discount_percent`, `terms` и `cover_image_url` реально отдаются сервером
+ * (миграции 0032/0060/0066/0101) — их выбрасывал клиентский `mapPromoBanners`
+ * (`packages/api`), а не отсутствие данных на бэкенде. Бейдж и подзаголовок
+ * рисуются тем же правилом, что на главной (`home/Cards.tsx`) и на
+ * `/promos/[id]` (`PromoScreen.tsx`): бейдж только при `discountPercent > 0`,
+ * подзаголовок «{заведение} · {terms}», а без `terms` — «{заведение} ·
+ * до {дата}» (та же формула дат, что на `/promos/[id]`, `instantDateLabel` +
+ * `t.promotions.until`). Фотографии у настоящей акции тоже больше нет
+ * оснований прятать — заливка остаётся только когда `coverImageUrl: null`.
  */
 function PromoSection({ venue }: { venue: Restaurant }) {
   const t = useT();
+  const { locale } = useLocale();
   return (
     <section id={SECTION_ID.promos} className="flex scroll-mt-6 flex-col gap-5">
       <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.promos.title}</h2>
       <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {venue.promoBanners.map((promo) => (
-          <li
-            key={promo.id}
-            className={cx(
-              "relative flex min-h-venue-promo items-end overflow-hidden rounded-promo p-venue-promo-p",
-              promo.photo?.uri ? "bg-muted" : "bg-brand",
-            )}
-          >
-            {promo.photo?.uri ? (
-              <>
-                <RemoteImage src={promo.photo.uri} alt="" sizes="(min-width: 1280px) 384px, 50vw" />
-                <span aria-hidden="true" className="absolute inset-0 bg-promo-scrim" />
-              </>
-            ) : null}
-            <p className="relative break-words text-[22px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-brand">
-              {promo.title}
-            </p>
-          </li>
-        ))}
+        {venue.promoBanners.map((promo) => {
+          const untilDate = instantDateLabel(promo.endsAt, locale);
+          const subtitle = t.promotions.subtitle([
+            venue.name,
+            promo.terms.trim() || (untilDate ? t.promotions.until(untilDate) : ""),
+          ]);
+          return (
+            <li key={promo.id}>
+              <Link
+                href={promoHref(promo.id)}
+                className={cx(
+                  "relative flex min-h-venue-promo flex-col justify-end overflow-hidden rounded-promo p-venue-promo-p focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  promo.coverImageUrl ? "bg-muted" : "bg-brand",
+                )}
+              >
+                {promo.coverImageUrl ? (
+                  <>
+                    <RemoteImage
+                      src={promo.coverImageUrl}
+                      alt=""
+                      sizes="(min-width: 1280px) 384px, 50vw"
+                    />
+                    <span aria-hidden="true" className="absolute inset-0 bg-promo-scrim" />
+                  </>
+                ) : null}
+                {promo.discountPercent !== null && promo.discountPercent > 0 ? (
+                  <span className="absolute left-5 top-5 inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold leading-[18px] text-ink-on-brand">
+                    {t.web.format.discount(promo.discountPercent)}
+                  </span>
+                ) : null}
+                <div className="relative flex flex-col gap-1">
+                  <p className="break-words text-[22px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-brand">
+                    {promo.title}
+                  </p>
+                  {subtitle ? (
+                    <p className="truncate text-[14px] leading-5 text-on-brand-subtle" title={subtitle}>
+                      {subtitle}
+                    </p>
+                  ) : null}
+                </div>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

@@ -8,7 +8,16 @@ import { PhotoView } from "./PhotoView";
 const BANNER_WIDTH = 104;
 const BANNER_HEIGHT = 120;
 
-/** Promo banner strip under the Обзор/Фото tabs — Figma nodes 340:2574–340:2589. */
+/**
+ * Promo banner strip under the Обзор/Фото tabs — Figma nodes 340:2574–340:2589.
+ *
+ * DEAD CODE (2026-09-06, spec `venue-menu-stepper-promo-card`, B9): nothing
+ * imports this component — the promo feed on the mobile restaurant screen was
+ * removed by a 2026-08-17 decision and never came back. It should be deleted
+ * rather than kept in sync with `PromoBanner` by guesswork; this session only
+ * patched the field rename (`photo` → `coverImageUrl`) to keep `tsc` green
+ * because the sandbox's file-delete permission was denied. Delete on review.
+ */
 export function PromoBannerStrip({ banners }: { banners: PromoBanner[] }) {
   if (banners.length === 0) return null;
 
@@ -23,7 +32,7 @@ export function PromoBannerStrip({ banners }: { banners: PromoBanner[] }) {
                 картинка декоративна; без картинки — плитка фирменного цвета,
                 без прибора, чтобы не спорить с подписью. */}
             <PhotoView
-              uri={banner.photo?.uri}
+              uri={banner.coverImageUrl ?? undefined}
               style={styles.image}
               size="tile"
               decorative

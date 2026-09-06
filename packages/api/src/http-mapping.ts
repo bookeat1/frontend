@@ -189,8 +189,15 @@ export interface ApiMenuItem {
   display_order: number | null;
 }
 
-/** promoResponse — GET /restaurants/:id/promos, wrapped in a Page. Note there
- * is NO image field on a promo anywhere in the backend. */
+/**
+ * promoResponse — GET /restaurants/:id/promos, wrapped in a Page.
+ *
+ * `terms`, `cover_image_url`, `discount_percent` are `omitempty` (same shape
+ * as `ApiPromoListItem` below, the single promo's own page) — they are real
+ * fields the backend fills in from 0032/0060/0066/0101, not a gap in this
+ * endpoint. An earlier version of this interface didn't declare them at all,
+ * and `mapPromoBanners` threw the data away even though the wire had it.
+ */
 export interface ApiPromo {
   id: string;
   restaurant_id: string;
@@ -199,6 +206,9 @@ export interface ApiPromo {
   starts_at: string;
   ends_at: string;
   status: string;
+  terms?: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
 }
 
 /** summaryResponse — GET /restaurants/:id/reviews/summary. */
@@ -532,9 +542,23 @@ export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined): Menu
   });
 }
 
-/** Promos carry no image server-side, so the banner is caption-only. */
+/**
+ * Fixed 2026-09-06: this used to drop `terms`, `discount_percent` and
+ * `cover_image_url` even though the backend sends them — see the comment on
+ * `ApiPromo` and on `PromoBanner`. Same nullable/empty-string conventions as
+ * `mapHomePromos`/`mapPromo`: a missing discount is `null` (never `0`, which
+ * would read as "no discount" via a different, wrong signal), a missing
+ * cover is `null`, a missing `terms` is `""`.
+ */
 export function mapPromoBanners(promos: ApiPromo[] | null | undefined): PromoBanner[] {
-  return (promos ?? []).map((promo) => ({ id: promo.id, title: text(promo.title) }));
+  return (promos ?? []).map((promo) => ({
+    id: promo.id,
+    title: text(promo.title),
+    coverImageUrl: text(promo.cover_image_url).trim() || null,
+    discountPercent: typeof promo.discount_percent === "number" ? promo.discount_percent : null,
+    terms: text(promo.terms),
+    endsAt: text(promo.ends_at),
+  }));
 }
 
 /* ------------------------------------------------------------------------ *

@@ -12,6 +12,7 @@ import type {
   GuideCollectionDetail,
   GuideCollectionVenue,
   PlatformPage,
+  Preorder,
   Promo,
   Restaurant,
   RestaurantRepository,
@@ -140,6 +141,28 @@ export function booking(overrides: Partial<Booking> = {}): Booking {
   };
 }
 
+/** Предзаказ брони (`GET/PUT /bookings/:id/preorder`) — сумма ВСЕГДА
+ * серверная (`totalMinor`), даже в фикстуре она не выводится из строк. */
+export function preorder(overrides: Partial<Preorder> = {}): Preorder {
+  return {
+    bookingId: "booking-1",
+    items: [
+      {
+        id: "item-1",
+        menuItemId: "dish-1",
+        name: "Стейк рибай",
+        priceMinor: 899000,
+        quantity: 2,
+        totalMinor: 1798000,
+        comment: null,
+      },
+    ],
+    totalMinor: 1798000,
+    currency: "KZT",
+    ...overrides,
+  };
+}
+
 /**
  * Репозиторий целиком из `vi.fn()`. Экран может дёрнуть любой метод — тест
  * подменяет только те, которые ему интересны, а остальные не падают с
@@ -184,6 +207,10 @@ export function repositoryStub(
     // Страница гостя: список броней и отмена.
     listMyBookings: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 50 })),
     cancelBooking: vi.fn(async () => booking({ status: "cancelled" })),
+    // Предзаказ: `setPreorder` — второй запрос после создания брони,
+    // `getPreorder` — блок «Предзаказ» на `/bookings/[id]`.
+    setPreorder: vi.fn(async () => preorder()),
+    getPreorder: vi.fn(async () => preorder({ items: [], totalMinor: 0 })),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
 }

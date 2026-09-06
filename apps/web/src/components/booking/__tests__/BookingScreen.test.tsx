@@ -411,6 +411,100 @@ describe("страница бронирования — перенос (?change=
   });
 });
 
+describe("блок «Предзаказ» в сводке (A8-A12)", () => {
+  const DRAFT_KEY = "bookeat.web.preorder-draft.venue-1";
+
+  function setDraft(lines: Array<{ menuItemId: string; name: string; priceMinor: number; quantity: number }>) {
+    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ lines }));
+  }
+
+  it("пустой черновик — подсказка без кнопок (A8)", async () => {
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    expect(
+      await screen.findByText("Выберите блюда заранее — стол накроют к вашему приходу."),
+    ).toBeTruthy();
+  });
+
+  it("непустой черновик — строка, степпер, «Итого ≈» (A8)", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 2 }]);
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    expect(await screen.findByText("Стейк рибай")).toBeTruthy();
+    expect(screen.getByText("Итого ≈ 17 980 ₸")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Уменьшить количество" }).length).toBe(1);
+  });
+
+  it("POST без items, затем PUT только с menuItemId/quantity — без цены и имени (A9)", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 2 }]);
+    signIn();
+    repository.setPreorder = vi.fn(async () => ({
+      bookingId: "booking-1",
+      items: [],
+      totalMinor: 0,
+      currency: "KZT",
+    }));
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(repository.setPreorder).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(repository.createBooking).mock.calls[0][0]).not.toHaveProperty("items");
+    expect(vi.mocked(repository.setPreorder).mock.calls[0]).toEqual([
+      "booking-1",
+      [{ menuItemId: "dish-1", quantity: 2 }],
+    ]);
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bookings/booking-1"));
+    // A11: успех — черновик заведения очищен.
+    expect(window.sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+  });
+
+  it("отказ PUT на 5xx — один повтор, затем бронь всё равно считается успешной (A10)", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 1 }]);
+    signIn();
+    repository.setPreorder = vi.fn(async () => {
+      throw new RepositoryError("server error", undefined, 500);
+    });
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(repository.setPreorder).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bookings/booking-1"));
+    // A11: черновик очищен и при preorderFailed.
+    expect(window.sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem("bookeat.web.preorder-failed.booking-1")).toBe("1");
+  });
+
+  it("отказ PUT на 4xx — без повтора (A10)", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 1 }]);
+    signIn();
+    repository.setPreorder = vi.fn(async () => {
+      throw new RepositoryError("stop-list", undefined, 422);
+    });
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bookings/booking-1"));
+    expect(repository.setPreorder).toHaveBeenCalledTimes(1);
+  });
+
+  it("пустой черновик — PUT не уходит вовсе", async () => {
+    signIn();
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
+    expect(repository.setPreorder).not.toHaveBeenCalled();
+  });
+});
+
 describe("composeNotes", () => {
   it("чипы через запятую, свободный текст после точки, пусто — пусто", () => {
     expect(composeNotes(["Столик у окна", "Детский стул"], "  Отмечаем юбилей ")).toBe(
