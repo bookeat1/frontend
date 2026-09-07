@@ -1,0 +1,83 @@
+# ---------------------------------------------------------------------------
+# Reference copy of the site block for book-eat.com on the PRODUCTION host
+# (213.155.20.76). The Caddyfile itself lives in the BACKEND repository
+# (bookeat1/backend, deploy/Caddyfile) and on the host at
+# /opt/bookeat/deploy/Caddyfile — this snippet must be merged there, next to
+# the existing `{$SITE_ADDRESS}` (backend.book-eat.com) and
+# `{$ADMIN_SITE_ADDRESS:admin.book-eat.com}` blocks. It is kept here so the
+# frontend release is reproducible from this repository alone.
+#
+# NOT applied automatically by deploy-web-prod.yml: adding a public hostname
+# to the production proxy is the go-live step and is done by hand, once, with
+# Damir's explicit go-ahead (see deploy/web-prod/README.md, "Cutover").
+#
+# Editing the live file: `sed -i` on the bind-mounted Caddyfile creates a new
+# inode that the container never sees (2026-08-24 incident). Write through the
+# existing inode instead:  edit a copy, then  `cat copy > /opt/bookeat/deploy/Caddyfile`,
+# then  `docker exec deploy-caddy-1 caddy validate --config /etc/caddy/Caddyfile`
+# and   `docker exec deploy-caddy-1 caddy reload --config /etc/caddy/Caddyfile`.
+#
+# Shape, deliberately (ADR-046): ONE domain, several origins chosen by named
+# matchers, desktop Next as the fall-through. The mobile origin is added later
+# by inserting one matcher + one `handle` — nothing below moves. `handle`
+# blocks are mutually exclusive and evaluated in the order written.
+# ---------------------------------------------------------------------------
+
+# Two site addresses; `www` only redirects. WEB_SITE_ADDRESS is an optional
+# override in /opt/bookeat/deploy/.env (unset = book-eat.com).
+{$WEB_SITE_ADDRESS:book-eat.com} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	# Same posture as the other production sites; CSP is intentionally not
+	# set here — the site inlines Next's bootstrap scripts, and a CSP belongs
+	# in next.config headers() where the nonce can be produced.
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+
+	# 1. Crawlers' files ALWAYS come from the desktop app, whatever answers
+	#    the rest of the domain (ADR-046: robots/sitemap live in Next).
+	@crawler_files path /robots.txt /sitemap.xml
+	handle @crawler_files {
+		reverse_proxy web-prod:3100
+	}
+
+	# 2. RESERVED — mobile web (Expo web export of apps/mobile), ADR-046.
+	#    Not built yet. When its container exists on deploy_default, uncomment
+	#    and point at it; robots must NOT match (they stay on Next above).
+	#
+	# @mobile {
+	# 	not header_regexp ua_bot User-Agent (?i)(bot|crawl|spider|slurp|facebookexternalhit|preview|lighthouse)
+	# 	not header Cookie *bookeat_view=desktop*
+	# 	header_regexp ua_mobile User-Agent (?i)(android|iphone|ipod|mobile)
+	# }
+	# handle @mobile {
+	# 	header Vary User-Agent
+	# 	reverse_proxy web-mobile:3200
+	# }
+
+	# 3. Desktop guest site (apps/web, bookeat1/frontend) — the fall-through.
+	#    Upstream is a container from a SEPARATE compose project ("webprod",
+	#    /opt/bookeat/web/docker-compose.yml) that joins this stack's network.
+	#    If it is down only this domain answers 502; the API and the panel on
+	#    the sibling hostnames are unaffected.
+	handle {
+		reverse_proxy web-prod:3100 {
+			health_uri /
+			health_interval 15s
+			health_timeout 3s
+		}
+	}
+}
+
+www.{$WEB_SITE_ADDRESS:book-eat.com} {
+	redir https://{$WEB_SITE_ADDRESS:book-eat.com}{uri} permanent
+}

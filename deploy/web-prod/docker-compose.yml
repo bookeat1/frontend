@@ -1,0 +1,96 @@
+# Desktop guest site (apps/web) in PRODUCTION — one Node container that runs
+# the Next.js standalone server behind the EXISTING Caddy of the backend stack
+# on 213.155.20.76 (the host that already serves backend.book-eat.com and
+# admin.book-eat.com).
+#
+# Deliberately a separate compose project ("webprod"), not a service added to
+# /opt/bookeat/deploy/docker-compose.yml: `docker compose up` on this file can
+# never restart, recreate or otherwise disturb the backend stack (app, worker,
+# postgres, caddy). It only joins their network so Caddy can resolve it by name.
+#
+# Same shape as deploy/web-test/docker-compose.yml on purpose — what was proven
+# on the stand is what runs here. Differences: root path (no basePath), the
+# /opt/bookeat/web tree, a bigger memory ceiling, and a request-level log cap
+# that matches the other production containers.
+#
+# Usage on the server:
+#   docker compose -f /opt/bookeat/web/docker-compose.yml up -d
+#   docker compose -f /opt/bookeat/web/docker-compose.yml logs -f
+#   docker compose -f /opt/bookeat/web/docker-compose.yml down   # only the site goes away
+
+name: webprod
+
+services:
+  web-prod:
+    # Pinned to a patch version on purpose: "node:22-alpine" would silently
+    # change the runtime under a release that was verified against another one.
+    # Keep in step with deploy/web-test/docker-compose.yml.
+    image: node:22.21.1-alpine
+    container_name: webprod-web-prod-1
+    restart: unless-stopped
+
+    # /srv/web/current is a RELATIVE symlink to releases/<name>. Docker resolves
+    # working_dir inside the container at start, so the symlink is followed
+    # there — the host path never leaks into the container.
+    working_dir: /srv/web/current/apps/web
+    command: ["node", "server.js"]
+
+    environment:
+      NODE_ENV: production
+      # Internal to the compose network; nothing is published on the host, so
+      # the site is reachable only through Caddy. Same port as on the stand —
+      # different host, different network namespace, no collision.
+      PORT: "3100"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    volumes:
+      # Read-only: releases are written over SSH by the deploy pipeline as the
+      # `ubuntu` user on the host, never by this container.
+      - /opt/bookeat/web:/srv/web:ro
+
+    # Next writes its ISR cache (sitemap.xml revalidates hourly) and fetch
+    # cache under .next/cache. The release tree is read-only, so give it
+    # throwaway memory instead of a writable release.
+    tmpfs:
+      - /srv/web/current/apps/web/.next/cache:size=64m
+      - /tmp:size=16m
+
+    healthcheck:
+      # No basePath in production: "/" is the real home page. busybox wget
+      # ships in the node:alpine image; a non-2xx answer is a non-zero exit.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3100/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+    # The production box has 15 GB and 8 cores shared with Postgres, two Go
+    # services, Caddy and Alloy. A Next server for a read-mostly site sits well
+    # under this; the ceiling is here so a leak degrades the site, not the
+    # bookings API next to it.
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "2.0"
+
+    # Least privilege: the process only reads its own release and speaks HTTP.
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      - backend
+
+networks:
+  backend:
+    # Created by /opt/bookeat/deploy/docker-compose.yml (project "deploy").
+    # `external: true` means this file will never create or delete it.
+    name: deploy_default
+    external: true

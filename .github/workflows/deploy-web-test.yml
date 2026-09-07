@@ -44,6 +44,10 @@ env:
   # Read at BUILD time by next.config.mjs and baked into every asset URL; it
   # cannot be injected when the container starts.
   NEXT_PUBLIC_BASE_PATH: /web-preview
+  # Absolute address of THIS deployment, for sitemap.xml/robots.txt/metadataBase
+  # (apps/web/src/lib/site.ts). NEXT_PUBLIC_ROBOTS_INDEX is deliberately not
+  # set: the preview ships "Disallow: /" and must never be indexed.
+  NEXT_PUBLIC_SITE_URL: https://test.backend.book-eat.com/web-preview
   PUBLIC_URL: https://test.backend.book-eat.com
   WEB_ROOT: /opt/bookeat/web-preview
 

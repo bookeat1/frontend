@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import type { ReactNode } from "react";
 
 import { t } from "@web/lib/i18n";
+import { siteUrl } from "@web/lib/site";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -48,6 +49,9 @@ const playfairDisplay = localFont({
 });
 
 export const metadata: Metadata = {
+  // Без metadataBase относительные canonical/OG-ссылки на страницах
+  // резолвятся в localhost. Значение — из NEXT_PUBLIC_SITE_URL (lib/site.ts).
+  metadataBase: new URL(siteUrl),
   title: t.web.header.brand,
   description: t.web.footer.tagline,
 };
