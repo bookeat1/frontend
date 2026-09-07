@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Container } from "@web/components/layout/Container";
 import { BrandLogo } from "@web/components/layout/BrandLogo";
 import { ExternalLink } from "@web/components/layout/ExternalLink";
+import { PROMOS_PATH, SHOW_PROMOS_LINK } from "@web/components/home/Cards";
 import { Button } from "@web/components/ui/Button";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
@@ -29,7 +30,7 @@ import { BUSINESS_URL } from "@web/lib/site-links";
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
  * и заранее посчитанная подпись осталась бы на прежнем языке.
  */
-export type NavKey = "home" | "venues" | "events" | "guide" | "articles";
+export type NavKey = "home" | "venues" | "events" | "guide" | "articles" | "promos";
 
 export interface NavItem {
   key: NavKey;
@@ -90,6 +91,14 @@ export const HEADER_NAV: readonly NavItem[] = [
   { key: "guide", href: "/guide" },
   /** Пункт «Статьи» (узел I5034:9889;5034:8724): роут `/articles` есть. */
   { key: "articles", href: "/articles" },
+  /**
+   * Пункт «Акции» — за `SHOW_PROMOS_LINK` (`components/home/Cards.tsx`): у
+   * `/promos` есть только страница одной акции (`/promos/[id]`, T1b), а
+   * листинга нет, и пункт вёл бы в 404 Next, как раньше «Афиша»/«Статьи» до
+   * своих роутов (см. комментарий выше). Появится страница-листинг —
+   * достаточно включить флаг, разметку и словарь трогать не придётся.
+   */
+  ...(SHOW_PROMOS_LINK ? [{ key: "promos" as const, href: PROMOS_PATH }] : []),
 ];
 
 export function SiteHeader({
