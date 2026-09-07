@@ -337,11 +337,6 @@ function FiltersForm({
           checked={state.openNow}
           onChange={() => patch({ openNow: !state.openNow })}
         />
-        <CheckboxRow
-          label={t.web.catalog.filters.onlineBookable}
-          checked={state.onlineOnly}
-          onChange={() => patch({ onlineOnly: !state.onlineOnly })}
-        />
       </fieldset>
     </div>
   );

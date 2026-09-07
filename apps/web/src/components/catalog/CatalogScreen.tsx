@@ -232,14 +232,6 @@ export function CatalogScreen() {
                     />
                   </li>
                 ) : null}
-                {state.onlineOnly ? (
-                  <li>
-                    <ActiveChip
-                      label={t.web.catalog.filters.onlineBookable}
-                      onClear={() => update({ ...state, onlineOnly: false, page: 1 })}
-                    />
-                  </li>
-                ) : null}
                 <li>
                   <button
                     type="button"

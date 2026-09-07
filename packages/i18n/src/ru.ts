@@ -3644,7 +3644,6 @@ export const ru = {
         features: "Особенности",
         extra: "Ещё",
         openNow: "Открыто сейчас",
-        onlineBookable: "Можно забронировать онлайн",
         showAll: (count: number) => `Показать все ${count}`,
         collapse: "Свернуть",
         empty: "Справочник пуст",
