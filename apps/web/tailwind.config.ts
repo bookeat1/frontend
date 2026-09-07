@@ -325,6 +325,8 @@ const config: Config = {
         "photo-action": webVenuePage.galleryButton.background,
         /** Точка «ждём подтверждения» в ярлыке брони профиля (узел 3525:15248). */
         "warning-dot": webProfile.bookingCard.statusPill.dot.warning,
+        /** Заливка включённого переключателя в «Настройках» (узел 5115:9023). */
+        "toggle-on": webProfile.settings.toggle.onColor,
       },
       fontSize,
       borderRadius: {
@@ -502,6 +504,10 @@ const config: Config = {
         "fav-body-x": px(webProfile.favorites.card.paddingX),
         "fav-body-b": px(webProfile.favorites.card.paddingBottom),
         "fav-body-gap": px(webProfile.favorites.card.gap),
+        "settings-card": px(webProfile.settings.cardGap),
+        "settings-row": px(webProfile.settings.card.headingGap),
+        "settings-col": px(webProfile.settings.personalData.columnGap),
+        "settings-toggle-row": px(webProfile.settings.notifications.rowGap),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),

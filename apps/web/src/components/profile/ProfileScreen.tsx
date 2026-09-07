@@ -16,6 +16,7 @@ import { ProfileCard, type ProfileStat } from "@web/components/profile/ProfileCa
 import { ProfileSkeleton } from "@web/components/profile/ProfileFallback";
 import { ProfileNav, SECTION_PARAM, parseSection, type ProfileSection } from "@web/components/profile/ProfileNav";
 import { ProfileSegmented, segmentTabId } from "@web/components/profile/ProfileSegmented";
+import { ProfileSettings } from "@web/components/profile/ProfileSettings";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { useAuth } from "@web/lib/auth";
 import { useFavoriteControl } from "@web/lib/favorites";
@@ -141,7 +142,7 @@ export function ProfileScreen() {
             ) : section === "favorites" ? (
               <FavoritesSection />
             ) : (
-              <SectionFrame title={texts.settings.title} />
+              <ProfileSettings />
             )}
           </div>
         </div>
@@ -467,17 +468,6 @@ function FavoritesSection() {
           </ul>
         )}
       </AsyncBlock>
-    </section>
-  );
-}
-
-/** Раздел «Настройки» — своя задача; здесь только заголовок и место под
- * содержимое той же геометрии. */
-function SectionFrame({ title }: { title: string }) {
-  return (
-    <section className="flex flex-col gap-profile-section-gap">
-      <h2 className="text-profile-title tracking-[-0.5px] text-ink">{title}</h2>
-      <Skeleton className="h-fav-image w-full rounded-pbook" />
     </section>
   );
 }

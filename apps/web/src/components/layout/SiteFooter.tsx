@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Container } from "@web/components/layout/Container";
 import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { cx } from "@web/lib/cx";
-import { useT, type WebLocale } from "@web/lib/locale";
+import { useT, WEB_LOCALE_LABELS, type WebLocale } from "@web/lib/locale";
 import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/lib/site-links";
 
 /**
@@ -62,11 +62,9 @@ const FOOTER_KEY_TO_PAGE_SLUG = {
 } as const;
 
 const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
-  // Собственное имя языка не переводится: «Қазақша» читается одинаково в
-  // любой локали. Поэтому подписи стоят здесь, а не в словаре.
-  { code: "kk", label: "Қазақша" },
-  { code: "ru", label: "Русский" },
-  { code: "en", label: "English" },
+  { code: "kk", label: WEB_LOCALE_LABELS.kk },
+  { code: "ru", label: WEB_LOCALE_LABELS.ru },
+  { code: "en", label: WEB_LOCALE_LABELS.en },
 ];
 
 export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFooterProps) {
