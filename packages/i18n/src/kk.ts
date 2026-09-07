@@ -2402,8 +2402,6 @@ export const kk: LocaleOverride<Dictionary> = {
       close: "Жабу",
       loading: "Жүктеп жатырмыз…",
       favoriteToggle: "Таңдаулы",
-      slotsLabel: "Бос уақыт",
-      noSlots: "Бос уақыт жоқ",
     },
     states: {
       loading: "Жүктеп жатырмыз…",
@@ -2589,8 +2587,6 @@ export const kk: LocaleOverride<Dictionary> = {
       card: {
         today: "Бүгін",
         allSlots: "Барлық уақыт",
-        open: "Қазір ашық",
-        bookable: "Онлайн брон",
       },
     },
     articles: {

@@ -346,8 +346,6 @@ const config: Config = {
         /** Широкая карточка выдачи скруглена на 18 — не как карточка кита (24)
          * и не как карточка блюда (16). Узел 3525:14495. */
         "wide-card": px(webCatalog.wideCard.radius),
-        /** Пилюля нижнего ряда широкой карточки — 10 (узел I3525:14495;3367:11047). */
-        "wide-card-pill": px(webCatalog.wideCard.pill.radius),
         /** Слот в сетке карточки брони — 10, а не 12 как у слота кита.
          * Узел 3525:14751. */
         "slot-grid": px(webBookingCard.slots.radius),
@@ -430,8 +428,6 @@ const config: Config = {
         "venue-tabs-label-gap": px(webVenuePage.tabs.labelGap),
         "section-y": px(webLayout.sectionPaddingY),
         "wide-card-x": px(webCatalog.wideCard.bodyPaddingX),
-        "wide-card-pill-x": px(webCatalog.wideCard.pill.paddingX),
-        "wide-card-pill-y": px(webCatalog.wideCard.pill.paddingY),
         "wide-card-y": px(webCatalog.wideCard.bodyPaddingY),
         "sort-select-l": px(webCatalog.sortSelect.paddingLeft),
         "sort-select-r": px(webCatalog.sortSelect.paddingRight),
@@ -561,7 +557,6 @@ const config: Config = {
         "guide-walk": px(webGuidePage.walk.height),
         "guide-walk-m": px(webGuidePage.walk.mobileHeight),
         "sort-select": px(webCatalog.sortSelect.height),
-        "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
         "slot-grid": px(webBookingCard.slots.height),
         "booking-field-icon": px(webBookingCard.field.iconSize),

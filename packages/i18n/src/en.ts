@@ -2395,8 +2395,6 @@ export const en: LocaleOverride<Dictionary> = {
       close: "Close",
       loading: "Loading…",
       favoriteToggle: "Favourite",
-      slotsLabel: "Available times",
-      noSlots: "No times available",
     },
     states: {
       loading: "Loading…",
@@ -2583,8 +2581,6 @@ export const en: LocaleOverride<Dictionary> = {
       card: {
         today: "Today",
         allSlots: "All slots",
-        open: "Open now",
-        bookable: "Online booking",
       },
     },
     articles: {

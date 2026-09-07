@@ -16,20 +16,17 @@ import { useT } from "@web/lib/locale";
  * тот же компонент, 282 шириной).
  *
  * Размеры оттуда же: фото 190 высотой, тело с паддингом 16 и просветом 16,
- * название 18/24 SemiBold, подпись 14/20 Regular #595959, слоты-подсказки
- * 32 высотой с радиусом 10 (первый — фирменный #FBEFF0/#96272C, остальные
- * серые #F8F8F8). Ширина карточки в макете 282, но она НЕ зашита: карточка
- * тянется на ширину ячейки сетки, иначе колонки на 1024 и 1280 разъедутся.
+ * название 18/24 SemiBold, подпись 14/20 Regular #595959. Ширина карточки в
+ * макете 282, но она НЕ зашита: карточка тянется на ширину ячейки сетки,
+ * иначе колонки на 1024 и 1280 разъедутся.
  *
  * Данные приходят пропсами. Своего запроса у карточки нет — сеть живёт в
  * `@bookeat/api`, и экран передаёт сюда уже разобранный ответ.
  *
- * `slots` РАЗЛИЧАЕТ два случая, которые легко перепутать:
- *   • `undefined` — свободное время не спрашивали (сайт не делает запрос
- *     доступности на каждую карточку выдачи), и блок не рисуется вовсе;
- *   • `[]` — спросили, и свободного времени нет; тогда это сказано словами.
- * Раньше оба случая выглядели как «Свободного времени нет», то есть карточка
- * утверждала про заведение то, чего никто не проверял.
+ * Слотов-подсказок свободного времени карточка больше не рисует: решение
+ * владельца от 07.09.2026 убрало онлайн-бронь с карточек листинга (см.
+ * `VenueWideCard`) — сайт нигде не делает запрос доступности на каждую
+ * карточку, поэтому и предлагать выбрать время здесь было бы нечестно.
  */
 export interface VenueCardProps {
   name: string;
@@ -40,13 +37,10 @@ export interface VenueCardProps {
   tag?: string;
   /** Куда ведёт карточка. Есть — вся карточка становится ссылкой. */
   href?: string;
-  /** Подсказки свободного времени. См. комментарий выше о `undefined` и `[]`. */
-  slots?: readonly string[];
   favorite?: boolean;
   /** Запрос по этой карточке в полёте — кнопка заблокирована. */
   favoritePending?: boolean;
   onToggleFavorite?: () => void;
-  onSelectSlot?: (time: string) => void;
   /** Нижний слот тела — кнопка «Забронировать» в избранном профиля
    * (узел 3525:15403). Кнопка стоит ПОВЕРХ растянутой ссылки заголовка. */
   action?: ReactNode;
@@ -59,11 +53,9 @@ export function VenueCard({
   imageUrl,
   tag,
   href,
-  slots,
   favorite = false,
   favoritePending = false,
   onToggleFavorite,
-  onSelectSlot,
   action,
   className,
 }: VenueCardProps) {
@@ -120,7 +112,7 @@ export function VenueCard({
           <h3 className="break-words text-[18px] font-semibold leading-6 text-ink">
             {href ? (
               // Ссылкой становится ЗАГОЛОВОК, а не вся карточка: внутри
-              // карточки живут кнопки (избранное, слоты), а кнопка внутри
+              // карточки живёт кнопка избранного, а кнопка внутри
               // ссылки — невалидная разметка, которую браузеры и скринридеры
               // разбирают каждый по-своему. `after:absolute` растягивает
               // область нажатия ссылки на всю карточку, оставляя кнопки
@@ -138,31 +130,6 @@ export function VenueCard({
           <p className="break-words text-[14px] leading-5 text-ink-secondary">{meta}</p>
         </div>
 
-        {slots === undefined ? null : slots.length > 0 ? (
-          // Слоты делят строку поровну (`flex-1`, узел 3280:4392), а не
-          // переносятся: в макете это ряд из трёх равных долей.
-          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex gap-2">
-            {slots.map((time, index) => (
-              <li key={time} className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={() => onSelectSlot?.(time)}
-                  className={cx(
-                    "inline-flex h-8 w-full items-center justify-center rounded-slot px-3 text-[13px] font-semibold leading-[18px]",
-                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    // Первый слот в макете выделен фирменным тоном — это
-                    // ближайшее свободное время, а не «выбранное».
-                    index === 0 ? "bg-brand-subtle text-brand-text" : "bg-subtle text-ink",
-                  )}
-                >
-                  {time}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[13px] leading-[18px] text-ink-tertiary">{t.web.ui.noSlots}</p>
-        )}
         {action ? <div className="relative z-10 mt-auto">{action}</div> : null}
       </div>
     </Card>
