@@ -33,7 +33,9 @@ module.exports = {
       // Config-плагины Expo грузит обычным require() из Node ещё до всякой
       // транспиляции, поэтому они обязаны быть CommonJS. Это не поблажка
       // общему правилу, а другая среда исполнения — здесь нет модулей ESM.
-      files: ["plugins/**/*.js"],
+      // scripts/ — по той же причине: хук eas-build-pre-install выполняется
+      // на сборщике EAS до установки зависимостей, голым Node.
+      files: ["plugins/**/*.js", "scripts/**/*.js"],
       env: { node: true, es2021: true },
       rules: {
         "@typescript-eslint/no-var-requires": "off",

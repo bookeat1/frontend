@@ -22,3 +22,7 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run lint
       - run: pnpm run test
+      # eas.json build profiles: a production-named profile must build the
+      # store app against the live backend and vice versa. The same rules run
+      # inside app.config.js on the EAS builder; a bad profile fails here first.
+      - run: pnpm run check:eas

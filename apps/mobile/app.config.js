@@ -16,6 +16,38 @@ const config = require("./app.json").expo;
 const MAIN = process.env.BOOKEAT_TARGET === "main";
 
 /**
+ * Страж профилей сборки (правила — scripts/eas-profiles.js). На сборщике EAS
+ * проверяем, что профиль из eas.json честный и что окружение сборки совпадает
+ * с файлом: имя `production*` ⇔ BOOKEAT_TARGET=main ⇔ боевой бэкенд, канал
+ * `production` только с явным EXPO_PUBLIC_API_URL. Нарушение — исключение,
+ * и сборка падает на чтении конфига, до prebuild и до бинаря.
+ *
+ * Почему здесь, а не в хуке `eas-build-pre-install`: хуки — это `scripts` в
+ * package.json, а они входят в отпечаток runtimeVersion (источник
+ * `packageJson:scripts` у @expo/fingerprint). Добавление хука сдвинуло бы
+ * рантайм ВСЕХ будущих сборок и оторвало OTA от уже выпущенных 105 / iOS 4
+ * (проверено 2026-09-07: отпечатки до/после такого хука различаются). В
+ * отпечаток попадает только ВЫЧИСЛЕННЫЙ конфиг, а не исходник этого файла,
+ * поэтому проверка тут на рантайм не влияет.
+ *
+ * Локально не срабатывает: у `expo start` и `eas update` нет EAS_BUILD. Файл
+ * целиком проверяют `pnpm run check:eas` (шаг CI) и scripts/__tests__.
+ */
+if (process.env.EAS_BUILD === "true" || process.env.EAS_BUILD_PROFILE) {
+  const { checkBuilderEnv, checkEasJson } = require("./scripts/eas-profiles");
+  const easJson = require("./eas.json");
+  const violations = [...checkEasJson(easJson), ...checkBuilderEnv(easJson, process.env)];
+  if (violations.length > 0) {
+    throw new Error(
+      [
+        `eas.json: сборка остановлена стражем профилей (${violations.length}):`,
+        ...violations.map((v) => `  [${v.rule}] ${v.profile}: ${v.message}`),
+      ].join("\n"),
+    );
+  }
+}
+
+/**
  * ЕДИНСТВЕННОЕ место, где живёт маркетинговая версия. Она одна на оба
  * приложения: это один и тот же продукт, собранный из одного коммита, и
  * «1.5.1 у основного и 1.0.0 у беты» означало только то, что бету забыли
