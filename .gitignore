@@ -20,3 +20,4 @@ apps/mobile/credentials.json
 # ~/.bookeat/ios, а не в репозитории. Файлы на каждое из двух приложений
 # (бета и основное) попадают сюда по той же причине.
 apps/mobile/credentials.*.json
+.figma-refs/
