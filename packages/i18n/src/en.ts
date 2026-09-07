@@ -229,9 +229,15 @@ export const en: LocaleOverride<Dictionary> = {
     dishesError: "The menu didn't load",
     dishMissing: "See the venue's menu",
     dishOpen: (name: string) => `Open the "${name}" dish`,
+    dishPriceMeta: [{ note: "for the table" }, { note: "6 pcs", from: true }] as {
+      note: string;
+      from?: boolean;
+    }[],
+    pricePrefixFrom: "from",
     storyEyebrow: "BRAND STORY",
     storyTitleLead: "From a beach in South Africa",
     storyTitleTail: "to Almaty and Astana",
+    webStoryTitle: "From the ocean in South Africa to Almaty",
     chapters: [
       {
         label: "CHAPTER 1 · CAPE TOWN · SOUTH AFRICA",

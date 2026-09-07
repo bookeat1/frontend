@@ -231,9 +231,15 @@ export const kk: LocaleOverride<Dictionary> = {
     dishesError: "Мәзір жүктелмеді",
     dishMissing: "Мекеме мәзірінен қараңыз",
     dishOpen: (name: string) => `«${name}» тағамын ашу`,
+    dishPriceMeta: [{ note: "компанияға" }, { note: "6 дана", from: true }] as {
+      note: string;
+      from?: boolean;
+    }[],
+    pricePrefixFrom: "бастап",
     storyEyebrow: "БРЕНД ТАРИХЫ",
     storyTitleLead: "ОАР жағажайынан",
     storyTitleTail: "Алматы мен Астанаға дейін",
+    webStoryTitle: "ОАР мұхитынан Алматыға дейін",
     chapters: [
       {
         label: "1-ТАРАУ · КЕЙПТАУН · ОАР",
