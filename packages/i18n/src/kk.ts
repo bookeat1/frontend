@@ -2665,6 +2665,18 @@ export const kk: LocaleOverride<Dictionary> = {
         qtyLess: "Санын азайту",
         qtyMore: "Санын арттыру",
         preorderTotal: (amount: string) => `Барлығы ≈ ${amount}`,
+        viewAll: "Толық мәзір →",
+      },
+      menuPage: {
+        title: (name: string) => `${name} мәзірі`,
+        breadcrumb: "Мәзір",
+        searchLabel: "Мәзірден іздеу",
+        searchPlaceholder: "Мейрамхана, ас түрі немесе тағам",
+        allCategory: "Барлық тағамдар",
+        categoriesLabel: "Мәзір санаттары",
+        searchEmptyTitle: "Ештеңе табылмады",
+        searchEmptyDescription: "Басқа сөз көріңіз немесе іздеуді тазалаңыз",
+        footerNote: "Құрамы мен бағасын мекеме көрсетеді. Аллергендер туралы даяшыдан сұраңыз.",
       },
       promos: {
         title: "Орын акциялары",

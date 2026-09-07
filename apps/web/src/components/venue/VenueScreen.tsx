@@ -62,8 +62,9 @@ import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
  *   • вкладки «Обзор / Меню / Отзывы / Фото / Контакты» (узел 3263:2) — это
  *     навигация по разделам, которых пока нет; секции идут подряд одной
  *     страницей;
- *   • ссылки «Читать полностью» / «Смотреть все» справа от заголовков секций —
- *     вели бы на несуществующие страницы;
+ *   • ссылка «Смотреть все» у «Популярное в меню» ТЕПЕРЬ ЕСТЬ (2026-09-07,
+ *     узел 5115:7448 «Меню {заведение}», `VenueMenuScreen.tsx` /
+ *     `/venues/:id/menu`) — раньше вела бы в никуда, страница появилась;
  *   • «500 м от вас» в строке под названием — расстояния сервер не считает;
  *
  * ЧТО ПОЯВИЛОСЬ: ряд ярлыков-удобств под названием (узел 3261:57) — раньше
@@ -744,13 +745,23 @@ function MenuSection({
     <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.menu.title}</h2>
-        {/* Растёт сразу по клику «+» на карточке блюда ниже — общий
-            `preorder` с родителем, без второго вызова хука (см. VenueBody). */}
-        {canPreorder && preorder.totalMinor > 0 ? (
-          <p className="text-[15px] font-semibold leading-5 text-ink">
-            {t.web.venue.menu.preorderTotal(formatMoneyMinor(preorder.totalMinor))}
-          </p>
-        ) : null}
+        <div className="flex items-baseline gap-4">
+          {/* Растёт сразу по клику «+» на карточке блюда ниже — общий
+              `preorder` с родителем, без второго вызова хука (см. VenueBody). */}
+          {canPreorder && preorder.totalMinor > 0 ? (
+            <p className="text-[15px] font-semibold leading-5 text-ink">
+              {t.web.venue.menu.preorderTotal(formatMoneyMinor(preorder.totalMinor))}
+            </p>
+          ) : null}
+          {/* Полное меню — отдельная страница (узел 5115:7448), а не ещё шесть
+              карточек здесь: «Популярное в меню» остаётся коротким списком. */}
+          <Link
+            href={`/venues/${venue.id}/menu`}
+            className="text-[15px] font-semibold leading-5 text-brand-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            {t.web.venue.menu.viewAll}
+          </Link>
+        </div>
       </div>
       {venue.menuHighlights.length === 0 ? (
         <StateMessage text={t.web.venue.menu.empty} />
