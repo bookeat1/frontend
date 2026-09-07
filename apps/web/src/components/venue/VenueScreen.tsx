@@ -9,6 +9,7 @@ import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { BookingCard } from "@web/components/venue/BookingCard";
 import { BottomBar } from "@web/components/ui/BottomBar";
+import { Breadcrumb } from "@web/components/ui/Breadcrumb";
 import { Button } from "@web/components/ui/Button";
 import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { Modal } from "@web/components/ui/Modal";
@@ -64,13 +65,13 @@ import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
  *   • ссылки «Читать полностью» / «Смотреть все» справа от заголовков секций —
  *     вели бы на несуществующие страницы;
  *   • «500 м от вас» в строке под названием — расстояния сервер не считает;
- *   • город в хлебных крошках («Главная / Алматы / Рестораны / …») — города
- *     заведения в модели нет отдельным звеном навигации, а склонять названия
- *     в коде мы не будем.
  *
  * ЧТО ПОЯВИЛОСЬ: ряд ярлыков-удобств под названием (узел 3261:57) — раньше
  * считалось, что таких данных нет. Они есть: детальный ответ отдаёт
- * `features`, и теперь это `Restaurant.amenities`.
+ * `features`, и теперь это `Restaurant.amenities`. Аналогично — город в
+ * хлебных крошках (узел 3525:14563, «Главная / Алматы / Заведения / …»):
+ * раньше города заведения не было в модели отдельным полем, теперь есть
+ * `Restaurant.city`, ничего склонять в коде не нужно.
  */
 export function VenueScreen({ id }: { id: string }) {
   const t = useT();
@@ -83,21 +84,15 @@ export function VenueScreen({ id }: { id: string }) {
           и последний блок должен в неё не упираться — просвет из приложения
           (`DETAIL_FOOTER_CLEARANCE`). С `lg` — прежние 80 по макету. */}
       <Container className="pb-bottom-bar-clearance pt-6 lg:pb-20">
-        <nav aria-label={t.web.venue.breadcrumbLabel} className="text-[13px] leading-[18px] text-ink-tertiary">
-          <Link href="/" className="hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-            {t.web.venue.breadcrumbHome}
-          </Link>
-          <span aria-hidden="true"> / </span>
-          <Link href="/venues" className="hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-            {t.web.venue.breadcrumbVenues}
-          </Link>
-          {query.data ? (
-            <>
-              <span aria-hidden="true"> / </span>
-              <span className="text-ink-secondary">{query.data.name}</span>
-            </>
-          ) : null}
-        </nav>
+        <Breadcrumb
+          label={t.web.venue.breadcrumbLabel}
+          items={[
+            { label: t.web.venue.breadcrumbHome, href: "/" },
+            query.data ? { label: query.data.city } : null,
+            { label: t.web.venue.breadcrumbVenues, href: "/venues" },
+            query.data ? { label: query.data.name, current: true } : null,
+          ]}
+        />
 
         <div className="pt-4">
           {isNotFound(query.error) ? (
