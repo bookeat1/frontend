@@ -34,6 +34,24 @@ export function venueMeta(
   return parts.join(t.web.format.metaSeparator);
 }
 
+/**
+ * Строка под названием заведения на карточке гастрогида — «Кухня · ₸₸₸».
+ *
+ * Отдельная от `venueMeta`, потому что источник другой: подборка гастрогида
+ * (`GuideCollectionVenue`) отдаёт уже готовые строки `cuisineType`/
+ * `priceCategory`, а не список `Cuisine[]`/`priceLevel` каталога — зеркало
+ * `venueSubtitle` из `apps/mobile/src/lib/cuisine-display.ts`. Расстояния
+ * («500 м») здесь нет и не будет: ни геопозиции гостя, ни расстояния в ответе
+ * API нет, а придумывать его нельзя.
+ */
+export function guideVenueMeta(
+  cuisineType: string,
+  priceCategory: string,
+  t: Dictionary,
+): string {
+  return [cuisineType.trim(), priceCategory.trim()].filter(Boolean).join(t.web.format.metaSeparator);
+}
+
 /** Числовой диапазон среднего чека, если он есть; иначе символьная ступень. */
 export function priceLabel(
   level: PriceLevel | undefined,
