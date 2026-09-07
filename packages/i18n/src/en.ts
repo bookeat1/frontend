@@ -2354,6 +2354,7 @@ export const en: LocaleOverride<Dictionary> = {
         venues: "Restaurants",
         guide: "Gastro guide",
         articles: "Articles",
+        promos: "Deals",
       },
       cityLabel: "Choose a city",
       forBusiness: "For business",
