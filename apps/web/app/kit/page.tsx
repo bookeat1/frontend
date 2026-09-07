@@ -280,12 +280,9 @@ export default function KitPage() {
                 name={t.web.kit.samples.venueName}
                 meta={t.web.kit.samples.venueMeta}
                 tag={t.web.kit.samples.venueTag}
-                slots={["18:00", "18:30", "19:00"]}
                 favorite={favorite}
                 onToggleFavorite={() => setFavorite((value) => !value)}
               />
-              {/* Вторая карточка — без свободного времени: пустое состояние
-                  тоже часть набора, а не забытый случай. */}
               <VenueCard name={t.web.kit.samples.venueName} meta={t.web.kit.samples.venueMeta} />
             </div>
           </KitSection>
