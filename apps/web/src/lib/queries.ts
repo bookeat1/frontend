@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-query";
 import type {
   Amenity,
+  AuthUser,
   Booking,
   BookingPage,
   CreateBookingInput,
@@ -29,6 +30,7 @@ import type {
   PlatformPageSlug,
   Preorder,
   PreorderLineInput,
+  ProfileUpdate,
   Promo,
   Restaurant,
   RestaurantSummary,
@@ -37,7 +39,7 @@ import type {
 } from "@bookeat/api/client";
 import { RepositoryError } from "@bookeat/api/client";
 
-import { isApiConfigured, repository } from "@web/lib/api";
+import { authRepository, isApiConfigured, repository } from "@web/lib/api";
 import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
 import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
@@ -642,5 +644,21 @@ export function useCancelBooking() {
       void client.invalidateQueries({ queryKey: MY_BOOKINGS_KEY });
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
     },
+  });
+}
+
+/**
+ * «Настройки» → «Личные данные» (`PATCH /users/me`). Единственные поля,
+ * которые сервер реально принимает, — `fullName`/`city`/`birthDate`
+ * (`ProfileUpdate`, `packages/api/src/types.ts`); телефон и почта на этом
+ * экране только показываются — их меняют по-другому (код на телефон,
+ * мобильное приложение).
+ *
+ * Кэш не инвалидируется — вызывающая сторона сама кладёт свежего пользователя
+ * в `useAuth().applyUser`, это и есть источник правды для карточки гостя.
+ */
+export function useUpdateProfile() {
+  return useMutation<AuthUser, unknown, ProfileUpdate>({
+    mutationFn: (input) => authRepository.updateMe(input),
   });
 }

@@ -15,6 +15,17 @@ export type WebLocale = "ru" | "kk" | "en";
 
 export const WEB_LOCALES: readonly WebLocale[] = ["ru", "kk", "en"];
 
+/**
+ * Имя языка на самом языке — не переводится: «Қазақша» читается одинаково в
+ * любой локали. Один список на оба места, где выбирают язык (подвал сайта и
+ * «Настройки» → «Язык и город», узел 5115:9023), чтобы подписи не разошлись.
+ */
+export const WEB_LOCALE_LABELS: Readonly<Record<WebLocale, string>> = {
+  ru: "Русский",
+  kk: "Қазақша",
+  en: "English",
+};
+
 /** Ключ в localStorage. Выбор языка переживает перезагрузку страницы. */
 const STORAGE_KEY = "bookeat.web.locale";
 
