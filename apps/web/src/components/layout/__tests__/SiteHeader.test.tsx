@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
 
@@ -119,5 +119,41 @@ describe("SiteHeader", () => {
     expect(link.getAttribute("href")).toBe("https://book-eat.app/");
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  /**
+   * Дыра № 1 (`apps/web/docs/responsive.md`, § 5): ниже `lg` строки макета
+   * нет вовсе — есть бургер, который открывает панель со всеми пунктами.
+   * Панель смонтирована только пока открыта: закрытая шапка не должна
+   * держать вторую копию каждой ссылки в DOM.
+   */
+  it("бургер открывает панель со всеми пунктами меню, городом и входом", () => {
+    render(<SiteHeader city="Алматы" account={null} />);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    const trigger = screen.getByRole("button", { name: "Открыть меню" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const dialog = screen.getByRole("dialog", { name: "Меню" });
+    const dialogNav = within(dialog).getByRole("navigation", { name: "Основная навигация" });
+    expect(dialogNav.querySelectorAll("a")).toHaveLength(HEADER_NAV.length);
+    // Панель содержит город и кнопку входа, а не только пункты меню.
+    expect(within(dialog).getByText("Алматы")).toBeTruthy();
+    expect(within(dialog).getByRole("link", { name: /Войти/ })).toBeTruthy();
+  });
+
+  it("Esc закрывает панель мобильного меню", () => {
+    render(<SiteHeader />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть меню" }));
+    const dialog = screen.getByRole("dialog", { name: "Меню" });
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useId, useState } from "react";
 
 import { Container } from "@web/components/layout/Container";
 import { BrandLogo } from "@web/components/layout/BrandLogo";
 import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { Button } from "@web/components/ui/Button";
+import { Modal } from "@web/components/ui/Modal";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
 import { BUSINESS_URL } from "@web/lib/site-links";
@@ -24,6 +26,15 @@ import { BUSINESS_URL } from "@web/lib/site-links";
  *
  * Вошедшему гостю на месте «Войти» показывается имя и «Выйти»: этого состояния
  * в макете нет вовсе — там нарисован только гость без сессии.
+ *
+ * НИЖЕ `lg` строка из макета не рисуется вовсе (`apps/web/docs/responsive.md`,
+ * § 5, дыра № 1): в макете нет мобильной шапки, у сайта на 360 px нет ни
+ * бургера, ни своей структуры для узкого экрана — источник для НЕЁ не Figma
+ * WEB (там только кадр 1440), а обычный контракт «кнопка-меню открывает
+ * список» без привязки к конкретному кадру. Ниже `lg` видны только логотип и
+ * кнопка-бургер; пункты меню, город, «Для бизнеса» и вход/выход уезжают в
+ * панель поверх страницы — общий `Modal` (тот же примитив, что шторка
+ * фильтров каталога), а не новый оверлей.
  *
  * Подписи пунктов берутся из словаря ПО КЛЮЧУ, а не передаются строкой:
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
@@ -104,11 +115,172 @@ export function SiteHeader({
   className,
 }: SiteHeaderProps) {
   const t = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navId = useId();
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  const navList = (stacked: boolean) => (
+    <ul
+      className={
+        stacked
+          ? "flex flex-col gap-1"
+          : "flex flex-wrap items-center gap-5 lg:gap-header-nav-gap"
+      }
+    >
+      {items.map((item) => {
+        const active = item.key === activeKey;
+        return (
+          <li key={item.key}>
+            <Link
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              onClick={stacked ? closeMenu : undefined}
+              className={cx(
+                stacked
+                  ? "flex h-11 items-center rounded-sm text-[16px] leading-6"
+                  : "inline-flex flex-col items-center gap-2 text-[16px] leading-6",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                active ? "font-semibold text-brand" : "font-medium text-ink-tertiary hover:text-ink",
+              )}
+            >
+              {t.web.header.nav[item.key]}
+              {stacked ? null : (
+                // Подчёркивание рисуется всегда, но прозрачным: иначе
+                // активный пункт был бы на 12 px выше соседей и меню
+                // дёргалось бы при переходе. В стопке мобильного меню
+                // подчёркивание не нужно — там активный пункт и так один
+                // жирный текст в списке.
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    "h-nav-underline w-full rounded-nav-underline",
+                    active ? "bg-brand" : "bg-transparent",
+                  )}
+                />
+              )}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const cityControl = (stacked: boolean) =>
+    cities && cities.length > 0 ? (
+      // Обычный <select>, а не своя выпадашка: список городов короткий,
+      // а нативный элемент бесплатно даёт клавиатуру, поиск по первой
+      // букве и системный список на любом устройстве. Внешне это та же
+      // капсула из макета (узел 3549:5734).
+      <span
+        className={cx(
+          "relative inline-flex h-city-pill items-center gap-city-pill-gap rounded-full bg-subtle px-city-pill-x text-[14px] font-medium leading-5 text-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand",
+          stacked && "w-full",
+        )}
+      >
+        <PinIcon />
+        <select
+          aria-label={t.web.header.cityLabel}
+          value={city ?? cities[0]}
+          onChange={(event) => onCityChange?.(event.target.value)}
+          className="cursor-pointer appearance-none bg-transparent pr-1 text-[14px] font-medium leading-5 text-ink outline-none"
+        >
+          {cities.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </span>
+    ) : city ? (
+      <button
+        type="button"
+        onClick={() => {
+          onCityClick?.();
+          if (stacked) closeMenu();
+        }}
+        aria-label={t.web.header.cityLabel}
+        className={cx(
+          "inline-flex h-city-pill items-center gap-city-pill-gap rounded-full bg-subtle px-city-pill-x text-[14px] font-medium leading-5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          stacked && "w-full",
+        )}
+      >
+        <PinIcon />
+        {city}
+      </button>
+    ) : null;
+
+  const businessLink = (stacked: boolean) =>
+    SHOW_FOR_BUSINESS ? (
+      <ExternalLink
+        href={BUSINESS_URL}
+        label={t.web.header.forBusiness}
+        className={cx(
+          "px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+          stacked && "flex h-11 w-full items-center px-0",
+        )}
+      >
+        {t.web.header.forBusiness}
+      </ExternalLink>
+    ) : null;
+
+  const accountControl = (stacked: boolean) =>
+    account === undefined ? (
+      // Сессия ещё читается из localStorage. Место под кнопку держим,
+      // чтобы шапка не дёрнулась, когда состояние станет известно.
+      <span aria-hidden="true" className={cx("h-btn-header", stacked ? "w-full" : "w-[109px]")} />
+    ) : account ? (
+      <div className={stacked ? "flex flex-col gap-3" : "flex items-center gap-header-right-gap"}>
+        {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
+            В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
+            месте, где макет главной рисует «Войти». Текстом имя
+            показывается только с выключенным SHOW_PROFILE_LINK. */}
+        {SHOW_PROFILE_LINK ? (
+          <Link
+            href="/profile"
+            onClick={stacked ? closeMenu : undefined}
+            className="max-w-[180px] truncate rounded-sm text-[14px] font-medium leading-5 text-ink hover:text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            {account.name}
+          </Link>
+        ) : (
+          <span className="max-w-[180px] truncate text-[14px] font-medium leading-5 text-ink">
+            {account.name}
+          </span>
+        )}
+        <Button
+          size="header"
+          variant="secondary"
+          block={stacked}
+          onClick={() => {
+            onSignOut?.();
+            if (stacked) closeMenu();
+          }}
+        >
+          {t.web.header.signOut}
+        </Button>
+      </div>
+    ) : (
+      /* В макете кнопка ОДНА — «Войти» со значком гостя (узел 3549:6440).
+         Отдельной «Регистрации» рядом нет и у бэкенда её тоже нет:
+         `POST /auth/otp/verify` создаёт учётную запись, если номер новый,
+         то есть вход и регистрация — это буквально один экран. */
+      <Button
+        size="header"
+        variant="primary"
+        asLink
+        href="/login"
+        block={stacked}
+        onClick={stacked ? closeMenu : undefined}
+      >
+        <UserIcon />
+        {t.web.header.signIn}
+      </Button>
+    );
 
   return (
     <header className={cx("w-full border-b border-line-strong bg-canvas", className)}>
-      <Container className="flex min-h-header flex-wrap items-center justify-between gap-4 py-header-y">
-        <div className="flex flex-wrap items-center gap-6 lg:gap-header-brand-gap">
+      <Container className="flex min-h-header items-center justify-between gap-4 py-header-y">
+        <div className="flex items-center gap-6 lg:gap-header-brand-gap">
           <Link
             href="/"
             aria-label={t.web.header.brand}
@@ -116,119 +288,44 @@ export function SiteHeader({
           >
             <BrandLogo />
           </Link>
-          <nav aria-label={t.web.header.navLabel}>
-            <ul className="flex flex-wrap items-center gap-5 lg:gap-header-nav-gap">
-              {items.map((item) => {
-                const active = item.key === activeKey;
-                return (
-                  <li key={item.key}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cx(
-                        "inline-flex flex-col items-center gap-2 text-[16px] leading-6",
-                        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                        active ? "font-semibold text-brand" : "font-medium text-ink-tertiary hover:text-ink",
-                      )}
-                    >
-                      {t.web.header.nav[item.key]}
-                      {/* Подчёркивание рисуется всегда, но прозрачным: иначе
-                          активный пункт был бы на 12 px выше соседей и меню
-                          дёргалось бы при переходе. */}
-                      <span
-                        aria-hidden="true"
-                        className={cx(
-                          "h-nav-underline w-full rounded-nav-underline",
-                          active ? "bg-brand" : "bg-transparent",
-                        )}
-                      />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+          {/* Ниже `lg` пункты меню, город, «Для бизнеса» и вход уезжают в
+              панель по бургеру (дыра № 1, `apps/web/docs/responsive.md`,
+              § 5) — здесь остаётся только строка макета `lg:` и выше. */}
+          <nav aria-label={t.web.header.navLabel} className="hidden lg:block">
+            {navList(false)}
           </nav>
         </div>
 
-        <div className="flex flex-wrap items-center gap-header-right-gap">
-          {cities && cities.length > 0 ? (
-            // Обычный <select>, а не своя выпадашка: список городов короткий,
-            // а нативный элемент бесплатно даёт клавиатуру, поиск по первой
-            // букве и системный список на любом устройстве. Внешне это та же
-            // капсула из макета (узел 3549:5734).
-            <span className="relative inline-flex h-city-pill items-center gap-city-pill-gap rounded-full bg-subtle px-city-pill-x text-[14px] font-medium leading-5 text-ink focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand">
-              <PinIcon />
-              <select
-                aria-label={t.web.header.cityLabel}
-                value={city ?? cities[0]}
-                onChange={(event) => onCityChange?.(event.target.value)}
-                className="cursor-pointer appearance-none bg-transparent pr-1 text-[14px] font-medium leading-5 text-ink outline-none"
-              >
-                {cities.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </span>
-          ) : city ? (
-            <button
-              type="button"
-              onClick={onCityClick}
-              aria-label={t.web.header.cityLabel}
-              className="inline-flex h-city-pill items-center gap-city-pill-gap rounded-full bg-subtle px-city-pill-x text-[14px] font-medium leading-5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              <PinIcon />
-              {city}
-            </button>
-          ) : null}
-          {SHOW_FOR_BUSINESS ? (
-            <ExternalLink
-              href={BUSINESS_URL}
-              label={t.web.header.forBusiness}
-              className="px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              {t.web.header.forBusiness}
-            </ExternalLink>
-          ) : null}
-          {account === undefined ? (
-            // Сессия ещё читается из localStorage. Место под кнопку держим,
-            // чтобы шапка не дёрнулась, когда состояние станет известно.
-            <span aria-hidden="true" className="h-btn-header w-[109px]" />
-          ) : account ? (
-            <>
-              {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
-                  В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
-                  месте, где макет главной рисует «Войти». Текстом имя
-                  показывается только с выключенным SHOW_PROFILE_LINK. */}
-              {SHOW_PROFILE_LINK ? (
-                <Link
-                  href="/profile"
-                  className="max-w-[180px] truncate rounded-sm text-[14px] font-medium leading-5 text-ink hover:text-brand-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  {account.name}
-                </Link>
-              ) : (
-                <span className="max-w-[180px] truncate text-[14px] font-medium leading-5 text-ink">
-                  {account.name}
-                </span>
-              )}
-              <Button size="header" variant="secondary" onClick={onSignOut}>
-                {t.web.header.signOut}
-              </Button>
-            </>
-          ) : (
-            /* В макете кнопка ОДНА — «Войти» со значком гостя (узел 3549:6440).
-               Отдельной «Регистрации» рядом нет и у бэкенда её тоже нет:
-               `POST /auth/otp/verify` создаёт учётную запись, если номер новый,
-               то есть вход и регистрация — это буквально один экран. */
-            <Button size="header" variant="primary" asLink href="/login">
-              <UserIcon />
-              {t.web.header.signIn}
-            </Button>
-          )}
+        <div className="hidden items-center gap-header-right-gap lg:flex">
+          {cityControl(false)}
+          {businessLink(false)}
+          {accountControl(false)}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-expanded={menuOpen}
+          aria-controls={navId}
+          aria-label={t.web.header.openMenu}
+          className="flex h-11 w-11 items-center justify-center rounded-md text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:hidden"
+        >
+          <BurgerIcon />
+        </button>
       </Container>
+
+      {menuOpen ? (
+        <div id={navId}>
+          <Modal title={t.web.header.menuTitle} onClose={closeMenu} className="lg:hidden">
+            <nav aria-label={t.web.header.navLabel}>{navList(true)}</nav>
+            <div className="flex flex-col gap-3 border-t border-line-strong pt-5">
+              {cityControl(true)}
+              {businessLink(true)}
+              {accountControl(true)}
+            </div>
+          </Modal>
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -287,6 +384,19 @@ function UserIcon() {
         stroke="currentColor"
         strokeWidth="1.5"
       />
+    </svg>
+  );
+}
+
+/**
+ * Кнопка-бургер, открывающая мобильное меню ниже `lg`. В макете Figma её нет
+ * (там только кадр 1440, см. `apps/web/docs/responsive.md` § 1) — три полосы
+ * это общепринятый значок «меню», а не то, что можно снять с макета.
+ */
+function BurgerIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }

@@ -148,7 +148,11 @@ export function LoginScreen() {
       />
       <div aria-hidden="true" className="absolute inset-0 bg-scrim" />
 
-      <div className="relative w-full max-w-modal rounded-2xl bg-canvas p-8 shadow-modal">
+      {/* Паддинг ниже `lg` — 20, а не 32 (дыра № 11, `apps/web/docs/responsive.md`
+          § 5): та же арифметика, что у `ui/Modal.tsx` — на 360 обёртка
+          `px-4` уже съедает 32, и шесть ячеек OTP не помещались бы в
+          оставшиеся 264 px. */}
+      <div className="relative w-full max-w-none rounded-2xl bg-canvas p-5 shadow-modal lg:max-w-modal lg:p-8">
         {signedIn ? (
           <div className="flex flex-col gap-4">
             <h1 className="text-h3 text-ink">{t.web.auth.signedInTitle}</h1>
