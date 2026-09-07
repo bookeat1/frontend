@@ -54,6 +54,8 @@ import type {
   PreorderLineInput,
   ProfileUpdate,
   Promo,
+  PromoPage,
+  PromoQuery,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -312,6 +314,28 @@ export class MockRestaurantRepository implements RestaurantRepository {
     const promo = promoDetails().find((p) => p.id === id);
     if (!promo) throw new RepositoryError(`Promo ${id} not found`, undefined, 404);
     return promo;
+  }
+
+  /** The mock's own copy of `GET /promos` — the same fixtures as `getPromo`,
+   * filtered and paginated the way `listUpcomingEvents` mocks `GET /events`. */
+  async listActivePromos(query?: PromoQuery): Promise<PromoPage> {
+    await this.simulateNetwork();
+    const perPage = Math.min(100, Math.max(1, query?.perPage ?? 20));
+    const page = Math.max(1, query?.page ?? 1);
+
+    const all = promoDetails()
+      .filter((p) => (query?.city ? p.restaurant?.city === query.city || p.city === query.city : true))
+      .filter((p) => (query?.restaurantId ? p.restaurantId === query.restaurantId : true))
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+
+    const start = (page - 1) * perPage;
+    return {
+      items: all.slice(start, start + perPage),
+      total: all.length,
+      page,
+      pages: Math.ceil(all.length / perPage),
+      perPage,
+    };
   }
 
   /* --- gastroguide / «Статьи» --- */

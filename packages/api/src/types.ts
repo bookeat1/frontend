@@ -1076,6 +1076,34 @@ export interface Promo {
   city: string | null;
 }
 
+/** Query surface of `GET /promos` — mirrors `EventQuery`. No `from`/`to`: the
+ * cross-venue promo listing has no date-window filter on the wire, only
+ * `city`/`restaurant_id`/paging (`publicListFilter`,
+ * `internal/transport/rest/promos/handler.go`). */
+export interface PromoQuery {
+  /** City of the HOST restaurant (or the promo's own override), matched by
+   * equality on the city enum. */
+  city?: string;
+  /** UUID. A malformed value is a 422, not an empty list. */
+  restaurantId?: string;
+  page?: number;
+  /** Server default 20, hard cap 100. */
+  perPage?: number;
+}
+
+/** One page of the public cross-venue promo listing (`GET /promos`) — T (web
+ * «Все акции»), mirrors `EventPage`. Same item shape as `Promo` (T1b's own
+ * detail): the listing and the single-promo page share one wire type
+ * (`promoListItemResponse`). */
+export interface PromoPage {
+  items: Promo[];
+  total: number;
+  page: number;
+  /** 0 when there is nothing at all, same convention as EventPage. */
+  pages: number;
+  perPage: number;
+}
+
 /* ------------------------------------------------------------------------ *
  * Favorites — venues, events and promos in one list
  * ------------------------------------------------------------------------ */

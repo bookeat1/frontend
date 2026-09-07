@@ -2448,6 +2448,14 @@ export const kk: LocaleOverride<Dictionary> = {
       openVenuePage: "Мекеме бетін ашу",
       eventHours: (from: string, to: string) => `Іс-шара ${from}-ден ${to}-ге дейін`,
     },
+    promos: {
+      title: "Акциялар",
+      subtitle: "BookEat серіктес мекемелерінің жеңілдіктері мен арнайы ұсыныстары",
+      empty: "Әзірге акция жоқ. Кейінірек қараңыз — мекемелер жаңа ұсыныстарды үнемі қосады.",
+      showMore: "Тағы көрсету",
+      loadingMore: "Жүктеп жатырмыз…",
+      moreFailed: "Келесі акцияларды жүктеу мүмкін болмады.",
+    },
     format: {
       venues: (count: number) => `${count} орын`,
       guests: (count: number) => `${count} қонақ`,

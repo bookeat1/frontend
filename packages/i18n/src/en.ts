@@ -2442,6 +2442,14 @@ export const en: LocaleOverride<Dictionary> = {
       openVenuePage: "Open the venue page",
       eventHours: (from: string, to: string) => `Event from ${from} to ${to}`,
     },
+    promos: {
+      title: "Deals",
+      subtitle: "Discounts and special offers from BookEat partner venues",
+      empty: "No deals yet. Check back later — venues add new offers regularly.",
+      showMore: "Show more",
+      loadingMore: "Loading…",
+      moreFailed: "Could not load more deals.",
+    },
     format: {
       venues: (count: number) => `${count} ${count === 1 ? "venue" : "venues"}`,
       guests: (count: number) => `${count} ${count === 1 ? "guest" : "guests"}`,
