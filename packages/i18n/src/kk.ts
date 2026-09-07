@@ -159,6 +159,9 @@ export const kk: LocaleOverride<Dictionary> = {
     routeNotFoundTitle: "Маршрут табылмады",
     routeNotFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Гастрогидке оралып, басқасын таңдаңыз.",
+    routeSectionTitle: "Маршрут",
+    routeStopKind: { restaurant: "Мейрамхана", place: "Орын" },
+    routeStopBadge: (position: number, kindLabel: string) => `№${position} · ${kindLabel}`,
     openVenue: (name: string) => `«${name}» ашу`,
 
     /** Мақала мәтіні блогының тақырыбы. */
@@ -2906,6 +2909,7 @@ export const kk: LocaleOverride<Dictionary> = {
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */
     guide: {
       metaTitle: "BookEat — гастрогид",
+      backLink: "Гастрогид",
     },
     profile: {
       metaTitle: "BookEat — профиль",

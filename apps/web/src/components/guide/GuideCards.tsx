@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { GuideCollection, GuideRoute } from "@bookeat/api/client";
+import type { GuideCollection, GuideRoute, GuideRoutePoint } from "@bookeat/api/client";
 
+import { Container } from "@web/components/layout/Container";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Skeleton } from "@web/components/state/AsyncBlock";
 import { cx } from "@web/lib/cx";
@@ -21,11 +22,13 @@ import { useT } from "@web/lib/locale";
  *   • гастропрогулка (5040:10283): 588×354, поле 20/27, заголовок 26 +
  *     подпись 20.
  *
- * ССЫЛОК НА КАРТОЧКАХ НЕТ. Страниц рубрики, подборки и маршрута на сайте ещё
+ * ССЫЛКИ ЕСТЬ ТОЛЬКО У ГАСТРОПРОГУЛОК (`WalkCard`, `/routes/:slug` —
+ * `GuideRouteScreen.tsx`). У рубрики и подборки страниц на сайте по-прежнему
  * нет (`/guide/<slug>` — 404 Next), и вести гостя в никуда хуже, чем показать
  * карточку без ссылки — тот же приём, что у `GuideCard` на главной за флагом
- * `SHOW_SECTION_LINKS`. Каждая карточка принимает `href`, и когда роуты
- * появятся, заголовок станет растянутой ссылкой без переделки разметки.
+ * `SHOW_SECTION_LINKS`. Каждая карточка принимает `href`, и когда та или иная
+ * страница появится, заголовок станет растянутой ссылкой без переделки
+ * разметки — так уже случилось с гастропрогулкой.
  *
  * Ниже `lg` высоты — из мобильного экрана (`guideLayout`): 158 / 214 / 206.
  */
@@ -35,17 +38,70 @@ const HALF_SIZES = "(min-width: 1280px) 588px, (min-width: 768px) 50vw, 100vw";
 /** `sizes` для картинки на всю ширину контейнера. */
 const FULL_SIZES = "(min-width: 1280px) 1200px, 100vw";
 
+/**
+ * Шапка-«издание» гастрогида: фотография во всю ширину, тёмная плоская
+ * заливка 32 % поверх, текст (золотая рубрика, заголовок, подпись) прижат к
+ * низу. Ровно тот блок, что раньше жил только в `GuideScreen.tsx`
+ * (`GuideHero`, узел 5033:7100) — вынесен сюда, потому что страница одного
+ * маршрута (`/routes/:slug`) использует ТОТ ЖЕ визуальный приём, только с
+ * фотографией из ответа сервера вместо статичного ассета. Картинку рисует
+ * вызывающий (`photo`), а не сам компонент: у гастрогида это `next/image` по
+ * `assetUrl`, у маршрута — `RemoteImage` с `null`-фолбэком, и превращать это
+ * в третий проп-переключатель незачем.
+ */
+export function EditorialHero({
+  photo,
+  eyebrow,
+  headline,
+  subheadline,
+  headlineClassName,
+}: {
+  photo: ReactNode;
+  eyebrow: string;
+  headline: string;
+  subheadline?: string;
+  /** Заголовок статьи/маршрута — обычный жирный, а не курсив Playfair
+   * гастрогида; свой класс, чтобы не плодить проп на каждую деталь шрифта. */
+  headlineClassName?: string;
+}) {
+  return (
+    <section className="relative overflow-hidden bg-black">
+      {photo}
+      <div aria-hidden="true" className="absolute inset-0 bg-black/[0.32]" />
+      <Container className="relative z-10 flex flex-col gap-1.5 pb-8 pt-16 lg:pt-[126px]">
+        <p className="text-[14px] font-semibold uppercase leading-[19px] tracking-[0.08em] text-guide-gold lg:text-[16px]">
+          {eyebrow}
+        </p>
+        <h1
+          className={
+            headlineClassName ??
+            "break-words font-serif text-[36px] italic leading-[1.2] text-ink-on-inverse lg:text-[48px]"
+          }
+        >
+          {headline}
+        </h1>
+        {subheadline ? (
+          <p className="break-words text-[18px] leading-6 text-ink-on-inverse lg:text-[20px] lg:leading-5">
+            {subheadline}
+          </p>
+        ) : null}
+      </Container>
+    </section>
+  );
+}
+
 /** Затемнение снизу вверх, чтобы белый текст читался на любой фотографии. */
 const SCRIM = "after:absolute after:inset-0 after:bg-gradient-to-t after:from-black/80 after:via-black/35 after:to-black/5 after:content-['']";
 
 const EYEBROW = "truncate font-semibold uppercase tracking-[0.08em] text-guide-gold";
 
-function CoverFrame({
+export function CoverFrame({
   src,
   alt,
   sizes,
   className,
   fill,
+  badge,
   children,
 }: {
   src: string | null;
@@ -53,6 +109,11 @@ function CoverFrame({
   sizes: string;
   className: string;
   fill?: string;
+  /** Пилюля в левом верхнем углу поверх фотографии (номер остановки маршрута
+   * «№1 · Ресторан») — единственный потребитель, у остальных карточек её
+   * нет. Отдельный слот, а не часть `children`: `children` лежит внизу
+   * карточки (`justify-end`), бейджу туда нельзя. */
+  badge?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -69,6 +130,7 @@ function CoverFrame({
       <div className="absolute inset-0" aria-hidden="true">
         <RemoteImage src={src} alt="" sizes={sizes} fallback={<span />} className="h-full w-full object-cover" />
       </div>
+      {badge ? <div className="absolute left-3 top-3 z-20">{badge}</div> : null}
       {/* z поверх затемнения (`after:` псевдоэлемент лежит над фоном). */}
       <div className="relative z-10 flex min-w-0 flex-col">{children}</div>
     </article>
@@ -168,6 +230,74 @@ export function WalkCard({ route, href }: { route: GuideRoute; href?: string }) 
       </div>
     </CoverFrame>
   );
+}
+
+/** `sizes` для карточки остановки маршрута — одна в ряд на телефоне, две на
+ * планшете и десктопе (`RouteStopCard` ниже). */
+const STOP_SIZES = "(min-width: 1024px) 588px, (min-width: 768px) 50vw, 100vw";
+
+/**
+ * Одна остановка гастропрогулки (`/routes/:slug`, Figma `qmMsg4jO1ggmyEHNIAD2ll`,
+ * узел 5078:5976) — фото с затемнением, номер остановки и её замысел бейджем
+ * в углу («№1 · Ресторан»), заголовок и текст остановки внизу. Тот же приём,
+ * что у `WalkCard`/`EditorPickCard`, размер карточки переиспользован у
+ * `webGuidePage.walk` — точных чисел этой конкретной страницы Figma REST не
+ * отдал (429 по файлу), а карточка того же смыслового ряда «фото + текст
+ * гастрогида», так что чужие подтверждённые токены точнее, чем цифры на
+ * глаз.
+ *
+ * ВЕТВИМСЯ ПО `venue`, А НЕ ПО `kind` — как в мобильном
+ * `GuideRouteStopBlock`: `kind` это замысел редакции, а открыть можно только
+ * то, у чего реально есть живое заведение.
+ */
+export function RouteStopCard({ point }: { point: GuideRoutePoint }) {
+  const t = useT();
+  const venue = point.venue;
+  const photo = point.photoUrl ?? venue?.imageUrl ?? null;
+  const kindLabel = t.articles.routeStopKind[point.kind];
+  const address = point.address || venue?.address || "";
+
+  return (
+    <CoverFrame
+      src={photo}
+      alt={point.title}
+      sizes={STOP_SIZES}
+      className="h-guide-walk-m px-4 py-4 lg:h-guide-walk lg:px-[27px] lg:py-5"
+      badge={
+        <span className="truncate rounded-full bg-canvas/70 px-3 py-1 text-[12px] font-semibold leading-4 text-brand backdrop-blur-sm">
+          {t.articles.routeStopBadge(point.position, kindLabel)}
+        </span>
+      }
+    >
+      <div className="flex flex-col gap-1">
+        <h3 className="break-words font-serif text-[18px] italic leading-6 text-ink-on-inverse lg:text-[20px]">
+          {venue ? (
+            <Link
+              href={`/venues/${encodeURIComponent(venue.id)}`}
+              aria-label={t.articles.openVenue(venue.name)}
+              className="after:absolute after:inset-0 after:z-20 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-guide-gold"
+            >
+              {point.title}
+            </Link>
+          ) : (
+            point.title
+          )}
+        </h3>
+        {point.description ? (
+          <p className="line-clamp-2 break-words text-[14px] leading-5 text-on-inverse-muted">
+            {point.description}
+          </p>
+        ) : null}
+        {address ? (
+          <p className="truncate text-[12px] leading-4 text-on-inverse-muted">{address}</p>
+        ) : null}
+      </div>
+    </CoverFrame>
+  );
+}
+
+export function RouteStopCardSkeleton() {
+  return <Skeleton className="h-guide-walk-m w-full rounded-card lg:h-guide-walk" />;
 }
 
 function Title({ href, children }: { href?: string; children: string }) {

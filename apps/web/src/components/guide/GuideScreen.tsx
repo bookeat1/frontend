@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, type ReactNode } from "react";
 
 import {
+  EditorialHero,
   EditorPickCard,
   EditorPickSkeleton,
   RubricTile,
@@ -130,7 +131,7 @@ export function GuideScreen() {
         <GuideSection title={t.articles.routesTitle} gap="gap-4" last>
           <TwoUp>
             {walks.map((route) => (
-              <WalkCard key={route.slug} route={route} />
+              <WalkCard key={route.slug} route={route} href={`/routes/${route.slug}`} />
             ))}
           </TwoUp>
         </GuideSection>
@@ -163,31 +164,24 @@ export function GuideScreen() {
 function GuideHero({ city }: { city: string }) {
   const t = useT();
   return (
-    <section className="relative overflow-hidden bg-black">
-      <Image
-        src={assetUrl("/brand/guide-hero.webp")}
-        alt=""
-        fill
-        sizes="100vw"
-        priority
-        // Тот же кастомный загрузчик, что у главной (lib/image-loader.ts) —
-        // адрес отдаётся как есть, без прогона через оптимизатор Next.
-        unoptimized
-        className="object-cover"
-      />
-      <div aria-hidden="true" className="absolute inset-0 bg-black/[0.32]" />
-      <Container className="relative z-10 flex flex-col gap-1.5 pb-8 pt-16 lg:pt-[126px]">
-        <p className="text-[14px] font-semibold uppercase leading-[19px] tracking-[0.08em] text-guide-gold lg:text-[16px]">
-          {t.articles.guideEyebrow(city)}
-        </p>
-        <h1 className="break-words font-serif text-[36px] italic leading-[1.2] text-ink-on-inverse lg:text-[48px]">
-          {t.articles.guideHeadline(city)}
-        </h1>
-        <p className="text-[18px] leading-6 text-ink-on-inverse lg:text-[20px] lg:leading-5">
-          {t.articles.guideSubheadline}
-        </p>
-      </Container>
-    </section>
+    <EditorialHero
+      photo={
+        <Image
+          src={assetUrl("/brand/guide-hero.webp")}
+          alt=""
+          fill
+          sizes="100vw"
+          priority
+          // Тот же кастомный загрузчик, что у главной (lib/image-loader.ts) —
+          // адрес отдаётся как есть, без прогона через оптимизатор Next.
+          unoptimized
+          className="object-cover"
+        />
+      }
+      eyebrow={t.articles.guideEyebrow(city)}
+      headline={t.articles.guideHeadline(city)}
+      subheadline={t.articles.guideSubheadline}
+    />
   );
 }
 
