@@ -14,6 +14,7 @@ import {
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, StateMessage } from "@web/components/state/AsyncBlock";
+import { OCEAN_BASKET_SLUG } from "@web/components/ocean/ocean-basket-content";
 import { assetUrl } from "@web/lib/asset";
 import { useCity } from "@web/lib/city";
 import { cx } from "@web/lib/cx";
@@ -99,7 +100,16 @@ export function GuideScreen() {
         <GuideSection title={t.articles.editorPickTitle} gap="gap-4">
           <div className="flex flex-col gap-4 lg:gap-6">
             {editorPicks.map((collection) => (
-              <EditorPickCard key={collection.slug} collection={collection} />
+              <EditorPickCard
+                key={collection.slug}
+                collection={collection}
+                // Фирменная страница Ocean Basket — единственное исключение
+                // из «ссылок на карточках нет» (см. блок комментариев
+                // `GuideCards.tsx`): у неё есть маршрут `/brand/ocean-basket`,
+                // зашитый в код, а не собранный из слага (тот же приём, что в
+                // `app/gastroguide/index.tsx` на мобилке, PR #105).
+                href={collection.slug === OCEAN_BASKET_SLUG ? "/brand/ocean-basket" : undefined}
+              />
             ))}
           </div>
         </GuideSection>
