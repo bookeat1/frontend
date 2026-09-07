@@ -23,6 +23,18 @@ import { usePromo, useVenue } from "@web/lib/queries";
  * «до {ends_at}», бейдж «−N%», секция «Об акции» вместо «Об афише», секция
  * «Условия» при непустом `terms`.
  *
+ * ОБЛОЖКА — по узлу 5115:7645 («WEB / 11 · Акции заведения», Figma
+ * `qmMsg4jO1ggmyEHNIAD2ll`, снят 2026-09-07): название и подпись лежат
+ * ПОВЕРХ фотографии на затемнении снизу вверх, тем же приёмом, что у
+ * `PromoCard` в ленте на главной (`home/Cards.tsx`) — а не отдельным белым
+ * блоком под кадром, как было и как до сих пор рисует `EventScreen` (там
+ * макет другой, трогать не нужно). Цвета и кегль названия/подписи — те же
+ * токены, что уже стояли под кадром (`text-[24px]`/`text-[16px]`), просто
+ * на `text-ink-on-inverse`/`text-ink-on-inverse-muted`: точные px из узла
+ * снять не удалось, `/v1/files` весь заход отвечал 429 (см.
+ * `conventions/bookeat-mobile-figma-access.md`), `/v1/images` дал только
+ * рендер кадра.
+ *
  * ПРАВИЛО ЗАВЕДЕНИЯ У АКЦИИ (слова Дамира, отличается от события): если
  * заведение есть в самой акции, но `GET /restaurants/:id` не находит его или
  * падает — блок заведения СКРЫВАЕТСЯ ЦЕЛИКОМ (`onVenueError="hide"`), без
@@ -121,16 +133,25 @@ function PromoBody({ promo }: { promo: Promo }) {
           <div className="flex flex-col gap-4">
             <div className="relative aspect-home-cover w-full overflow-hidden rounded-2xl bg-muted lg:aspect-auto lg:h-afisha-cover">
               <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={COVER_SIZES} priority />
+              {/* Затемнение снизу вверх — тот же приём, что у карточки акции на
+                  главной (`PromoCard`, `home/Cards.tsx`): название и подпись
+                  лежат ПОВЕРХ фотографии, а не отдельным блоком под ней (узел
+                  5115:7645, «WEB / 11 · Акции заведения»). */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.72)] via-[rgba(0,0,0,0.25)] to-transparent"
+              />
               {promo.discountPercent !== null && promo.discountPercent > 0 ? (
                 <span className="absolute left-4 top-4 inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold leading-[18px] text-ink-on-brand">
                   {t.web.format.discount(promo.discountPercent)}
                 </span>
               ) : null}
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <h1 className="break-words text-[24px] font-bold leading-8 text-ink">{promo.title}</h1>
-              {meta ? <p className="text-[16px] leading-6 text-ink-secondary">{meta}</p> : null}
+              <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-6">
+                <h1 className="break-words text-[24px] font-bold leading-8 text-ink-on-inverse">
+                  {promo.title}
+                </h1>
+                {meta ? <p className="text-[16px] leading-6 text-ink-on-inverse-muted">{meta}</p> : null}
+              </div>
             </div>
           </div>
 
