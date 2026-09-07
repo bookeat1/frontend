@@ -181,6 +181,13 @@ export const en: LocaleOverride<Dictionary> = {
    * the backend has no field for it; only the venue cards are live data. */
   oceanBasket: {
     heroEyebrow: "ADVENTURE MAP",
+    webHeroEyebrow: "OCEAN BASKET · ALMATY",
+    webHeroSubtitle: "Your seafood adventure starts at the table.",
+    webHeroCta: "Choose a restaurant",
+    webPointsTitle: "Choose a convenient restaurant",
+    webPointsSubtitle: (city: string, count: number) =>
+      `${city} · ${count} ${count === 1 ? "location" : "locations"} on the map`,
+    webDishesSubtitle: "Seafood worth sharing.",
     welcomeDrink: "WELCOME DRINK",
     welcomeDrinkAction: "Details",
     welcomeDrinkA11y: "Welcome drink — promo details",

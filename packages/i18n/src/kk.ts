@@ -184,6 +184,12 @@ export const kk: LocaleOverride<Dictionary> = {
    * бэкендте мұндай өріс жоқ, тек мекеме карточкалары ғана тірі. */
   oceanBasket: {
     heroEyebrow: "ШЫТЫРМАН ОҚИҒА КАРТАСЫ",
+    webHeroEyebrow: "OCEAN BASKET · АЛМАТЫ",
+    webHeroSubtitle: "Теңіз шытырманыңыз үстел басынан басталады.",
+    webHeroCta: "Мейрамхана таңдау",
+    webPointsTitle: "Ыңғайлы мейрамхананы таңдаңыз",
+    webPointsSubtitle: (city: string, count: number) => `${city} · картада ${count} нүкте`,
+    webDishesSubtitle: "Бөлісейін дейтін теңіз өнімдері.",
     welcomeDrink: "WELCOME DRINK",
     welcomeDrinkAction: "Толығырақ",
     welcomeDrinkA11y: "Welcome drink — акция туралы толығырақ",
