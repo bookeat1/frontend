@@ -155,6 +155,9 @@ export const en: LocaleOverride<Dictionary> = {
     routeNotFoundTitle: "Route not found",
     routeNotFoundDescription:
       "It may have been unpublished. Go back to the guide and pick another one.",
+    routeSectionTitle: "Route",
+    routeStopKind: { restaurant: "Restaurant", place: "Place" },
+    routeStopBadge: (position: number, kindLabel: string) => `#${position} · ${kindLabel}`,
     openVenue: (name: string) => `Open ${name}`,
 
     /** Heading of the article's text block — same shape as «About the event». */
@@ -2886,6 +2889,7 @@ export const en: LocaleOverride<Dictionary> = {
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */
     guide: {
       metaTitle: "BookEat — gastro guide",
+      backLink: "Guide",
     },
     profile: {
       metaTitle: "BookEat — profile",

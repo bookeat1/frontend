@@ -23,6 +23,7 @@ import type {
   GuideCollection,
   GuideCollectionDetail,
   GuideRoute,
+  GuideRouteDetail,
   HomePromo,
   PlatformPage,
   PlatformPageSlug,
@@ -242,6 +243,26 @@ export function useGuideRoutes(city: string | undefined): UseQueryResult<GuideRo
     queryKey: [locale, "guide-routes", city],
     queryFn: () => repository.getGuideRoutes(city ?? ""),
     enabled: isApiConfigured && Boolean(city),
+  });
+}
+
+/**
+ * Один маршрут с остановками для `/routes/[slug]` (T — «Маршруты», Figma
+ * `qmMsg4jO1ggmyEHNIAD2ll`, узел 5078:5976). `GET /gastroguide/routes/:slug` —
+ * зеркало `useGuideRoute` из
+ * `apps/mobile/src/components/explore/use-explore-data.ts`. Свой ключ кэша,
+ * как у статьи: список и деталка разной формы, общий ключ позволил бы
+ * дешёвому списку вытеснить дорогую деталку. 404 не пересылается повтором —
+ * неизвестный слаг, черновик и снятый с публикации маршрут дают одинаковый
+ * ответ, это честное «не найдено», а не сбой связи.
+ */
+export function useGuideRoute(slug: string): UseQueryResult<GuideRouteDetail> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "guide-route", slug],
+    queryFn: () => repository.getGuideRoute(slug),
+    enabled: isApiConfigured && slug.length > 0,
+    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
   });
 }
 
