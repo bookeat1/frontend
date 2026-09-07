@@ -2663,6 +2663,18 @@ export const en: LocaleOverride<Dictionary> = {
         qtyLess: "Decrease quantity",
         qtyMore: "Increase quantity",
         preorderTotal: (amount: string) => `Total ≈ ${amount}`,
+        viewAll: "Full menu →",
+      },
+      menuPage: {
+        title: (name: string) => `${name} menu`,
+        breadcrumb: "Menu",
+        searchLabel: "Search the menu",
+        searchPlaceholder: "Restaurant, cuisine, or dish",
+        allCategory: "All dishes",
+        categoriesLabel: "Menu categories",
+        searchEmptyTitle: "Nothing found",
+        searchEmptyDescription: "Try a different word or clear the search",
+        footerNote: "Ingredients and prices are set by the venue. Ask the waiter about allergens.",
       },
       promos: {
         title: "Venue deals",

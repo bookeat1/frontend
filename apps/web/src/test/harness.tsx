@@ -11,6 +11,8 @@ import type {
   GuideCollection,
   GuideCollectionDetail,
   GuideCollectionVenue,
+  MenuDish,
+  MenuSection,
   PlatformPage,
   Preorder,
   Promo,
@@ -91,6 +93,21 @@ export function venueDetail(overrides: Partial<Restaurant> = {}): Restaurant {
     openingHoursText: "",
     ...overrides,
   } as Restaurant;
+}
+
+/** Одно блюдо полного меню (страница «Меню {заведение}»,
+ * `VenueMenuScreen.tsx`) — отдельный тип от `MenuHighlight`, у карточек
+ * «Популярное в меню» на странице заведения. */
+export function menuDish(overrides: Partial<MenuDish> = {}): MenuDish {
+  return {
+    id: "dish-1",
+    name: "Тартар из лосося",
+    description: "Лосось, авокадо, цитрусовая заправка",
+    priceMinor: 540000,
+    imageUrl: null,
+    isAvailable: true,
+    ...overrides,
+  };
 }
 
 /**
@@ -187,6 +204,8 @@ export function repositoryStub(
     getGuideRoutes: vi.fn(async () => []),
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
     getRestaurant: vi.fn(async () => venueDetail()),
+    // Полное меню — страница «Меню {заведение}» (`VenueMenuScreen.tsx`).
+    getMenuSections: vi.fn(async () => [] as MenuSection[]),
     getEvent: vi.fn(async () => eventSummary()),
     getPromo: vi.fn(async () => promoDetail()),
     getMapPreviewUrl: vi.fn(() => undefined),

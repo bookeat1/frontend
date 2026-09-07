@@ -24,6 +24,7 @@ import type {
   GuideCollectionDetail,
   GuideRoute,
   HomePromo,
+  MenuSection,
   PlatformPage,
   PlatformPageSlug,
   Preorder,
@@ -271,6 +272,24 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
     // 404 — это ответ, а не сбой связи: повторять его бессмысленно.
     retry: (failureCount, error) =>
       failureCount < 1 && !(error instanceof Error && "status" in error && error.status === 404),
+  });
+}
+
+/**
+ * Полное меню заведения (`GET /restaurants/:id/menu`) — страница «Меню
+ * {заведение}» (узел 5115:7448), не шесть карточек «Популярное в меню» на
+ * самой странице заведения. Тот же запрос и та же форма ответа
+ * (`MenuSection[]`), что у мобильного `useMenuSections`
+ * (`apps/mobile/src/hooks/useBooking.ts`) — до ~300 блюд, разделы без блюд
+ * сервер не отдаёт. Локаль в ключе: названия и описания блюд переводит
+ * сервер по `Accept-Language`.
+ */
+export function useMenuSections(id: string): UseQueryResult<MenuSection[]> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "menu-sections", id],
+    queryFn: () => repository.getMenuSections(id),
+    enabled: isApiConfigured && id.length > 0,
   });
 }
 
