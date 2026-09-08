@@ -286,7 +286,9 @@ function OceanDishesSection({ state }: { state: OceanSignatureDishesState }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-[26px] font-bold leading-8 text-ocean-navy">{t.oceanBasket.dishesTitle}</h2>
+        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[32px]">
+          {t.oceanBasket.dishesTitle}
+        </h2>
         <p className="text-[15px] leading-5 text-ocean-muted">{t.oceanBasket.webDishesSubtitle}</p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -309,9 +311,12 @@ function OceanDishCard({
 }) {
   const t = useT();
   const dish: MenuDish | undefined = state.status === "ready" ? state.dishes[index] : undefined;
+  const priceMeta = t.oceanBasket.dishPriceMeta[index];
 
+  // 2:1 — та же пропорция, что у карточек в макете (широкий кадр блюда, не
+  // квадрат), см. `signature-catch.png`.
   const picture = (
-    <div className="relative h-[220px] w-full bg-ocean-navy-deep">
+    <div className="relative aspect-[2/1] w-full bg-ocean-navy-deep">
       <Image src={photo} alt="" fill sizes="(min-width: 640px) 50vw, 100vw" className="object-cover" unoptimized />
     </div>
   );
@@ -329,11 +334,15 @@ function OceanDishCard({
   } else if (!dish) {
     caption = <p className="text-[14px] leading-5 text-ocean-muted">{t.oceanBasket.dishMissing}</p>;
   } else {
-    const price = dish.priceMinor === null ? t.restaurant.menuDishNoPrice : formatMoneyMinor(dish.priceMinor);
+    const priceValue = dish.priceMinor === null ? t.restaurant.menuDishNoPrice : formatMoneyMinor(dish.priceMinor);
+    const price = priceMeta?.from ? `${t.oceanBasket.pricePrefixFrom} ${priceValue}` : priceValue;
     caption = (
       <div className="flex flex-col gap-1">
-        <p className="break-words text-[18px] font-bold leading-6 text-ocean-navy">{dish.name}</p>
-        <p className="text-[15px] leading-5 text-ocean-muted">{price}</p>
+        <p className="break-words text-[20px] font-bold leading-6 text-ocean-navy">{dish.name}</p>
+        <p className="text-[15px] leading-5 text-ocean-muted">
+          {price}
+          {priceMeta ? ` · ${priceMeta.note}` : null}
+        </p>
       </div>
     );
   }
@@ -347,97 +356,141 @@ function OceanDishCard({
 }
 
 /* ------------------------------------------------------------------------ *
- * «История бренда» — гармошка, раскрыта не больше одной главы
+ * «История бренда» — ровно одна открытая глава слева (фото + текст поверх
+ * градиента), остальные — свёрнутый список справа. Клик по свёрнутой главе
+ * делает её открытой; шеврон всегда смотрит вниз в обоих состояниях (Figma
+ * node 5115:9823 — ни один из четырёх шевронов не повёрнут).
  * ------------------------------------------------------------------------ */
+
+const STORY_CHAPTER_ICONS = [AnchorIcon, FishIcon, SpiralIcon, GobletIcon] as const;
+
+function storyChapterIcon(index: number) {
+  return STORY_CHAPTER_ICONS[index] ?? AnchorIcon;
+}
 
 function OceanStorySection() {
   const t = useT();
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+  const chapters = t.oceanBasket.chapters;
+  const [expandedIndex, setExpandedIndex] = useState(0);
+  const expanded = chapters[expandedIndex];
 
   return (
-    <section className="flex flex-col items-center gap-8">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <p
-          className="text-[13px] font-semibold uppercase leading-4 tracking-[0.08em] text-ocean-gold-muted"
-          aria-label={t.oceanBasket.storyEyebrow}
-        >
-          {`—  ${spacedOut(t.oceanBasket.storyEyebrow)}  —`}
-        </p>
-        <h2 className="break-words text-[28px] font-bold leading-9 lg:text-[32px]">
-          <span className="text-ocean-navy">{t.oceanBasket.storyTitleLead} </span>
-          <span className="text-ocean-gold-muted">{t.oceanBasket.storyTitleTail}</span>
-        </h2>
-      </div>
+    <section className="flex flex-col gap-6">
+      <h2 className="break-words font-serif text-[30px] leading-9 text-ocean-navy lg:text-[38px]">
+        {t.oceanBasket.webStoryTitle}
+      </h2>
 
-      <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
-        {t.oceanBasket.chapters.map((chapter, index) => (
-          <OceanStoryChapter
-            key={chapter.label}
-            label={chapter.label}
-            title={chapter.title}
-            body={chapter.body}
-            photo={oceanChapterPhotos[index]}
-            expanded={expandedIndex === index}
-            onToggle={() => setExpandedIndex((current) => (current === index ? null : index))}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+        {expanded ? (
+          <OceanStoryChapterExpanded
+            label={expanded.label}
+            title={expanded.title}
+            body={expanded.body}
+            photo={oceanChapterPhotos[expandedIndex]}
+            Icon={storyChapterIcon(expandedIndex)}
           />
-        ))}
+        ) : null}
+
+        <div className="flex flex-col gap-4">
+          {chapters.map((chapter, index) =>
+            index === expandedIndex ? null : (
+              <OceanStoryChapterCollapsed
+                key={chapter.label}
+                label={chapter.label}
+                title={chapter.title}
+                Icon={storyChapterIcon(index)}
+                onExpand={() => setExpandedIndex(index)}
+                a11yLabel={t.oceanBasket.chapterExpand(chapter.title)}
+              />
+            ),
+          )}
+        </div>
       </div>
     </section>
   );
 }
 
-function OceanStoryChapter({
+function OceanStoryChapterExpanded({
   label,
   title,
   body,
   photo,
-  expanded,
-  onToggle,
+  Icon,
 }: {
   label: string;
   title: string;
   body: string;
   photo?: string;
-  expanded: boolean;
-  onToggle: () => void;
+  Icon: (props: { size?: number }) => ReactNode;
 }) {
-  const t = useT();
   return (
-    <div className="overflow-hidden rounded-2xl border border-ocean-card-border bg-canvas">
-      <button
-        type="button"
-        aria-expanded={expanded}
-        aria-label={expanded ? t.oceanBasket.chapterCollapse(title) : t.oceanBasket.chapterExpand(title)}
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
-      >
-        <span className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ocean-gold-ring">
-            <AnchorIcon size={16} />
+    <div className="flex h-full min-h-[280px] flex-col overflow-hidden rounded-2xl border border-ocean-card-border bg-canvas">
+      <div className="flex items-center gap-3 px-4 py-4">
+        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full border border-ocean-gold-ring text-ocean-gold-chevron">
+          <Icon size={18} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-[12px] font-semibold uppercase leading-4 tracking-[0.04em] text-ocean-gold-muted">
+            {label}
           </span>
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-[12px] font-semibold uppercase leading-4 tracking-[0.04em] text-ocean-gold-muted">
-              {label}
-            </span>
-            <span className="truncate text-[16px] font-bold leading-6 text-ocean-navy">{title}</span>
-          </span>
+          <span className="truncate font-serif text-[17px] font-bold leading-6 text-ocean-navy">{title}</span>
         </span>
         <span aria-hidden="true" className="shrink-0 text-ocean-gold-chevron">
-          <ChevronIcon direction={expanded ? "up" : "down"} size={14} />
+          <ChevronIcon direction="down" size={12} />
         </span>
-      </button>
+      </div>
 
-      {expanded ? (
-        <div className="flex flex-col">
-          {photo ? (
-            <div className="relative h-[200px] w-full bg-ocean-navy-deep">
-              <Image src={photo} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" unoptimized />
-            </div>
-          ) : null}
-          <p className="break-words px-5 py-4 text-[15px] leading-6 text-ocean-navy">{body}</p>
-        </div>
-      ) : null}
+      <div className="relative min-h-[220px] flex-1 bg-ocean-navy-deep">
+        {photo ? (
+          <Image src={photo} alt="" fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" unoptimized />
+        ) : null}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-b from-white/0 via-ocean-navy/45 to-ocean-navy"
+        />
+        <p className="absolute inset-x-0 bottom-0 break-words px-5 pb-5 pt-16 text-[14px] leading-6 text-ocean-story-body">
+          {body}
+        </p>
+      </div>
     </div>
+  );
+}
+
+function OceanStoryChapterCollapsed({
+  label,
+  title,
+  Icon,
+  onExpand,
+  a11yLabel,
+}: {
+  label: string;
+  title: string;
+  Icon: (props: { size?: number }) => ReactNode;
+  onExpand: () => void;
+  a11yLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={a11yLabel}
+      onClick={onExpand}
+      className="flex w-full items-center justify-between gap-4 rounded-2xl border border-ocean-card-border bg-canvas px-4 py-[18px] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full border border-ocean-gold-ring text-ocean-gold-chevron">
+          <Icon size={18} />
+        </span>
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-[12px] font-semibold uppercase leading-4 tracking-[0.04em] text-ocean-gold-muted">
+            {label}
+          </span>
+          <span className="truncate font-serif text-[16px] font-bold leading-6 text-ocean-navy">{title}</span>
+        </span>
+      </span>
+      <span aria-hidden="true" className="shrink-0 text-ocean-gold-chevron">
+        <ChevronIcon direction="down" size={12} />
+      </span>
+    </button>
   );
 }
 
@@ -571,6 +624,40 @@ function AnchorIcon({ size = 16, color = "currentColor" }: { size?: number; colo
       <circle cx="12" cy="5" r="2" />
       <path d="M12 7v14M6 12H4a8 8 0 0 0 8 9 8 8 0 0 0 8-9h-2" strokeLinecap="round" />
       <path d="M8 12h8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Глава 2 «Океан без границ» — рыбка с искрами по бокам (Figma node 5115:9823). */
+function FishIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M5 12c2.2-2.6 5-4 7.5-4 3 0 5.5 1.8 7 4-1.5 2.2-4 4-7 4-2.5 0-5.3-1.4-7.5-4Z" strokeLinejoin="round" />
+      <circle cx="9.5" cy="11.2" r="0.5" fill="currentColor" stroke="none" />
+      <path d="M19.5 12l1.8-1.6M19.5 12l1.8 1.6" strokeLinecap="round" />
+      <path d="M7 7.5l-0.8-1.6M4.5 9.5l-1.8-1M4.5 14.5l-1.8 1M7 16.5l-0.8 1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Глава 3 «Первая точка в КЗ» — спираль-ракушка (Figma node 5115:9823). */
+function SpiralIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path
+        d="M12.5 12.2c1.1 0 1.9-.8 1.9-1.8s-.8-1.9-1.9-1.9-2.3.9-2.3 2.3 1.2 2.8 2.8 2.8 3.4-1.3 3.4-3.3-1.7-3.8-3.8-3.8-4.6 2-4.6 4.6 2.3 5.1 5.1 5.1"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Глава 4 «Океан в каждом районе» — бокал (Figma node 5115:9823). */
+function GobletIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M7.5 4h9l-1 6.2a3.5 3.5 0 0 1-7 0L7.5 4Z" strokeLinejoin="round" />
+      <path d="M12 13.5V18M9.5 20h5" strokeLinecap="round" />
     </svg>
   );
 }
