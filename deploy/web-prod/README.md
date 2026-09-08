@@ -30,8 +30,9 @@ docker network inspect deploy_default >/dev/null   # must exist (backend stack u
 
 ## 1. First release (safe before DNS moves)
 
-Actions → "Deploy desktop site (prod)" → Run workflow → branch `develop`
-(or a tag), `confirm` = `deploy-to-prod`, `public_url_live` = unchecked.
+Actions → "Deploy desktop site (prod)" → Run workflow → branch `main`
+(the `gate` job refuses any other ref — merge develop into main first),
+`confirm` = `deploy-to-prod`, `public_url_live` = unchecked.
 
 What it does: CI checks → Next standalone build with
 `NEXT_PUBLIC_API_URL=https://backend.book-eat.com/api/v1`, no basePath,
