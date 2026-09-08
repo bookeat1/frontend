@@ -175,7 +175,15 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           </section>
 
           <div className="flex flex-col gap-8">
-            {venue.menuHighlights.length > 0 ? (
+            {/* A10 (`web-preorder-menu-20260908`): 6/20 заведений на стенде не
+                заполняют «Популярное в меню», и без него страница не давала
+                НИКАКОГО входа в полное меню — ссылка жила внутри этой же
+                секции. `acceptsOnlineBookings` — дешёвый признак «у
+                заведения, вероятно, есть меню» (решение владельца, раздел 6
+                ТЗ, 🟡): второй запрос за числом блюд ради точного условия не
+                делаем, а секция для 4/20 заведений с формально пустым меню
+                ведёт в пустоту — цена, которую владелец принял явно. */}
+            {venue.menuHighlights.length > 0 || venue.acceptsOnlineBookings ? (
               <MenuSection venue={venue} preorder={preorder} />
             ) : null}
             {hasPromos ? <PromoSection venue={venue} /> : null}
@@ -714,6 +722,13 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
  * Черновик — `usePreorderDraft`, `sessionStorage` по заведению; отдельно на
  * `apps/mobile` степпер НЕ переносится (решение владельца 2026-09-06,
  * см. спеку), `DishDetailSheet` там не тронут.
+ *
+ * БЕЗ КАРТОЧЕК «ПОПУЛЯРНОЕ» (A10, ТЗ `web-preorder-menu-20260908`): секция
+ * теперь рендерится и у заведения с пустым `menuHighlights`, пока
+ * `acceptsOnlineBookings` — заголовок и ссылка «Всё меню →» остаются входом
+ * в полное меню (`/venues/[id]/menu`), сетка карточек заменяется одной
+ * строкой `fullMenuOnly`. Раньше у 6/20 заведений стенда без «Популярного» не
+ * было вообще никакого входа в меню с этой страницы.
  */
 function MenuSection({
   venue,
@@ -749,7 +764,10 @@ function MenuSection({
         </div>
       </div>
       {venue.menuHighlights.length === 0 ? (
-        <StateMessage text={t.web.venue.menu.empty} />
+        // A10: заведение без карточек «Популярное» — секция сохраняет вход в
+        // полное меню (заголовок + ссылка выше), просто без сетки: сама сетка
+        // требовала бы шести карточек, которых у заведения нет.
+        <StateMessage text={t.web.venue.menu.fullMenuOnly} />
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {venue.menuHighlights.slice(0, 6).map((dish) => {
