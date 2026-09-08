@@ -2924,6 +2924,7 @@ export const en: LocaleOverride<Dictionary> = {
           totalApprox: (amount: string) => `Total ≈ ${amount}`,
           chooseDishes: "Choose dishes",
           changeSelection: "Change selection",
+          belowMinimum: (min: string, missing: string) => `Minimum pre-order ${min} — add ${missing} more`,
         },
       },
       errors: {
@@ -2989,8 +2990,16 @@ export const en: LocaleOverride<Dictionary> = {
         title: "Pre-order",
         line: (name: string, qty: number) => `${name} × ${qty}`,
         total: (amount: string) => `Total: ${amount}`,
-        failedNotice:
-          "The booking is confirmed, but the pre-order did not attach — tell the venue what you picked when they confirm.",
+        failedNotice: {
+          belowMinimum:
+            "The booking is confirmed, but the pre-order did not attach — the total was below the venue's minimum. Tell them what you picked when they confirm.",
+          itemUnavailable:
+            "The booking is confirmed, but the pre-order did not attach — one of the dishes is no longer available. Tell the venue what you picked when they confirm.",
+          locked:
+            "The booking is confirmed, but the pre-order did not attach — the venue is already changing the order. Ask them what they kept.",
+          other:
+            "The booking is confirmed, but the pre-order did not attach — tell the venue what you picked when they confirm.",
+        },
       },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка

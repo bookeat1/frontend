@@ -386,15 +386,18 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
         },
         idempotencyKey,
         preorder: draftToPreorderInput(preorderDraft.draft),
+        // D-WEB-1: минимум проверяем ДО отправки `PUT`, см. `useCreateBooking`.
+        preorderTotalMinor: preorderDraft.totalMinor,
+        preorderMinAmountMinor: venue.preorderMinAmountMinor,
       },
       {
         // A11: черновик заведения очищен И при успехе, И при `preorderFailed`
         // (той же мутации) — редактировать предзаказ существующей брони на
         // сайте негде, а утечка в следующую бронь хуже потери. Он НЕ чистится
         // при отказе самого `POST` (та ветка идёт через `onError`, не сюда).
-        onSuccess: ({ booking, preorderFailed }) => {
+        onSuccess: ({ booking, preorderFailed, preorderFailureReason }) => {
           preorderDraft.clear();
-          if (preorderFailed) markPreorderFailed(booking.id);
+          if (preorderFailed) markPreorderFailed(booking.id, preorderFailureReason);
           onSuccess(booking.id);
         },
         onError: (error) => setFailure(describeBookingFailure(error, t, () => setSlot(null))),
@@ -431,6 +434,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
         onIncrement: preorderDraft.increment,
         onDecrement: preorderDraft.decrement,
         menuHref: menuHref(venue.id, { date, guests, slot }),
+        minAmountMinor: venue.preorderMinAmountMinor,
       };
 
   let action: SummaryAction;

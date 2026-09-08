@@ -156,6 +156,15 @@ export interface ApiRestaurant {
    */
   accepts_online_payment?: boolean;
   /**
+   * Минимальная сумма предзаказа заведения, в тиынах — `restaurants.preorder_min_amount_minor`
+   * (D-BE-1, `bookeat-backend` PR #122, влито в `develop` 2026-09-08). Только
+   * детальный ответ (`restaurantResponse`), как и `accepts_online_payment`
+   * выше — в листинге ключа нет вовсе. `null`/отсутствие ключа — «минимум не
+   * задан», а не 0: ноль читался бы как «любая ненулевая сумма запрещена».
+   * См. `Restaurant.preorderMinAmountMinor`.
+   */
+  preorder_min_amount_minor?: number | null;
+  /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
    * по названию заведения поля нет вовсе, поэтому оно необязательное и может
@@ -1122,6 +1131,12 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // кнопку у неподключённого заведения, получает 422 и остаётся с чувством,
     // что сломалось приложение.
     acceptsOnlinePayment: api.accepts_online_payment === true,
+    // D-API-1 (ТЗ `web-preorder-menu-20260908`): `null`, а НЕ 0, когда поля
+    // нет или оно `null` — минимум «не задан», а не «любая ненулевая сумма
+    // запрещена». `typeof === "number"` вместо `??` — сервер шлёт целое
+    // число тиынов, а `??` пропустил бы NaN/строку не тем значением.
+    preorderMinAmountMinor:
+      typeof api.preorder_min_amount_minor === "number" ? api.preorder_min_amount_minor : null,
     // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
     // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
     // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб

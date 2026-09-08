@@ -47,6 +47,7 @@ import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
 import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
+import type { PreorderFailedReason } from "@web/lib/preorder-failed-flag";
 
 /**
  * Запросы страниц. Все — через `@bookeat/api`; своего слоя HTTP у веба нет.
@@ -508,16 +509,30 @@ export interface CreateBookingVariables {
    * `venue-menu-stepper-promo-card`) — веб этим путём не пользуется.
    */
   preorder: PreorderLineInput[];
+  /**
+   * Клиентская ОЦЕНКА итога предзаказа (`priceMinor × quantity` по черновику)
+   * — та же цифра, что гость уже видел как «Итого ≈» (D-WEB-1, ТЗ
+   * `web-preorder-menu-20260908`, D4). Сервер посчитает точно, но минимум
+   * заведения проверяем ДО отправки `PUT`, чтобы не слать заведомо
+   * отклоняемый запрос и не тратить повтор на детерминированный отказ.
+   */
+  preorderTotalMinor: number;
+  /** `Restaurant.preorderMinAmountMinor` — `null`, если у заведения минимума
+   * нет; тогда проверка ниже пропускается целиком. */
+  preorderMinAmountMinor: number | null;
 }
 
 export interface CreateBookingOutcome {
   booking: Booking;
   /**
-   * Бронь создана, а прикрепить предзаказ не вышло (после одного повтора).
-   * Это НЕ отказ брони — стол за гостем остался, флоу идёт на страницу брони
-   * с честным уведомлением (A10).
+   * Бронь создана, а прикрепить предзаказ не вышло (после одного повтора,
+   * либо вовсе не отправляли — см. `preorderFailureReason`). Это НЕ отказ
+   * брони — стол за гостем остался, флоу идёт на страницу брони с честным
+   * уведомлением (A10).
    */
   preorderFailed: boolean;
+  /** Присутствует только при `preorderFailed`; см. `PreorderFailedReason`. */
+  preorderFailureReason?: PreorderFailedReason;
 }
 
 /** Сетевой сбой или 5xx — стоит попробовать ещё раз; 4xx детерминирован
@@ -526,6 +541,26 @@ export interface CreateBookingOutcome {
 function isRetryablePreorderFailure(error: unknown): boolean {
   if (!(error instanceof RepositoryError)) return true;
   return error.status === undefined || error.status >= 500;
+}
+
+/** D-WEB-1 (D2/D5): машинный код сервера → причина для флага/уведомления на
+ * билете. Ветвление ТОЛЬКО по `code`, не по тексту (тот же принцип, что и у
+ * отказов самой брони, см. `booking-submit.ts`). Незнакомый/отсутствующий код
+ * (сеть, старая сборка сервера без кодов) — общая причина `"other"`. */
+function preorderFailureReason(error: unknown): PreorderFailedReason {
+  if (error instanceof RepositoryError) {
+    switch (error.code) {
+      case "preorder_below_minimum":
+        return "below_minimum";
+      case "preorder_item_unavailable":
+        return "item_unavailable";
+      case "preorder_locked":
+        return "locked";
+      default:
+        return "other";
+    }
+  }
+  return "other";
 }
 
 /**
@@ -547,10 +582,25 @@ function isRetryablePreorderFailure(error: unknown): boolean {
 export function useCreateBooking() {
   const client = useQueryClient();
   return useMutation<CreateBookingOutcome, unknown, CreateBookingVariables>({
-    mutationFn: async ({ input, idempotencyKey, preorder }) => {
+    mutationFn: async ({
+      input,
+      idempotencyKey,
+      preorder,
+      preorderTotalMinor,
+      preorderMinAmountMinor,
+    }) => {
       const booking = await repository.createBooking(input, idempotencyKey);
       if (preorder.length === 0) {
         return { booking, preorderFailed: false };
+      }
+      // D4: итог ниже минимума заведения — `PUT` НЕ уходит вовсе (бронь без
+      // предзаказа законна, PRD 11), гость видит причину на билете.
+      if (
+        preorderMinAmountMinor !== null &&
+        preorderTotalMinor > 0 &&
+        preorderTotalMinor < preorderMinAmountMinor
+      ) {
+        return { booking, preorderFailed: true, preorderFailureReason: "below_minimum" };
       }
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -558,10 +608,10 @@ export function useCreateBooking() {
           return { booking, preorderFailed: false };
         } catch (error) {
           if (attempt === 0 && isRetryablePreorderFailure(error)) continue;
-          return { booking, preorderFailed: true };
+          return { booking, preorderFailed: true, preorderFailureReason: preorderFailureReason(error) };
         }
       }
-      return { booking, preorderFailed: true };
+      return { booking, preorderFailed: true, preorderFailureReason: "other" };
     },
     onSuccess: ({ booking }) => {
       // Слот, который заняла эта бронь, больше не свободен — всё, что лежит в

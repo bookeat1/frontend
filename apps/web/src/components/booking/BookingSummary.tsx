@@ -56,6 +56,9 @@ export interface PreorderSummary {
   /** Адрес полного меню с ТЕКУЩИМ выбором даты/гостей/времени этой страницы
    * (B-WEB-1) — `lib/booking-link.ts` → `menuHref`. */
   menuHref: string;
+  /** `Restaurant.preorderMinAmountMinor` — `null`, если у заведения минимума
+   * нет (D-WEB-1, ТЗ `web-preorder-menu-20260908`, D4). */
+  minAmountMinor: number | null;
 }
 
 export type SummaryAction =
@@ -266,7 +269,34 @@ function PreorderBlock({ preorder }: { preorder: PreorderSummary }) {
         ))}
       </ul>
       <p className="text-flow-summary-label text-ink">{texts.totalApprox(formatMoneyMinor(preorder.totalMinor))}</p>
+      <BelowMinimumHint minAmountMinor={preorder.minAmountMinor} totalMinor={preorder.totalMinor} />
     </div>
+  );
+}
+
+/**
+ * D-WEB-1 (D4): «Минимальный предзаказ N ₸ — добавьте ещё на M ₸», когда
+ * заведение задало минимум и текущий черновик выше нуля, но ниже него.
+ * Кнопка «Забронировать» этим НЕ блокируется (PRD 11 — бронь без предзаказа
+ * законна); `useCreateBooking` сам не отправит `PUT` в этом случае и пометит
+ * бронь `preorderFailed: below_minimum` — см. `lib/queries.ts`.
+ */
+function BelowMinimumHint({
+  minAmountMinor,
+  totalMinor,
+}: {
+  minAmountMinor: number | null;
+  totalMinor: number;
+}) {
+  const { t } = useLocale();
+  if (minAmountMinor === null || totalMinor <= 0 || totalMinor >= minAmountMinor) return null;
+  return (
+    <p className="text-bodyS text-ink-secondary">
+      {t.web.booking.summary.preorder.belowMinimum(
+        formatMoneyMinor(minAmountMinor),
+        formatMoneyMinor(minAmountMinor - totalMinor),
+      )}
+    </p>
   );
 }
 

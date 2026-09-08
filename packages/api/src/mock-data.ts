@@ -671,6 +671,7 @@ export const restaurants: Restaurant[] = [
     // офлайн-режиме должны быть видны ОБА исхода — и бронь с кнопкой Kaspi, и
     // бронь без неё.
     acceptsOnlinePayment: true,
+    preorderMinAmountMinor: null,
   },
   {
     id: "r2",
@@ -704,6 +705,7 @@ export const restaurants: Restaurant[] = [
     description: "Итальянская кухня, дровяная печь и терраса с видом на горы.",
     acceptsOnlineBookings: true,
     acceptsOnlinePayment: false,
+    preorderMinAmountMinor: null,
   },
   {
     id: "r3",
@@ -734,6 +736,7 @@ export const restaurants: Restaurant[] = [
     // Онлайн-брони нет — фикстура для состояния «столик только по телефону».
     acceptsOnlineBookings: false,
     acceptsOnlinePayment: false,
+    preorderMinAmountMinor: null,
   },
   {
     id: "r4",
@@ -781,6 +784,7 @@ export const restaurants: Restaurant[] = [
       "Ресторан на крыше с панорамным видом на город и авторской fusion-кухней.",
     acceptsOnlineBookings: true,
     acceptsOnlinePayment: false,
+    preorderMinAmountMinor: null,
   },
 ];
 

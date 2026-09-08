@@ -88,6 +88,7 @@ const RESTAURANT: Restaurant = {
   acceptsOnlineBookings: true,
   // Оплата к этим тестам отношения не имеет — см. booking-kaspi-payment.
   acceptsOnlinePayment: false,
+  preorderMinAmountMinor: null,
 };
 
 function bookingWith(status: BookingStatus, when: "future" | "past" = "future"): Booking {

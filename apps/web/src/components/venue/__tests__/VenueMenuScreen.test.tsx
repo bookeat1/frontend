@@ -292,6 +292,34 @@ describe("карточка «Предзаказ» в правой колонке
     expect(screen.queryByRole("heading", { name: "Предзаказ" })).toBeNull();
   });
 
+  /** D-WEB-1 (D4, ТЗ `web-preorder-menu-20260908`): черновик выше нуля, но
+   * ниже `Restaurant.preorderMinAmountMinor` — предупреждение под «Итого ≈»,
+   * ссылка/кнопка «Забронировать» на месте (см. `MenuBottomBar`). */
+  it("итог ниже минимума заведения — предупреждение под «Итого ≈» (D4)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ preorderMinAmountMinor: 10_000_00 }));
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+    await screen.findByText("Тартар из лосося");
+    fireEvent.click(screen.getAllByRole("button", { name: "Добавить Тартар из лосося" })[0]);
+
+    await screen.findByText("Итого ≈ 5 400 ₸");
+    expect(screen.getByText("Минимальный предзаказ 10 000 ₸ — добавьте ещё на 4 600 ₸")).toBeTruthy();
+  });
+
+  it("итог не ниже минимума заведения — предупреждения нет", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ preorderMinAmountMinor: 10_000_00 }));
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+    await screen.findByText("Тартар из лосося");
+    fireEvent.click(screen.getAllByRole("button", { name: "Добавить Тартар из лосося" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Добавить Карпаччо из говядины" }));
+
+    await screen.findByText("Итого ≈ 11 500 ₸");
+    expect(screen.queryByText(/Минимальный предзаказ/)).toBeNull();
+  });
+
   it("строка блюда, ставшего недоступным, помечена «Сейчас нет в наличии» (A6)", async () => {
     window.sessionStorage.setItem(
       "bookeat.web.preorder-draft.venue-1",
