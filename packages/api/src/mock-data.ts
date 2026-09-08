@@ -1,4 +1,4 @@
-import { Image } from "react-native";
+import { resolveAssetSource } from "./resolve-asset-source";
 import interiorArchwayHall from "../assets/photos/interior-archway-hall.jpg";
 import interiorChandelier from "../assets/photos/interior-chandelier.jpg";
 import interiorCheers from "../assets/photos/interior-cheers.jpg";
@@ -51,7 +51,7 @@ function photo(
   alt: string,
   category?: Photo["category"],
 ): Photo {
-  const resolved = Image.resolveAssetSource(assetModules[key]);
+  const resolved = resolveAssetSource(assetModules[key]);
   return {
     id,
     uri: resolved.uri,
