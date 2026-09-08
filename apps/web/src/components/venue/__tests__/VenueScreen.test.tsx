@@ -183,7 +183,8 @@ describe("карточка заведения", () => {
    * которой не существует.
    *
    * Осталось то, что график ВСЁ ЕЩЁ решает: ярлык статуса в шапке
-   * (3525:14586 «Открыто до 23:00») и подпись под телефоном (3525:14723).
+   * (3525:14586 «Открыто до 23:00»). Подпись под телефоном (3525:14723) ушла
+   * вместе со снятым блоком «Контакты и как добраться» (2026-09-07).
    * Открытость считает сервер (`schedule.openNow`); клиент лишь дописывает к
    * ней время из сегодняшней строки графика.
    */
@@ -214,8 +215,6 @@ describe("карточка заведения", () => {
     // ещё. Если оно снова появится, это должно быть осознанной правкой макета.
     expect(screen.queryByText("12:00–01:00 (до следующего дня)")).toBeNull();
     expect(screen.queryByText("Выходной")).toBeNull();
-    // График неодинаков по дням, значит под телефоном — окно сегодняшнего дня.
-    expect(screen.getByText("Сегодня с 12:00 до 01:00")).toBeTruthy();
   });
 
   it("закрытое заведение получает слова, а не пустой ярлык", async () => {
@@ -238,47 +237,42 @@ describe("карточка заведения", () => {
   });
 
   /**
-   * Плашка соцсетей (узел 3525:14724): заголовок — имя аккаунта Instagram, а
-   * не адрес целиком; подпись перечисляет каналы, и КАЖДЫЙ из них ссылка —
-   * иначе WhatsApp, второй в списке, был бы недостижим.
+   * Блок «Контакты и как добраться» (карта + адрес/телефон/соцсети) снят со
+   * страницы заведения целиком (2026-09-07): карты без провайдера показывать
+   * нечего, а половинчатую секцию решили не оставлять. Проверяем, что даже
+   * при полном наборе контактных данных от сервера ни карта, ни адрес, ни
+   * телефон, ни ссылки соцсетей на странице не появляются.
    */
-  it("плашка соцсетей: имя аккаунта в заголовке, каждый канал — ссылка", async () => {
+  it("контактов и карты на странице заведения больше нет", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({
+        address: "Проспект Аль-Фараби, 128В",
         phone: "+7 (707) 547-47-47",
+        latitude: 43.222,
+        longitude: 76.851,
         social: {
           instagram: "https://www.instagram.com/tbilisi.almaty/",
           whatsapp: "https://api.whatsapp.com/send/?phone=77055743434",
-        },
-        schedule: {
-          timezone: "Asia/Almaty",
-          openNow: true,
-          days: ([0, 1, 2, 3, 4, 5, 6] as const).map((dayOfWeek) => ({
-            dayOfWeek,
-            isOpen: true,
-            opensAt: "12:00",
-            closesAt: "01:00",
-            closesNextDay: true,
-          })),
         },
       }),
     );
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    const title = await screen.findByRole("link", { name: "tbilisi.almaty" });
-    expect(title.getAttribute("href")).toBe("https://www.instagram.com/tbilisi.almaty/");
-    // Ищем внутри секции контактов: свой Instagram есть и у подвала сайта.
-    const contacts = within(title.closest("section") as HTMLElement);
-    expect(contacts.getByRole("link", { name: "Instagram" }).getAttribute("href")).toBe(
-      "https://www.instagram.com/tbilisi.almaty/",
-    );
-    expect(contacts.getByRole("link", { name: "WhatsApp" }).getAttribute("href")).toBe(
-      "https://api.whatsapp.com/send/?phone=77055743434",
-    );
-    expect(screen.queryByText("https://www.instagram.com/tbilisi.almaty/")).toBeNull();
-    // Одинаковый график на неделю — строка макета «Ежедневно с … до …».
-    expect(screen.getByText("Ежедневно с 12:00 до 01:00")).toBeTruthy();
+    // Ждём, пока страница дорисуется (уникальный заголовок первого уровня),
+    // и только потом проверяем отсутствие — иначе `queryBy*` прошёл бы и по
+    // ещё не загруженным данным.
+    await screen.findByRole("heading", { level: 1 });
+
+    // «Контакты» ссылкой в подвале сайта осталась (ведёт на /contacts) — не
+    // трогаем; проверяем только заголовок и содержимое снятого блока.
+    expect(screen.queryByText("Контакты и как добраться")).toBeNull();
+    expect(screen.queryByText("Проспект Аль-Фараби, 128В")).toBeNull();
+    expect(screen.queryByRole("link", { name: "tbilisi.almaty" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: (name) => name.includes("+7 (707) 547-47-47") }),
+    ).toBeNull();
+    expect(document.getElementById("venue-contacts")).toBeNull();
   });
 
   /** Правая колонка макета (узел 3525:14730) — РОВНО одна карточка брони. */
