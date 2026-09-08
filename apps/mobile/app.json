@@ -11,6 +11,7 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      "expo-localization",
       [
         "expo-notifications",
         {
