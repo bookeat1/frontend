@@ -461,6 +461,19 @@ function MenuPreorderCard({
       <div className="flex flex-col gap-1">
         <p className="text-flow-summary-label text-ink">{texts.total(formatMoneyMinor(preorder.totalMinor))}</p>
         <p className="text-bodyS text-ink-tertiary">{texts.estimateNote}</p>
+        {/* D-WEB-1 (D4): тот же текст и то же условие, что в `PreorderBlock`
+            сводки брони (`BookingSummary.tsx` → `BelowMinimumHint`) — не
+            блокирует «Забронировать»/«К бронированию», только предупреждает. */}
+        {venue.preorderMinAmountMinor !== null &&
+        preorder.totalMinor > 0 &&
+        preorder.totalMinor < venue.preorderMinAmountMinor ? (
+          <p className="text-bodyS text-ink-secondary">
+            {t.web.booking.summary.preorder.belowMinimum(
+              formatMoneyMinor(venue.preorderMinAmountMinor),
+              formatMoneyMinor(venue.preorderMinAmountMinor - preorder.totalMinor),
+            )}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2.5">

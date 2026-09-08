@@ -124,6 +124,7 @@ const RESTAURANT: Restaurant = {
   // потому что остальные тесты файла разбирают ФАЗЫ оплаты, а фазы бывают
   // только у заведения, которому вообще разрешено платить.
   acceptsOnlinePayment: true,
+  preorderMinAmountMinor: null,
 };
 
 function bookingWith(status: BookingStatus): Booking {

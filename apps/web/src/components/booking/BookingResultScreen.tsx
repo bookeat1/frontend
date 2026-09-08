@@ -17,7 +17,7 @@ import { useAuth } from "@web/lib/auth";
 import { bookingDateLabel, formatMoneyMinor, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
-import { consumePreorderFailedFlag } from "@web/lib/preorder-failed-flag";
+import { consumePreorderFailedFlag, type PreorderFailedReason } from "@web/lib/preorder-failed-flag";
 import { useBooking, usePreorder, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
 
@@ -129,6 +129,16 @@ const STATUS_KEY: Record<BookingStatus, keyof typeof import("@bookeat/i18n").ru.
  * гость уже за столом. */
 const CHANGEABLE: readonly BookingStatus[] = ["pending", "waitlist", "confirmed"];
 
+/** `PreorderFailedReason` (snake_case, машинный код сервера) → ключ словаря
+ * `web.bookingResult.preorder.failedNotice` (camelCase, стиль остальных
+ * ключей i18n этого файла) — D-WEB-1, D5. */
+const FAILED_NOTICE_KEY: Record<PreorderFailedReason, "belowMinimum" | "itemUnavailable" | "locked" | "other"> = {
+  below_minimum: "belowMinimum",
+  item_unavailable: "itemUnavailable",
+  locked: "locked",
+  other: "other",
+};
+
 function Ticket({ booking }: { booking: Booking }) {
   const { t, locale } = useLocale();
   const texts = t.web.bookingResult;
@@ -143,9 +153,12 @@ function Ticket({ booking }: { booking: Booking }) {
   // должно всплывать у КАЖДОГО, кто её откроет (в т.ч. у самого гостя при
   // повторном заходе). Эффект, а не начальное состояние: чтение хранилища
   // недоступно при серверном рендере.
-  const [preorderFailedNotice, setPreorderFailedNotice] = useState(false);
+  //
+  // D-WEB-1 (D5): флаг несёт ПРИЧИНУ отказа (`below_minimum`/`item_unavailable`/
+  // `locked`/`other`), не только факт — `null` значит «флага не было вовсе».
+  const [preorderFailedReason, setPreorderFailedReason] = useState<PreorderFailedReason | null>(null);
   useEffect(() => {
-    setPreorderFailedNotice(consumePreorderFailedFlag(booking.id));
+    setPreorderFailedReason(consumePreorderFailedFlag(booking.id));
   }, [booking.id]);
 
   const wall = venueWallClock(booking.startsAt, venue.data?.schedule?.timezone);
@@ -174,10 +187,11 @@ function Ticket({ booking }: { booking: Booking }) {
 
       {/* A10/A14: бронь СОЗДАНА, только прикрепление предзаказа не вышло —
           не смешивать с ошибкой самой брони (`role="status"` выше). Один раз
-          за переход, см. `consumePreorderFailedFlag`. */}
-      {preorderFailedNotice ? (
+          за переход, см. `consumePreorderFailedFlag`. Текст различает
+          причину (D-WEB-1, D5) — `null` значит «флага не было». */}
+      {preorderFailedReason ? (
         <p className="w-full rounded-xl bg-warning px-4 py-3 text-center text-bodyS text-warning-text">
-          {texts.preorder.failedNotice}
+          {texts.preorder.failedNotice[FAILED_NOTICE_KEY[preorderFailedReason]]}
         </p>
       ) : null}
 

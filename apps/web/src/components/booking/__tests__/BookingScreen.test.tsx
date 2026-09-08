@@ -439,6 +439,31 @@ describe("блок «Предзаказ» в сводке (A8-A12)", () => {
     expect(screen.getAllByRole("button", { name: "Уменьшить количество" }).length).toBe(1);
   });
 
+  /** D-WEB-1 (D4): черновик выше нуля, но ниже минимума заведения — строка
+   * предупреждает, «Забронировать» НЕ блокируется. */
+  it("итог ниже минимума заведения — предупреждение под «Итого ≈», кнопка активна (D4)", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 1 }]);
+    repository.getRestaurant = vi.fn(async () => venueDetail({ preorderMinAmountMinor: 10_000_00 }));
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    expect(await screen.findByText("Итого ≈ 8 990 ₸")).toBeTruthy();
+    expect(screen.getByText("Минимальный предзаказ 10 000 ₸ — добавьте ещё на 1 010 ₸")).toBeTruthy();
+    expect(submitButton()).toHaveProperty("disabled", false);
+  });
+
+  it("итог не ниже минимума — предупреждения нет", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 2 }]);
+    repository.getRestaurant = vi.fn(async () => venueDetail({ preorderMinAmountMinor: 10_000_00 }));
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    await screen.findByText("Итого ≈ 17 980 ₸");
+    expect(screen.queryByText(/Минимальный предзаказ/)).toBeNull();
+  });
+
   it("POST без items, затем PUT только с menuItemId/quantity — без цены и имени (A9)", async () => {
     setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 2 }]);
     signIn();
@@ -477,7 +502,11 @@ describe("блок «Предзаказ» в сводке (A8-A12)", () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bookings/booking-1"));
     // A11: черновик очищен и при preorderFailed.
     expect(window.sessionStorage.getItem(DRAFT_KEY)).toBeNull();
-    expect(window.sessionStorage.getItem("bookeat.web.preorder-failed.booking-1")).toBe("1");
+    // D-WEB-1: причина отказа хранится структурно, а не «1» — здесь сеть/5xx
+    // после ретрая без опознанного кода, значит "other".
+    expect(window.sessionStorage.getItem("bookeat.web.preorder-failed.booking-1")).toBe(
+      JSON.stringify({ reason: "other" }),
+    );
   });
 
   it("отказ PUT на 4xx — без повтора (A10)", async () => {
@@ -502,6 +531,47 @@ describe("блок «Предзаказ» в сводке (A8-A12)", () => {
 
     await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
     expect(repository.setPreorder).not.toHaveBeenCalled();
+  });
+
+  /** D-WEB-1 (D4): итог клиентской оценки ниже минимума заведения — `PUT`
+   * не отправляется вовсе (бронь без предзаказа законна, PRD 11), причина
+   * `below_minimum` уходит на билет. */
+  it("итог клиентской оценки ниже минимума — PUT не уходит, бронь всё равно успешна, причина below_minimum", async () => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 1 }]);
+    repository.getRestaurant = vi.fn(async () => venueDetail({ preorderMinAmountMinor: 10_000_00 }));
+    signIn();
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bookings/booking-1"));
+    expect(repository.setPreorder).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem("bookeat.web.preorder-failed.booking-1")).toBe(
+      JSON.stringify({ reason: "below_minimum" }),
+    );
+  });
+
+  /** D-WEB-1 (D2/D5): машинный код сервера → причина, не текст ответа. */
+  it.each([
+    ["preorder_below_minimum", "below_minimum"],
+    ["preorder_item_unavailable", "item_unavailable"],
+    ["preorder_locked", "locked"],
+  ] as const)("код 422 %s → причина %s на билете", async (code, reason) => {
+    setDraft([{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 1 }]);
+    signIn();
+    repository.setPreorder = vi.fn(async () => {
+      throw new RepositoryError("rejected", undefined, 422, undefined, code);
+    });
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bookings/booking-1"));
+    expect(window.sessionStorage.getItem("bookeat.web.preorder-failed.booking-1")).toBe(
+      JSON.stringify({ reason }),
+    );
   });
 });
 

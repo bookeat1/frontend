@@ -135,6 +135,27 @@ describe("prices are in tenge", () => {
   });
 });
 
+/** D-API-1 (ТЗ `web-preorder-menu-20260908`): `preorder_min_amount_minor` —
+ * детальный ответ only, `null`/отсутствие ключа значит «минимум не задан»,
+ * а не 0. */
+describe("preorderMinAmountMinor — detail-only, null is not zero", () => {
+  it("a set minimum comes through as-is", () => {
+    expect(mapRestaurantDetail(apiRestaurant({ preorder_min_amount_minor: 1_000_000 })).preorderMinAmountMinor).toBe(
+      1_000_000,
+    );
+  });
+
+  it("an explicit null stays null", () => {
+    expect(
+      mapRestaurantDetail(apiRestaurant({ preorder_min_amount_minor: null })).preorderMinAmountMinor,
+    ).toBeNull();
+  });
+
+  it("an OMITTED key is null too, never 0 — 0 would read as \"any non-zero order is refused\"", () => {
+    expect(mapRestaurantDetail(apiRestaurant()).preorderMinAmountMinor).toBeNull();
+  });
+});
+
 describe("names are trimmed at the one seam", () => {
   it.each([
     [" Chaihana Palau  ", "Chaihana Palau"],

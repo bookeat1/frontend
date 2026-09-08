@@ -221,4 +221,30 @@ describe("блок «Предзаказ» на билете (A13, A14)", () => {
       ),
     ).toBeNull();
   });
+
+  /** D-WEB-1 (D5): четыре разные причины — четыре разных текста. */
+  it.each([
+    [
+      JSON.stringify({ reason: "below_minimum" }),
+      "Бронь принята, но предзаказ не прикрепился — итог был ниже минимального заказа заведения. Назовите блюда при подтверждении.",
+    ],
+    [
+      JSON.stringify({ reason: "item_unavailable" }),
+      "Бронь принята, но предзаказ не прикрепился — одно из блюд уже недоступно. Назовите блюда заведению при подтверждении.",
+    ],
+    [
+      JSON.stringify({ reason: "locked" }),
+      "Бронь принята, но предзаказ не прикрепился — состав уже меняет заведение. Уточните у него, что успели включить.",
+    ],
+    [
+      JSON.stringify({ reason: "other" }),
+      "Бронь принята, но предзаказ не прикрепился — назовите блюда заведению при подтверждении.",
+    ],
+  ])("причина %s → свой текст", async (flagValue, expectedText) => {
+    window.sessionStorage.setItem(`bookeat.web.preorder-failed.${ID}`, flagValue);
+
+    renderResult();
+
+    expect(await screen.findByText(expectedText)).toBeTruthy();
+  });
 });
