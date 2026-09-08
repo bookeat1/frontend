@@ -8,7 +8,8 @@
     "lint": "pnpm --filter @bookeat/mobile lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run test"
+    "check:eas": "node apps/mobile/scripts/check-eas-profiles.js",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run check:eas"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
