@@ -27,6 +27,12 @@ export const BOOKING_PARAM = {
    * экране успеха). Присутствие параметра переключает экран в режим переноса:
    * создаётся не новая бронь, а `PATCH /bookings/:id`. */
   change: "change",
+  /** Идентификатор брони, чей предзаказ правит страница меню (ТЗ
+   * `web-preorder-menu-20260908`, C-WEB-1). Присутствие параметра переключает
+   * страницу `/venues/[id]/menu` в режим правки: корзина сеется из
+   * `GET /bookings/:id/preorder`, а не из черновика заведения, и приоритетнее
+   * `date/guests/slot` — те тогда игнорируются (раздел 5 ТЗ). */
+  booking: "booking",
 } as const;
 
 export interface BookingIntent {
@@ -110,6 +116,26 @@ export function menuHref(
 ): string {
   const query = intentQuery(intent, false);
   return query ? `${menuPath(venueId)}?${query}` : menuPath(venueId);
+}
+
+/**
+ * Ссылка на страницу меню в режиме правки предзаказа существующей брони
+ * (ТЗ `web-preorder-menu-20260908`, C-WEB-2: кнопка «Выбрать блюда»/«Изменить
+ * предзаказ» на `/bookings/[id]`). `date/guests/slot` сюда не попадают —
+ * режим `booking` их игнорирует (раздел 5 ТЗ).
+ */
+export function menuBookingHref(venueId: string, bookingId: string): string {
+  const params = new URLSearchParams();
+  params.set(BOOKING_PARAM.booking, bookingId);
+  return `${menuPath(venueId)}?${params.toString()}`;
+}
+
+/** `?booking=<uuid>` страницы меню, или `null` — та же проверка формы, что и
+ * у `changeBookingId`: несуществующую бронь отвергнет сервер, мусор в адресе
+ * — наша забота. */
+export function readMenuBookingId(params: URLSearchParams): string | null {
+  const value = params.get(BOOKING_PARAM.booking);
+  return value && UUID_RE.test(value) ? value : null;
 }
 
 /** Что из адреса пережило проверку. Не прошедшее молча становится `null` —
