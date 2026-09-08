@@ -16,9 +16,12 @@ name: Deploy desktop site (test)
 
 on:
   push:
-    # apps/web does not exist on develop yet; the site lives on its feature
-    # branches. Both are listed so the deploy keeps working after the merge.
-    branches: [develop, "feat/web-**"]
+    # The stand mirrors develop and nothing else (branch model, 2026-09-08):
+    # a feature branch reaches the stand only through a merged PR, or by hand
+    # via workflow_dispatch. The earlier "feat/web-**" trigger predates
+    # apps/web landing on develop and would let any such push overwrite the
+    # stand with unmerged code.
+    branches: [develop]
     paths:
       - "apps/web/**"
       - "packages/**"
