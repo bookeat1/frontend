@@ -96,6 +96,8 @@ import type {
   PreorderLineInput,
   ProfileUpdate,
   Promo,
+  PromoPage,
+  PromoQuery,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -138,6 +140,9 @@ const BOOKINGS_PAGE_SIZE = 20;
  * scrolls it by hand, so a page bigger than a handful of cards would download
  * rows nobody swipes to. The server caps per_page at 100. */
 const EVENTS_PAGE_SIZE = 12;
+/** One page of the public `/promos` listing (web «Все акции»). Same default
+ * as the events listing — mirrors it structurally. */
+const PROMOS_LISTING_PAGE_SIZE = 12;
 /** One page of the notifications inbox. The screen shows a single vertical
  * list a guest scrolls by hand, so a page of this size covers the recent inbox
  * without a burst; older items are reachable later via `next_cursor`. */
@@ -520,6 +525,28 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   async getPromo(id: string): Promise<Promo> {
     const api = await this.client.get<ApiPromoListItem>(`/promos/${encodeURIComponent(id)}`);
     return mapPromo(api);
+  }
+
+  /**
+   * GET /promos — the cross-venue guest listing (`listPublicActive`,
+   * `internal/transport/rest/promos/handler.go`), mirrors `listUpcomingEvents`.
+   * Same item shape and mapper as `getPromo` (`promoListItemResponse`).
+   */
+  async listActivePromos(query?: PromoQuery): Promise<PromoPage> {
+    const perPage = clampPerPage(query?.perPage ?? PROMOS_LISTING_PAGE_SIZE);
+    const page = await this.client.get<ApiPage<ApiPromoListItem>>("/promos", {
+      city: query?.city,
+      restaurant_id: query?.restaurantId,
+      page: query?.page ?? 1,
+      per_page: perPage,
+    });
+    return {
+      items: (page.items ?? []).map(mapPromo),
+      total: typeof page.total === "number" ? page.total : 0,
+      page: typeof page.page === "number" ? page.page : 1,
+      pages: typeof page.pages === "number" ? page.pages : 0,
+      perPage: typeof page.per_page === "number" ? page.per_page : perPage,
+    };
   }
 
   /* --- gastroguide / «Статьи» --- */

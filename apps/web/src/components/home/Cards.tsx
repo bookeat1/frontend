@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { EventSummary, GuideCollection, HomePromo } from "@bookeat/api/client";
+import type { EventSummary, GuideCollection } from "@bookeat/api/client";
 
 import { Card } from "@web/components/ui/Card";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
@@ -43,13 +43,13 @@ export const SHOW_SECTION_LINKS: boolean = false;
 export const SHOW_EVENTS_LINK: boolean = true;
 
 /**
- * Роута-ЛИСТИНГА акций на сайте НЕТ: `/promos/[id]` (T1b, 2026-09-06) открывает
- * одну акцию, а страницы «все акции» нет ни в `app/promos/`, ни где-либо ещё —
- * проверено 2026-09-07 (задача «Все акции», Figma-узел 3525:14229). Ссылка
- * «Все акции» в шапке секции и пункт «Акции» в `SiteHeader` собраны и ждут этим
- * флагом: включить — одна строка, когда появится страница-листинг.
+ * Роут `/promos` (листинг «Все акции») ЕСТЬ с 2026-09-07 (владелец отменил
+ * решение от 2026-09-04 «Акции на веб не переносим», `docs/responsive.md`
+ * §8) — построен по образцу `/events`. Флаг оставлен ЕДИНСТВЕННЫМ местом,
+ * которое пришлось поменять, чтобы включить и пункт шапки, и ссылку в шапке
+ * секции: разметка и словарь были готовы заранее.
  */
-export const SHOW_PROMOS_LINK: boolean = false;
+export const SHOW_PROMOS_LINK: boolean = true;
 
 /** Адреса, которые появятся вместе с роутами; собраны в одном месте, чтобы
  * при включении флага не искать их по вёрстке. */
@@ -80,7 +80,24 @@ export const GUIDE_CARD_IMAGE = "aspect-home-cover w-full lg:aspect-auto lg:h-gu
 const THIRD_COLUMN_SIZES = "(min-width: 1280px) 384px, (min-width: 768px) 33vw, 100vw";
 const HALF_COLUMN_SIZES = "(min-width: 1280px) 588px, (min-width: 768px) 50vw, 100vw";
 
-export function PromoCard({ promo }: { promo: HomePromo }) {
+/**
+ * Минимальный набор полей, которые рисует `PromoCard`. `HomePromo` (лента
+ * главной, `GET /feed`) и `Promo` (листинг `/promos` и карточка `/promos/[id]`,
+ * `GET /promos`) — РАЗНЫЕ типы (разный контракт: у `Promo` вложенный
+ * `restaurant`, у `HomePromo` — плоское `restaurantName`), поэтому карточка
+ * читает узкий срез вместо одного из двух типов целиком; `EventsScreen`
+ * может себе позволить принять `EventSummary` напрямую только потому, что
+ * там ленты и листинг — ОДИН и тот же тип.
+ */
+export interface PromoCardData {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  discountPercent: number | null;
+  restaurantName: string;
+}
+
+export function PromoCard({ promo }: { promo: PromoCardData }) {
   const t = useT();
 
   return (

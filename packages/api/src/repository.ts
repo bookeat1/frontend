@@ -32,6 +32,8 @@ import type {
   PreorderLineInput,
   ProfileUpdate,
   Promo,
+  PromoPage,
+  PromoQuery,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -146,6 +148,15 @@ export interface RestaurantRepository {
    * 404 (`RepositoryError.isNotFound`) is the honest "not found" state.
    */
   getPromo(id: string): Promise<Promo>;
+
+  /**
+   * Cross-venue promo listing (`GET /promos`) — `/promos` (web «Все акции»),
+   * mirrors `listUpcomingEvents`. Public, no session; visibility is decided
+   * server-side (only ACTIVE promos of ACTIVE venues plus platform promos —
+   * `ListPublicActive`), so an empty page is a real "nothing running" answer,
+   * not a permissions problem. `pages` is 0 when there is nothing at all.
+   */
+  listActivePromos(query?: PromoQuery): Promise<PromoPage>;
 
   /* --- gastroguide / «Статьи» --- */
 

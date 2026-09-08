@@ -211,6 +211,7 @@ export function repositoryStub(
     getMenuSections: vi.fn(async () => [] as MenuSection[]),
     getEvent: vi.fn(async () => eventSummary()),
     getPromo: vi.fn(async () => promoDetail()),
+    listActivePromos: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 6 })),
     getMapPreviewUrl: vi.fn(() => undefined),
     // Избранное. Стоит здесь, а не только в тестах страницы заведения: экран
     // спрашивает его сам, и тест «кнопка не ходила в сеть» должен иметь что

@@ -8,20 +8,22 @@ import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
  * так, чтобы это было слышно, а не только видно по красному подчёркиванию.
  */
 describe("SiteHeader", () => {
-  it("рисует все пункты меню из макета — их ПЯТЬ", () => {
+  it("рисует все пункты меню из макета — их ШЕСТЬ", () => {
     render(<SiteHeader />);
 
     const nav = screen.getByRole("navigation", { name: "Основная навигация" });
     expect(nav.querySelectorAll("a")).toHaveLength(HEADER_NAV.length);
     // Узел 5034:9569 (шапка кадра «Афиша»): «Главная», «Заведения», «Афиша»,
-    // «Гастрогид», «Статьи». Все пять роутов существуют с 2026-09-05:
-    // «Афиша» пришла с /events (5033:6703), «Статьи» с /articles (5033:7382).
+    // «Гастрогид», «Статьи», «Акции». Роуты существуют с 2026-09-05
+    // («Афиша» — /events, узел 5033:6703; «Статьи» — /articles, узел
+    // 5033:7382) и с 2026-09-07 («Акции» — /promos, см. `SHOW_PROMOS_LINK`).
     expect([...nav.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
       "Главная",
       "Заведения",
       "Афиша",
       "Гастрогид",
       "Статьи",
+      "Акции",
     ]);
   });
 

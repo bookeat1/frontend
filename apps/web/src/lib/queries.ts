@@ -34,6 +34,7 @@ import type {
   PreorderLineInput,
   ProfileUpdate,
   Promo,
+  PromoPage,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
@@ -166,6 +167,30 @@ export function usePromo(id: string): UseQueryResult<Promo> {
     queryFn: () => repository.getPromo(id),
     enabled: isApiConfigured && id.length > 0,
     retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
+  });
+}
+
+/** Страница листинга «Все акции» /promos: сетка 3×N (по образцу афиши,
+ * `EVENTS_PAGE_SIZE`), «Показать ещё» грузит следующую. */
+export const PROMOS_PAGE_SIZE = 6;
+
+/**
+ * Полный список акций /promos. Бесконечный запрос, тот же приём, что у
+ * `useEventsFeed`: страницы накапливаются, «Показать ещё» дёргает
+ * `fetchNextPage`. `GET /promos` не отдаёт тегов/категорий (в отличие от
+ * `/events`), поэтому здесь нет клиентского фильтра — только город из шапки.
+ */
+export function usePromosFeed(
+  city: string | undefined,
+): UseInfiniteQueryResult<InfiniteData<PromoPage>> {
+  const { locale } = useLocale();
+  return useInfiniteQuery({
+    queryKey: [locale, "promos-feed", city],
+    queryFn: ({ pageParam }) =>
+      repository.listActivePromos({ city, page: pageParam, perPage: PROMOS_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
+    enabled: isApiConfigured && Boolean(city),
   });
 }
 
