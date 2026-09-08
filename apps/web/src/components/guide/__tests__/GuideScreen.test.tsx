@@ -82,8 +82,14 @@ describe("страница гастрогида", () => {
 
     expect(await screen.findByRole("heading", { name: "Гастропрогулки" })).toBeTruthy();
     expect(screen.getByText("1 день · 4 точки")).toBeTruthy();
-    // Страниц рубрик/подборок/маршрутов на сайте нет — карточки без ссылок.
-    expect(screen.queryByRole("link", { name: "Казахская кухня" })).toBeNull();
+    // Плитка рубрики ведёт на страницу рубрики (`/guide/rubric/:categorySlug`,
+    // Figma-узел 5078:5739) — по ПЕРВОМУ слагу категории подборки.
+    expect(screen.getByRole("link", { name: "Казахская кухня" }).getAttribute("href")).toBe(
+      "/guide/rubric/food",
+    );
+    // Страницы подборки («Выбор редакции») на сайте по-прежнему нет —
+    // карточка без ссылки.
+    expect(screen.queryByRole("link", { name: "Средиземноморье в Алматы" })).toBeNull();
     expect(vi.mocked(stub.getGuideRoutes)).toHaveBeenCalledWith("Алматы");
   });
 

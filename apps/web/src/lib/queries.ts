@@ -3,6 +3,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type UseInfiniteQueryResult,
@@ -192,6 +193,28 @@ export function useGuideCategories(): UseQueryResult<GuideCategory[]> {
     queryFn: () => repository.getGuideCategories(),
     enabled: isApiConfigured,
     staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Заведения ВСЕХ подборок одной рубрики — для `/guide/rubric/[slug]`, зеркало
+ * `useGuideCollectionDetails` из `apps/mobile/src/components/explore/
+ * use-explore-data.ts`. `useQueries`, а не цикл из `useGuideCollection`:
+ * количество слагов зависит от ответа сервера. Ключ кэша совпадает с тем, что
+ * дала бы будущая страница одной подборки (`["locale","guide-collection",slug]`),
+ * поэтому переход рубрика → подборка не бьёт по сети повторно.
+ */
+export function useGuideCollectionDetails(
+  slugs: readonly string[],
+): UseQueryResult<GuideCollectionDetail>[] {
+  const { locale } = useLocale();
+  return useQueries({
+    queries: slugs.map((slug) => ({
+      queryKey: [locale, "guide-collection", slug],
+      queryFn: () => repository.getGuideCollection(slug),
+      enabled: isApiConfigured,
+      staleTime: 5 * 60_000,
+    })),
   });
 }
 

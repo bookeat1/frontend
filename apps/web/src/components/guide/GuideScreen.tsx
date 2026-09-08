@@ -87,6 +87,16 @@ export function GuideScreen() {
                     key={collection.slug}
                     collection={collection}
                     eyebrow={rubricEyebrow(collection, categoryTitles)}
+                    // Ведём на рубрику (все подборки этой категории), а не на
+                    // саму подборку — так же, как плитка «Рубрики» на
+                    // `/gastroguide` (apps/mobile/app/gastroguide/index.tsx,
+                    // `openRubric`). Первый слаг совпадает с самой плиткой
+                    // (`rubricEyebrow` показывает название той же категории).
+                    href={
+                      collection.categorySlugs[0]
+                        ? `/guide/rubric/${collection.categorySlugs[0]}`
+                        : undefined
+                    }
                   />
                 ))}
               </TwoUp>
