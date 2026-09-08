@@ -1137,6 +1137,45 @@ export interface PlatformGuestQuery {
   per_page?: number;
 }
 
+/** ---- Управление ролями платформы --------------------------------------
+ *
+ * Глобальная роль (domain.Role) — три значения, `admin` даёт полный доступ ко
+ * всей платформенной группе (не путать со StaffRole — ролью в ОДНОМ заведении).
+ * Ручки смонтированы на adminGlobal (RequireRole(RoleAdmin)), usecase
+ * проверяет роль ещё раз (`internal/usecase/roles/roles.go`).
+ */
+export type GlobalRole = "user" | "restaurant" | "admin";
+
+/** Строка `GET /admin/users`. `email`/`phone` — указатели на бэкенде (у
+ * пользователя гарантирован хотя бы один), поэтому оба нуллабельны. */
+export interface PlatformUser {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  full_name: string;
+  role: GlobalRole;
+  is_active: boolean;
+  created_at: string;
+}
+
+/** Тело `PATCH /admin/users/:id/role`. `reason` необязателен — пишется в
+ * историю как есть, пустая строка на сервере отбрасывается до null. */
+export interface SetUserRoleInput {
+  role: GlobalRole;
+  reason?: string;
+}
+
+/** Строка `GET /admin/users/:id/role-history`. `actor_id` — null только у
+ * бутстрап-назначения первого администратора (сама платформа, не человек). */
+export interface UserRoleChange {
+  id: string;
+  actor_id: string | null;
+  from_role: GlobalRole;
+  to_role: GlobalRole;
+  reason: string | null;
+  created_at: string;
+}
+
 /** Period filter shared by the three period-scoped dashboard calls. Omitted
  * values let the backend apply its own defaults (a look-back window ending
  * now) — the client does not invent dates. */

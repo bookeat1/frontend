@@ -1054,6 +1054,8 @@ export const ru = {
       /** T4 — семь текстовых страниц футера сайта (about/jobs/contacts/
        * how-it-works/cancellation/offer/privacy). */
       sitePages: "Страницы сайта",
+      /** Управление ролями платформы (кто администратор). */
+      roles: "Роли",
       soon: "Скоро",
     },
     common: {
@@ -1970,6 +1972,64 @@ export const ru = {
       aliasEmpty: "Введите написание",
       aliasSameAsName: "Это и есть название города — оно узнаётся и так",
       aliasFailed: "Не удалось добавить написание. Возможно, оно уже занято другим городом",
+    },
+    /**
+     * Управление ролями платформы (Trello XAK5u4Lo). Роль здесь — ГЛОБАЛЬНАЯ
+     * (`user`/`restaurant`/`admin`, backend PR #62), не роль в заведении
+     * (owner/manager/hostess) — тот раздел живёт в «Настройках» заведения.
+     */
+    roles: {
+      title: "Роли",
+      description:
+        "Кому какой доступ на платформе. «Администратор» видит и правит весь платформенный раздел; отобрать его у себя нельзя, а у последнего администратора — нельзя никому.",
+      adminOnlyTitle: "Раздел только для администраторов платформы",
+      adminOnlyDescription: "Роли назначает платформа — обратитесь к действующему администратору.",
+      searchPlaceholder: "Имя, почта или телефон",
+      searchHint: "Пустой поиск покажет недавно зарегистрированных, а не всех сразу.",
+      loadingTitle: "Ищем пользователей…",
+      loadFailed: "Не удалось загрузить список",
+      emptyTitle: "Никого не нашлось",
+      emptyDescription: "Уточните запрос — имя, почту или телефон.",
+      colUser: "Пользователь",
+      colContact: "Контакт",
+      colRole: "Роль",
+      colStatus: "Статус",
+      colRegistered: "Регистрация",
+      statusActive: "Активен",
+      statusInactive: "Заблокирован",
+      you: "Вы",
+      selfHint: "Нельзя изменить собственную роль",
+      changeRole: "Изменить роль",
+      changeRoleAria: (name: string) => `Изменить роль пользователя «${name}»`,
+      history: "История",
+      historyAria: (name: string) => `История ролей пользователя «${name}»`,
+      role: {
+        user: "Гость",
+        restaurant: "Заведение",
+        admin: "Администратор",
+      },
+      // Диалог смены роли.
+      changeRoleTitle: (name: string) => `Роль: ${name}`,
+      fieldRole: "Новая роль",
+      fieldReason: "Причина (необязательно)",
+      fieldReasonHint: "Останется в истории изменений — пригодится через полгода.",
+      save: "Сохранить",
+      saveFailed:
+        "Не удалось изменить роль. Возможно, это последний администратор или ваша собственная запись — такое запрещено платформой",
+      // Диалог истории.
+      historyTitle: (name: string) => `История ролей: ${name}`,
+      historyLoadingTitle: "Загружаем историю…",
+      historyLoadFailed: "История не загрузилась",
+      historyEmptyTitle: "Изменений ещё не было",
+      historyEmptyDescription: "Роль этого пользователя ни разу не меняли.",
+      colFrom: "Было",
+      colTo: "Стало",
+      colActor: "Кто изменил",
+      colReason: "Причина",
+      colWhen: "Когда",
+      actorPlatform: "Платформа (при развёртывании)",
+      actorUnknown: "—",
+      noReason: "—",
     },
     /** Выбор города в форме заведения. */
     venueCity: {
