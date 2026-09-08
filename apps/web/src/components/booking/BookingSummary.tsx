@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
 import type { Restaurant } from "@bookeat/api/client";
 
@@ -19,15 +20,20 @@ import { useLocale } from "@web/lib/locale";
  * просвет 18, ширину задаёт колонка (380).
  *
  * ЧТО ИЗ МАКЕТА ЗДЕСЬ НЕТ: строка «Зона» (зон у сервера нет) и кнопка
- * «Перейти к предзаказу» — страницы полного меню на сайте нет (спека
- * `venue-menu-stepper-promo-card`, «вне скоупа»), предзаказ набирается только
- * лентой «Популярное в меню» карточки заведения. Кнопка «Забронировать» —
- * единственная, поэтому главная: заливка, а не обводка.
+ * «Перейти к предзаказу» — кадр рисует её PRIMARY, но владелец (решение
+ * 2026-09-03, PRD 11 «предзаказ не должен выглядеть как условие») оставляет
+ * «Забронировать» единственной главной кнопкой на всей странице: заливка, а
+ * не обводка. Вместо неё — вторичная ссылка «Выбрать блюда»/«Изменить
+ * выбор» внутри блока «Предзаказ» (см. `PreorderBlock`).
  *
- * БЛОК «ПРЕДЗАКАЗ» (A8, ДОБАВЛЕН 2026-09-06) стоит над кнопкой отправки:
- * по строке на блюдо со степпером при непустом черновике, иначе — подсказка
- * узла 3525:14964 без кнопок. `preorder === null` (режим переноса) прячет
- * блок целиком — предзаказ существующей брони на сайте не редактируется.
+ * БЛОК «ПРЕДЗАКАЗ» (A8, 2026-09-06; ссылки на полное меню — B-WEB-1,
+ * `web-preorder-menu-20260908`, 2026-09-08) стоит над кнопкой отправки: по
+ * строке на блюдо со степпером при непустом черновике плюс ссылка «Изменить
+ * выбор», иначе — подсказка узла 3525:14964 и ссылка-кнопка «Выбрать блюда»
+ * на `/venues/[id]/menu` (полное меню страницы — теперь есть,
+ * `venue/VenueMenuScreen.tsx`). `preorder === null` (режим переноса) прячет
+ * блок целиком — предзаказ существующей брони на сайте не редактируется
+ * (часть C спеки, отдельная карточка).
  *
  * НИЖЕ `lg` (контракт `docs/responsive.md`, дыра № 10) карточка ведёт себя как
  * экран брони приложения (`apps/mobile/app/restaurant/[id]/book/index.tsx`):
@@ -47,6 +53,9 @@ export interface PreorderSummary {
   totalMinor: number;
   onIncrement: (menuItemId: string) => void;
   onDecrement: (menuItemId: string) => void;
+  /** Адрес полного меню с ТЕКУЩИМ выбором даты/гостей/времени этой страницы
+   * (B-WEB-1) — `lib/booking-link.ts` → `menuHref`. */
+  menuHref: string;
 }
 
 export type SummaryAction =
@@ -210,12 +219,31 @@ function PreorderBlock({ preorder }: { preorder: PreorderSummary }) {
   const texts = t.web.booking.summary.preorder;
 
   if (preorder.lines.length === 0) {
-    return <p className="text-bodyS text-ink-secondary">{texts.hint}</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-bodyS text-ink-secondary">{texts.hint}</p>
+        {/* B1: вторичная кнопка-ссылка, а не главная — «Забронировать»
+            остаётся единственной primary-кнопкой страницы (см. комментарий
+            наверху файла). */}
+        <Button size="m" variant="outline" block asLink href={preorder.menuHref}>
+          {texts.chooseDishes}
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-flow-summary-label text-ink-secondary">{texts.title}</p>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-flow-summary-label text-ink-secondary">{texts.title}</p>
+        {/* B2: ссылка на то же меню — черновик уже набран, гость правит его. */}
+        <Link
+          href={preorder.menuHref}
+          className="text-bodyS font-semibold text-brand-text hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {texts.changeSelection}
+        </Link>
+      </div>
       <ul className="flex flex-col gap-3">
         {preorder.lines.map((line) => (
           <li key={line.menuItemId} className="flex items-center justify-between gap-3">

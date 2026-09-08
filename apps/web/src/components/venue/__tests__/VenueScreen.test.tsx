@@ -65,9 +65,9 @@ describe("карточка заведения", () => {
     expect(screen.getByRole("button", { name: "Повторить" })).toBeTruthy();
   });
 
-  it("пустое меню убирает весь блок «Меню» со страницы, а не заглушку", async () => {
+  it("заведение офлайн и без меню убирает весь блок «Меню» со страницы, а не заглушку", async () => {
     repository.getRestaurant = vi.fn(async () =>
-      venueDetail({ menuHighlights: [], photos: [], description: "" }),
+      venueDetail({ menuHighlights: [], photos: [], description: "", acceptsOnlineBookings: false }),
     );
 
     renderScreen(<VenueScreen id="venue-1" />);
@@ -76,10 +76,29 @@ describe("карточка заведения", () => {
     // работает как раньше и меняться не должно.
     expect(await screen.findByText("Заведение пока не загрузило фотографии.")).toBeTruthy();
     expect(screen.getByText("Заведение пока не рассказало о себе.")).toBeTruthy();
-    // А пустое меню — не заглушка, а полное отсутствие секции и вкладки.
-    expect(screen.queryByText("Меню пока не заполнено.")).toBeNull();
-    expect(screen.queryByRole("link", { name: "Меню" })).toBeNull();
+    // Без брони через сайт входа в меню тоже нет (A10: `acceptsOnlineBookings`
+    // — единственный дешёвый признак, см. `MenuSection`).
+    expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Популярное в меню" })).toBeNull();
+  });
+
+  /** A10 (`web-preorder-menu-20260908`): раньше у заведения без карточек
+   * «Популярное» секции «Меню» не было вовсе — 6/20 заведений стенда не
+   * давали со страницы заведения НИКАКОГО входа в полное меню. */
+  it("заведение принимает брони, но без «Популярного» — секция «Меню» остаётся входом на полное меню (A10)", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ menuHighlights: [], acceptsOnlineBookings: true }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByRole("heading", { name: "Популярное в меню" })).toBeTruthy();
+    expect(screen.getByText("Полное меню — на отдельной странице")).toBeTruthy();
+    const link = screen.getByRole("link", { name: "Всё меню →" });
+    expect(link.getAttribute("href")).toBe("/venues/venue-1/menu");
+    // Сетки карточек нет — блюд для неё нет.
+    expect(screen.queryByRole("button", { name: /^Добавить / })).toBeNull();
   });
 
   it("удобства заведения — ряд ярлыков из ответа сервера, а не выдумка", async () => {

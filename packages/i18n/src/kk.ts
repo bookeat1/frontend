@@ -2755,6 +2755,7 @@ export const kk: LocaleOverride<Dictionary> = {
         qtyMore: "Санын арттыру",
         preorderTotal: (amount: string) => `Барлығы ≈ ${amount}`,
         viewAll: "Толық мәзір →",
+        fullMenuOnly: "Толық мәзір — жеке бетте",
       },
       menuPage: {
         title: (name: string) => `${name} мәзірі`,
@@ -2766,6 +2767,16 @@ export const kk: LocaleOverride<Dictionary> = {
         searchEmptyTitle: "Ештеңе табылмады",
         searchEmptyDescription: "Басқа сөз көріңіз немесе іздеуді тазалаңыз",
         footerNote: "Құрамы мен бағасын мекеме көрсетеді. Аллергендер туралы даяшыдан сұраңыз.",
+        unavailable: "Қазір жоқ",
+        cart: {
+          title: "Алдын ала тапсырыс",
+          total: (amount: string) => `Барлығы ≈ ${amount}`,
+          estimateNote: "Соңғы соманы мекеме есептейді — бұл мәзір бағасы бойынша болжам",
+          clear: "Тазалау",
+          backToBooking: "Броньға оралу",
+          toBooking: (amount: string) => `Броньға · Барлығы ≈ ${amount}`,
+          book: "Брондау",
+        },
       },
       promos: {
         title: "Орын акциялары",
@@ -2916,6 +2927,8 @@ export const kk: LocaleOverride<Dictionary> = {
           hint: "Тағамдарды алдын ала таңдаңыз — үстел келуіңізге дайын болады.",
           lineQty: (qty: number, price: string) => `${qty} × ${price}`,
           totalApprox: (amount: string) => `Жалпы ≈ ${amount}`,
+          chooseDishes: "Тағамдарды таңдау",
+          changeSelection: "Таңдауды өзгерту",
         },
       },
       errors: {

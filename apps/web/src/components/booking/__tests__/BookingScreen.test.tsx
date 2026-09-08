@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { RepositoryError, type AuthUser, type Booking, type Restaurant } from "@bookeat/api/client";
 
 import { booking, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
-import { bookingHref } from "@web/lib/booking-link";
+import { bookingHref, menuHref } from "@web/lib/booking-link";
 import { todayIso } from "@web/lib/format";
 import { loginHref } from "@web/lib/return-to";
 
@@ -502,6 +502,61 @@ describe("блок «Предзаказ» в сводке (A8-A12)", () => {
 
     await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
     expect(repository.setPreorder).not.toHaveBeenCalled();
+  });
+});
+
+/** B-WEB-1 (`web-preorder-menu-20260908`): вход на полное меню с текущим
+ * выбором даты/гостей/времени страницы брони. */
+describe("вход на полное меню из блока «Предзаказ» (B1-B3)", () => {
+  const DRAFT_KEY = "bookeat.web.preorder-draft.venue-1";
+
+  it("пустой черновик — обводочная ссылка «Выбрать блюда» на /venues/[id]/menu с текущим выбором (B1)", async () => {
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    const link = screen.getByRole("link", { name: "Выбрать блюда" });
+    expect(link.getAttribute("href")).toBe(
+      menuHref("venue-1", { date: todayIso(), guests: 2, slot: SLOT }),
+    );
+    // Вторичная, не главная: владелец оставляет «Забронировать» единственной
+    // primary-кнопкой (см. комментарий `BookingSummary.tsx`).
+    expect(screen.queryByRole("link", { name: "Перейти к предзаказу" })).toBeNull();
+  });
+
+  it("непустой черновик — ссылка «Изменить выбор» рядом с «Итого ≈» на тот же адрес (B2)", async () => {
+    window.sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ lines: [{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 2 }] }),
+    );
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    await screen.findByText("Итого ≈ 17 980 ₸");
+    const link = screen.getByRole("link", { name: "Изменить выбор" });
+    expect(link.getAttribute("href")).toBe(
+      menuHref("venue-1", { date: todayIso(), guests: 2, slot: SLOT }),
+    );
+    expect(screen.queryByRole("link", { name: "Выбрать блюда" })).toBeNull();
+  });
+
+  it("адрес меню несёт ТЕКУЩИЙ выбор страницы, а не тот, что был при заходе (B3)", async () => {
+    search = new URLSearchParams(`date=${todayIso()}&guests=2&slot=${encodeURIComponent(SLOT)}`);
+    signIn();
+    renderBooking();
+    await chooseSlot();
+
+    // Смена гостей сбрасывает выбранное время (доступность считается на
+    // размер компании заново) — выбираем время ещё раз, как сделал бы гость.
+    fireEvent.click(screen.getByRole("button", { name: "Больше гостей" }));
+    fireEvent.click(screen.getByRole("button", { name: "Больше гостей" }));
+    await chooseSlot();
+
+    const link = await screen.findByRole("link", { name: "Выбрать блюда" });
+    expect(link.getAttribute("href")).toBe(
+      menuHref("venue-1", { date: todayIso(), guests: 4, slot: SLOT }),
+    );
   });
 });
 

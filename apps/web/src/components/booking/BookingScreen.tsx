@@ -30,7 +30,7 @@ import {
   readBookingFormDraft,
   writeBookingFormDraft,
 } from "@web/lib/booking-form-draft";
-import { bookingHref, bookingResultPath, readBookingIntent, type BookingIntent } from "@web/lib/booking-link";
+import { bookingHref, bookingResultPath, menuHref, readBookingIntent, type BookingIntent } from "@web/lib/booking-link";
 import {
   describeBookingFailure,
   isNotFoundError,
@@ -72,7 +72,12 @@ import { usePreorderDraft } from "@web/lib/use-preorder-draft";
  * входа, отказы сервера, режим переноса, «заведение не принимает брони».
  *
  * ЧТО НАРИСОВАНО, НО НЕ СДЕЛАНО: зоны посадки (сервер их не отдаёт и не
- * принимает), плашка и кнопка предзаказа (предзаказа на сайте нет).
+ * принимает). Плашка и кнопка предзаказа (кадр `3525:14971/14973`) — СДЕЛАНЫ,
+ * но не дословно: карточка «Предзаказ» и ссылка «Выбрать блюда»/«Изменить
+ * выбор» на `/venues/[id]/menu` теперь есть (`BookingSummary.tsx` →
+ * `PreorderBlock`, ТЗ `web-preorder-menu-20260908`, B-WEB-1); кнопка «Перейти
+ * к предзаказу» — НЕТ, владелец сознательно оставил «Забронировать»
+ * единственной главной кнопкой (см. комментарий `PreorderBlock`).
  */
 export function BookingScreen({ id }: { id: string }) {
   const { t } = useLocale();
@@ -413,7 +418,10 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   ];
 
   /** `null` в режиме переноса: правка предзаказа существующей брони на сайте
-   * не сделана (спека `venue-menu-stepper-promo-card`, «вне скоупа»). */
+   * не сделана (спека `web-preorder-menu-20260908`, часть C, отдельная
+   * карточка). `menuHref` — B-WEB-1: вход на полное меню с ТЕКУЩИМ выбором
+   * этой страницы (а не тем, что был в адресе при заходе), поэтому строится
+   * из живых `date/guests/slot`, а не из `intent`. */
   const preorderSummary: PreorderSummary | null = rescheduleId
     ? null
     : {
@@ -422,6 +430,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
         totalMinor: preorderDraft.totalMinor,
         onIncrement: preorderDraft.increment,
         onDecrement: preorderDraft.decrement,
+        menuHref: menuHref(venue.id, { date, guests, slot }),
       };
 
   let action: SummaryAction;
