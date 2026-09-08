@@ -23,6 +23,10 @@ import type { AuthUser } from "@bookeat/api";
  * NATIVE MODULE: `@amplitude/analytics-react-native` links native code, so a
  * build that adds it must be a fresh EAS build — it cannot ship over OTA.
  * Expo autolinks it; no config plugin is needed for core analytics.
+ *
+ * This is the NATIVE (iOS/Android) implementation. See `./analytics.web.ts`
+ * for the react-native-web build, which swaps in `@amplitude/analytics-browser`
+ * (the RN SDK has no browser build) behind the exact same four exports.
  */
 
 const API_KEY = process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY;

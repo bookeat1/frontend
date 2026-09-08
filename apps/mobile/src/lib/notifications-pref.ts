@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "./secure-store";
 
 /**
  * Where the guest's «Уведомления» choice is stored, and nothing else.

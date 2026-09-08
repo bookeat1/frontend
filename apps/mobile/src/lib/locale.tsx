@@ -1,8 +1,8 @@
 import { getDictionary, isRTL, setCurrentLocale, type Dictionary, type Locale } from "@bookeat/i18n";
-import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { I18nManager } from "react-native";
 import { reloadApp } from "./reload-app";
+import * as SecureStore from "./secure-store";
 
 /**
  * The app's current interface language.

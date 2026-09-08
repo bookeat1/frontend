@@ -8,10 +8,10 @@ import {
 } from "@bookeat/api";
 import { getCurrentLocale } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { identifyUser, trackEvent } from "./analytics";
 import { runPushSignOutHook } from "./push-signout";
+import * as SecureStore from "./secure-store";
 import {
   getFreshAccessToken,
   refreshAfterUnauthorized as gatewayRefreshAfterUnauthorized,
@@ -38,9 +38,11 @@ import {
  *
  * WHY SecureStore: the access token is a bearer credential. Keychain /
  * Android Keystore is the only storage in this app that isn't plain
- * JS-readable text. On web SecureStore is unavailable, so the session simply
- * does not persist there (the app still works, sign-in just doesn't survive
- * a reload) — no silent downgrade to localStorage.
+ * JS-readable text. This is still true for the NATIVE build — nothing here
+ * changed. `./secure-store` is a thin wrapper (`.ts` re-exports
+ * `expo-secure-store` unchanged); its `.web.ts` sibling swaps in
+ * `localStorage`, a deliberate, ADR-046 (2026-09-07) choice for the mobile
+ * web build only, not a silent downgrade slipped into this file.
  */
 const SESSION_KEY = "bookeat.session.v1";
 /** Refresh this long before the access token actually expires, so a request

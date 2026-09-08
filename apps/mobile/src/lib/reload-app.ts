@@ -1,5 +1,5 @@
-import * as Updates from "expo-updates";
 import { DevSettings } from "react-native";
+import * as Updates from "./updates";
 
 /**
  * Restarts the JavaScript bundle so every module-scope `const t =

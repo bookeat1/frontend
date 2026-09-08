@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "./secure-store";
 
 /**
  * «Позже» в окне «Доступно обновление BookEat» — что именно оно означает во
