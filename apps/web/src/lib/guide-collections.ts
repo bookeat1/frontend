@@ -1,4 +1,4 @@
-import type { GuideCategory, GuideCollection } from "@bookeat/api/client";
+import type { GuideCategory, GuideCollection, GuideCollectionVenue } from "@bookeat/api/client";
 
 /**
  * Делит ответ `GET /gastroguide/collections` на две секции страницы гастрогида
@@ -59,4 +59,38 @@ export function rubricEyebrow(
   if (!title) return "";
   if (title.toLocaleLowerCase("ru-RU") === collection.title.trim().toLocaleLowerCase("ru-RU")) return "";
   return title.toUpperCase();
+}
+
+/**
+ * Заведения всех подборок одной рубрики подряд, БЕЗ повторов — копия
+ * `dedupeVenues` из `apps/mobile/app/gastroguide/rubric/[slug].tsx`. Схлопываем
+ * по `restaurantId`, а не по названию: два разных заведения с одинаковым
+ * именем в разных ТЦ — это два заведения, а одно и то же место в двух
+ * подборках рубрики — одна карточка. Побеждает ПЕРВОЕ вхождение — у него
+ * редакционный порядок старшей подборки.
+ */
+export function dedupeGuideVenues(
+  details: readonly ({ venues: GuideCollectionVenue[] } | undefined)[],
+): GuideCollectionVenue[] {
+  const seen = new Set<string>();
+  const venues: GuideCollectionVenue[] = [];
+  for (const detail of details) {
+    for (const venue of detail?.venues ?? []) {
+      if (seen.has(venue.restaurantId)) continue;
+      seen.add(venue.restaurantId);
+      venues.push(venue);
+    }
+  }
+  return venues;
+}
+
+/**
+ * Подборки одной рубрики (`GuideCategory.slug`), в порядке ответа сервера —
+ * зеркало фильтра в `apps/mobile/app/gastroguide/rubric/[slug].tsx`.
+ */
+export function collectionsForRubric(
+  collections: readonly GuideCollection[],
+  slug: string,
+): GuideCollection[] {
+  return collections.filter((collection) => collection.categorySlugs.includes(slug));
 }

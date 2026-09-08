@@ -22,13 +22,17 @@ import { useT } from "@web/lib/locale";
  *   • гастропрогулка (5040:10283): 588×354, поле 20/27, заголовок 26 +
  *     подпись 20.
  *
- * ССЫЛКИ ЕСТЬ ТОЛЬКО У ГАСТРОПРОГУЛОК (`WalkCard`, `/routes/:slug` —
- * `GuideRouteScreen.tsx`). У рубрики и подборки страниц на сайте по-прежнему
- * нет (`/guide/<slug>` — 404 Next), и вести гостя в никуда хуже, чем показать
+ * ССЫЛКИ ЕСТЬ У ГАСТРОПРОГУЛОК (`WalkCard`, `/routes/:slug` —
+ * `GuideRouteScreen.tsx`) И У ПЛИТОК РУБРИК (`RubricTile`,
+ * `/guide/rubric/:categorySlug` — `GuideRubricScreen.tsx`, добавлено по
+ * Figma-узлу 5078:5739). У «Выбора редакции» (подборки без рубрики) страницы
+ * на сайте по-прежнему нет (у неё нет отдельного узла-макета и нет ручки
+ * «топ заведений подборки» с рангом/отметкой редакции — только Ocean Basket
+ * исключение с зашитым маршрутом), и вести гостя в никуда хуже, чем показать
  * карточку без ссылки — тот же приём, что у `GuideCard` на главной за флагом
  * `SHOW_SECTION_LINKS`. Каждая карточка принимает `href`, и когда та или иная
  * страница появится, заголовок станет растянутой ссылкой без переделки
- * разметки — так уже случилось с гастропрогулкой.
+ * разметки — так уже случилось с гастропрогулкой и рубрикой.
  *
  * Ниже `lg` высоты — из мобильного экрана (`guideLayout`): 158 / 214 / 206.
  */
@@ -131,8 +135,22 @@ export function CoverFrame({
         <RemoteImage src={src} alt="" sizes={sizes} fallback={<span />} className="h-full w-full object-cover" />
       </div>
       {badge ? <div className="absolute left-3 top-3 z-20">{badge}</div> : null}
-      {/* z поверх затемнения (`after:` псевдоэлемент лежит над фоном). */}
-      <div className="relative z-10 flex min-w-0 flex-col">{children}</div>
+      {/* БЕЗ `relative` здесь: растянутая ссылка (`after:absolute after:inset-0`
+          у `Title`/`Link` в `children`) стилизуется относительно БЛИЖАЙШЕГО
+          позиционированного предка — если сделать этот div тоже `relative`,
+          он и станет этим предком, и кликабельной останется только полоска с
+          текстом внизу карточки, а не вся карточка (тот же баг, что уже был
+          пойман на `PromoCard` в `home/Cards.tsx`, и здесь он реально был:
+          клик по фотографии карточки Ocean Basket на `/guide` не переходил на
+          `/brand/ocean-basket`, клик по названию — переходил). `z-10` тут не
+          сохранён: `z-index` у flex-item создаёт стек-контекст и БЕЗ
+          `position` (флекс-спека — "a flex item that has a computed z-index
+          value other than auto establishes a new stacking context, even if
+          position is static"), поэтому этот div по-прежнему рисуется поверх
+          фонового фото и затемнения `article::after`, не становясь при этом
+          позиционированным предком растянутой ссылки. Единственный `relative`
+          в дереве — у внешнего `article`. */}
+      <div className="z-10 flex min-w-0 flex-col">{children}</div>
     </article>
   );
 }

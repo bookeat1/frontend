@@ -30,6 +30,13 @@ import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/li
  * там, где для ключа есть слаг в `FOOTER_KEY_TO_PAGE_SLUG`; ключи без слуга
  * (заведения, афиша, гастрогид, брони, избранное, блог) остаются заглушкой
  * `href="#"` — это отдельные разделы сайта, не задача T4.
+ *
+ * Сетка колонок НИЖЕ `lg` (`apps/web/docs/responsive.md`, § 5, дыра № 2):
+ * `flex flex-wrap justify-between` раскладывал блок марки (`max-w-[320px]`) и
+ * четыре `nav`-колонки непредсказуемо — на 360 столбиком с неровными
+ * зазорами, на 768 в раскладку 2+2+1. `grid` фиксирует раскладку явно на
+ * каждом пороге: одна колонка на 360, две на `md`, марка + 4 колонки одной
+ * строкой на `lg` (там же, где включается остальной десктоп).
  */
 const RESTAURANT_LINKS = {
   connect: BUSINESS_URL,
@@ -74,8 +81,8 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
   return (
     <footer className={cx("w-full bg-inverse pb-8 pt-16", className)}>
       <Container className="flex flex-col gap-12">
-        <div className="flex flex-wrap justify-between gap-gutter">
-          <div className="flex w-full max-w-[320px] flex-col gap-3.5">
+        <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 lg:grid-cols-[320px_repeat(4,1fr)]">
+          <div className="flex w-full flex-col gap-3.5 lg:max-w-[320px]">
             <p className="text-[24px] font-bold leading-8 tracking-[-0.4px] text-ink-on-inverse">
               {t.web.header.brand}
             </p>

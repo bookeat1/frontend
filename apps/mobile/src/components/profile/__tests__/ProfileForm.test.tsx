@@ -84,7 +84,16 @@ describe("сессия закончилась посреди правки", () =
     dead = false;
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
-    await waitFor(() => expect(screen.getByText("Сохранено")).toBeTruthy());
+    // Testing Library's default `waitFor` budget is 1000ms/50ms-poll. That is
+    // fine for a single promise tick, but this assertion is the SECOND full
+    // submit-await-rerender cycle in this test (the first already spent its
+    // own window failing over to "Сессия закончилась"), and under a fully
+    // parallel `vitest run` (four cores, 250+ files, jsdom per worker) the
+    // event loop is not always free within 1s — nothing here is a fake timer
+    // or a real network wait, so a slow tick is scheduling contention, not a
+    // hung promise. Bumped, not removed: a genuine regression (stuck loading
+    // state, an unresolved promise) still fails, just not on CI noise.
+    await waitFor(() => expect(screen.getByText("Сохранено")).toBeTruthy(), { timeout: 5000 });
     expect(onSave).toHaveBeenLastCalledWith({ fullName: "Дамир Саркулин" });
     expect(nameField().value).toBe("Дамир Саркулин");
   });

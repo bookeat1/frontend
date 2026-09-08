@@ -60,7 +60,6 @@ describe("параметры каталога", () => {
       guests: 4,
       time: "19:30",
       openNow: true,
-      onlineOnly: true,
       sort: "name" as const,
       page: 2,
     };

@@ -53,6 +53,7 @@ import type {
   Schedule,
   ScheduleOverrideInput,
   SetManagerWhatsAppInput,
+  SetUserRoleInput,
   PromoInput,
   PlatformBookings,
   PlatformOverview,
@@ -60,6 +61,7 @@ import type {
   PlatformGuest,
   PlatformGuestQuery,
   PlatformPeriod,
+  PlatformUser,
   PushSubscriptionInput,
   RestaurantManager,
   RestaurantPricePatch,
@@ -71,6 +73,7 @@ import type {
   WhatsAppSettings,
   TokenPair,
   TopRestaurant,
+  UserRoleChange,
   VenueDashboardSummary,
   VenueLoadSlot,
   VenueSearchResult,
@@ -1333,6 +1336,39 @@ export class AdminApiClient {
       "GET",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/guests`,
     );
+  }
+
+  // ---- Global roles (platform administrators) -------------------------------
+
+  /** GET /admin/users — кандидаты на смену роли. Пустой запрос отдаёт
+   * недавно созданных, а не всех: список без строки поиска не для листания
+   * всей базы. `q`/пустая строка опускаются тем же правилом, что у остальных
+   * фильтров: сервер отличает «параметра нет» от «параметр пустой». */
+  searchUsers(q: string, limit?: number): Promise<PlatformUser[]> {
+    return this.request<{ users: PlatformUser[] }>("GET", "/admin/users", {
+      params: { q: q.trim() || undefined, limit },
+    }).then((body) => body.users);
+  }
+
+  /** PATCH /admin/users/:id/role. Сервер отвечает только `{status:"ok"}` — сам
+   * пользователь со свежей ролью получается повторным GET/поиском, а не из
+   * ответа этой ручки. */
+  setUserRole(userId: string, input: SetUserRoleInput): Promise<void> {
+    return this.request<{ status: string }>(
+      "PATCH",
+      `/admin/users/${encodeURIComponent(userId)}/role`,
+      { body: input },
+    ).then(() => undefined);
+  }
+
+  /** GET /admin/users/:id/role-history — кто, кому и когда менял роль,
+   * новые сверху. */
+  getUserRoleHistory(userId: string, limit?: number): Promise<UserRoleChange[]> {
+    return this.request<{ changes: UserRoleChange[] }>(
+      "GET",
+      `/admin/users/${encodeURIComponent(userId)}/role-history`,
+      { params: { limit } },
+    ).then((body) => body.changes);
   }
 
   // ---- Bookings ------------------------------------------------------------

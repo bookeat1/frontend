@@ -20,7 +20,7 @@
       },
       "channel": "preview"
     },
-    "production": {
+    "beta": {
       "autoIncrement": false,
       "credentialsSource": "local",
       "env": {
@@ -29,21 +29,25 @@
       },
       "channel": "production"
     },
+    "beta-apk": {
+      "extends": "beta",
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://test.backend.book-eat.com/api/v1",
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404"
+      },
+      "channel": "production"
+    },
     "production-main": {
-      "extends": "production",
+      "autoIncrement": false,
+      "credentialsSource": "local",
       "env": {
         "BOOKEAT_TARGET": "main",
         "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
         "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
-      },
-      "channel": "production",
-      "credentialsSource": "local"
-    },
-    "production-apk": {
-      "extends": "production",
-      "credentialsSource": "remote",
-      "android": {
-        "buildType": "apk"
       },
       "channel": "production"
     },
@@ -53,11 +57,16 @@
       "android": {
         "buildType": "apk"
       },
+      "env": {
+        "BOOKEAT_TARGET": "main",
+        "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
+      },
       "channel": "production"
     }
   },
   "submit": {
-    "production": {
+    "beta": {
       "ios": {
         "ascApiKeyPath": "/home/tai/.bookeat/ios/AuthKey_AXCB3363NM.p8",
         "ascApiKeyId": "AXCB3363NM",

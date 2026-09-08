@@ -197,6 +197,9 @@ export function repositoryStub(
     listUpcomingEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 3 })),
     getGuideCollections: vi.fn(async () => []),
     getGuideCategories: vi.fn(async () => []),
+    // Деталь подборки — `/guide/rubric/[slug]` тянет её на каждую подборку
+    // рубрики (`useGuideCollectionDetails`).
+    getGuideCollection: vi.fn(async () => articleDetail()),
     listArticles: vi.fn(async () => []),
     getArticle: vi.fn(async () => articleDetail()),
     getPage: vi.fn(async () => sitePage()),

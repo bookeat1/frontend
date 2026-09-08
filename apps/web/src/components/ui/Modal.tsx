@@ -23,6 +23,12 @@ import { useT } from "@web/lib/locale";
  *
  * Ширина 380 — максимум, а не фиксатор: на 360 px окно ужимается вместе с
  * полями, а не выпирает за экран.
+ *
+ * Паддинг НИЖЕ `lg` — 20, а не 32 (`apps/web/docs/responsive.md`, § 5, дыра
+ * № 11): на 360 обёртка `p-4` уже съедает 32, и второй `p-8` внутри оставлял
+ * бы контенту 360 − 32 − 64 = 264 px — тесно шести ячейкам OTP-кода
+ * (`OtpInput`/`LoginScreen.tsx`). `lg:p-8` возвращает исходные 32 там, где
+ * место есть; 380 − 40 = 340 по-прежнему не давит на ширину.
  */
 export interface ModalProps {
   title: string;
@@ -108,7 +114,7 @@ export function Modal({ title, description, onClose, children, className }: Moda
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
         className={cx(
-          "my-auto flex w-full max-w-modal flex-col gap-5 rounded-2xl bg-canvas p-8 shadow-modal outline-none",
+          "my-auto flex w-full max-w-none flex-col gap-5 rounded-2xl bg-canvas p-5 shadow-modal outline-none lg:max-w-modal lg:p-8",
           className,
         )}
       >
