@@ -2423,6 +2423,8 @@ export const kk: LocaleOverride<Dictionary> = {
       forBusiness: "Бизнеске",
       signIn: "Кіру",
       signOut: "Шығу",
+      menuTitle: "Мәзір",
+      openMenu: "Мәзірді ашу",
       account: "Менің профилім",
     },
     footer: {

@@ -76,6 +76,16 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
    */
   target?: "_blank";
   rel?: string;
+  /**
+   * Уже, чем `ButtonHTMLAttributes['onClick']` (не несёт `MouseEvent`
+   * конкретного элемента), намеренно: ни один вызывающий код им не
+   * пользуется, а `asLink` рендерит `next/link`, а не `<button>` — единый
+   * тип позволяет прокинуть обработчик в обе ветки без приведения типов.
+   * Раньше `onClick` у `asLink`-кнопки молча терялся (уходил в `...rest`,
+   * который разворачивается только на `<button>`) — так закрытие мобильного
+   * меню по клику на кнопку «Войти» в `SiteHeader.tsx` не работало.
+   */
+  onClick?: () => void;
   children: ReactNode;
 }
 
@@ -85,6 +95,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * снаружи нельзя — у двух утилит одного свойства одинаковая специфичность, и
  * побеждает та, что Tailwind сгенерировал позже, то есть `gap-0.5`, а не та,
  * которую передали.
+ *
+ * `whitespace-nowrap` НЕ снимается глобально ради узких экранов (дыра № 13,
+ * `apps/web/docs/responsive.md`, § 5) — кнопка, порвавшаяся на две строки,
+ * тоже дефект, а не починка. Узкое место лечится на месте вызова: `block`
+ * (кнопка на всю ширину строки — так уже сделаны кнопки мобильного меню
+ * `SiteHeader.tsx` и шаг входа `LoginScreen.tsx`) или увеличением доступной
+ * ширины контейнера (так починена шторка `ui/Modal.tsx`, где раньше OTP-код
+ * стоял в 264 px).
  */
 const base =
   "inline-flex items-center justify-center font-semibold " +
@@ -136,6 +154,7 @@ export function Button({
   target,
   rel,
   disabled,
+  onClick,
   children,
   className,
   type = "button",
@@ -145,7 +164,7 @@ export function Button({
 
   if (asLink && href) {
     return (
-      <Link href={href} target={target} rel={rel} className={look}>
+      <Link href={href} target={target} rel={rel} onClick={onClick} className={look}>
         {children}
       </Link>
     );
@@ -154,6 +173,7 @@ export function Button({
   return (
     <button
       {...rest}
+      onClick={onClick}
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}

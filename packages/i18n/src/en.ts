@@ -2417,6 +2417,8 @@ export const en: LocaleOverride<Dictionary> = {
       forBusiness: "For business",
       signIn: "Sign in",
       signOut: "Sign out",
+      menuTitle: "Menu",
+      openMenu: "Open menu",
       account: "My account",
     },
     footer: {
