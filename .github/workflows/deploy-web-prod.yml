@@ -1,0 +1,333 @@
+name: Deploy desktop site (prod)
+
+# Builds apps/web against the PRODUCTION backend and publishes it on the
+# production host (the one in PROD_SSH_HOST — the same box that serves
+# backend.book-eat.com and admin.book-eat.com) at the domain root, no basePath.
+#
+# Structure is deploy-web-test.yml's, on purpose: same standalone build, same
+# rsync + symlink swap, same automatic rollback. What differs is spelled out
+# below at each step. See deploy/web-prod/README.md for the runbook.
+#
+# This workflow does NOT touch DNS or the Caddy config. Publishing a release
+# here is safe before the domain is moved: the container has no published port
+# and is reachable only through Caddy, which only routes to it once the
+# book-eat.com site block has been added by hand (deploy/web-prod/
+# caddy-book-eat.com.snippet). Until then verification runs from inside the
+# container over SSH; the public check is opt-in via `public_url_live`.
+#
+# Manual only. The repository has no production branch (main is an empty
+# scaffold, every PR lands in develop, and the stand deploys from develop on
+# push), so a person picks the ref and types the confirmation — the same gate
+# the backend's prod deploy uses.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-to-prod" to confirm a PRODUCTION release'
+        required: true
+        type: string
+      public_url_live:
+        description: "book-eat.com already points at this host: also verify through the public URL"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  # Never cancel a deploy that is mid-swap; queue instead. Own group so a
+  # stand deploy never blocks or is blocked by a production one.
+  group: deploy-web-prod
+  cancel-in-progress: false
+
+env:
+  # Not secrets: these values end up verbatim in the shipped bundle. Pinning
+  # them here means the artifact is reproducible from the repository alone —
+  # and guarantees the site reads the PRODUCTION backend.
+  NEXT_PUBLIC_API_URL: https://backend.book-eat.com/api/v1
+  # Domain root: explicitly empty so a stray value in the runner environment
+  # can never bake a prefix into production assets.
+  NEXT_PUBLIC_BASE_PATH: ""
+  # Absolute site address for sitemap.xml, robots.txt and metadataBase
+  # (apps/web/src/lib/site.ts). Build-time, like the API URL.
+  NEXT_PUBLIC_SITE_URL: https://book-eat.com
+  # The ONLY build that may invite crawlers. Every other build (stand, local)
+  # ships Disallow: /.
+  NEXT_PUBLIC_ROBOTS_INDEX: "true"
+  PUBLIC_URL: https://book-eat.com
+  WEB_ROOT: /opt/bookeat/web
+  # Neighbours on the same host and the same Caddy. They must survive every
+  # site deploy; both are public today, so they are checked regardless of DNS.
+  BACKEND_HEALTH_URL: https://backend.book-eat.com/health
+  ADMIN_PROBE_URL: https://admin.book-eat.com/release.txt
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the typed confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "deploy-to-prod" ]; then
+            echo "::error::Refusing: the confirm input must be exactly 'deploy-to-prod' (got '$CONFIRM')."
+            exit 1
+          fi
+          echo "Confirmed production release of $GITHUB_REF_NAME @ ${GITHUB_SHA::7} by $GITHUB_ACTOR"
+
+      - name: Fail early if the deploy secrets are missing
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          missing=""
+          for name in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_SSH_HOST PROD_SSH_USER; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — see deploy/web-prod/README.md, section 0."
+            exit 1
+          fi
+          # The stand's known_hosts holds the stand's key only; the production
+          # host must be in the same secret or StrictHostKeyChecking rejects it.
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > /tmp/kh
+          if ! ssh-keygen -F "$PROD_SSH_HOST" -f /tmp/kh >/dev/null; then
+            echo "::error::SSH_KNOWN_HOSTS has no entry for the production host — append 'ssh-keyscan -t ed25519 <host>' output to the secret."
+            exit 1
+          fi
+          rm -f /tmp/kh
+
+  checks:
+    needs: gate
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # A GitHub Environment so a required reviewer can be attached later in
+    # Settings without touching this file. Created on first run if absent.
+    environment:
+      name: production
+      url: https://book-eat.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Name this release
+        id: release
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the standalone server
+        run: pnpm --filter @bookeat/web build
+
+      - name: Assemble the deployable artifact
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          std=apps/web/.next/standalone
+          [ -f "$std/apps/web/server.js" ] || {
+            echo "::error::No $std/apps/web/server.js — apps/web/next.config.mjs lost output: \"standalone\"."
+            exit 1
+          }
+          # next build leaves these two out of .next/standalone on purpose; the
+          # server reads them from disk at runtime, so a release without them
+          # boots and then serves pages with no CSS and no JavaScript.
+          cp -r apps/web/.next/static "$std/apps/web/.next/static"
+          mkdir -p "$std/apps/web/public"
+          if [ -d apps/web/public ]; then
+            cp -r apps/web/public/. "$std/apps/web/public/"
+          fi
+
+          # Prove the build-time values actually landed, before anything is
+          # uploaded. All of them are compiled in and cannot be fixed on the server.
+          grep -rq "$NEXT_PUBLIC_API_URL" "$std/apps/web/.next/static" || {
+            echo "::error::The production API URL is not baked into the bundle; every page would show the 'API not configured' state."
+            exit 1
+          }
+          grep -rq "test.backend.book-eat.com" "$std/apps/web/.next/static" && {
+            echo "::error::The TEST backend address is present in a production bundle."
+            exit 1
+          }
+          # Domain root: the config must carry an EMPTY basePath, and no asset
+          # may be addressed under the stand's prefix.
+          grep -q '"basePath":""' "$std/apps/web/server.js" || {
+            echo "::error::basePath is not empty in server.js — this is a stand build, not a production one."
+            exit 1
+          }
+          if grep -rq "/web-preview/_next/" "$std/apps/web/.next/static"; then
+            echo "::error::Assets reference /web-preview/ — basePath leaked into the production build."
+            exit 1
+          fi
+          # robots.txt is pre-rendered at build time; the crawler policy for
+          # production must be the open one that points at the sitemap.
+          grep -rq "Sitemap: $NEXT_PUBLIC_SITE_URL/sitemap.xml" "$std/apps/web/.next/server" || {
+            echo "::error::robots.txt in this build does not advertise $NEXT_PUBLIC_SITE_URL/sitemap.xml — NEXT_PUBLIC_SITE_URL/NEXT_PUBLIC_ROBOTS_INDEX did not reach the build."
+            exit 1
+          }
+          # Served as /release.txt so the verification steps can prove the swap
+          # took effect, not merely that something is up.
+          printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$std/apps/web/public/release.txt"
+          du -sh "$std"
+
+      - name: Set up the SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Preflight the production host
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20"
+          # Everything the release needs to exist BEFORE 70 MB are uploaded:
+          # the key works, docker compose is there, the backend network the
+          # container joins exists, and the release root is writable by us.
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "set -e
+            docker compose version >/dev/null
+            docker network inspect deploy_default >/dev/null 2>&1 || { echo 'network deploy_default missing — is the backend stack up?' >&2; exit 1; }
+            if [ -d '$WEB_ROOT' ]; then
+              [ -w '$WEB_ROOT' ] || { echo '$WEB_ROOT is not writable by \$(whoami) — run: sudo chown \$(whoami) $WEB_ROOT' >&2; exit 1; }
+            else
+              mkdir -p '$WEB_ROOT' 2>/dev/null || { echo 'cannot create $WEB_ROOT — one-time: sudo mkdir -p $WEB_ROOT && sudo chown \$(whoami) $WEB_ROOT' >&2; exit 1; }
+            fi
+            echo preflight ok on \$(hostname) as \$(whoami)"
+
+      - name: Upload the release next to the live one
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          incoming="$WEB_ROOT/releases/.incoming-$RELEASE"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "mkdir -p '$WEB_ROOT/releases' '$WEB_ROOT/bin' && rm -rf '$incoming'"
+          rsync -az --delete -e "ssh $ssh_opts" apps/web/.next/standalone/ "$SSH_USER@$SSH_HOST:$incoming/"
+          rsync -az -e "ssh $ssh_opts" deploy/web-prod/release.sh deploy/web-prod/rollback.sh \
+            "$SSH_USER@$SSH_HOST:$WEB_ROOT/bin/"
+          rsync -az -e "ssh $ssh_opts" deploy/web-prod/docker-compose.yml \
+            "$SSH_USER@$SSH_HOST:$WEB_ROOT/docker-compose.yml"
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "chmod 755 '$WEB_ROOT/bin/release.sh' '$WEB_ROOT/bin/rollback.sh'"
+
+      - name: Swap the symlink and recreate the container
+        id: swap
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "WEB_ROOT='$WEB_ROOT' DEPLOY_ACTOR='$GITHUB_ACTOR' '$WEB_ROOT/bin/release.sh' '$RELEASE'"
+
+      - name: Verify from inside the container (works before DNS moves)
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # busybox wget inside node:alpine: exit 0 only on 2xx. Each probe is a
+          # real render by this release, not the Docker healthcheck's opinion.
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "set -e
+            c=webprod-web-prod-1
+            for path in / /venues /events /guide /sitemap.xml /robots.txt; do
+              docker exec \$c wget -q -O /dev/null \"http://127.0.0.1:3100\$path\" || { echo \"::error::\$path did not answer 2xx inside the container\"; exit 1; }
+              echo \"\$path -> ok\"
+            done
+            served=\$(docker exec \$c wget -q -O - http://127.0.0.1:3100/release.txt | head -1)
+            echo \"release.txt -> \$served (expected $RELEASE)\"
+            [ \"\$served\" = '$RELEASE' ] || { echo '::error::The container is not serving this release.'; exit 1; }
+            robots=\$(docker exec \$c wget -q -O - http://127.0.0.1:3100/robots.txt)
+            printf '%s\n' \"\$robots\" | grep -q 'Sitemap: $NEXT_PUBLIC_SITE_URL/sitemap.xml' || { echo '::error::robots.txt does not point at the production sitemap.'; exit 1; }
+            printf '%s\n' \"\$robots\" | grep -qx 'Disallow: /' && { echo '::error::robots.txt forbids the whole site — NEXT_PUBLIC_ROBOTS_INDEX did not reach the build.'; exit 1; }
+            html=\$(docker exec \$c wget -q -O - http://127.0.0.1:3100/)
+            printf '%s' \"\$html\" | grep -q '/_next/static' || { echo '::error::The home page does not reference /_next/static.'; exit 1; }
+            printf '%s' \"\$html\" | grep -q '/web-preview/' && { echo '::error::The home page references /web-preview/ — stand basePath in production.'; exit 1; }
+            echo 'container serves $RELEASE'"
+
+      - name: Verify the neighbours on this host still answer
+        run: |
+          set -uo pipefail
+          api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BACKEND_HEALTH_URL" || echo 000)
+          admin=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$ADMIN_PROBE_URL" || echo 000)
+          echo "backend /health -> $api ; admin release.txt -> $admin"
+          fail=0
+          [ "$api" = "200" ] || { echo "::error::The production backend stopped answering ($api)."; fail=1; }
+          [ "$admin" = "200" ] || { echo "::error::The production venue panel stopped answering ($admin)."; fail=1; }
+          [ "$fail" = "0" ] || exit 1
+
+      - name: Verify through the public domain
+        if: inputs.public_url_live
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -uo pipefail
+          fail=0
+          for path in / /venues /sitemap.xml /robots.txt; do
+            code=""
+            for attempt in 1 2 3 4 5 6; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL$path" || echo 000)
+              [ "$code" = "200" ] && break
+              sleep 5
+            done
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::$PUBLIC_URL$path returned $code, expected 200"; fail=1; }
+          done
+          served=$(curl -s --max-time 20 "$PUBLIC_URL/release.txt" | head -1 || true)
+          echo "release.txt -> ${served:-<empty>} (expected $RELEASE)"
+          if [ "$served" != "$RELEASE" ]; then
+            echo "::error::The public domain is not serving this release (got '${served:-nothing}'). DNS or Caddy still point elsewhere."
+            fail=1
+          fi
+          www=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 20 "https://www.book-eat.com/" || echo "000")
+          echo "www -> $www"
+          case "$www" in 30[18]\ https://book-eat.com/*) ;; *) echo "::warning::www.book-eat.com does not redirect to the apex ($www)";; esac
+          [ "$fail" = "0" ] || exit 1
+          echo "Public domain serves $RELEASE"
+
+      - name: Roll back to the previous release
+        if: failure() && steps.swap.outcome == 'success'
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          echo "::warning::Verification failed; rolling back to the previous release."
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "WEB_ROOT='$WEB_ROOT' '$WEB_ROOT/bin/rollback.sh'" || \
+            echo "::warning::Nothing to roll back to — this was the first release. The container may be down; see deploy/web-prod/README.md."
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "docker exec webprod-web-prod-1 wget -q -O - http://127.0.0.1:3100/release.txt | head -1" \
+            | sed 's/^/after rollback release.txt -> /' || true
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
