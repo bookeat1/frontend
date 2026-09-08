@@ -1,22 +1,16 @@
 import { colors } from "@bookeat/design-tokens";
-import { CormorantGaramond_700Bold } from "@expo-google-fonts/cormorant-garamond";
-import { Inter_600SemiBold } from "@expo-google-fonts/inter";
-import {
-  Montserrat_400Regular,
-  Montserrat_500Medium,
-  Montserrat_600SemiBold,
-  Montserrat_700Bold,
-} from "@expo-google-fonts/montserrat";
-import {
-  NotoSans_400Regular,
-  NotoSans_500Medium,
-  NotoSans_600SemiBold,
-  NotoSans_700Bold,
-} from "@expo-google-fonts/noto-sans";
-import {
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_700Bold_Italic,
-} from "@expo-google-fonts/playfair-display";
+import { CormorantGaramond_700Bold } from "@expo-google-fonts/cormorant-garamond/700Bold";
+import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
+import { Montserrat_400Regular } from "@expo-google-fonts/montserrat/400Regular";
+import { Montserrat_500Medium } from "@expo-google-fonts/montserrat/500Medium";
+import { Montserrat_600SemiBold } from "@expo-google-fonts/montserrat/600SemiBold";
+import { Montserrat_700Bold } from "@expo-google-fonts/montserrat/700Bold";
+import { NotoSans_400Regular } from "@expo-google-fonts/noto-sans/400Regular";
+import { NotoSans_500Medium } from "@expo-google-fonts/noto-sans/500Medium";
+import { NotoSans_600SemiBold } from "@expo-google-fonts/noto-sans/600SemiBold";
+import { NotoSans_700Bold } from "@expo-google-fonts/noto-sans/700Bold";
+import { PlayfairDisplay_400Regular_Italic } from "@expo-google-fonts/playfair-display/400Regular_Italic";
+import { PlayfairDisplay_700Bold_Italic } from "@expo-google-fonts/playfair-display/700Bold_Italic";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -42,6 +36,17 @@ import { queryClient } from "../src/lib/queryClient";
 void bootstrapLocale();
 
 export default function RootLayout() {
+  // MW-5 (2026-09-08): every `@expo-google-fonts/<family>` import above is a
+  // SUBPATH (`.../noto-sans/400Regular`), never the family barrel
+  // (`.../noto-sans`). The barrel's `index.js` does a plain top-level
+  // `require()` for EVERY weight the family ships — regular AND italic, 100
+  // through 900 — so importing even one named export from it pulled all of
+  // them into the web export: measured 76 of 94 font files actually
+  // referenced in the bundle for the 12 weights used here, ~30 MB raw /
+  // ~13 MB gzip, by far the largest chunk of the whole export (bigger than
+  // the JS bundle itself). The subpath's own `index.js` `require()`s just
+  // that one file. Add a font weight here ONLY via its subpath — reaching
+  // for the barrel import again silently brings the other ~80 files back.
   const [fontsLoaded, fontError] = useFonts({
     NotoSans_400Regular,
     NotoSans_500Medium,
