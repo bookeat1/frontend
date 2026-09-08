@@ -85,6 +85,7 @@ const RESTAURANT: Restaurant = {
   acceptsOnlineBookings: true,
   // Оплата к этим тестам отношения не имеет — см. booking-kaspi-payment.
   acceptsOnlinePayment: false,
+  preorderMinAmountMinor: null,
 };
 
 const HOUR = 60 * 60 * 1000;

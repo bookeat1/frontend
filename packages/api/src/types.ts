@@ -290,6 +290,18 @@ export interface Restaurant {
    */
   acceptsOnlinePayment: boolean;
   /**
+   * Минимальная сумма предзаказа заведения, в тиынах
+   * (`restaurants.preorder_min_amount_minor`, D-API-1, ТЗ
+   * `web-preorder-menu-20260908`, D-BE-1 влито в `bookeat-backend` 2026-09-08).
+   *
+   * `null` — минимум НЕ ЗАДАН, а не «ноль» (`PUT /bookings/:id/preorder`
+   * отвергает предзаказ ниже минимума, ТОЛЬКО КОГДА он задан и итог больше 0
+   * — `usecase/preorder.Replace`). Только детальный ответ (как и
+   * `acceptsOnlinePayment` выше) — в листинге поля нет, поэтому оно есть
+   * только на `Restaurant`, не на `RestaurantSummary`.
+   */
+  preorderMinAmountMinor: number | null;
+  /**
    * Удобства заведения из справочника платформы — «Терраса», «Wi-Fi»,
    * «Бизнес-ланч». Приходят полем `features` ДЕТАЛЬНОГО ответа
    * (`GET /restaurants/:id`), в списке их нет.

@@ -91,6 +91,9 @@ export function venueDetail(overrides: Partial<Restaurant> = {}): Restaurant {
     menuHighlights: [],
     tables: [],
     openingHoursText: "",
+    // D-API-1: детальный ответ по умолчанию без минимума предзаказа —
+    // тесты, которым он нужен, задают его через `overrides`.
+    preorderMinAmountMinor: null,
     ...overrides,
   } as Restaurant;
 }
