@@ -2613,7 +2613,6 @@ export const en: LocaleOverride<Dictionary> = {
         features: "Features",
         extra: "More",
         openNow: "Open now",
-        onlineBookable: "Bookable online",
         showAll: (count: number) => `Show all ${count}`,
         collapse: "Collapse",
         empty: "The directory is empty",

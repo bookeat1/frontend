@@ -25,7 +25,6 @@ export interface CatalogState {
   /** «HH:MM», начало окна. Без даты и гостей сервер его игнорирует. */
   time?: string;
   openNow: boolean;
-  onlineOnly: boolean;
   sort: CatalogSort;
   /** Номер страницы, с единицы. */
   page: number;
@@ -43,7 +42,6 @@ const EMPTY_STATE: CatalogState = {
   cuisines: [],
   features: [],
   openNow: false,
-  onlineOnly: false,
   sort: "recommended",
   page: 1,
 };
@@ -83,7 +81,6 @@ export function parseCatalogParams(params: URLSearchParams): CatalogState {
     guests: parsePositiveInt(params.get("guests")),
     time: /^\d{2}:\d{2}$/.test(params.get("time") ?? "") ? (params.get("time") as string) : undefined,
     openNow: params.get("open") === "1",
-    onlineOnly: params.get("online") === "1",
     sort: parseSort(params.get("sort")),
     page: parsePositiveInt(params.get("page")) ?? 1,
   };
@@ -102,7 +99,6 @@ export function serializeCatalogParams(state: CatalogState): string {
   if (state.guests) params.set("guests", String(state.guests));
   if (state.time) params.set("time", state.time);
   if (state.openNow) params.set("open", "1");
-  if (state.onlineOnly) params.set("online", "1");
   if (state.sort !== "recommended") params.set("sort", state.sort);
   if (state.page > 1) params.set("page", String(state.page));
   return params.toString();
@@ -130,7 +126,6 @@ export function buildSearchQuery(state: CatalogState, city: string | undefined):
       city,
       priceLevel: state.price,
       openNowOnly: state.openNow,
-      onlineBookableOnly: state.onlineOnly,
       availability,
     },
   };
@@ -145,8 +140,7 @@ export function hasActiveFilters(state: CatalogState): boolean {
     state.price !== undefined ||
     state.date !== undefined ||
     state.time !== undefined ||
-    state.openNow ||
-    state.onlineOnly
+    state.openNow
   );
 }
 
@@ -164,8 +158,7 @@ export function countActiveFilters(state: CatalogState): number {
     (state.price !== undefined ? 1 : 0) +
     (state.date !== undefined ? 1 : 0) +
     (state.time !== undefined ? 1 : 0) +
-    (state.openNow ? 1 : 0) +
-    (state.onlineOnly ? 1 : 0)
+    (state.openNow ? 1 : 0)
   );
 }
 
@@ -184,7 +177,6 @@ export function clearFilters(state: CatalogState): CatalogState {
     time: undefined,
     guests: undefined,
     openNow: false,
-    onlineOnly: false,
     page: 1,
   };
 }

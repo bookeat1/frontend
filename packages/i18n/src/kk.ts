@@ -2618,7 +2618,6 @@ export const kk: LocaleOverride<Dictionary> = {
         features: "Ерекшеліктер",
         extra: "Тағы",
         openNow: "Қазір ашық",
-        onlineBookable: "Онлайн брондауға болады",
         showAll: (count: number) => `Барлығын көрсету: ${count}`,
         collapse: "Жию",
         empty: "Анықтамалық бос",
