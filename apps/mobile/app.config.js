@@ -105,63 +105,91 @@ const withRuntimeOverride = (expo) =>
     ? { ...expo, runtimeVersion: RUNTIME_VERSION_OVERRIDE }
     : expo;
 
+/**
+ * Base path Metro's web export bakes into every asset/script URL (MW-3,
+ * ADR-046). Was hardcoded `"/preview"` in `app.json`'s `experiments.baseUrl`
+ * — that value is only right for the test slot in Caddy
+ * (`deploy/web-test/caddy-web-preview.snippet`, `handle_path /preview*`); a
+ * prod slot will sit at a different path (or the domain root, `""`), and
+ * without an override the two builds could not diverge without editing code
+ * on every deploy.
+ *
+ * A PLAIN env var, not `EXPO_PUBLIC_BOOKEAT_WEB_BASE_URL`: this is read by
+ * Metro/expo-router while `expo export --platform web` runs, i.e. by this
+ * config file in Node, never by code shipped into the client bundle — same
+ * reasoning as `BOOKEAT_TARGET` / `BOOKEAT_RUNTIME_VERSION` above. Expo's
+ * CLI loads `.env`/`.env.local` into `process.env` before evaluating this
+ * file regardless of prefix, so it can still be set from a dotenv file, not
+ * only the shell.
+ */
+const WEB_BASE_URL = process.env.BOOKEAT_WEB_BASE_URL ?? "/preview";
+
+const withWebBaseUrl = (expo) => ({
+  ...expo,
+  experiments: { ...expo.experiments, baseUrl: WEB_BASE_URL },
+});
+
 module.exports = () => {
   if (!MAIN) {
-    return withRuntimeOverride({
-      ...config,
-      version: APP_VERSION,
-    });
+    return withWebBaseUrl(
+      withRuntimeOverride({
+        ...config,
+        version: APP_VERSION,
+      }),
+    );
   }
 
-  return withRuntimeOverride({
-    ...config,
-    version: APP_VERSION,
-    ios: {
-      ...config.ios,
-      bundleIdentifier: "com.bookeat.app",
-      // Apple не принимает второй бинарник с тем же номером, поэтому каждая
-      // отправка в TestFlight поднимает это число. 2 — сборка от 18.08.2026,
-      // 3 — первая, куда попали правки конца августа и начала сентября:
-      // поиск по меню, сетка рубрик, подпись кухни, «Лучшие позиции» только с
-      // фото и настоящий тумблер уведомлений.
-      buildNumber: "4",
-    },
-    android: {
-      ...config.android,
-      // В Google Play приложение опубликовано под ИМЕНЕМ ПАКЕТА
-      // kz.bookeat.app (проверено 2026-08-21: страница магазина по этому
-      // имени открывается, по com.bookeat.app — 404). Имя пакета после
-      // публикации сменить нельзя, оно и ЕСТЬ приложение: собери мы AAB под
-      // com.bookeat.app, в магазине появилось бы второе приложение вместо
-      // обновления, с нулём установок и вторым BookEat в поиске.
-      //
-      // На iOS идентификатор остаётся com.bookeat.app — там опубликовано
-      // именно оно. Две платформы, два разных идентификатора у одного
-      // продукта; это нормально и менять iOS нельзя по той же причине.
-      package: "kz.bookeat.app",
-      // Файл настроек Firebase для ЭТОГО имени пакета. Без него приложение не
-      // может зарегистрироваться в сервисе уведомлений: гость видит «не
-      // получилось включить», а системный запрос разрешения даже не всплывает
-      // (жалоба пользователя Play 2026-08-28). Файл содержит оба наших пакета,
-      // бету и релиз, и не является секретом: он и так уезжает внутри сборки.
-      // ВАЖНО: подхватывается только при СБОРКЕ, обновлением по воздуху не
-      // доставляется.
-      googleServicesFile: "./google-services.json",
-      // Play принимает только сборку с номером ВЫШЕ уже опубликованной.
-      // Номер прошлой сборки в консоли нам не виден, поэтому берётся
-      // заведомо больший; уменьшить его потом нельзя, поэтому не «миллион»,
-      // а просто с запасом.
-      // 100 уехал в Play со сборкой 1.5 от 21.08. Play принимает только
-      // строго больший номер, поэтому 101 (2026-08-28, сборка с настройками
-      // Firebase для пуш-уведомлений).
-      // 102 лежит в production Google Play (проверено 2026-09-01 через
-      // Play Developer API, релиз 1.5, статус completed), поэтому следующая
-      // сборка обязана быть 103 — с правилами бэкапа, которые больше не
-      // возвращают приложению чужой идентификатор регистрации в FCM.
-      // 104 уже залит в трек internal (релиз 1.5.1, проверено 2026-09-02
-      // через Play Developer API: залитые номера 3,4,5,100,101,102,103,104).
-      // Повторно номер использовать нельзя, поэтому следующая сборка — 105.
-      versionCode: 105,
-    },
-  });
+  return withWebBaseUrl(
+    withRuntimeOverride({
+      ...config,
+      version: APP_VERSION,
+      ios: {
+        ...config.ios,
+        bundleIdentifier: "com.bookeat.app",
+        // Apple не принимает второй бинарник с тем же номером, поэтому каждая
+        // отправка в TestFlight поднимает это число. 2 — сборка от 18.08.2026,
+        // 3 — первая, куда попали правки конца августа и начала сентября:
+        // поиск по меню, сетка рубрик, подпись кухни, «Лучшие позиции» только с
+        // фото и настоящий тумблер уведомлений.
+        buildNumber: "4",
+      },
+      android: {
+        ...config.android,
+        // В Google Play приложение опубликовано под ИМЕНЕМ ПАКЕТА
+        // kz.bookeat.app (проверено 2026-08-21: страница магазина по этому
+        // имени открывается, по com.bookeat.app — 404). Имя пакета после
+        // публикации сменить нельзя, оно и ЕСТЬ приложение: собери мы AAB под
+        // com.bookeat.app, в магазине появилось бы второе приложение вместо
+        // обновления, с нулём установок и вторым BookEat в поиске.
+        //
+        // На iOS идентификатор остаётся com.bookeat.app — там опубликовано
+        // именно оно. Две платформы, два разных идентификатора у одного
+        // продукта; это нормально и менять iOS нельзя по той же причине.
+        package: "kz.bookeat.app",
+        // Файл настроек Firebase для ЭТОГО имени пакета. Без него приложение не
+        // может зарегистрироваться в сервисе уведомлений: гость видит «не
+        // получилось включить», а системный запрос разрешения даже не всплывает
+        // (жалоба пользователя Play 2026-08-28). Файл содержит оба наших пакета,
+        // бету и релиз, и не является секретом: он и так уезжает внутри сборки.
+        // ВАЖНО: подхватывается только при СБОРКЕ, обновлением по воздуху не
+        // доставляется.
+        googleServicesFile: "./google-services.json",
+        // Play принимает только сборку с номером ВЫШЕ уже опубликованной.
+        // Номер прошлой сборки в консоли нам не виден, поэтому берётся
+        // заведомо больший; уменьшить его потом нельзя, поэтому не «миллион»,
+        // а просто с запасом.
+        // 100 уехал в Play со сборкой 1.5 от 21.08. Play принимает только
+        // строго больший номер, поэтому 101 (2026-08-28, сборка с настройками
+        // Firebase для пуш-уведомлений).
+        // 102 лежит в production Google Play (проверено 2026-09-01 через
+        // Play Developer API, релиз 1.5, статус completed), поэтому следующая
+        // сборка обязана быть 103 — с правилами бэкапа, которые больше не
+        // возвращают приложению чужой идентификатор регистрации в FCM.
+        // 104 уже залит в трек internal (релиз 1.5.1, проверено 2026-09-02
+        // через Play Developer API: залитые номера 3,4,5,100,101,102,103,104).
+        // Повторно номер использовать нельзя, поэтому следующая сборка — 105.
+        versionCode: 105,
+      },
+    }),
+  );
 };
