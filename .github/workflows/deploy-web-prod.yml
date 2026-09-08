@@ -15,10 +15,12 @@ name: Deploy desktop site (prod)
 # caddy-book-eat.com.snippet). Until then verification runs from inside the
 # container over SSH; the public check is opt-in via `public_url_live`.
 #
-# Manual only. The repository has no production branch (main is an empty
-# scaffold, every PR lands in develop, and the stand deploys from develop on
-# push), so a person picks the ref and types the confirmation — the same gate
-# the backend's prod deploy uses.
+# Manual only, and only from `main`. Branch model (product owner's decision,
+# 2026-09-08): every PR lands in develop, the stand deploys from develop on
+# push, and `main` is a plain merge of develop that production is released
+# from. A person runs this workflow from main and types the confirmation —
+# the same gate the backend's prod deploy uses. The `gate` job refuses any
+# other ref before the checks and build even start.
 
 on:
   workflow_dispatch:
@@ -64,10 +66,14 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Require the typed confirmation
+      - name: Require main and the typed confirmation
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Refusing: production deploys only from main (got '$GITHUB_REF'). Re-run with 'Use workflow from: main'."
+            exit 1
+          fi
           if [ "$CONFIRM" != "deploy-to-prod" ]; then
             echo "::error::Refusing: the confirm input must be exactly 'deploy-to-prod' (got '$CONFIRM')."
             exit 1
@@ -104,6 +110,9 @@ jobs:
 
   deploy:
     needs: checks
+    # Restated from `gate` so the job is safe on its own if the gate step is
+    # ever edited.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # A GitHub Environment so a required reviewer can be attached later in
