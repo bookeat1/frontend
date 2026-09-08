@@ -135,8 +135,22 @@ export function CoverFrame({
         <RemoteImage src={src} alt="" sizes={sizes} fallback={<span />} className="h-full w-full object-cover" />
       </div>
       {badge ? <div className="absolute left-3 top-3 z-20">{badge}</div> : null}
-      {/* z поверх затемнения (`after:` псевдоэлемент лежит над фоном). */}
-      <div className="relative z-10 flex min-w-0 flex-col">{children}</div>
+      {/* БЕЗ `relative` здесь: растянутая ссылка (`after:absolute after:inset-0`
+          у `Title`/`Link` в `children`) стилизуется относительно БЛИЖАЙШЕГО
+          позиционированного предка — если сделать этот div тоже `relative`,
+          он и станет этим предком, и кликабельной останется только полоска с
+          текстом внизу карточки, а не вся карточка (тот же баг, что уже был
+          пойман на `PromoCard` в `home/Cards.tsx`, и здесь он реально был:
+          клик по фотографии карточки Ocean Basket на `/guide` не переходил на
+          `/brand/ocean-basket`, клик по названию — переходил). `z-10` тут не
+          сохранён: `z-index` у flex-item создаёт стек-контекст и БЕЗ
+          `position` (флекс-спека — "a flex item that has a computed z-index
+          value other than auto establishes a new stacking context, even if
+          position is static"), поэтому этот div по-прежнему рисуется поверх
+          фонового фото и затемнения `article::after`, не становясь при этом
+          позиционированным предком растянутой ссылки. Единственный `relative`
+          в дереве — у внешнего `article`. */}
+      <div className="z-10 flex min-w-0 flex-col">{children}</div>
     </article>
   );
 }
