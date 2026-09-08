@@ -2418,6 +2418,7 @@ export const kk: LocaleOverride<Dictionary> = {
         venues: "Орындар",
         guide: "Гастрогид",
         articles: "Мақалалар",
+        promos: "Акциялар",
       },
       cityLabel: "Қаланы таңдау",
       forBusiness: "Бизнеске",

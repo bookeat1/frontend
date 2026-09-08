@@ -12,9 +12,11 @@ import {
   GUIDE_CARD_IMAGE,
   GUIDE_PATH,
   GuideCard,
+  PROMOS_PATH,
   PROMO_CARD_FRAME,
   PromoCard,
   SHOW_EVENTS_LINK,
+  SHOW_PROMOS_LINK,
   SHOW_SECTION_LINKS,
   guideCollectionHref,
 } from "@web/components/home/Cards";
@@ -140,6 +142,8 @@ export function HomeScreen() {
           <SectionHeader
             title={t.web.home.promos.title}
             subtitle={t.web.home.promos.subtitle}
+            linkHref={SHOW_PROMOS_LINK ? PROMOS_PATH : undefined}
+            linkLabel={t.web.home.promos.all}
           />
           <AsyncBlock
             query={promos}

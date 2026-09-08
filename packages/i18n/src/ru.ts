@@ -3453,6 +3453,7 @@ export const ru = {
         venues: "Заведения",
         guide: "Гастрогид",
         articles: "Статьи",
+        promos: "Акции",
       },
       cityLabel: "Выбрать город",
       forBusiness: "Для бизнеса",
