@@ -1,0 +1,255 @@
+name: Deploy mobile web (test)
+
+# Builds the guest app's Expo web export (apps/mobile, `expo export --platform
+# web`) and publishes it on the test server under /preview, next to the venue
+# panel at /admin-preview and the desktop site at /web-preview (ADR-046: the
+# test stand for mobile web is the existing /preview slot in the backend's
+# Caddy). Production is deliberately not reachable from here: the only host
+# this workflow can talk to is the one in the TEST_SSH_HOST secret.
+#
+# Static files only. Caddy serves /srv/preview/mobile-preview, a symlink to the
+# current release under /srv/preview/mobile-releases/ (bookeat1/backend
+# deploy/Caddyfile). The upload lands next to the live release and the symlink
+# is moved in one rename, so a half-uploaded build is never served — the same
+# scheme as deploy-admin-test.yml.
+#
+# The build is gated on the same checks that run on every pull request: the
+# `checks` job calls .github/workflows/ci.yml, so a red typecheck, lint or test
+# run stops the deploy before anything is uploaded.
+#
+# What this workflow does NOT do (yet): open the pages in a browser. The
+# "page errors == 0 on 10 screens" gate from the mobile-web spec is still a
+# manual step with `shot` after the deploy — see deploy/mobile-web/README.md.
+# Here the gate is: export exits 0, the bundle is non-empty, the base URL and
+# the API URL are baked in, and the served files answer 200 with real sizes.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "apps/mobile/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/deploy-mobile-web-test.yml"
+      - ".github/workflows/ci.yml"
+      - "deploy/mobile-web/**"
+  workflow_dispatch:
+
+concurrency:
+  # Never cancel a deploy that is mid-swap; queue instead. Its own group so the
+  # three previews do not block each other.
+  group: deploy-mobile-web-test
+  cancel-in-progress: false
+
+env:
+  # Not secrets: every EXPO_PUBLIC_* value ends up verbatim in the shipped
+  # JavaScript bundle. Pinned here so the artifact is reproducible from the
+  # repository alone and so the preview reads the TEST backend, never
+  # production. Mirrors the `preview` profile in apps/mobile/eas.json.
+  EXPO_PUBLIC_API_URL: https://test.backend.book-eat.com/api/v1
+  # The test backend has no OTP delivery channels; without this flag the
+  # sign-in screen waits for a code that never arrives.
+  EXPO_PUBLIC_OTP_DELIVERY_DISABLED: "1"
+  # Amplitude client-side WRITE key (public by design, same as in
+  # deploy-admin-test.yml and eas.json; only selects the Amplitude project).
+  EXPO_PUBLIC_AMPLITUDE_API_KEY: ea6dc484a21af0092fc13af158f8c404
+  # Read at BUILD time by apps/mobile/app.config.js (MW-3) and baked into every
+  # asset/script URL; it cannot be changed on the server. Must equal the
+  # `handle_path` prefix in the backend Caddyfile.
+  BOOKEAT_WEB_BASE_URL: /preview
+  EXPO_NO_TELEMETRY: "1"
+  PUBLIC_URL: https://test.backend.book-eat.com
+  PREVIEW_ROOT: /opt/bookeat/preview
+  EXPORT_DIR: apps/mobile/dist-web
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Fail early if the deploy secrets are missing
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          TEST_SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          TEST_SSH_USER: ${{ secrets.TEST_SSH_USER }}
+        run: |
+          missing=""
+          for name in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS TEST_SSH_HOST TEST_SSH_USER; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — the same set the admin deploy uses."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Name this release
+        id: release
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Export the web build
+        # `--output-dir dist-web` (gitignored) rather than the default dist/, as
+        # in the mobile-web spec. Fails the job on a non-zero exit; a build that
+        # "succeeds" with a broken bundle is caught by the next step.
+        #
+        # `--clear` on purpose. Metro's transform cache does not key on
+        # EXPO_PUBLIC_* values: a second export on a warm cache (seen locally,
+        # 2026-09-08) produced a bundle with NO API URL and NO Amplitude key —
+        # i.e. an app silently running on the in-memory mock repository. The
+        # runner starts empty, so this costs nothing here and keeps the build
+        # reproducible if a cache ever gets added.
+        run: pnpm --filter @bookeat/mobile exec expo export --platform web --output-dir dist-web --clear
+
+      - name: Assert the export is a deployable build
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          [ -s "$EXPORT_DIR/index.html" ] || { echo "::error::$EXPORT_DIR/index.html missing or empty"; exit 1; }
+          [ -s "$EXPORT_DIR/metadata.json" ] || { echo "::error::$EXPORT_DIR/metadata.json missing — not an expo export"; exit 1; }
+          bundles=$(find "$EXPORT_DIR/_expo/static/js/web" -maxdepth 1 -name '*.js' -size +100k 2>/dev/null | wc -l)
+          [ "$bundles" -ge 1 ] || {
+            echo "::error::No JS bundle larger than 100 KB under $EXPORT_DIR/_expo/static/js/web — the export is empty or Metro bailed out."
+            exit 1
+          }
+          # Both values are compiled in and cannot be fixed on the server.
+          grep -q "$BOOKEAT_WEB_BASE_URL/_expo/" "$EXPORT_DIR/index.html" || {
+            echo "::error::index.html does not reference $BOOKEAT_WEB_BASE_URL/_expo/ — the base URL was not applied; every asset would 404 behind Caddy's handle_path."
+            exit 1
+          }
+          grep -rq "$EXPO_PUBLIC_API_URL" "$EXPORT_DIR/_expo/static/js/web" || {
+            echo "::error::The API base URL is not baked into the bundle; the app would run against the in-memory mock repository."
+            exit 1
+          }
+          # Served as /preview/release.txt so the verification step below can
+          # prove the swap took effect, not merely that something is up.
+          printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$EXPORT_DIR/release.txt"
+          du -sh "$EXPORT_DIR"
+          ls -la "$EXPORT_DIR/_expo/static/js/web"
+
+      - name: Set up the SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload the release next to the live one
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          incoming="$PREVIEW_ROOT/mobile-releases/.incoming-$RELEASE"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "mkdir -p '$PREVIEW_ROOT/mobile-releases' '$PREVIEW_ROOT/bin' && rm -rf '$incoming'"
+          rsync -az --delete -e "ssh $ssh_opts" "$EXPORT_DIR/" "$SSH_USER@$SSH_HOST:$incoming/"
+          # mobile-* names on purpose: bin/ is shared with the admin deploy,
+          # whose scripts are release.sh / rollback.sh.
+          rsync -az -e "ssh $ssh_opts" deploy/mobile-web/release.sh "$SSH_USER@$SSH_HOST:$PREVIEW_ROOT/bin/mobile-release.sh"
+          rsync -az -e "ssh $ssh_opts" deploy/mobile-web/rollback.sh "$SSH_USER@$SSH_HOST:$PREVIEW_ROOT/bin/mobile-rollback.sh"
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "chmod 755 '$PREVIEW_ROOT/bin/mobile-release.sh' '$PREVIEW_ROOT/bin/mobile-rollback.sh'"
+
+      - name: Swap the symlink
+        id: swap
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "PREVIEW_ROOT='$PREVIEW_ROOT' DEPLOY_ACTOR='$GITHUB_ACTOR' '$PREVIEW_ROOT/bin/mobile-release.sh' '$RELEASE'"
+
+      - name: Verify the preview is actually up and actually new
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -uo pipefail
+          fail=0
+          base="$PUBLIC_URL$BOOKEAT_WEB_BASE_URL"
+          code=""
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$base/" || echo 000)
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          echo "$BOOKEAT_WEB_BASE_URL/ -> $code"
+          [ "$code" = "200" ] || { echo "::error::$base/ returned $code, expected 200"; fail=1; }
+
+          served=$(curl -s --max-time 15 "$base/release.txt" | head -1 || true)
+          echo "release.txt -> ${served:-<empty>} (expected $RELEASE)"
+          if [ "$served" != "$RELEASE" ]; then
+            echo "::error::The server is not serving this release. Expected $RELEASE, got '${served:-nothing}'. Either the symlink swap did not take effect, or Caddy's root for $BOOKEAT_WEB_BASE_URL is still the old hand-copied build (see deploy/mobile-web/README.md, first run)."
+            fail=1
+          fi
+
+          # A 200 on index.html with a 404 on the bundle is still a white
+          # screen: fetch the first script index.html points at and require a
+          # real size. No Accept-Encoding, so size_download is the raw file.
+          html=$(curl -s --max-time 15 "$base/" || true)
+          script=$(printf '%s' "$html" | grep -o "$BOOKEAT_WEB_BASE_URL/_expo/static/js/web/[^\"' ]*\.js" | head -1 || true)
+          if [ -z "$script" ]; then
+            echo "::error::index.html does not reference $BOOKEAT_WEB_BASE_URL/_expo/static/js/web/*.js — wrong base URL or wrong root."
+            fail=1
+          else
+            read -r scode ssize < <(curl -s -o /dev/null -w '%{http_code} %{size_download}\n' --max-time 30 "$PUBLIC_URL$script" || echo "000 0")
+            echo "$script -> $scode, $ssize bytes"
+            [ "$scode" = "200" ] && [ "$ssize" -gt 102400 ] || {
+              echo "::error::Entry bundle $script answered $scode with $ssize bytes; expected 200 and >100 KB."
+              fail=1
+            }
+          fi
+
+          # The other previews and the backend share this Caddy and must
+          # survive every mobile deploy (this workflow never reloads Caddy, so
+          # a failure here means something else is wrong — but do not stay green).
+          admin=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$PUBLIC_URL/admin-preview/" || echo 000)
+          api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$PUBLIC_URL/health" || echo 000)
+          echo "/admin-preview/ -> $admin ; /health -> $api"
+          [ "$admin" = "200" ] || { echo "::error::The venue panel stopped answering ($admin)."; fail=1; }
+          [ "$api" = "200" ] || { echo "::error::The backend stopped answering ($api)."; fail=1; }
+          [ "$fail" = "0" ] || exit 1
+          echo "Mobile web preview is up and serving $RELEASE"
+
+      - name: Roll back to the previous release
+        if: failure() && steps.swap.outcome == 'success'
+        env:
+          SSH_HOST: ${{ secrets.TEST_SSH_HOST }}
+          SSH_USER: ${{ secrets.TEST_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          echo "::warning::Verification failed; rolling the symlink back to the previous release."
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "PREVIEW_ROOT='$PREVIEW_ROOT' '$PREVIEW_ROOT/bin/mobile-rollback.sh'" || \
+            echo "::warning::Nothing to roll back to — this was the first release."
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$PUBLIC_URL$BOOKEAT_WEB_BASE_URL/" || echo 000)
+          echo "after rollback $BOOKEAT_WEB_BASE_URL/ -> $code"
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
