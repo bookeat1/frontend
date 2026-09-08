@@ -60,6 +60,28 @@ export function bookingResultPath(bookingId: string): string {
   return `/bookings/${encodeURIComponent(bookingId)}`;
 }
 
+/** Путь страницы полного меню заведения (Figma qmMsg4jO1ggmyEHNIAD2ll,
+ * узел 5115:7448). Задача `web-preorder-menu-20260908`, A-WEB-1. */
+export function menuPath(venueId: string): string {
+  return `/venues/${encodeURIComponent(venueId)}/menu`;
+}
+
+/** Общая проверенная часть `bookingHref`/`menuHref`: собирает `date/guests/slot`
+ * (и, только для брони, `change`) в строку запроса, отбрасывая всё, что не
+ * прошло проверку формы. */
+function intentQuery(intent: Partial<BookingIntent>, includeChange: boolean): string {
+  const params = new URLSearchParams();
+  if (intent.date && DATE_RE.test(intent.date)) params.set(BOOKING_PARAM.date, intent.date);
+  if (typeof intent.guests === "number" && isKnownGuests(intent.guests)) {
+    params.set(BOOKING_PARAM.guests, String(intent.guests));
+  }
+  if (intent.slot && SLOT_RE.test(intent.slot)) params.set(BOOKING_PARAM.slot, intent.slot);
+  if (includeChange && intent.changeBookingId && UUID_RE.test(intent.changeBookingId)) {
+    params.set(BOOKING_PARAM.change, intent.changeBookingId);
+  }
+  return params.toString();
+}
+
 /**
  * Ссылка на бронирование с уже сделанным выбором.
  *
@@ -71,17 +93,23 @@ export function bookingHref(
   venueId: string,
   intent: Partial<BookingIntent> = {},
 ): string {
-  const params = new URLSearchParams();
-  if (intent.date && DATE_RE.test(intent.date)) params.set(BOOKING_PARAM.date, intent.date);
-  if (typeof intent.guests === "number" && isKnownGuests(intent.guests)) {
-    params.set(BOOKING_PARAM.guests, String(intent.guests));
-  }
-  if (intent.slot && SLOT_RE.test(intent.slot)) params.set(BOOKING_PARAM.slot, intent.slot);
-  if (intent.changeBookingId && UUID_RE.test(intent.changeBookingId)) {
-    params.set(BOOKING_PARAM.change, intent.changeBookingId);
-  }
-  const query = params.toString();
+  const query = intentQuery(intent, true);
   return query ? `${bookingPath(venueId)}?${query}` : bookingPath(venueId);
+}
+
+/**
+ * Ссылка на полное меню с текущим выбором даты/гостей/времени (B-WEB-1,
+ * страница `/venues/[id]/book` → «Выбрать блюда»/«Изменить выбор»; A-WEB-2,
+ * страница меню → «Вернуться к бронированию»). `changeBookingId` сюда
+ * намеренно не попадает — режим переноса брони предзаказ не редактирует
+ * (`BookingSummary.tsx`, `preorder === null`).
+ */
+export function menuHref(
+  venueId: string,
+  intent: Partial<BookingIntent> = {},
+): string {
+  const query = intentQuery(intent, false);
+  return query ? `${menuPath(venueId)}?${query}` : menuPath(venueId);
 }
 
 /** Что из адреса пережило проверку. Не прошедшее молча становится `null` —

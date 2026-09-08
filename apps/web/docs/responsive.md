@@ -76,7 +76,7 @@ Native), а не новый макет. Документ фиксирует, ч�
 | `restaurant/[id]/index.tsx` — заведение | `/venues/[id]` → `venue/VenueScreen.tsx` | есть | venue |
 | `restaurant/[id]/book/index.tsx` — бронь (дата, гости, слоты, пожелания) | `/venues/[id]/book` → `booking/BookingScreen.tsx` | есть | venue |
 | `restaurant/[id]/book/confirm.tsx` — шаг подтверждения | тот же `/venues/[id]/book` (правая колонка `BookingSummary`) | есть, шаг слит в одну страницу | venue |
-| `restaurant/[id]/book/menu.tsx` — предзаказ | — | нет (предзаказа на сайте нет, см. `conventions/bookeat-web.md` § «Поток бронирования») | — |
+| `restaurant/[id]/book/menu.tsx` — предзаказ | `/venues/[id]/menu` → `venue/VenueMenuScreen.tsx` (полное меню + степпер + карточка «Предзаказ», ТЗ `web-preorder-menu-20260908`) | есть, 2026-09-08 | venue |
 | `booking/[id]/index.tsx` — билет брони | `/bookings/[id]` → `booking/BookingResultScreen.tsx` | есть | venue |
 | `auth/sign-in.tsx` — вход по OTP | `/login` → `auth/LoginScreen.tsx` | есть | chrome |
 | `events.tsx`, `event/[id].tsx` — афиша | `/events` → `events/EventsScreen.tsx`, `/events/[id]` → `events/EventScreen.tsx` (2026-09-05, узлы 5033:6703 и 5033:6922) | есть | events |
@@ -91,7 +91,8 @@ Native), а не новый макет. Документ фиксирует, ч�
 | `notifications.tsx`, `settings/index.tsx`, `settings/language.tsx` | — | нет (язык на сайте — переключатель в подвале) | — |
 | `city/index.tsx` — выбор города | — (на сайте это `<select>` в шапке) | нет отдельного экрана, поведение уже есть | chrome |
 | `onboarding/name.tsx`, `onboarding/birthday.tsx` | — | нет | — |
-| `restaurant/[id]/menu.tsx`, `restaurant/[id]/photos.tsx`, `restaurant/[id]/photo/[photoId].tsx` | — (на сайте меню и фото — секции `#menu`/`#photos` одной страницы плюс модальная галерея) | нет отдельных экранов | venue |
+| `restaurant/[id]/menu.tsx` | `/venues/[id]/menu` (см. строку выше, `restaurant/[id]/book/menu.tsx`) | есть | venue |
+| `restaurant/[id]/photos.tsx`, `restaurant/[id]/photo/[photoId].tsx` | — (на сайте фото — секция `#photos` страницы заведения плюс модальная галерея) | нет отдельных экранов | venue |
 | `booking/[id]/reschedule.tsx` — перенос брони | — | нет | — |
 
 Веб-роут без мобильного аналога: `/kit` (витрина компонентов; адаптив ей не
@@ -138,7 +139,7 @@ Native), а не новый макет. Документ фиксирует, ч�
 **Бронь** (`apps/mobile/app/restaurant/[id]/book/index.tsx`, строки 255–360):
 `FlowHeader` → название и адрес заведения → `DateStrip` (лента дней) → две
 пилюли (дата, гости) → секция «Время» (`SlotsSection`, вкладки Утро/Обед/Ужин)
-→ «Пожелания» (`TextField`) → «Предзаказ» (на сайте отсутствует) → кнопка
+→ «Пожелания» (`TextField`) → «Предзаказ» (`BookingSummary.tsx` → `PreorderBlock`: строки со степперами при непустом черновике либо ссылка «Выбрать блюда» на `/venues/[id]/menu` при пустом, ТЗ `web-preorder-menu-20260908`) → кнопка
 «Продолжить» → отдельный шаг `confirm.tsx` (карточки: детали, пожелания,
 контакт, подтвердить).
 
@@ -208,7 +209,7 @@ Native), а не новый макет. Документ фиксирует, ч�
 | `HomeHeader` «под статус-баром» и `useNavBarSpacing` | На сайте нет статус-бара и нижней панели; отступы под них — мобильный артефакт | обычный поток документа |
 | Нижние шторки с колесом (`WheelSheet`, `FilterSheet`, `partySheet`) как **компонент** | Реализация на `Modal` RN и жестах | `src/components/ui/Modal.tsx`; **поведение** (одно окно на выбор даты/гостей, черновой выбор до «Готово») переносится |
 | Тактильный отклик (`expo-haptics`), `Share` системный | нет в браузере | — |
-| Предзаказ (`book/menu.tsx`, степперы в `confirm.tsx`) | На сайте предзаказа нет по решению из `conventions/bookeat-web.md` («Поток бронирования») | — |
+| Шторка `DishDetailSheet` (`book/menu.tsx`) | Веб не переносит шторки выбора блюда — решение владельца 2026-09-06 (см. `venue-menu-stepper-promo-card`) | Степпер прямо на карточке блюда (`DishStepper`, тот же на `/venues/[id]`, `/venues/[id]/menu` и в сводке брони) |
 
 ---
 

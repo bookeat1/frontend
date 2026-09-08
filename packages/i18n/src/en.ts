@@ -2750,6 +2750,7 @@ export const en: LocaleOverride<Dictionary> = {
         qtyMore: "Increase quantity",
         preorderTotal: (amount: string) => `Total ≈ ${amount}`,
         viewAll: "Full menu →",
+        fullMenuOnly: "Full menu — on a separate page",
       },
       menuPage: {
         title: (name: string) => `${name} menu`,
@@ -2761,6 +2762,16 @@ export const en: LocaleOverride<Dictionary> = {
         searchEmptyTitle: "Nothing found",
         searchEmptyDescription: "Try a different word or clear the search",
         footerNote: "Ingredients and prices are set by the venue. Ask the waiter about allergens.",
+        unavailable: "Currently unavailable",
+        cart: {
+          title: "Pre-order",
+          total: (amount: string) => `Total ≈ ${amount}`,
+          estimateNote: "The venue will calculate the final total — this is an estimate from menu prices",
+          clear: "Clear",
+          backToBooking: "Back to booking",
+          toBooking: (amount: string) => `To booking · Total ≈ ${amount}`,
+          book: "Book a table",
+        },
       },
       promos: {
         title: "Venue deals",
@@ -2911,6 +2922,8 @@ export const en: LocaleOverride<Dictionary> = {
           hint: "Pick dishes in advance — the table will be set by the time you arrive.",
           lineQty: (qty: number, price: string) => `${qty} × ${price}`,
           totalApprox: (amount: string) => `Total ≈ ${amount}`,
+          chooseDishes: "Choose dishes",
+          changeSelection: "Change selection",
         },
       },
       errors: {
