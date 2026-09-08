@@ -14,3 +14,26 @@ export const isEnabled = false;
 export async function reloadAsync(): Promise<void> {
   throw new Error("expo-updates.reloadAsync() is not available in tests");
 }
+
+/**
+ * `useUpdates()` — источник признака «обновление по воздуху скачано и ждёт
+ * перезапуска» (`isUpdatePending`) для окна «Доступна новая версия».
+ *
+ * В jsdom нативной машины состояний нет, поэтому заглушка отдаёт покой: ничего
+ * не скачано, ничего не качается. Тест, которому нужен обратный случай,
+ * подменяет модуль через `vi.mock("expo-updates", …)` — так же, как это
+ * делается с другими нативными модулями.
+ */
+export function useUpdates(): {
+  isUpdateAvailable: boolean;
+  isUpdatePending: boolean;
+  isChecking: boolean;
+  isDownloading: boolean;
+} {
+  return {
+    isUpdateAvailable: false,
+    isUpdatePending: false,
+    isChecking: false,
+    isDownloading: false,
+  };
+}

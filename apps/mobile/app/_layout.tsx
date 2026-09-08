@@ -24,6 +24,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AppUpdateGate } from "../src/components/AppUpdateGate";
 import { AnalyticsProvider } from "../src/lib/analytics-provider";
 import { AuthProvider } from "../src/lib/auth";
 import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
@@ -111,6 +112,11 @@ export default function RootLayout() {
                   contentStyle: { backgroundColor: colors.background.surface },
                 }}
               />
+              {/* «Доступна новая версия» — ПОСЛЕ Stack, чтобы окно легло
+                  поверх любого экрана: жёсткий режим обязан накрывать и тот,
+                  на который гость пришёл по пуш-уведомлению. Пока показывать
+                  нечего, рисует null. */}
+              <AppUpdateGate />
             </PushProvider>
             </AnalyticsProvider>
             </AuthProvider>
