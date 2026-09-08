@@ -47,6 +47,9 @@ import type {
   I18nPatch,
   KaspiCompany,
   MyRestaurant,
+  PlatformPageAdmin,
+  PlatformPageInput,
+  PlatformPageSlug,
   Schedule,
   ScheduleOverrideInput,
   SetManagerWhatsAppInput,
@@ -1810,6 +1813,39 @@ export class AdminApiClient {
   async replaceHomePicks(city: string, restaurantIds: string[]): Promise<void> {
     const body: HomePicksInput = { city, restaurant_ids: restaurantIds };
     await this.request<unknown>("PUT", "/admin/restaurants/picks", { body });
+  }
+
+  // ---- Страницы сайта (T4) --------------------------------------------------
+  //
+  // Семь текстовых страниц футера — «О BookEat», «Вакансии», «Контакты», «Как
+  // это работает», «Отмена брони», «Оферта», «Политика данных» — правит
+  // только суперадмин (bookeat-backend PR #115, `feat/platform-pages`; не в
+  // `develop` на 2026-09-06). НЕТ create/delete: аллоулист слагов зафиксирован
+  // (`PLATFORM_PAGE_SLUGS`). Пути — `/admin/pages`, а не `/admin/platform/pages`
+  // из черновика спеки: это то, что фактически отдал бэкенд для этой задачи.
+
+  /** `GET /admin/pages` — все семь страниц разом, для списка редактора. */
+  listPlatformPages(): Promise<PlatformPageAdmin[]> {
+    return this.request<PlatformPageAdmin[]>("GET", "/admin/pages");
+  }
+
+  /** `GET /admin/pages/:slug` — одна страница целиком (title + markdown-тело). */
+  getPlatformPage(slug: PlatformPageSlug): Promise<PlatformPageAdmin> {
+    return this.request<PlatformPageAdmin>("GET", `/admin/pages/${encodeURIComponent(slug)}`);
+  }
+
+  /**
+   * `PUT /admin/pages/:slug` — прямое сохранение, без черновика и без
+   * версионирования: правка видна гостю сразу же после ответа 200 (в пределах
+   * кэша `GET /pages/:slug`). PATCH-семантика: поле, которого нет в теле,
+   * бэкенд не трогает — `published` шлют ТОЛЬКО когда его действительно нужно
+   * поменять. 422 с кодом `page_body_empty` — попытка выставить
+   * `published: true` с пустым `body`, страница остаётся в прежнем статусе.
+   */
+  updatePlatformPage(slug: PlatformPageSlug, input: PlatformPageInput): Promise<PlatformPageAdmin> {
+    return this.request<PlatformPageAdmin>("PUT", `/admin/pages/${encodeURIComponent(slug)}`, {
+      body: input,
+    });
   }
 
   // ---- Media (image upload) ------------------------------------------------

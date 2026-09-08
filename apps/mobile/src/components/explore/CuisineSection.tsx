@@ -70,7 +70,9 @@ export function CuisineSection({ onPickCuisine }: { onPickCuisine: (cuisine: Cui
         data={cuisines}
         keyExtractor={(cuisine) => cuisine.id}
         accessibilityLabel={t.explore.cuisineTitle}
-        itemWidth={exploreLayout.cuisineChipLabel}
+        // Ячейка hug по подписи (см. CuisineChip): «Морепродукты» шире круга и
+        // не ужимается, поэтому ширина ячеек переменная.
+        itemWidth="hug"
         itemGap={spacing.md}
         renderItem={({ item }) => (
           <CuisineChip cuisine={item} onSelect={onPickCuisine} photoUri={photos.get(item.id)} />
@@ -89,8 +91,9 @@ function SkeletonRow() {
       accessibilityLabel={t.explore.cuisineLoading}
     >
       {[0, 1, 2, 3].map((key) => (
-        // Ячейка той же ширины, что у настоящего чипа, — иначе на загрузке ряд
-        // стоит с одним шагом, а после загрузки прыгает на другой.
+        // Ячейка минимальной ширины настоящего чипа (круг 96): у чипа ширина
+        // hug по подписи, так что после загрузки ряд может чуть раздвинуться
+        // на длинных названиях — это ожидаемо, шаг ряда тот же.
         <View key={key} style={styles.skeletonCell}>
           <View style={styles.skeletonCircle} />
         </View>
@@ -107,7 +110,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   skeletonCell: {
-    width: exploreLayout.cuisineChipLabel,
+    minWidth: exploreLayout.cuisineChip,
     alignItems: "center",
   },
   skeletonCircle: {

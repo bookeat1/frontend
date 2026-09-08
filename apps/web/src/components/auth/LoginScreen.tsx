@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -22,6 +22,7 @@ import { assetUrl } from "@web/lib/asset";
 import { useAuth } from "@web/lib/auth";
 import { cx } from "@web/lib/cx";
 import { formatForDisplay, formatNational, isComplete, nationalDigits, toE164 } from "@web/lib/phone";
+import { RETURN_PARAM, safeReturnPath } from "@web/lib/return-to";
 import { useT } from "@web/lib/locale";
 
 /**
@@ -61,7 +62,15 @@ import { useT } from "@web/lib/locale";
 export function LoginScreen() {
   const t = useT();
   const router = useRouter();
+  const params = useSearchParams();
   const { completeSignIn, signedIn } = useAuth();
+
+  /**
+   * Куда вернуть гостя после входа. Пришло из адресной строки, поэтому
+   * ПРОВЕРЯЕТСЯ: `?next=https://evil.example` не должен уводить с нашего
+   * домена (см. `lib/return-to.ts`). Не прошло проверку — главная.
+   */
+  const returnTo = safeReturnPath(params.get(RETURN_PARAM));
 
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [digits, setDigits] = useState("");
@@ -116,7 +125,7 @@ export function LoginScreen() {
       await completeSignIn(session);
       // `replace`, а не `push`: «назад» с главной не должен возвращать на
       // экран входа, который для вошедшего гостя уже бессмыслен.
-      router.replace("/");
+      router.replace(returnTo);
     } catch (failure) {
       setError(verifyErrorText(failure, t));
       // Введённый код НЕ стираем: гость видит, что именно он набрал, и правит
@@ -144,7 +153,7 @@ export function LoginScreen() {
           <div className="flex flex-col gap-4">
             <h1 className="text-h3 text-ink">{t.web.auth.signedInTitle}</h1>
             <p className="text-bodyM text-ink-secondary">{t.web.auth.signedInText}</p>
-            <Button block onClick={() => router.replace("/")}>
+            <Button block onClick={() => router.replace(returnTo)}>
               {t.web.auth.backHome}
             </Button>
           </div>

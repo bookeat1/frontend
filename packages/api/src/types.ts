@@ -147,14 +147,32 @@ export interface RestaurantTable {
   isAvailableNow: boolean;
 }
 
-/** A promo banner card in the horizontal strip under the Обзор/Фото tabs. */
+/**
+ * A promo banner card in the "Акции заведения" section of `/venues/:id`.
+ *
+ * `GET /restaurants/:id/promos` DOES carry a cover image, a discount and
+ * terms (`cover_image_url`, `discount_percent`, `terms` — migrations 0032,
+ * 0060, 0066, 0101) — an earlier version of this type modelled a contract
+ * that had none of them, and `mapPromoBanners` silently dropped all three on
+ * the wire. Fixed 2026-09-06 (spec `venue-menu-stepper-promo-card`).
+ */
 export interface PromoBanner {
   id: string;
   title: string;
-  /** Optional: the backend's promo entity (GET /restaurants/:id/promos) has no
-   * image field at all, so a real promo renders as a caption over the brand
-   * placeholder background. Present only for the mock fixtures. */
-  photo?: Photo;
+  /** null when the promo has no cover — the card then falls back to the
+   * brand placeholder fill, same as before this field existed. */
+  coverImageUrl: string | null;
+  /** Percentage for the «−N%» badge. `null` — no discount set; a badge is
+   * also hidden at `0` (server allows 0..100, but «−0%» is noise) — that
+   * `> 0` rule lives at the call site, same as `Promo.discountPercent`. */
+  discountPercent: number | null;
+  /** Free-text conditions, e.g. "будни до 18:00". Empty string, never
+   * undefined, when the venue left the field blank — the card then falls
+   * back to "до {ends_at}" instead. */
+  terms: string;
+  /** RFC3339 instant the promo stops being shown — the fallback subtitle
+   * source when `terms` is empty. */
+  endsAt: string;
 }
 
 /** A dish shown in the "Популярное в меню" section. */
@@ -747,6 +765,14 @@ export interface CreateBookingInput {
   guests: number;
   name: string;
   phone: string;
+  /**
+   * Optional contact e-mail. The backend accepts it on `POST /bookings`
+   * (`createBookingRequest.Email`, internal/transport/rest/bookings/request.go),
+   * lower-cases it, matches it against the blacklist and stores it on the
+   * booking (usecase/bookings/create.go). Omitted when empty — an empty
+   * string would still travel over the wire for nothing.
+   */
+  email?: string;
   notes?: string;
 }
 
@@ -890,7 +916,12 @@ export interface ProfileUpdate {
  */
 export interface EventSummary {
   id: string;
-  restaurantId: string;
+  /**
+   * Null for a PLATFORM event (ADR-024): the backend's public detail route
+   * (`GET /events/:eventId`) and cross-venue listing both omit `restaurant`
+   * entirely for one, and there is no venue id to invent in its place.
+   */
+  restaurantId: string | null;
   title: string;
   description: string;
   /** RFC3339. The card's date line is formatted from this one. */
@@ -916,11 +947,21 @@ export interface EventSummary {
   ticketsRefundable: boolean;
   ticketRefundCutoffMinutes: number;
   /** The hosting venue, so a card can open the restaurant screen without a
-   * second request. */
-  restaurant: EventRestaurant;
+   * second request. Null for a PLATFORM event — it has no venue at all, not
+   * an unknown one, and a card must draw a real "no venue" layout instead of
+   * reading `.name` on a lie. */
+  restaurant: EventRestaurant | null;
   /** Free-text labels shown as grey chips under the «venue · date» line.
    * Always an array — `[]` when the event has none (the chip row then hides). */
   tags: string[];
+  /**
+   * Call-to-action button of a PLATFORM event (the only kind that can carry
+   * one on the public detail page). `target: "event"` means the button is a
+   * link to the event's OWN page (i.e. a no-op there — the guest is already
+   * on it) and must not be drawn; `target: "external"` opens `url` in a new
+   * tab. Null when the event has no button at all.
+   */
+  action: EventAction | null;
   /**
    * Series identifier of a RECURRING event, or null for a one-off.
    *
@@ -938,6 +979,16 @@ export interface EventRestaurant {
   id: string;
   name: string;
   city: string;
+}
+
+/** A platform event's call-to-action button (`eventActionResponse` on the
+ * wire). `target` is server-derived from whether `url` is present — never
+ * sent by the client, only read. */
+export interface EventAction {
+  label: string;
+  target: "event" | "external";
+  /** Present only when `target === "external"`. */
+  url: string | null;
 }
 
 /** Query surface of `GET /events` — every parameter is optional server-side. */
@@ -993,6 +1044,36 @@ export interface HomePromo {
   images: string[];
   /** Percentage for the «−N%» badge, or `null` when the feed omits it (no badge). */
   discountPercent: number | null;
+}
+
+/**
+ * One promo's own page (`GET /promos/:promoId`, `promoListItemResponse`)
+ * — T1b, `/promos/[id]`. Same shape family as `EventSummary`'s detail: a
+ * PLATFORM promo has no `restaurant` at all (not an unknown one), and there
+ * is no ticket/capacity/action here — a promo has no CTA button of its own,
+ * the detail page always shows the same "book a table" card.
+ */
+export interface Promo {
+  id: string;
+  restaurantId: string | null;
+  restaurant: EventRestaurant | null;
+  title: string;
+  description: string;
+  /** «Условия» section, plain text. Empty string when the promo has none —
+   * the section then hides entirely rather than showing an empty heading. */
+  terms: string;
+  startsAt: string;
+  endsAt: string;
+  coverImageUrl: string | null;
+  /** Extra photos, WITHOUT the cover. Always an array. */
+  images: string[];
+  /** Percentage for the «−N%» cover badge, or `null` when the promo carries
+   * no discount badge. */
+  discountPercent: number | null;
+  /** City override, present only when the promo itself picked a city
+   * different from its venue's (or has none, for a platform promo). Not
+   * shown on the detail page today — kept for parity with the wire. */
+  city: string | null;
 }
 
 /* ------------------------------------------------------------------------ *
@@ -1383,6 +1464,39 @@ export interface NotificationFeed {
   items: AppNotification[];
   unreadCount: number;
   nextCursor: string | null;
+}
+
+/**
+ * Fixed allowlist of editable platform text pages (footer links: «Как это
+ * работает», «Отмена брони», «Оферта», «Политика данных», «Контакты»,
+ * «Вакансии», «О BookEat»). Backend contract: bookeat-backend PR #115
+ * (`feat/platform-pages`, not yet merged at the time this type was added,
+ * 2026-09-06) — there is no create/delete, exactly these seven slugs exist.
+ * «Блог» is NOT one of them — it stays the existing `/articles` section.
+ */
+export const PLATFORM_PAGE_SLUGS = [
+  "about",
+  "jobs",
+  "contacts",
+  "how-it-works",
+  "cancellation",
+  "offer",
+  "privacy",
+] as const;
+
+export type PlatformPageSlug = (typeof PLATFORM_PAGE_SLUGS)[number];
+
+/**
+ * One platform text page, guest-facing shape (`GET /pages/:slug`).
+ *
+ * `body` is Markdown, rendered with `@bookeat/markdown`'s `<Markdown>` — the
+ * SAME component the cabinet's editor preview uses, so what a superadmin sees
+ * while typing is what a guest sees on the site.
+ */
+export interface PlatformPage {
+  slug: PlatformPageSlug;
+  title: string;
+  body: string;
 }
 
 /* ------------------------------------------------------------------------ *

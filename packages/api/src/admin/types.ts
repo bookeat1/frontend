@@ -1590,3 +1590,72 @@ export interface HomePicksInput {
   city: string;
   restaurant_ids: string[];
 }
+
+/**
+ * Семь редактируемых текстовых страниц сайта (T4). Фиксированный аллоулист —
+ * ни создать, ни удалить страницу нельзя, только править title/body/published.
+ *
+ * КОНТРАКТ ПРОВЕРЕН ПО РЕАЛЬНОМУ DTO (bookeat-backend PR #115,
+ * `feat/platform-pages`, `internal/transport/rest/platformpages/dto.go`,
+ * сверено 2026-09-06). Черновик в `specs/web-fixes-20260906.md` был неточен в
+ * обе стороны: `title_i18n`/`body_i18n`/`format` на проводе ЕСТЬ (в отличие
+ * от первой версии этого файла, которая по прозе спеки решила, что бэкенд их
+ * упростил), а поле публикации в admin-ответе называется `published` (bool),
+ * а не `published_at`. PUT — PATCH-семантика: `published` optional, его
+ * отсутствие ничего не меняет. Все 7 сидов написаны с `published = false` —
+ * без явного `published: true` в PUT страница НИКОГДА не станет видна на
+ * сайте.
+ */
+export const PLATFORM_PAGE_SLUGS = [
+  "about",
+  "jobs",
+  "contacts",
+  "how-it-works",
+  "cancellation",
+  "offer",
+  "privacy",
+] as const;
+
+export type PlatformPageSlug = (typeof PLATFORM_PAGE_SLUGS)[number];
+
+/**
+ * Матчит `adminResponse` (bookeat-backend
+ * `internal/transport/rest/platformpages/dto.go`, PR #115, merged into
+ * `feat/platform-pages`) — CONFIRMED against the real DTO on 2026-09-06, not
+ * against the earlier draft in `specs/web-fixes-20260906.md` (that draft was
+ * simpler on this one point and is stale).
+ *
+ * `published` (a plain bool, NOT `published_at`) — `false` means the guest
+ * gets 404 on `GET /pages/:slug`. All seven pages seed with `published =
+ * false`; the editor's PUT MUST send `published: true` explicitly to ever
+ * make one visible — there is no other way to flip it.
+ *
+ * `title_i18n`/`body_i18n` and `format` are real fields on the wire (the
+ * admin view resolves nothing, unlike the public response) but this panel
+ * only edits the base `title`/`body` — no per-language UI yet.
+ */
+export interface PlatformPageAdmin {
+  slug: PlatformPageSlug;
+  title: string;
+  title_i18n?: Record<string, string>;
+  body: string;
+  body_i18n?: Record<string, string>;
+  format: string;
+  published: boolean;
+  updated_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * Тело `PUT /admin/pages/:slug`. PATCH-семантика на бэкенде (`updateRequest`
+ * в dto.go): поле, которого нет в JSON, значение не меняет. `published`
+ * optional и явный — если не передать `true`, страница НИКОГДА не
+ * опубликуется (сиды все с `published = false`). Пустой `body` при
+ * `published: true` бэкенд отклоняет 422-м `page_body_empty`.
+ */
+export interface PlatformPageInput {
+  title: string;
+  body: string;
+  published?: boolean;
+}

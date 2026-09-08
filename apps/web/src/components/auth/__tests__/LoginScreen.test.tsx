@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { RepositoryError } from "@bookeat/api/client";
 
@@ -16,10 +17,13 @@ import { LocaleProvider } from "@web/lib/locale";
  */
 
 const replace = vi.fn();
+/** Адрес возврата в строке запроса. Меняется тестом, читается моком. */
+let search = "";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(""),
+  useSearchParams: () => new URLSearchParams(search),
+  usePathname: () => "/login",
 }));
 
 const authRepository = {
@@ -54,10 +58,15 @@ const { AuthProvider } = await import("@web/lib/auth");
 const { LoginScreen } = await import("@web/components/auth/LoginScreen");
 
 function renderLogin(ui: ReactElement = <LoginScreen />) {
+  // `AuthProvider` чистит кэш при смене сессии, поэтому клиент запросов ему
+  // обязателен — как и в настоящем дереве (app/providers.tsx).
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
-    <LocaleProvider>
-      <AuthProvider>{ui}</AuthProvider>
-    </LocaleProvider>,
+    <QueryClientProvider client={client}>
+      <LocaleProvider>
+        <AuthProvider>{ui}</AuthProvider>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -70,6 +79,15 @@ async function goToCodeStep() {
   await screen.findByText("Введите код");
 }
 
+async function enterCode(value = "482913") {
+  const boxes = codeBoxes();
+  value.split("").forEach((digit, index) => {
+    fireEvent.change(boxes[index], { target: { value: digit } });
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Подтвердить" }));
+  await waitFor(() => expect(authRepository.verifyOtp).toHaveBeenCalled());
+}
+
 function codeBoxes() {
   return screen.getAllByRole("textbox").filter((element) => element.getAttribute("maxlength") === "1");
 }
@@ -77,7 +95,11 @@ function codeBoxes() {
 describe("вход по номеру телефона", () => {
   // Сессия живёт в localStorage и переживает размонтирование: без очистки
   // следующий тест открывал бы экран уже вошедшим гостем.
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    search = "";
+    replace.mockClear();
+  });
 
   it("неполный номер не уходит на сервер", () => {
     renderLogin();
@@ -127,6 +149,27 @@ describe("вход по номеру телефона", () => {
       }),
     );
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+  });
+
+  it("возвращает туда, откуда гость ушёл на вход", async () => {
+    // Гость жал сердце на странице заведения — после кода он должен вернуться
+    // на неё, а не на главную.
+    search = "next=%2Fvenues%2Fabc%3Ffrom%3Dcard";
+    await goToCodeStep();
+    await enterCode();
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/venues/abc?from=card"));
+  });
+
+  it("подделанный адрес возврата не уводит с домена", async () => {
+    // `//evil.example` — протокольно-относительный адрес: слэш в начале есть, а
+    // открылся бы чужой сайт. Это открытый редирект, и его тут быть не должно.
+    search = "next=%2F%2Fevil.example";
+    await goToCodeStep();
+    await enterCode();
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(replace).not.toHaveBeenCalledWith("//evil.example");
   });
 
   /** Неверный код НЕ стирается: гость правит одну цифру, а не набирает шесть. */

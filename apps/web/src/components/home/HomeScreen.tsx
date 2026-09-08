@@ -5,7 +5,19 @@ import Link from "next/link";
 import { webAppSection } from "@bookeat/design-tokens";
 
 import { Section, SectionHeader } from "@web/components/home/SectionHeader";
-import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
+import {
+  EVENTS_PATH,
+  EVENT_CARD_IMAGE,
+  EventCard,
+  GUIDE_CARD_IMAGE,
+  GUIDE_PATH,
+  GuideCard,
+  PROMO_CARD_FRAME,
+  PromoCard,
+  SHOW_EVENTS_LINK,
+  SHOW_SECTION_LINKS,
+  guideCollectionHref,
+} from "@web/components/home/Cards";
 import { CuisineRow, CuisineRowSkeleton } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
 import { Container } from "@web/components/layout/Container";
@@ -15,7 +27,9 @@ import { VenueCard } from "@web/components/ui/VenueCard";
 import { Button } from "@web/components/ui/Button";
 import { assetUrl } from "@web/lib/asset";
 import { useCity } from "@web/lib/city";
+import { cx } from "@web/lib/cx";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
+import { useFavoriteControl } from "@web/lib/favorites";
 import { venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
 import {
@@ -29,8 +43,9 @@ import {
 } from "@web/lib/queries";
 
 /**
- * Главная — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 01 · Главная + каталог»
- * (узел 3253:2).
+ * Главная — Figma QovvuAoI9YxsLMwWkfgKN8, кадр «WEB / 01 · Главная + каталог».
+ * Секции «Выбрали для вас» и «Все заведения в Алматы» сверены с узлами
+ * 3525:14214 и 3525:14246.
  *
  * Порядок секций и их отступы — из макета. Каждая секция ходит за своими
  * данными отдельным запросом и падает отдельно: сломавшаяся афиша не должна
@@ -55,6 +70,8 @@ export function HomeScreen() {
   const events = useEvents(city);
   const guide = useGuideCollections();
   const catalog = useCatalog(buildSearchQuery(EMPTY_CATALOG_STATE, city));
+  // Одна подписка на избранное на всю страницу: карточек здесь дюжина.
+  const favoriteProps = useFavoriteControl();
 
   return (
     <SiteChrome active="home">
@@ -108,7 +125,7 @@ export function HomeScreen() {
                       meta={venueMeta(venue, t)}
                       imageUrl={venue.coverPhoto?.uri}
                       href={`/venues/${venue.id}`}
-                      tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
+                      {...favoriteProps(venue.id)}
                     />
                   </li>
                 ))}
@@ -130,7 +147,7 @@ export function HomeScreen() {
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {PLACEHOLDERS.slice(0, 3).map((key) => (
-                  <Skeleton key={key} className="h-[260px] rounded-card" />
+                  <Skeleton key={key} className={cx(PROMO_CARD_FRAME, "rounded-card")} />
                 ))}
               </div>
             }
@@ -164,7 +181,9 @@ export function HomeScreen() {
             skeleton={<VenueGridSkeleton />}
           >
             {(result) => (
-              <div className="flex flex-col gap-gutter">
+              // Просвет «сетка → кнопка» 28, как между блоками секции в макете
+              // (узел 3525:14246), а не 24 гаттера сетки.
+              <div className="flex flex-col gap-7">
                 <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
                   {result.items.slice(0, HOME_CATALOG_LIMIT).map((venue) => (
                     <li key={venue.id} className="h-full">
@@ -173,7 +192,7 @@ export function HomeScreen() {
                         meta={venueMeta(venue, t)}
                         imageUrl={venue.coverPhoto?.uri}
                         href={`/venues/${venue.id}`}
-                        tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
+                        {...favoriteProps(venue.id)}
                       />
                     </li>
                   ))}
@@ -202,14 +221,19 @@ export function HomeScreen() {
 
       <Section tone="subtle">
         <Container className="flex flex-col gap-7">
-          <SectionHeader title={t.web.home.events.title} subtitle={t.web.home.events.subtitle} />
+          <SectionHeader
+            title={t.web.home.events.title}
+            subtitle={t.web.home.events.subtitle}
+            linkHref={SHOW_EVENTS_LINK ? EVENTS_PATH : undefined}
+            linkLabel={t.web.home.events.all}
+          />
           <AsyncBlock
             query={events}
             emptyText={t.web.home.events.empty}
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {PLACEHOLDERS.slice(0, 3).map((key) => (
-                  <Skeleton key={key} className="h-[324px] rounded-card" />
+                  <CardSkeleton key={key} image={EVENT_CARD_IMAGE} body="h-event-body" />
                 ))}
               </div>
             }
@@ -229,14 +253,19 @@ export function HomeScreen() {
 
       <Section>
         <Container className="flex flex-col gap-7">
-          <SectionHeader title={t.web.home.guide.title} subtitle={t.web.home.guide.subtitle} />
+          <SectionHeader
+            title={t.web.home.guide.title}
+            subtitle={t.web.home.guide.subtitle}
+            linkHref={SHOW_SECTION_LINKS ? GUIDE_PATH : undefined}
+            linkLabel={t.web.home.guide.all}
+          />
           <AsyncBlock
             query={guide}
             emptyText={t.web.home.guide.empty}
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-2">
                 {PLACEHOLDERS.slice(0, 2).map((key) => (
-                  <Skeleton key={key} className="h-[464px] rounded-card" />
+                  <CardSkeleton key={key} image={GUIDE_CARD_IMAGE} body="h-guide-body" />
                 ))}
               </div>
             }
@@ -245,7 +274,10 @@ export function HomeScreen() {
               <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2">
                 {items.slice(0, 2).map((collection) => (
                   <li key={collection.slug}>
-                    <GuideCard collection={collection} />
+                    <GuideCard
+                      collection={collection}
+                      href={SHOW_SECTION_LINKS ? guideCollectionHref(collection.slug) : undefined}
+                    />
                   </li>
                 ))}
               </ul>
@@ -269,6 +301,22 @@ const HOME_CATALOG_LIMIT = 8;
 
 /** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
 const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
+
+/**
+ * Скелет карточки события и подборки: обложка + тело, собранные из ТЕХ ЖЕ
+ * классов, что и настоящая карточка (`Cards.tsx`). Ниже `lg` обложка
+ * держит мобильную пропорцию, и высота карточки зависит от ширины колонки —
+ * одним числом её не описать, а скелет другой высоты заставил бы страницу
+ * прыгать при появлении данных.
+ */
+function CardSkeleton({ image, body }: { image: string; body: string }) {
+  return (
+    <div aria-hidden="true" className="flex flex-col overflow-hidden rounded-card">
+      <Skeleton className={cx("rounded-none", image)} />
+      <Skeleton className={cx("rounded-none", body)} />
+    </div>
+  );
+}
 
 function VenueGridSkeleton() {
   return (
@@ -310,7 +358,10 @@ function Hero() {
       <div aria-hidden="true" className="absolute inset-0 bg-hero-scrim" />
       <Container className="relative flex flex-col gap-hero-gap py-hero-y">
         <div className="flex max-w-[640px] flex-col gap-3">
-          <h1 className="text-[48px] font-bold leading-[52px] text-ink-on-inverse">
+          {/* 48/52 из макета — только с `lg`; ниже кегль мобильной шапки
+              главной (`webHero.mobileTitleFontSize`, docs/responsive.md § 5,
+              дыра № 4): три строки по 48 съедали весь первый экран. */}
+          <h1 className="text-hero-title-mobile text-ink-on-inverse lg:text-hero-title">
             {t.web.home.hero.title}
           </h1>
           <p className="text-[18px] leading-7 text-ink-on-inverse">{t.web.home.hero.subtitle}</p>
@@ -395,7 +446,9 @@ function AppSection() {
     <section className="relative w-full overflow-hidden bg-app-section">
       <Container className="relative flex flex-col gap-6 py-app-y">
         <div className="flex max-w-[720px] flex-col gap-2">
-          <h2 className="text-[38px] font-bold leading-[46px] tracking-[-0.6px] text-ink-on-inverse">
+          {/* 38/46 из макета — только с `lg` (дыра № 5); ниже — тот же
+              мобильный кегль, что у героя. */}
+          <h2 className="text-app-title-mobile tracking-[-0.6px] text-ink-on-inverse lg:text-app-title">
             {t.web.home.app.title}
           </h2>
           <p className="text-[17px] leading-[26px] text-on-brand-muted">{t.web.home.app.text}</p>

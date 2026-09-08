@@ -8,17 +8,20 @@ import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
  * так, чтобы это было слышно, а не только видно по красному подчёркиванию.
  */
 describe("SiteHeader", () => {
-  it("рисует все пункты меню из макета — их ТРИ", () => {
+  it("рисует все пункты меню из макета — их ПЯТЬ", () => {
     render(<SiteHeader />);
 
     const nav = screen.getByRole("navigation", { name: "Основная навигация" });
     expect(nav.querySelectorAll("a")).toHaveLength(HEADER_NAV.length);
-    // Узел 3549:5727: «Главная», «Заведения», «Гастрогид». «Афиша» и «Статьи»
-    // достались от старого компонента шапки и вели в 404 Next.
+    // Узел 5034:9569 (шапка кадра «Афиша»): «Главная», «Заведения», «Афиша»,
+    // «Гастрогид», «Статьи». Все пять роутов существуют с 2026-09-05:
+    // «Афиша» пришла с /events (5033:6703), «Статьи» с /articles (5033:7382).
     expect([...nav.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
       "Главная",
       "Заведения",
+      "Афиша",
       "Гастрогид",
+      "Статьи",
     ]);
   });
 
@@ -67,6 +70,34 @@ describe("SiteHeader", () => {
     expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Замок от «комментария, который рендерится». Строчный `// …` внутри детей
+   * JSX — валидный TSX и валидный React: tsc и eslint его пропускают, а в шапке
+   * появляется видимый текст с двумя слэшами. Такое уже случилось 2026-09-04 у
+   * ссылки на профиль. Проверяем текст всех трёх состояний сессии: у каждого
+   * своя ветка разметки, и комментарий может завестись в любой.
+   */
+  it.each([
+    ["сессия неизвестна", undefined],
+    ["гость без сессии", null],
+    ["вошедший гость", { name: "Дамир" }],
+  ] as const)("в тексте шапки нет «//» (%s)", (_label, account) => {
+    const { container } = render(<SiteHeader account={account} city="Алматы" />);
+
+    expect(container.textContent).not.toContain("//");
+  });
+
+  /**
+   * Замок обратный прежнему: страница гостя `/profile` появилась 2026-09-05,
+   * и имя вошедшего ОБЯЗАНО быть ссылкой на неё — текстом оно было только пока
+   * роута не существовало и клик вёл в 404 Next.
+   */
+  it("имя вошедшего ведёт на /profile", () => {
+    render(<SiteHeader account={{ name: "Дамир" }} />);
+
+    expect(screen.getByRole("link", { name: "Дамир" }).getAttribute("href")).toBe("/profile");
+  });
+
   /** Пока сессия читается из localStorage, шапка не должна мигать «Войти»
    * тому, кто уже вошёл. */
   it("не показывает ни вход, ни имя, пока сессия неизвестна", () => {
@@ -74,5 +105,19 @@ describe("SiteHeader", () => {
 
     expect(screen.queryByRole("link", { name: "Войти" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Выйти" })).toBeNull();
+  });
+
+  /**
+   * T3 (спека `web-fixes-20260906.md`, 2026-09-06, критерий 21): «Для
+   * бизнеса» ведёт на боевой лендинг `book-eat.app`, а не на несуществующий
+   * `/business` — уходит внешне, в новой вкладке, без `window.opener`.
+   */
+  it("«Для бизнеса» ведёт на book-eat.app в новой вкладке", () => {
+    render(<SiteHeader />);
+
+    const link = screen.getByRole("link", { name: /Для бизнеса/ });
+    expect(link.getAttribute("href")).toBe("https://book-eat.app/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
   });
 });

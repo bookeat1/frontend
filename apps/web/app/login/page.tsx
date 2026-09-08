@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { LoginScreen } from "@web/components/auth/LoginScreen";
@@ -15,5 +16,13 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginScreen />;
+  // `useSearchParams` (адрес возврата в `?next=`) обязывает поставить границу
+  // Suspense: без неё Next не может отрисовать страницу заранее и валит
+  // сборку. Запасная разметка — фирменная подложка, а не пустой белый лист:
+  // ровно то, что гость увидит долю секунды до выполнения JS.
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-inverse" />}>
+      <LoginScreen />
+    </Suspense>
+  );
 }

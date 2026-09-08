@@ -26,6 +26,7 @@ import type {
   BookingStatus,
   Cuisine,
   DayAvailability,
+  EventAction,
   EventSummary,
   GuideCategory,
   GuideCollection,
@@ -46,9 +47,12 @@ import type {
   HomePromo,
   PaymentStatus,
   Photo,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PriceLevel,
   PriceRange,
+  Promo,
   PromoBanner,
   Restaurant,
   RestaurantStory,
@@ -187,8 +191,15 @@ export interface ApiMenuItem {
   display_order: number | null;
 }
 
-/** promoResponse — GET /restaurants/:id/promos, wrapped in a Page. Note there
- * is NO image field on a promo anywhere in the backend. */
+/**
+ * promoResponse — GET /restaurants/:id/promos, wrapped in a Page.
+ *
+ * `terms`, `cover_image_url`, `discount_percent` are `omitempty` (same shape
+ * as `ApiPromoListItem` below, the single promo's own page) — they are real
+ * fields the backend fills in from 0032/0060/0066/0101, not a gap in this
+ * endpoint. An earlier version of this interface didn't declare them at all,
+ * and `mapPromoBanners` threw the data away even though the wire had it.
+ */
 export interface ApiPromo {
   id: string;
   restaurant_id: string;
@@ -197,6 +208,9 @@ export interface ApiPromo {
   starts_at: string;
   ends_at: string;
   status: string;
+  terms?: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
 }
 
 /** summaryResponse — GET /restaurants/:id/reviews/summary. */
@@ -530,9 +544,23 @@ export function mapMenuHighlights(items: ApiMenuItem[] | null | undefined): Menu
   });
 }
 
-/** Promos carry no image server-side, so the banner is caption-only. */
+/**
+ * Fixed 2026-09-06: this used to drop `terms`, `discount_percent` and
+ * `cover_image_url` even though the backend sends them — see the comment on
+ * `ApiPromo` and on `PromoBanner`. Same nullable/empty-string conventions as
+ * `mapHomePromos`/`mapPromo`: a missing discount is `null` (never `0`, which
+ * would read as "no discount" via a different, wrong signal), a missing
+ * cover is `null`, a missing `terms` is `""`.
+ */
 export function mapPromoBanners(promos: ApiPromo[] | null | undefined): PromoBanner[] {
-  return (promos ?? []).map((promo) => ({ id: promo.id, title: text(promo.title) }));
+  return (promos ?? []).map((promo) => ({
+    id: promo.id,
+    title: text(promo.title),
+    coverImageUrl: text(promo.cover_image_url).trim() || null,
+    discountPercent: typeof promo.discount_percent === "number" ? promo.discount_percent : null,
+    terms: text(promo.terms),
+    endsAt: text(promo.ends_at),
+  }));
 }
 
 /* ------------------------------------------------------------------------ *
@@ -1036,11 +1064,17 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // can never load: the Photos screen counts what it shows.
     .filter((img) => Boolean(img.image_url?.trim()))
     .map((img) => imageToPhoto(img.image_url, img.id, text(api.name), undefined));
+  // `type` и `url` в базе — свободные строки, бэкенд их не валидирует.
+  // Ссылка без схемы («instagram.com/x», «@x») в `<a href>` сайта стала бы
+  // относительным путём → 404. Как и для сторис: не http(s) — значит канала
+  // нет. Схему догадкой не дочиниваем (см. httpLink).
+  const socialLink = (type: string): string | undefined =>
+    httpLink(api.social_links?.find((s) => s.type === type)?.url) ?? undefined;
   const social = api.social_links?.length
     ? {
-        website: api.social_links.find((s) => s.type === "website")?.url,
-        whatsapp: api.social_links.find((s) => s.type === "whatsapp")?.url,
-        instagram: api.social_links.find((s) => s.type === "instagram")?.url,
+        website: socialLink("website"),
+        whatsapp: socialLink("whatsapp"),
+        instagram: socialLink("instagram"),
       }
     : undefined;
 
@@ -1135,7 +1169,9 @@ export function mapVenueAmenities(features: ApiFeature[] | null | undefined): Am
  * for public callers). */
 export interface ApiEvent {
   id: string;
-  restaurant_id: string;
+  /** ABSENT on a PLATFORM event (eventResponse's `omitempty`) — not "", not
+   * a zero uuid. Optional here for exactly that reason. */
+  restaurant_id?: string | null;
   title: string;
   description: string;
   starts_at: string;
@@ -1159,30 +1195,53 @@ export interface ApiEvent {
   /** Series id of a recurring event. Verified live on prod 2026-08-19: the
    * public listing carries it. Absent on a one-off event. */
   recurrence_id?: string | null;
+  /** Call-to-action button (`eventActionResponse`), absent when the event has
+   * none. `target` is server-derived ("event" | "external"). */
+  action?: {
+    label?: string;
+    target?: string;
+    url?: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
 }
 
-/** eventListItemResponse — an event plus the venue that hosts it. */
+/** eventListItemResponse — an event plus the venue that hosts it. ABSENT
+ * entirely for a platform event (`omitempty` on the Go side) — that is a
+ * real, drawable state, not a malformed payload. */
 export interface ApiEventListItem extends ApiEvent {
   restaurant?: {
     id?: string;
     name?: string;
     city?: string;
+  } | null;
+}
+
+function mapEventAction(api: ApiEvent["action"]): EventAction | null {
+  if (!api || !text(api.label)) return null;
+  const url = text(api.url).trim() || null;
+  return {
+    label: text(api.label),
+    // Trust the server's derivation, but fall back to "url present" if an
+    // older/odd payload ever omits target — never invent a button that opens
+    // nothing.
+    target: api.target === "external" || (api.target !== "event" && url) ? "external" : "event",
+    url,
   };
 }
 
 /**
  * `status` is deliberately dropped: the public listing only emits published
  * events, so carrying it into the UI would invite a screen to branch on a
- * constant. The `restaurant` object is defensive — a listing row without it
- * degrades to an unclickable card, never to a thrown mapper that blanks the
- * whole section.
+ * constant. The `restaurant` object is optional — a PLATFORM event has none
+ * at all, and a listing row without it degrades to a venue-less card, never
+ * to a thrown mapper that blanks the whole section.
  */
 export function mapEventSummary(api: ApiEventListItem): EventSummary {
+  const restaurantId = text(api.restaurant_id).trim() || null;
   return {
     id: text(api.id),
-    restaurantId: text(api.restaurant_id),
+    restaurantId,
     title: text(api.title),
     description: plainText(api.description),
     startsAt: text(api.starts_at),
@@ -1196,11 +1255,13 @@ export function mapEventSummary(api: ApiEventListItem): EventSummary {
     ticketsRefundable: api.tickets_refundable === true,
     ticketRefundCutoffMinutes:
       typeof api.ticket_refund_cutoff_minutes === "number" ? api.ticket_refund_cutoff_minutes : 0,
-    restaurant: {
-      id: text(api.restaurant?.id) || text(api.restaurant_id),
-      name: text(api.restaurant?.name),
-      city: text(api.restaurant?.city),
-    },
+    restaurant: api.restaurant
+      ? {
+          id: text(api.restaurant.id) || restaurantId || "",
+          name: text(api.restaurant.name),
+          city: text(api.restaurant.city),
+        }
+      : null,
     // Always an array in the contract; an absent/null field (old build) folds to
     // [], and blank/non-string entries are dropped so the chip row never shows
     // an empty grey pill.
@@ -1210,6 +1271,7 @@ export function mapEventSummary(api: ApiEventListItem): EventSummary {
     // Нужно сердечку: у повторяющегося события в избранном лежит СЕРИЯ, а не
     // конкретная дата, поэтому «сохранено ли» сравнивается по recurrence_id.
     recurrenceId: text(api.recurrence_id).trim() || null,
+    action: mapEventAction(api.action),
   };
 }
 
@@ -1264,6 +1326,61 @@ export function mapHomePromos(items: ApiFeedItem[] | null | undefined): HomeProm
       discountPercent: typeof item.discount_percent === "number" ? item.discount_percent : null,
     }))
     .filter((promo) => promo.id !== "");
+}
+
+/* ------------------------------------------------------------------------ *
+ * One promo's own page (`GET /promos/:promoId`, T1b)
+ *
+ * Shape copied from backend-core `internal/transport/rest/promos/handler.go`
+ * (`promoResponse` + `promoListItemResponse`): `restaurant_id`/`restaurant`
+ * are both ABSENT (`omitempty`) for a PLATFORM promo, `terms` and
+ * `discount_percent` are omitted rather than empty/zero when unset.
+ * ------------------------------------------------------------------------ */
+
+export interface ApiPromoListItem {
+  id: string;
+  restaurant_id?: string | null;
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  terms?: string;
+  cover_image_url?: string | null;
+  discount_percent?: number | null;
+  images?: string[] | null;
+  city?: string | null;
+  restaurant?: {
+    id?: string;
+    name?: string;
+    city?: string;
+  } | null;
+}
+
+/** Maps `GET /promos/:promoId` into the domain `Promo`. Defensive the same
+ * way `mapEventSummary` is: a missing `restaurant` degrades to a promo with
+ * no venue block, never to a thrown mapper. */
+export function mapPromo(api: ApiPromoListItem): Promo {
+  const restaurantId = text(api.restaurant_id).trim() || null;
+  return {
+    id: text(api.id),
+    restaurantId,
+    restaurant: api.restaurant
+      ? {
+          id: text(api.restaurant.id) || restaurantId || "",
+          name: text(api.restaurant.name),
+          city: text(api.restaurant.city),
+        }
+      : null,
+    title: text(api.title),
+    description: plainText(api.description),
+    terms: plainText(api.terms),
+    startsAt: text(api.starts_at),
+    endsAt: text(api.ends_at),
+    coverImageUrl: text(api.cover_image_url).trim() || null,
+    images: imageList(api.images),
+    discountPercent: typeof api.discount_percent === "number" ? api.discount_percent : null,
+    city: text(api.city).trim() || null,
+  };
 }
 
 /**
@@ -1693,6 +1810,40 @@ export function mapFavoriteItems(api: ApiFavoriteItems | null | undefined): Favo
     promos: count(api?.counts?.promos),
   };
   return { items, counts };
+}
+
+/* ------------------------------------------------------------------------ *
+ * Platform text pages — `GET /pages/:slug` (bookeat-backend PR #115,
+ * `feat/platform-pages`, `internal/transport/rest/platformpages/dto.go`
+ * `publicResponse` — confirmed against the real DTO 2026-09-06). The wire
+ * shape is `{ slug, title, body, format, updated_at }`; there is no
+ * `published_at` here at all (an earlier version of this mapper assumed one
+ * — it was never real). `slug`/`format`/`updated_at` are read but not
+ * mapped: `slug` duplicates the request parameter the caller already has,
+ * `format` is always Markdown (the only format the backend emits), and
+ * `updated_at` has no UI yet. A page that is not published never reaches
+ * this mapper — the backend answers 404 for that case, indistinguishable
+ * from an unknown slug on purpose.
+ * ------------------------------------------------------------------------ */
+
+export interface ApiPlatformPage {
+  title?: string | null;
+  body?: string | null;
+}
+
+/**
+ * `slug` is not read from `api` — it comes from the request. Body is passed
+ * through `text()` (trim only), NOT `plainText()`: that helper strips `<...>`
+ * and HTML entities for old-CMS HTML fields, and would silently mangle
+ * Markdown that happens to contain a literal `<` (e.g. inside a link or a
+ * table cell).
+ */
+export function mapPlatformPage(slug: PlatformPageSlug, api: ApiPlatformPage): PlatformPage {
+  return {
+    slug,
+    title: text(api.title),
+    body: text(api.body),
+  };
 }
 
 /* ------------------------------------------------------------------------ *

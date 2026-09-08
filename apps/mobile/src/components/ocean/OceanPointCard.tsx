@@ -3,7 +3,7 @@ import { colors, oceanPageLayout, spacing, typography } from "@bookeat/design-to
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Fish, Gift } from "../icons";
+import { Fish } from "../icons";
 import { PhotoView } from "../PhotoView";
 import { oceanPointName } from "./ocean-basket-content";
 
@@ -11,8 +11,15 @@ const t = getDictionary();
 
 /**
  * КАРТОЧКА ТОЧКИ Ocean Basket — макет 3z0f6dgev4HMwBAHPjTjPo, node 3441:12289:
- * фотография 215, номер точки в золотом кружке, пилюля «Welcome drink», белая
- * подложка с городом золотыми прописными и названием.
+ * фотография 215, номер точки в золотом кружке, белая подложка с городом
+ * золотыми прописными и названием.
+ *
+ * ПИЛЮЛИ «WELCOME DRINK» (node 3441:12296) ЗДЕСЬ НЕТ — снята 2026-09-01 по
+ * решению владельца. На карточке КОНКРЕТНОГО заведения она читалась как
+ * гарантия этого заведения: гость пришёл бы за напитком, а разбирался бы
+ * ресторан. Признака акции у заведения в API нет, у брони нет поля напитка,
+ * заведение о ней не знает и ничего за неё не получает. Вернуть пилюлю можно
+ * тогда, когда акция появится в данных и её подтвердит заведение.
  *
  * ЭТО ЕДИНСТВЕННЫЙ ЖИВОЙ БЛОК СТРАНИЦЫ: заведение приходит из каталога
  * (`GET /restaurants/search`), фотография — его собственная, тап открывает его
@@ -56,15 +63,6 @@ export function OceanPointCard({
         <PhotoView uri={venue.coverPhoto?.uri} style={styles.photo} decorative />
         <View style={styles.badge}>
           <Text style={styles.badgeLabel}>{t.oceanBasket.pointNumber(index)}</Text>
-        </View>
-        {/* Пилюля «Welcome drink» — ЗАШИТЫЙ текст макета (node 3441:12296).
-            Признака такой акции у заведения в API нет; это фирменная строка
-            бренда, а не подтверждённое обещание конкретной точки. */}
-        <View style={styles.tag}>
-          <Gift size={13} color={colors.brand2.navyInk} weight="regular" />
-          <Text style={styles.tagLabel} numberOfLines={1}>
-            {t.oceanBasket.venueTag}
-          </Text>
         </View>
         <View style={styles.fish}>
           <Fish size={15} color={colors.brand2.navyInk} weight="fill" />
@@ -115,24 +113,6 @@ const styles = StyleSheet.create({
   },
   badgeLabel: {
     ...typography.brandVenueBadge,
-    color: colors.brand2.navy,
-  },
-  tag: {
-    position: "absolute",
-    left: spacing.sm,
-    // В макете пилюля стоит на 174 от верха карточки при фотографии 215 —
-    // то есть в 11 от её нижнего края.
-    bottom: 11,
-    height: oceanPageLayout.venueTagHeight,
-    borderRadius: oceanPageLayout.venueTagRadius,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    backgroundColor: colors.brand2.gold,
-  },
-  tagLabel: {
-    ...typography.brandVenueTag,
     color: colors.brand2.navy,
   },
   fish: {

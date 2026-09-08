@@ -58,3 +58,20 @@ export function toE164(digits: string): string {
 export function formatForDisplay(digits: string): string {
   return `+${KZ_DIAL} ${formatNational(digits)}`;
 }
+
+/**
+ * ОБРАТНЫЙ разбор: национальные цифры из номера, который уже ХРАНИТСЯ в E.164
+ * (профиль, бронь с сервера). Не-казахстанский номер → `null`.
+ *
+ * Это НЕ `nationalDigits`: тот рассчитан на ввод с клавиатуры и для строки,
+ * не начинающейся на 7/8, просто берёт первые десять цифр. Пропущенный через
+ * него «+4915112345678» превратился бы в «4915112345» — десять цифр,
+ * `isComplete` доволен, `toE164` приклеивает «+7», и на сервер уходит
+ * фальшивый номер, по которому заведение никому не дозвонится. Пустое поле с
+ * честной ошибкой «нужен казахстанский номер» лучше такого.
+ */
+export function kzNationalDigits(e164: string): string | null {
+  const digits = e164.replace(/\D/g, "");
+  if (digits.length !== KZ_NATIONAL_LENGTH + 1 || !digits.startsWith(KZ_DIAL)) return null;
+  return digits.slice(1);
+}

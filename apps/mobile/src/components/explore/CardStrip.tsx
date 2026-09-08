@@ -36,8 +36,10 @@ export function CardStrip<T>({
   renderItem: ListRenderItem<T>;
   accessibilityLabel: string;
   /** Fixed width of one item, so `getItemLayout` stays exact. Defaults to the
-   * standard Explore card; the circular cuisine rail passes its own width. */
-  itemWidth?: number;
+   * standard Explore card. `"hug"` — ширина ячейки задаётся содержимым (ряд
+   * кухонь: подпись длиннее круга расширяет ячейку, как в макете 3447:12764),
+   * тогда `getItemLayout` не передаётся — с переменной шириной он бы врал. */
+  itemWidth?: number | "hug";
   /** Просвет между элементами. По умолчанию 8 — столько между карточками в
    * макете; ряд кухонь передаёт свои 12 (node 3447:12763 — `gap-[12px]`). */
   itemGap?: number;
@@ -66,11 +68,15 @@ export function CardStrip<T>({
       removeClippedSubviews={false}
       // Constant width cards: telling the list the geometry up front avoids a
       // measurement pass per card on a slow device.
-      getItemLayout={(_, index) => ({
-        length: itemWidth + itemGap,
-        offset: (itemWidth + itemGap) * index,
-        index,
-      })}
+      getItemLayout={
+        itemWidth === "hug"
+          ? undefined
+          : (_, index) => ({
+              length: itemWidth + itemGap,
+              offset: (itemWidth + itemGap) * index,
+              index,
+            })
+      }
       onContentSizeChange={(width) => setContentWidth(width)}
       onLayout={(event) => setViewportWidth(event.nativeEvent.layout.width)}
       onScroll={(event) => {

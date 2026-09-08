@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import type { SearchQuery, SearchResult } from "@bookeat/api/client";
 
@@ -13,10 +13,11 @@ import { pending, renderScreen, repositoryStub, venueSummary } from "@web/test/h
  */
 
 const replace = vi.fn();
+const push = vi.fn();
 let search = "";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ replace, push, prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(search),
 }));
 
@@ -41,9 +42,109 @@ function lastQuery(fn: { mock: { calls: unknown[][] } }): SearchQuery {
 beforeEach(() => {
   search = "";
   replace.mockClear();
+  push.mockClear();
 });
 
 describe("листинг заведений", () => {
+  it("сердце на карточке ведёт гостя без входа на вход, а не молчит", async () => {
+    repository.searchRestaurants = vi.fn(async (query) => ({
+      query,
+      items: [venueSummary()],
+      total: 1,
+    }));
+
+    renderScreen(<CatalogScreen />);
+
+    const heart = await screen.findByRole("button", { name: "Избранное" });
+    fireEvent.click(heart);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/login"));
+    // И в сеть за избранным никто не ходил: ручка требует сессию.
+    expect(repository.addFavorite).not.toHaveBeenCalled();
+  });
+
+  it("особенности раскрываются ПО КЛИКУ, а не лежат списком целиком", async () => {
+    // Семь удобств в справочнике: пять видно сразу, остальные — по кнопке.
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "namazhana", name: "Namazhana" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "banquet", name: "Банкетный зал" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    expect(await screen.findByLabelText("Терраса")).toBeTruthy();
+    expect(screen.queryByLabelText("Банкетный зал")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Показать все 7" }));
+
+    expect(screen.getByLabelText("Банкетный зал")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Свернуть" })).toBeTruthy();
+  });
+
+  it("кнопки нет, когда сворачивать нечего: отмеченное не занимает лимит", async () => {
+    // Шесть особенностей, отмечена шестая. Все шесть и так на экране, поэтому
+    // «Показать все 6» было бы кнопкой, которая по нажатию меняет только
+    // собственную надпись.
+    search = "features=namazhana";
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "namazhana", name: "Namazhana" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    expect(await screen.findByLabelText("Namazhana")).toBeTruthy();
+    expect(screen.getByLabelText("Веранда с видом")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Показать все/ })).toBeNull();
+  });
+
+  it("лимит считает только НЕотмеченные строки", async () => {
+    // Отмечены две первые. Раньше они съедали два места из пяти, и «Терраса 7»
+    // с «Террасой 8» прятались вместе с двумя честными кандидатами.
+    search = "features=a,b";
+    repository.getAmenities = vi.fn(async () =>
+      ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => ({ id, name: `Особенность ${id}` })),
+    );
+
+    renderScreen(<CatalogScreen />);
+
+    // Две отмеченные сверх лимита плюс пять неотмеченных.
+    expect(await screen.findByLabelText("Особенность a")).toBeTruthy();
+    expect(screen.getByLabelText("Особенность b")).toBeTruthy();
+    expect(screen.getByLabelText("Особенность g")).toBeTruthy();
+    // Восьмая — единственная спрятанная.
+    expect(screen.queryByLabelText("Особенность h")).toBeNull();
+    expect(screen.getByRole("button", { name: "Показать все 8" })).toBeTruthy();
+  });
+
+  it("выбранная особенность видна и в свёрнутом списке", async () => {
+    // Иначе снять фильтр было бы нечем: чекбокс есть, а на экране его нет.
+    search = "features=banquet";
+    repository.getAmenities = vi.fn(async () => [
+      { id: "terrace", name: "Терраса" },
+      { id: "parking", name: "Парковка" },
+      { id: "music", name: "Живая музыка" },
+      { id: "kids", name: "Детская зона" },
+      { id: "namazhana", name: "Namazhana" },
+      { id: "veranda", name: "Веранда с видом" },
+      { id: "banquet", name: "Банкетный зал" },
+    ]);
+
+    renderScreen(<CatalogScreen />);
+
+    const checked = await screen.findByLabelText("Банкетный зал");
+    expect((checked as HTMLInputElement).checked).toBe(true);
+  });
+
   it("пока запрос летит, показывает загрузку, а не пустую выдачу", async () => {
     repository.searchRestaurants = vi.fn(() => pending<SearchResult>());
 
@@ -86,6 +187,14 @@ describe("листинг заведений", () => {
 
     const link = await screen.findByRole("link", { name: "Auyl" });
     expect(link.getAttribute("href")).toBe("/venues/abc");
+  });
+
+  it("хлебные крошки ведут «Главная / город / Заведения» — с городом выдачи", async () => {
+    renderScreen(<CatalogScreen />);
+
+    const nav = await screen.findByRole("navigation", { name: "Путь по сайту" });
+    await waitFor(() => expect(nav.textContent).toBe("Главная / Алматы / Заведения"));
+    expect(within(nav).getByRole("link", { name: "Главная" }).getAttribute("href")).toBe("/");
   });
 
   it("галочка кухни МЕНЯЕТ запрос к серверу, а не только вид чипа", async () => {
@@ -132,5 +241,80 @@ describe("листинг заведений", () => {
 
     const headings = await screen.findAllByRole("heading", { level: 3 });
     expect(headings.map((node) => node.textContent)).toEqual(["Лучше", "Тише"]);
+  });
+});
+
+/**
+ * Ниже `lg` фильтры живут в шторке за кнопкой «Фильтры» — как в приложении
+ * (`apps/mobile/app/__tests__/search-filter-panel-closed.test.tsx`). jsdom не
+ * знает брейкпоинтов, поэтому проверяется не «что видно», а поведение:
+ * шторка закрыта до нажатия, внутри неё ЧЕРНОВИК, и в адрес он уходит только
+ * по «Применить».
+ */
+describe("шторка фильтров ниже lg", () => {
+  it("открывается только кнопкой и показывает список фильтров, не адрес", async () => {
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    renderScreen(<CatalogScreen />);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // Имя кнопки без счётчика, пока ничего не выбрано.
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+    expect(await within(dialog).findByRole("checkbox", { name: "Казахская" })).toBeTruthy();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("галочка в шторке — черновик: адрес меняется только по «Применить»", async () => {
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    renderScreen(<CatalogScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+
+    fireEvent.click(await within(dialog).findByRole("checkbox", { name: "Казахская" }));
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Применить" }));
+
+    expect(replace).toHaveBeenCalledWith("/venues?cuisine=kazakh", { scroll: false });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("закрыть крестиком — отмена: черновик не уходит в адрес", async () => {
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    renderScreen(<CatalogScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+    fireEvent.click(await within(dialog).findByRole("checkbox", { name: "Казахская" }));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Закрыть" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("кнопка называет число выбранных, а «Сбросить» в шторке чистит черновик", async () => {
+    search = "cuisine=kazakh&features=terrace";
+    repository.getCuisines = vi.fn(async () => [{ id: "kazakh", name: "Казахская" }]);
+    repository.getAmenities = vi.fn(async () => [{ id: "terrace", name: "Терраса" }]);
+    renderScreen(<CatalogScreen />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Открыть фильтры, выбрано: 2" }));
+    const dialog = await screen.findByRole("dialog", { name: "Фильтры" });
+    const kazakh = await within(dialog).findByRole<HTMLInputElement>("checkbox", {
+      name: "Казахская",
+    });
+    expect(kazakh.checked).toBe(true);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Сбросить" }));
+    expect(kazakh.checked).toBe(false);
+    // Сброс черновика — ещё не сброс адреса.
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Применить" }));
+    expect(replace).toHaveBeenCalledWith("/venues", { scroll: false });
   });
 });

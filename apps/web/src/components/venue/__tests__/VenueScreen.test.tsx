@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
 import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
+import { bookingHref } from "@web/lib/booking-link";
 
 /**
  * Страница заведения. Важнее всего два состояния, которые легко перепутать:
@@ -13,6 +14,8 @@ import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/ha
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
   useSearchParams: () => new URLSearchParams(""),
+  // Кнопка «Сохранить» строит адрес возврата из текущего пути.
+  usePathname: () => "/venues/venue-1",
 }));
 
 const repository = repositoryStub();
@@ -28,6 +31,10 @@ vi.mock("@web/lib/api", () => ({
 const { VenueScreen } = await import("@web/components/venue/VenueScreen");
 
 describe("карточка заведения", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("пока заведение едет, показывает загрузку", async () => {
     repository.getRestaurant = vi.fn(() => pending<Restaurant>());
 
@@ -58,16 +65,21 @@ describe("карточка заведения", () => {
     expect(screen.getByRole("button", { name: "Повторить" })).toBeTruthy();
   });
 
-  it("пустое меню и отсутствие фотографий сказаны словами", async () => {
+  it("пустое меню убирает весь блок «Меню» со страницы, а не заглушку", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({ menuHighlights: [], photos: [], description: "" }),
     );
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByText("Меню пока не заполнено.")).toBeTruthy();
-    expect(screen.getByText("Заведение пока не загрузило фотографии.")).toBeTruthy();
+    // Отсутствие фотографий и описания по-прежнему сказано словами — это
+    // работает как раньше и меняться не должно.
+    expect(await screen.findByText("Заведение пока не загрузило фотографии.")).toBeTruthy();
     expect(screen.getByText("Заведение пока не рассказало о себе.")).toBeTruthy();
+    // А пустое меню — не заглушка, а полное отсутствие секции и вкладки.
+    expect(screen.queryByText("Меню пока не заполнено.")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Меню" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Популярное в меню" })).toBeNull();
   });
 
   it("удобства заведения — ряд ярлыков из ответа сервера, а не выдумка", async () => {
@@ -117,9 +129,72 @@ describe("карточка заведения", () => {
     expect(dialog.querySelectorAll("img").length).toBe(3);
   });
 
-  it("часы работы берутся из графика сервера, а не выводятся из текста", async () => {
+  it("«Сохранить» не притворяется: гостя без входа ведёт на вход", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const save = await screen.findByRole("link", { name: "Сохранить" });
+    // Ссылка ПОМНИТ страницу заведения: без этого гость вводит код и попадает
+    // на главную, а заведение, ради которого он входил, остаётся позади.
+    expect(save.getAttribute("href")).toBe("/login?next=%2Fvenues%2Fvenue-1");
+    // И избранное у неавторизованного НЕ запрашивается: ручка требует сессию.
+    expect(repository.getFavorites).not.toHaveBeenCalled();
+  });
+
+  it("вкладки ведут к секциям страницы, а «Отзывов» среди них нет", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({
+        photos: [{ id: "p1", uri: "https://cdn/1.webp", alt: "Зал", width: 1200, height: 800 }],
+        menuHighlights: [
+          {
+            id: "d1",
+            name: "Тартар",
+            description: "",
+            price: "5 400 ₸",
+            priceMinor: 540000,
+            isTopPick: false,
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const tabs = await screen.findByRole("navigation", { name: "Разделы страницы" });
+    expect(tabs.textContent).toContain("Обзор");
+    expect(tabs.textContent).toContain("Фото · 1");
+    // Отзывов на сайте нет ни секцией, ни страницей — значит и вкладки нет.
+    expect(tabs.textContent).not.toContain("Отзыв");
+    expect(screen.getByRole("link", { name: "Меню" }).getAttribute("href")).toBe("#venue-menu");
+    expect(document.getElementById("venue-menu")).toBeTruthy();
+
+    // «Фото» — не якорь: мозаика стоит выше вкладок, поэтому вкладка открывает
+    // окно со всеми снимками, как и кнопка на самой мозаике.
+    fireEvent.click(screen.getByRole("button", { name: "Фото · 1" }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+  });
+
+  /**
+   * Отдельного блока часов работы на странице БОЛЬШЕ НЕТ: в макете
+   * (QovvuAoI9YxsLMwWkfgKN8, кадр 3525:14561) его нет нигде, а место в правой
+   * колонке, которое он занимал «взаймы», заняла карточка брони. Проверка
+   * подневного графика ушла вместе с блоком — она проверяла бы вёрстку,
+   * которой не существует.
+   *
+   * Осталось то, что график ВСЁ ЕЩЁ решает: ярлык статуса в шапке
+   * (3525:14586 «Открыто до 23:00») и подпись под телефоном (3525:14723).
+   * Открытость считает сервер (`schedule.openNow`); клиент лишь дописывает к
+   * ней время из сегодняшней строки графика.
+   */
+  it("ярлык в шапке — «Открыто до …» со временем закрытия сегодняшнего дня", async () => {
+    // Понедельник, 14:00 по Алматы. Подменяем только Date: таймеры
+    // testing-library должны остаться настоящими.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-31T09:00:00Z"));
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        phone: "+7 (707) 547-47-47",
         schedule: {
           timezone: "Asia/Almaty",
           openNow: true,
@@ -133,8 +208,264 @@ describe("карточка заведения", () => {
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByText("12:00–01:00 (до следующего дня)")).toBeTruthy();
-    expect(screen.getByText("Выходной")).toBeTruthy();
-    expect(screen.getByText("Открыто сейчас")).toBeTruthy();
+    expect(await screen.findByText("Открыто до 01:00")).toBeTruthy();
+    expect(screen.queryByText("Открыто сейчас")).toBeNull();
+    // Подневного расписания на странице нет — ни в правой колонке, ни где-либо
+    // ещё. Если оно снова появится, это должно быть осознанной правкой макета.
+    expect(screen.queryByText("12:00–01:00 (до следующего дня)")).toBeNull();
+    expect(screen.queryByText("Выходной")).toBeNull();
+    // График неодинаков по дням, значит под телефоном — окно сегодняшнего дня.
+    expect(screen.getByText("Сегодня с 12:00 до 01:00")).toBeTruthy();
+  });
+
+  it("закрытое заведение получает слова, а не пустой ярлык", async () => {
+    // Понедельник, 09:00 по Алматы — до открытия.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-31T04:00:00Z"));
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        schedule: {
+          timezone: "Asia/Almaty",
+          openNow: false,
+          days: [{ dayOfWeek: 1, isOpen: true, opensAt: "12:00", closesAt: "23:00", closesNextDay: false }],
+        },
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByText("Откроется в 12:00")).toBeTruthy();
+  });
+
+  /**
+   * Плашка соцсетей (узел 3525:14724): заголовок — имя аккаунта Instagram, а
+   * не адрес целиком; подпись перечисляет каналы, и КАЖДЫЙ из них ссылка —
+   * иначе WhatsApp, второй в списке, был бы недостижим.
+   */
+  it("плашка соцсетей: имя аккаунта в заголовке, каждый канал — ссылка", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        phone: "+7 (707) 547-47-47",
+        social: {
+          instagram: "https://www.instagram.com/tbilisi.almaty/",
+          whatsapp: "https://api.whatsapp.com/send/?phone=77055743434",
+        },
+        schedule: {
+          timezone: "Asia/Almaty",
+          openNow: true,
+          days: ([0, 1, 2, 3, 4, 5, 6] as const).map((dayOfWeek) => ({
+            dayOfWeek,
+            isOpen: true,
+            opensAt: "12:00",
+            closesAt: "01:00",
+            closesNextDay: true,
+          })),
+        },
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const title = await screen.findByRole("link", { name: "tbilisi.almaty" });
+    expect(title.getAttribute("href")).toBe("https://www.instagram.com/tbilisi.almaty/");
+    // Ищем внутри секции контактов: свой Instagram есть и у подвала сайта.
+    const contacts = within(title.closest("section") as HTMLElement);
+    expect(contacts.getByRole("link", { name: "Instagram" }).getAttribute("href")).toBe(
+      "https://www.instagram.com/tbilisi.almaty/",
+    );
+    expect(contacts.getByRole("link", { name: "WhatsApp" }).getAttribute("href")).toBe(
+      "https://api.whatsapp.com/send/?phone=77055743434",
+    );
+    expect(screen.queryByText("https://www.instagram.com/tbilisi.almaty/")).toBeNull();
+    // Одинаковый график на неделю — строка макета «Ежедневно с … до …».
+    expect(screen.getByText("Ежедневно с 12:00 до 01:00")).toBeTruthy();
+  });
+
+  /** Правая колонка макета (узел 3525:14730) — РОВНО одна карточка брони. */
+  it("в правой колонке стоит карточка брони, а не часы работы", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByRole("heading", { name: "Забронировать столик" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Часы работы" })).toBeNull();
+  });
+
+  /** Ниже `lg` карточки нет — прибитая полоса с одной кнопкой, как футер
+   * экрана заведения в приложении (`docs/responsive.md`, дыра № 8). Кнопка —
+   * ссылка на экран брони без параметров: выбор делается там. */
+  it("прибитая полоса ведёт на страницу брони этого заведения", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const link = await screen.findByRole("link", { name: "Забронировать стол" });
+    expect(link.getAttribute("href")).toBe(bookingHref("venue-1"));
+  });
+});
+
+describe("степпер предзаказа на карточке блюда (A1-A4)", () => {
+  afterEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  const dish = {
+    id: "dish-1",
+    name: "Стейк рибай",
+    description: "",
+    price: "8 990 ₸",
+    priceMinor: 899000,
+    isTopPick: false,
+  };
+
+  it("у блюда с ценой — контрол; у блюда без цены — нет (A1)", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        menuHighlights: [dish, { ...dish, id: "dish-2", name: "Соус дня", priceMinor: null }],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    expect(await screen.findByRole("button", { name: "Добавить Стейк рибай" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Добавить Соус дня" })).toBeNull();
+  });
+
+  it("«+» превращает кнопку в пилюлю «− 1 +», ещё «+» — «2» (A2-A3)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const add = await screen.findByRole("button", { name: "Добавить Стейк рибай" });
+    fireEvent.click(add);
+
+    expect(await screen.findByText("1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Увеличить количество" }));
+    expect(await screen.findByText("2")).toBeTruthy();
+  });
+
+  it("«−» при 1 убирает строку и возвращает одиночный «+» (A4)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Добавить Стейк рибай" }));
+    await screen.findByText("1");
+    fireEvent.click(screen.getByRole("button", { name: "Уменьшить количество" }));
+
+    expect(await screen.findByRole("button", { name: "Добавить Стейк рибай" })).toBeTruthy();
+    expect(screen.queryByText("1")).toBeNull();
+  });
+
+  it("на потолке 20 «+» помечена aria-disabled и не растёт дальше (A3)", async () => {
+    window.sessionStorage.setItem(
+      "bookeat.web.preorder-draft.venue-1",
+      JSON.stringify({ lines: [{ menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 20 }] }),
+    );
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const more = await screen.findByRole("button", { name: "Увеличить количество" });
+    expect(more.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(more);
+    expect(await screen.findByText("20")).toBeTruthy();
+  });
+
+  it("черновик переживает перезагрузку страницы (A5)", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail({ menuHighlights: [dish] }));
+
+    const first = renderScreen(<VenueScreen id="venue-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Добавить Стейк рибай" }));
+    await screen.findByText("1");
+    first.unmount();
+
+    renderScreen(<VenueScreen id="venue-1" />);
+    expect(await screen.findByText("1")).toBeTruthy();
+  });
+
+  it("заведение без acceptsOnlineBookings — контрола нет вовсе", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ menuHighlights: [dish], acceptsOnlineBookings: false }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByText(dish.name);
+    expect(screen.queryByRole("button", { name: "Добавить Стейк рибай" })).toBeNull();
+  });
+});
+
+describe("карточка акции — данные, которые раньше терялись (B1-B6)", () => {
+  it("бейдж только при discountPercent > 0, подзаголовок «заведение · условия», обложка вместо заливки", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        name: "Flour Demi",
+        promoBanners: [
+          {
+            id: "promo-1",
+            title: "Два стейка за 8 990 ₸",
+            coverImageUrl: "https://cdn/promo.jpg",
+            discountPercent: 25,
+            terms: "будни до 18:00",
+            endsAt: "2026-12-31T18:59:59Z",
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    const link = await screen.findByRole("link", { name: /Два стейка за 8 990 ₸/ });
+    expect(link.getAttribute("href")).toBe("/promos/promo-1");
+    expect(within(link).getByText("−25%")).toBeTruthy();
+    expect(within(link).getByText("Flour Demi · будни до 18:00")).toBeTruthy();
+    expect(link.querySelector("img")?.getAttribute("src")).toBe("https://cdn/promo.jpg");
+  });
+
+  it("без discountPercent и без terms — нет бейджа, подзаголовок «до {дата}»", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        name: "Flour Demi",
+        promoBanners: [
+          {
+            id: "promo-2",
+            title: "Бизнес-ланч",
+            coverImageUrl: null,
+            discountPercent: null,
+            terms: "",
+            endsAt: "2026-09-30T18:59:59+05:00",
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByText("Бизнес-ланч");
+    expect(screen.queryByText("−0%")).toBeNull();
+    expect(screen.getByText(/Flour Demi · до/)).toBeTruthy();
+  });
+
+  it("discountPercent: 0 — бейдж не рисуется (сервер допускает 0..100)", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        promoBanners: [
+          {
+            id: "promo-3",
+            title: "Скоро",
+            coverImageUrl: null,
+            discountPercent: 0,
+            terms: "",
+            endsAt: "2026-09-30T18:59:59Z",
+          },
+        ],
+      }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByText("Скоро");
+    expect(screen.queryByText("−0%")).toBeNull();
   });
 });

@@ -85,10 +85,13 @@ export function VenueScheduleCard({
       <View style={styles.card}>
         <Header
           statusLabel={openUntilTodayLabel(schedule)}
-          hoursLabel={t.restaurant.schedule.everyDay(
-            uniform.opensAt,
-            uniform.closesAt,
-          )}
+          hoursLabel={
+            // 24/7 у сервера — «00:00–24:00»; «Ежедневно с 00:00 до 00:00» —
+            // не то, что гость должен читать (ревью PR #119, п. 1.2).
+            uniform.opensAt === uniform.closesAt && uniform.closesNextDay
+              ? t.restaurant.schedule.aroundTheClock
+              : t.restaurant.schedule.everyDay(uniform.opensAt, uniform.closesAt)
+          }
         />
         {isForeignTimezone(schedule.timezone) ? (
           <Text style={styles.timezoneNote}>

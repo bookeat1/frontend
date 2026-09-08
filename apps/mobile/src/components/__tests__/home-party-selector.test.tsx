@@ -2,7 +2,7 @@ import { getDictionary } from "@bookeat/i18n";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PartySelector } from "../explore/PartySelector";
 import { toDateKey } from "../../lib/format";
 
@@ -59,6 +59,19 @@ const guestsHalf = () =>
     name: `${t.explore.guestsSelectorLabel}: ${t.booking.guestsCount(2)}`,
   });
 
+// Колесо дат в шторке строится от системных часов (`PartySelector`:
+// `dateChoices(new Date())`), и «Показать заведения» отдаёт первую строку —
+// сегодняшний ключ. Тест сверял его со своим `new Date()`, снятым уже после
+// кликов; полночь Алматы между монтированием и сверкой — и ключи разные.
+const FIXED_NOW = new Date("2026-09-01T12:00:00+05:00");
+
+// beforeEach, а не beforeAll: общий vitest.setup.ts делает vi.useRealTimers()
+// в afterEach, и подмена на весь файл дожила бы только до конца первого теста.
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
+});
+
 describe("выбор даты и гостей на главной", () => {
   it("тап по дате поднимает общую шторку и никуда не уводит", async () => {
     const onSearchParty = renderSelector();
@@ -96,7 +109,7 @@ describe("выбор даты и гостей на главной", () => {
     await user.click(screen.getByRole("button", { name: t.explore.partySubmit }));
 
     expect(onSearchParty).toHaveBeenCalledWith({
-      date: toDateKey(new Date()),
+      date: toDateKey(FIXED_NOW),
       guests: 2,
     });
   });

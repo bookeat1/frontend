@@ -150,6 +150,45 @@ export function hasActiveFilters(state: CatalogState): boolean {
   );
 }
 
+/**
+ * Сколько фасетов выбрано — число на кнопке «Фильтры» ниже `lg`. Считает
+ * ровно то, что лежит в шторке (кухни, удобства, чек, дата, время, флаги), а
+ * строку поиска — нет: она вводится не в шторке, и «Фильтры (1)» при пустой
+ * шторке обещали бы фильтр, которого там не найти. Так же считает мобильное
+ * приложение (`activeFilterCount` в `apps/mobile/app/search.tsx`).
+ */
+export function countActiveFilters(state: CatalogState): number {
+  return (
+    state.cuisines.length +
+    state.features.length +
+    (state.price !== undefined ? 1 : 0) +
+    (state.date !== undefined ? 1 : 0) +
+    (state.time !== undefined ? 1 : 0) +
+    (state.openNow ? 1 : 0) +
+    (state.onlineOnly ? 1 : 0)
+  );
+}
+
+/**
+ * Снять ВСЕ фасеты, оставив строку поиска и сортировку: это «Сбросить» в
+ * колонке фильтров и в шторке. Не `EMPTY_CATALOG_STATE` — тот стирает и
+ * запрос, а гость нажимал «сбросить фильтры», не «очистить поиск».
+ */
+export function clearFilters(state: CatalogState): CatalogState {
+  return {
+    ...state,
+    cuisines: [],
+    features: [],
+    price: undefined,
+    date: undefined,
+    time: undefined,
+    guests: undefined,
+    openNow: false,
+    onlineOnly: false,
+    page: 1,
+  };
+}
+
 /** Снять фильтр — вернуть новое состояние. Страница всегда сбрасывается на
  * первую: после сужения выдачи страницы 7 может уже не быть. */
 export function toggleInList(list: string[], value: string): string[] {

@@ -1,10 +1,13 @@
-import type { RestaurantSummary } from "@bookeat/api";
+import type { MenuDish, MenuSection, RestaurantSummary } from "@bookeat/api";
 import dishFullDeckPlatter from "../../../assets/ocean-basket/dish-full-deck-platter.jpg";
 import dishKingPrawns from "../../../assets/ocean-basket/dish-king-prawns.jpg";
 import letteringExpedition from "../../../assets/ocean-basket/lettering-expedition.png";
 import letteringSeafood from "../../../assets/ocean-basket/lettering-seafood.png";
 import mapAlmaty from "../../../assets/ocean-basket/map-almaty.png";
 import storyChapter1 from "../../../assets/ocean-basket/story-chapter-1.png";
+import storyChapter2 from "../../../assets/ocean-basket/story-chapter-2.jpg";
+import storyChapter3 from "../../../assets/ocean-basket/story-chapter-3.jpg";
+import storyChapter4 from "../../../assets/ocean-basket/story-chapter-4.jpg";
 
 /**
  * ЗАШИТОЕ СОДЕРЖИМОЕ фирменной страницы Ocean Basket — макет
@@ -18,8 +21,9 @@ import storyChapter1 from "../../../assets/ocean-basket/story-chapter-1.png";
  * собрать страницу вёрсткой, живыми оставить только точки. Он знает и принял,
  * что править эти строки сможет только разработчик.
  *
- * ЖИВОЕ на экране РОВНО ОДНО — карточки точек и переход с них на экран
- * заведения. Всё остальное здесь.
+ * ЖИВОГО на экране ДВА: карточки точек с переходом на экран заведения и —
+ * с 2026-09-03 — блок «Фирменный улов», где название и цена блюда приходят
+ * из меню первой точки (см. `OCEAN_SIGNATURE_DISHES`). Всё остальное здесь.
  */
 
 /** Слаг страницы. По нему же собран маршрут `/brand/ocean-basket`. */
@@ -36,8 +40,15 @@ export const OCEAN_BASKET_SLUG = "ocean-basket";
  */
 export const OCEAN_BASKET_SEARCH_TEXT = "Ocean Basket";
 
-/** Инстаграм бренда (node 3443:12579) — открывается по стрелке блока. */
-export const OCEAN_BASKET_INSTAGRAM = "oceanbasketkz";
+/**
+ * Инстаграм бренда (node 3443:12579) — открывается по стрелке блока.
+ *
+ * С ТОЧКОЙ: настоящий аккаунт — instagram.com/oceanbasket.kz. В макете ник
+ * написан «oceanbasketkz», и до 2026-09-03 ссылка вела на несуществующую
+ * страницу. Подпись в словаре (`oceanBasket.instagramHandle`) обязана
+ * совпадать с этой константой — держится тестом.
+ */
+export const OCEAN_BASKET_INSTAGRAM = "oceanbasket.kz";
 
 /**
  * Отбор точек бренда из ответа поиска.
@@ -116,24 +127,67 @@ export const oceanAssets = {
    * по макету: снимок сдвинут вправо, слева остаётся прозрачное поле, сквозь
    * которое видно синюю подложку главы. Поэтому PNG, а не JPEG. */
   storyChapter1,
+  /** Фотографии глав 2–4 — заливки тел вариантов 5012:5196, 5012:5211,
+   * 5012:5227 (`scaleMode FILL`, то есть `cover`). Ужаты до 700 по ширине из
+   * исходников по 2–2,7 МБ; прозрачности у них нет, поэтому JPEG. */
+  storyChapter2,
+  storyChapter3,
+  storyChapter4,
 } as const;
 
-/** Фотографии блюд в порядке макета — по индексу словарного массива `dishes`. */
-export const oceanDishPhotos = [
-  oceanAssets.dishFullDeckPlatter,
-  oceanAssets.dishKingPrawns,
-] as const;
+/** Фотография главы истории по индексу словарного массива `chapters`. */
+export const oceanChapterPhotos: readonly number[] = [
+  oceanAssets.storyChapter1,
+  oceanAssets.storyChapter2,
+  oceanAssets.storyChapter3,
+  oceanAssets.storyChapter4,
+];
 
 /**
- * Фотография главы истории по индексу.
+ * «ФИРМЕННЫЙ УЛОВ» — привязка карточек макета к настоящим блюдам меню.
  *
- * В макете раскрыта ОДНА глава — первая, и фотография нарисована только у неё
- * (node 3443:12597). У остальных трёх ни текста, ни картинки нет, поэтому
- * здесь `undefined`, а не подставленный чужой снимок.
+ * Название и цена НЕ ЗАШИТЫ: они читаются из `GET /restaurants/:id/menu`
+ * первой точки бренда в выдаче, иначе разъехались бы с меню при первой же
+ * смене прайса. Здесь только то, чего в меню нет, — фотография из макета и
+ * ИМЯ, по которому блюдо ищется (сверено с меню всех трёх точек 2026-09-03:
+ * «Full Deck Platter» 37 990 и «King Креветки 6 шт» 15 090, в макете эти же
+ * два блюда, узлы 3441:12384 и 3441:12389).
+ *
+ * Почему первая точка, а не каждая: блок общий для бренда, а цена и фото у
+ * трёх точек совпадают (решение владельца 2026-09-03). Почему полное меню,
+ * а не лента «Лучшие позиции»: лента отдаёт восемь блюд по отметке
+ * заведения, и стоит ему снять отметку — блюдо пропадает, хотя в меню оно
+ * есть.
  */
-export const oceanChapterPhotos: readonly (number | undefined)[] = [
-  oceanAssets.storyChapter1,
-  undefined,
-  undefined,
-  undefined,
+export const OCEAN_SIGNATURE_DISHES: readonly { menuName: string; photo: number }[] = [
+  { menuName: "Full Deck Platter", photo: oceanAssets.dishFullDeckPlatter },
+  { menuName: "King Креветки 6 шт", photo: oceanAssets.dishKingPrawns },
 ];
+
+/**
+ * Имя блюда в виде, пригодном для сравнения: без регистра, лишних пробелов и
+ * разницы «ё/е» — так же, как сравнивает подписи кухонь `cuisineIdFor`.
+ * Заведение правит меню руками, и «King креветки  6 шт» — то же блюдо.
+ */
+export function normalizeDishName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("ru-RU")
+    .replace(/ё/g, "е");
+}
+
+/**
+ * Блюдо по имени из всех разделов меню. `undefined` — в меню такого нет
+ * (переименовали, убрали): карточка остаётся нейтральной, а не падает и не
+ * подставляет чужое блюдо. Первое совпадение — блюдо может лежать в двух
+ * разделах («Платтеры» и «Хиты»), это одно и то же блюдо.
+ */
+export function findMenuDish(sections: readonly MenuSection[], menuName: string): MenuDish | undefined {
+  const wanted = normalizeDishName(menuName);
+  for (const section of sections) {
+    const dish = section.dishes.find((item) => normalizeDishName(item.name) === wanted);
+    if (dish) return dish;
+  }
+  return undefined;
+}

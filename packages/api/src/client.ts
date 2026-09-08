@@ -14,6 +14,7 @@
  */
 export * from "./types";
 export * from "./time-of-day";
+export * from "./schedule";
 export * from "./static-map";
 export * from "./repository";
 export * from "./http-repository";

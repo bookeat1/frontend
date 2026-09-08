@@ -90,7 +90,14 @@ function expectNoHalfPairEver() {
   }
 }
 
-const today = new Date();
+// «Сегодня» экран берёт с системных часов (`dateChoices(new Date())` в
+// search.tsx), а ожидания ниже считались от СВОЕГО `new Date()` на загрузке
+// модуля. Между ними секунды сбора файла, и если в них попадает полночь Алматы
+// (19:00 UTC, `TZ` в vitest.setup.ts), чип подписан уже от другого дня — тест
+// краснеет раз в сутки без всякой правки. Момент прибит: и ожидание, и экран
+// считают от одного FIXED_NOW.
+const FIXED_NOW = new Date("2026-09-01T12:00:00+05:00");
+const today = FIXED_NOW;
 const inThreeDays = toDateKey(addDays(today, 3));
 const tomorrowKey = toDateKey(addDays(today, 1));
 const labelFor = dateChoices(today).labelFor;
@@ -105,7 +112,11 @@ const guestsChip = (guests: number) =>
     name: `${t.booking.guestsSectionTitle}: ${t.booking.guestsCount(guests)}`,
   });
 
+// beforeEach, а не beforeAll: общий vitest.setup.ts делает vi.useRealTimers()
+// в afterEach, и подмена на весь файл дожила бы только до конца первого теста.
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(FIXED_NOW);
   params = { guests: "3", date: inThreeDays };
   searchRestaurants.mockClear();
   push.mockClear();

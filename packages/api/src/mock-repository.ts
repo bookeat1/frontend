@@ -8,6 +8,7 @@ import {
   guideRoutes,
   guideRoute,
   homePromotions,
+  promoDetails,
   restaurantAmenities,
   restaurants,
   restaurantStories,
@@ -15,7 +16,7 @@ import {
   upcomingEvents,
 } from "./mock-data";
 import { RepositoryError, type AuthRepository, type RestaurantRepository } from "./repository";
-import { favoriteEventKey, isCancellableBookingStatus } from "./types";
+import { favoriteEventKey, isCancellableBookingStatus, PLATFORM_PAGE_SLUGS } from "./types";
 import type {
   Amenity,
   AppNotification,
@@ -35,6 +36,7 @@ import type {
   DevicePlatform,
   EventPage,
   EventQuery,
+  EventSummary,
   FavoriteItem,
   FavoriteItems,
   FavoriteKind,
@@ -47,9 +49,12 @@ import type {
   MenuSection,
   NotificationFeed,
   OtpRequest,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  Promo,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -62,6 +67,52 @@ import type {
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Fixture text for the seven platform pages, `Record` keyed by
+ * `PLATFORM_PAGE_SLUGS` so a slug added there and forgotten here is a
+ * compile error, not a silent 404 in the mock. Content is placeholder —
+ * the real text is written by a superadmin in the cabinet editor
+ * (`apps/admin`) and comes from the live backend; this exists so the site's
+ * loading/success states are exercisable with `pnpm dev` and no backend.
+ */
+const MOCK_PLATFORM_PAGES: Record<PlatformPageSlug, PlatformPage> = {
+  about: {
+    slug: "about",
+    title: "О BookEat",
+    body: "BookEat — сервис бронирования столиков в Казахстане.",
+  },
+  jobs: {
+    slug: "jobs",
+    title: "Вакансии",
+    body: "Открытых вакансий пока нет.",
+  },
+  contacts: {
+    slug: "contacts",
+    title: "Контакты",
+    body: "Свяжитесь с нами: support@book-eat.com",
+  },
+  "how-it-works": {
+    slug: "how-it-works",
+    title: "Как это работает",
+    body: "1. Выберите заведение.\n2. Забронируйте столик.\n3. Приходите вовремя.",
+  },
+  cancellation: {
+    slug: "cancellation",
+    title: "Отмена брони",
+    body: "Отменить бронь можно в разделе «Мои брони» не позднее чем за час до визита.",
+  },
+  offer: {
+    slug: "offer",
+    title: "Оферта",
+    body: "Текст публичной оферты.",
+  },
+  privacy: {
+    slug: "privacy",
+    title: "Политика данных",
+    body: "Текст политики обработки персональных данных.",
+  },
+};
 
 function matchesQuery(r: Restaurant, query: SearchQuery): boolean {
   const text = query.text.trim().toLowerCase();
@@ -223,7 +274,7 @@ export class MockRestaurantRepository implements RestaurantRepository {
     const page = Math.max(1, query?.page ?? 1);
 
     const all = upcomingEvents()
-      .filter((e) => (query?.city ? e.restaurant.city === query.city : true))
+      .filter((e) => (query?.city ? e.restaurant?.city === query.city : true))
       .filter((e) => (query?.restaurantId ? e.restaurantId === query.restaurantId : true))
       .filter((e) => (query?.from ? e.startsAt >= query.from : true))
       .filter((e) => (query?.to ? e.startsAt <= query.to : true))
@@ -239,12 +290,29 @@ export class MockRestaurantRepository implements RestaurantRepository {
     };
   }
 
+  /** The mock's own copy of `GET /events/:eventId` (T1) — 404 on an unknown id,
+   * same as the real route answering "not found / unpublished". */
+  async getEvent(id: string): Promise<EventSummary> {
+    await this.simulateNetwork();
+    const event = upcomingEvents().find((e) => e.id === id);
+    if (!event) throw new RepositoryError(`Event ${id} not found`, undefined, 404);
+    return event;
+  }
+
   /** The mock's cross-venue promotions, filtered by host city the way the live
    * `GET /feed?city=…` is. An unknown city yields an empty list (the section
    * then hides), never an error. */
   async getPromotions(city: string): Promise<HomePromo[]> {
     await this.simulateNetwork();
     return homePromotions(city);
+  }
+
+  /** The mock's own copy of `GET /promos/:promoId` (T1b) — 404 on an unknown id. */
+  async getPromo(id: string): Promise<Promo> {
+    await this.simulateNetwork();
+    const promo = promoDetails().find((p) => p.id === id);
+    if (!promo) throw new RepositoryError(`Promo ${id} not found`, undefined, 404);
+    return promo;
   }
 
   /* --- gastroguide / «Статьи» --- */
@@ -308,6 +376,19 @@ export class MockRestaurantRepository implements RestaurantRepository {
       throw new RepositoryError(`Article ${slug} not found`, undefined, 404);
     }
     return article;
+  }
+
+  /**
+   * Одна из семи текстовых страниц платформы. Слаг вне
+   * `PLATFORM_PAGE_SLUGS` — 404, как у живой ручки для неизвестного/
+   * неопубликованного слага.
+   */
+  async getPage(slug: PlatformPageSlug): Promise<PlatformPage> {
+    await this.simulateNetwork();
+    if (!PLATFORM_PAGE_SLUGS.includes(slug)) {
+      throw new RepositoryError(`Page ${slug} not found`, undefined, 404);
+    }
+    return MOCK_PLATFORM_PAGES[slug];
   }
 
   /* --- reservation flow --- */
@@ -494,9 +575,9 @@ export class MockRestaurantRepository implements RestaurantRepository {
         favoritedAt: this.favoritedAt(e.id),
         event: {
           id: e.id,
-          restaurantId: e.restaurantId,
-          restaurantName: e.restaurant.name,
-          city: e.restaurant.city,
+          restaurantId: e.restaurantId ?? "",
+          restaurantName: e.restaurant?.name ?? "",
+          city: e.restaurant?.city ?? "",
           title: e.title,
           description: e.description,
           startsAt: e.startsAt,

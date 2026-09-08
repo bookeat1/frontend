@@ -23,7 +23,9 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
+  mapPlatformPage,
   mapPreorder,
+  mapPromo,
   mapRestaurantDetail,
   mapRestaurantStories,
   mapRestaurantSummary,
@@ -44,8 +46,10 @@ import {
   type ApiMenuItem,
   type ApiNotificationFeed,
   type ApiPayment,
+  type ApiPlatformPage,
   type ApiPreorder,
   type ApiPromo,
+  type ApiPromoListItem,
   type ApiRestaurant,
   type ApiReviewSummary,
   type ApiStory,
@@ -74,6 +78,7 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
+  EventSummary,
   FavoriteItems,
   FavoriteKind,
   GuideCategory,
@@ -85,9 +90,12 @@ import type {
   MenuSection,
   NotificationFeed,
   OtpRequest,
+  PlatformPage,
+  PlatformPageSlug,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
+  Promo,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -480,6 +488,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   }
 
   /**
+   * GET /events/:eventId — the event's own page (T1). Works for a PLATFORM
+   * event too (no `restaurant_id` at all). A missing/unpublished/foreign id
+   * is a 404, surfaced as `RepositoryError.isNotFound` — the caller's "event
+   * not found" state, not a network error to retry.
+   */
+  async getEvent(id: string): Promise<EventSummary> {
+    const api = await this.client.get<ApiEventListItem>(`/events/${encodeURIComponent(id)}`);
+    return mapEventSummary(api);
+  }
+
+  /**
    * GET /feed?city=… — the unified home feed. Returns `{ items: [...] }` (the
    * standard envelope's `data`), a MIXED list of `promo` and `event` items;
    * this keeps only the promos for the «Акции» strip.
@@ -492,6 +511,15 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   async getPromotions(city: string): Promise<HomePromo[]> {
     const feed = await this.client.get<{ items?: ApiFeedItem[] }>("/feed", { city });
     return mapHomePromos(feed.items);
+  }
+
+  /**
+   * GET /promos/:promoId — one promo's own page (T1b). Works for a PLATFORM
+   * promo too (no `restaurant_id`). 404 surfaces as `RepositoryError.isNotFound`.
+   */
+  async getPromo(id: string): Promise<Promo> {
+    const api = await this.client.get<ApiPromoListItem>(`/promos/${encodeURIComponent(id)}`);
+    return mapPromo(api);
   }
 
   /* --- gastroguide / «Статьи» --- */
@@ -582,6 +610,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return mapGuideCollectionDetail(api);
   }
 
+  /**
+   * GET /pages/:slug — редактируемая текстовая страница платформы
+   * (bookeat-backend PR #115). Неопубликованная страница или слаг вне
+   * `PLATFORM_PAGE_SLUGS` — 404 (`RepositoryError.isNotFound`), ровно как у
+   * статьи.
+   */
+  async getPage(slug: PlatformPageSlug): Promise<PlatformPage> {
+    const api = await this.client.get<ApiPlatformPage>(`/pages/${encodeURIComponent(slug)}`);
+    return mapPlatformPage(slug, api);
+  }
+
   /* --- reservation flow --- */
 
   /**
@@ -640,6 +679,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
         guests: input.guests,
         name: input.name,
         phone: input.phone,
+        email: input.email?.trim() ? input.email.trim() : undefined,
         notes: input.notes?.trim() ? input.notes.trim() : undefined,
       },
       { auth: true, headers: { "Idempotency-Key": idempotencyKey } },

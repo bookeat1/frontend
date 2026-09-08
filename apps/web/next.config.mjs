@@ -20,7 +20,7 @@ const nextConfig = {
   reactStrictMode: true,
   // Общие пакеты монорепозитория лежат сырым TypeScript без шага сборки —
   // Next обязан транспилировать их сам. Тот же список, что у apps/admin.
-  transpilePackages: ["@bookeat/api", "@bookeat/design-tokens", "@bookeat/i18n"],
+  transpilePackages: ["@bookeat/api", "@bookeat/design-tokens", "@bookeat/i18n", "@bookeat/markdown"],
   // Самодостаточная сборка: `.next/standalone` содержит `server.js` и ровно те
   // модули, которые нужны в рантайме. Так на стенд уезжает ~50 МБ вместо
   // всего `node_modules`, и на самом сервере не нужен ни pnpm, ни установка

@@ -7,20 +7,24 @@ import { describe, expect, it, vi } from "vitest";
 
 /**
  * ЧТО ЭТОТ ФАЙЛ ДЕРЖИТ: из профиля и настроек убраны блоки, за которыми нет
- * продукта (правка владельца 28.08.2026).
+ * продукта.
  *
- *   • счётчики «Отзывов» и «Друзья» — ни ручки, ни экрана не существует, у
- *     КАЖДОГО гостя там стоял ноль (флаг `PROFILE_SOCIAL_STATS_ENABLED`);
  *   • строка «Безопасность» в настройках — экрана нет, стояла неинтерактивной
- *     с подписью «Скоро» (флаг `SETTINGS_SECURITY_ROW_ENABLED`).
- *
- * Счётчик «Брони» ОСТАЁТСЯ и остаётся кнопкой: за ним `GET /bookings`, и он
- * единственный вход в список броней с этого экрана.
+ *     с подписью «Скоро» (флаг `SETTINGS_SECURITY_ROW_ENABLED`,
+ *     правка владельца 28.08.2026);
+ *   • блок статистики в профиле («Брони», а раньше и «Отзывов»/«Друзья») —
+ *     убран целиком по прямому указанию владельца 04.09.2026: компонент
+ *     `ProfileStats` удалён, запрос списка броней с экрана ушёл вместе с ним.
  */
 
 const t = getDictionary("ru");
 
 const push = vi.fn();
+
+// Шпион на запрос списка броней: раньше экран ходил за ним ради счётчика
+// «Брони». Хоистится вместе с vi.mock, чтобы экран получил именно его.
+const useMyBookings = vi.hoisted(() => vi.fn(() => ({ data: { pages: [{ total: 3 }] } })));
+vi.mock("../../src/hooks/useBooking", () => ({ useMyBookings }));
 
 const ACCOUNT: AuthUser = {
   id: "u-1",
@@ -55,10 +59,6 @@ vi.mock("../../src/lib/locale", () => ({
   useLocale: () => ({ locale: "ru", dictionary: getDictionary("ru"), setLocale: vi.fn() }),
 }));
 
-vi.mock("../../src/hooks/useBooking", () => ({
-  useMyBookings: () => ({ data: { pages: [{ total: 3 }] } }),
-}));
-
 // Настройки читают версию сборки из expo-constants — это нативный модуль,
 // в jsdom он не грузится. Версия для этого файла безразлична.
 vi.mock("expo-constants", () => ({
@@ -89,21 +89,16 @@ function renderWithQuery(node: React.ReactNode) {
   return render(<QueryClientProvider client={queryClient}>{node}</QueryClientProvider>);
 }
 
-describe("профиль: спрятаны неработающие счётчики", () => {
-  it("оставляет «Брони» кнопкой в список броней", async () => {
+describe("профиль: блока статистики нет", () => {
+  it("не рисует счётчик броней и не ходит за списком броней", async () => {
     renderWithQuery(<ProfileScreen />);
 
-    const bookings = await screen.findByRole("button", { name: `3 ${t.profile.stats.bookings}` });
-    bookings.click();
-    expect(push).toHaveBeenCalledWith("/bookings");
-  });
-
-  it("не рисует «Отзывов» и «Друзья»", async () => {
-    renderWithQuery(<ProfileScreen />);
-
-    await screen.findByText(t.profile.stats.bookings);
-    expect(screen.queryByText(t.profile.stats.reviews)).toBeNull();
-    expect(screen.queryByText(t.profile.stats.friends)).toBeNull();
+    // Экран дорисовался: имя на месте, а строки-счётчика с числом броней нет.
+    await screen.findByText(ACCOUNT.fullName);
+    expect(screen.queryByText("3")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^3 / })).toBeNull();
+    expect(push).not.toHaveBeenCalledWith("/bookings");
+    expect(useMyBookings).not.toHaveBeenCalled();
   });
 });
 

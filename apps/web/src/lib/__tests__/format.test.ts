@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getDictionary } from "@bookeat/i18n";
 
-import { searchDateLabel } from "@web/lib/format";
+import { bookingDateLabel, searchDateLabel, slotDateIso, slotTimeLabel, venueWallClock } from "@web/lib/format";
 
 /**
  * Подпись поля даты в панели поиска. Проверяем именно её, потому что нативное
@@ -35,5 +35,85 @@ describe("searchDateLabel", () => {
     expect(searchDateLabel("", "ru", ru)).toBeNull();
     expect(searchDateLabel("25.08.2026", "ru", ru)).toBeNull();
     expect(searchDateLabel("2026-13-45", "ru", ru)).not.toBe("Invalid Date");
+  });
+});
+
+/**
+ * Время слота брони.
+ *
+ * Час берётся ИЗ СТРОКИ, а не из `new Date(...)`. Слот приходит со смещением
+ * ЗАВЕДЕНИЯ, и это стенные часы ресторана — то время, на которое гостя ждут за
+ * столом. Пересчёт в пояс браузера показал бы гостю из другого пояса чужое
+ * число на кнопке «Забронировать на …», и он пришёл бы не в тот час.
+ */
+describe("slotTimeLabel", () => {
+  it("печатает час заведения, а не пересчитанный в пояс браузера", () => {
+    // Тесты идут в TZ=Asia/Almaty (UTC+5). Через `Date` это стало бы «22:30».
+    expect(slotTimeLabel("2026-08-25T19:30:00+02:00")).toBe("19:30");
+  });
+
+  it("не съезжает на сутки у слота, который в UTC уже другой день", () => {
+    expect(slotTimeLabel("2026-08-25T01:00:00+05:00")).toBe("01:00");
+    expect(slotDateIso("2026-08-25T01:00:00+05:00")).toBe("2026-08-25");
+  });
+
+  it("неразобранное время — пустая строка, а не «Invalid Date» на кнопке", () => {
+    expect(slotTimeLabel("завтра вечером")).toBe("");
+    expect(slotDateIso("завтра вечером")).toBeNull();
+  });
+});
+
+/** Дата в карточке брони — полный месяц в родительном падеже («25 августа»),
+ * в отличие от сокращённого «25 авг» в панели поиска. */
+describe("bookingDateLabel", () => {
+  it("склоняет месяц по-русски", () => {
+    expect(bookingDateLabel("2026-08-25", "ru")).toBe("25 августа");
+  });
+
+  it("не съезжает на сутки на границе месяца", () => {
+    expect(bookingDateLabel("2026-09-01", "ru")).toBe("1 сентября");
+  });
+
+  it("мусор на входе — null, а не «Invalid Date»", () => {
+    expect(bookingDateLabel("25.08.2026", "ru")).toBeNull();
+  });
+});
+
+/**
+ * Четыре записи одной даты на потоке бронирования — по узлам макета:
+ * «Вторник, 25 августа» (3525:14826), «Вт, 25 августа» (3525:14950),
+ * «Вт, 25 авг» (3525:15036). Intl печатает день недели со строчной и ставит
+ * точку после «авг» — в макете ни того, ни другого.
+ */
+describe("bookingDateLabel — стили", () => {
+  it("день недели с прописной, сокращение без точки", () => {
+    expect(bookingDateLabel("2026-08-25", "ru", "weekdayLong")).toBe("Вторник, 25 августа");
+    expect(bookingDateLabel("2026-08-25", "ru", "weekdayShort")).toBe("Вт, 25 августа");
+    expect(bookingDateLabel("2026-08-25", "ru", "weekdayCompact")).toBe("Вт, 25 авг");
+  });
+});
+
+/**
+ * `Booking.startsAt` приходит в UTC; гостю показываются стенные часы
+ * ЗАВЕДЕНИЯ, а не браузера. Тесты идут в TZ=Asia/Almaty, поэтому чужой пояс
+ * берётся явно.
+ */
+describe("venueWallClock", () => {
+  it("переводит UTC в зону заведения", () => {
+    expect(venueWallClock("2026-08-25T14:30:00Z", "Asia/Almaty")).toEqual({ date: "2026-08-25", time: "19:30" });
+    expect(venueWallClock("2026-08-25T14:30:00Z", "Europe/Berlin")).toEqual({ date: "2026-08-25", time: "16:30" });
+  });
+
+  it("без зоны и на битой зоне берёт запасную Алматы, а не роняет страницу", () => {
+    expect(venueWallClock("2026-08-25T14:30:00Z", null)).toEqual({ date: "2026-08-25", time: "19:30" });
+    expect(venueWallClock("2026-08-25T14:30:00Z", "Nowhere/Land")).toEqual({ date: "2026-08-25", time: "19:30" });
+  });
+
+  it("полночь — «00:00» следующего числа, а не «24:00»", () => {
+    expect(venueWallClock("2026-08-25T19:00:00Z", "Asia/Almaty")).toEqual({ date: "2026-08-26", time: "00:00" });
+  });
+
+  it("мусор — null", () => {
+    expect(venueWallClock("завтра", "Asia/Almaty")).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import type { Dictionary } from "@bookeat/i18n";
-import type { PriceLevel, PriceRange, RestaurantSummary, VenueSchedule } from "@bookeat/api/client";
+import type { PriceLevel, PriceRange, RestaurantSummary } from "@bookeat/api/client";
 
 import type { WebLocale } from "@web/lib/locale";
 
@@ -53,15 +53,40 @@ export function formatNumber(value: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-/** «Открыто сейчас» / «Сейчас закрыто» / «Часы работы не указаны».
- * Считает СЕРВЕР: клиент не выводит статус из часов открытия (см. VenueSchedule). */
-export function scheduleStatus(schedule: VenueSchedule | null, t: Dictionary) {
-  if (!schedule || schedule.openNow === null) {
-    return { label: t.web.venue.status.unknown, tone: "neutral" as const };
+/**
+ * Деньги из тийинов — «8 990 ₸». Неразрывный пробел между разрядами и перед
+ * знаком валюты, как в `apps/mobile/src/lib/format.ts formatMoneyMinor`: цена
+ * предзаказа не должна переноситься на вторую строку внутри пилюли степпера
+ * или строки сводки (`docs/responsive.md`).
+ */
+export function formatMoneyMinor(minor: number): string {
+  const NBSP = " ";
+  const whole = Math.round(minor / 100).toString();
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}${NBSP}₸`;
+}
+
+/**
+ * «flourdemi.kz» из `https://www.instagram.com/flourdemi.kz/` — заголовок
+ * плашки соцсетей (узел 3525:14728) показывает имя аккаунта, а не адрес.
+ * Ссылка без пути (или не разбираемая) отдаёт `null`, и заголовком остаётся
+ * сама ссылка — молча резать её до пустой строки нельзя.
+ */
+export function instagramHandle(url: string): string | null {
+  try {
+    const path = new URL(url).pathname.split("/").filter(Boolean);
+    return path[0] ? decodeURIComponent(path[0]) : null;
+  } catch {
+    return null;
   }
-  return schedule.openNow
-    ? { label: t.web.venue.status.open, tone: "success" as const }
-    : { label: t.web.venue.status.closed, tone: "neutral" as const };
+}
+
+/** «dastarkhan.kz» из `https://www.dastarkhan.kz/menu` — для плашки без Instagram. */
+export function websiteHost(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
 }
 
 /** «18» и «МАЯ» для плашки на карточке события (узел 3253:2 → «Card / Event»). */
@@ -147,4 +172,211 @@ export function nowTimeHhMm(now: Date = new Date()): string {
   const hours = `${now.getHours()}`.padStart(2, "0");
   const minutes = `${now.getMinutes()}`.padStart(2, "0");
   return `${hours}:${minutes}`;
+}
+
+/**
+ * «25 августа» — подпись выбранной даты в карточке брони (узлы 3525:14739 и
+ * 3525:14770 файла QovvuAoI9YxsLMwWkfgKN8).
+ *
+ * Месяц ПОЛНЫЙ и в родительном падеже, а не сокращённый, как в панели поиска:
+ * там ячейка 190 широкая и подпись делит её с датой, здесь строка стоит одна.
+ * Обе печатаются `Intl`, склонение — его забота, а не наша.
+ *
+ * Тот же приём с UTC-полуночью, что и в `searchDateLabel`: дата без времени,
+ * разобранная в поясе браузера, при печати в другом поясе съезжает на сутки.
+ */
+export type BookingDateStyle =
+  /** «25 августа» — подпись даты в карточке брони. */
+  | "dayMonth"
+  /** «Вторник, 25 августа» — строка даты на странице бронирования
+   * (узел 3525:14826). */
+  | "weekdayLong"
+  /** «Вт, 25 августа» — строка сводки (узел 3525:14950). */
+  | "weekdayShort"
+  /** «Вт, 25 авг» — ячейка билета (узел 3525:15036). */
+  | "weekdayCompact";
+
+const DATE_STYLE_OPTIONS: Record<BookingDateStyle, Intl.DateTimeFormatOptions> = {
+  dayMonth: { day: "numeric", month: "long" },
+  weekdayLong: { weekday: "long", day: "numeric", month: "long" },
+  weekdayShort: { weekday: "short", day: "numeric", month: "long" },
+  weekdayCompact: { weekday: "short", day: "numeric", month: "short" },
+};
+
+export function bookingDateLabel(
+  iso: string,
+  locale: WebLocale,
+  style: BookingDateStyle = "dayMonth",
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (Number.isNaN(date.getTime())) return null;
+  const text = new Intl.DateTimeFormat(INTL_TAG[locale], {
+    ...DATE_STYLE_OPTIONS[style],
+    timeZone: "UTC",
+  })
+    .format(date)
+    // «25 авг.» → «25 авг»: точку в макете не рисуют, а Intl её ставит.
+    .replace(/\.$/, "");
+  // Русский Intl печатает день недели со строчной («вторник, 25 августа»), а
+  // в макете он с прописной. Регистр меняем по правилам ЯЗЫКА, а не ASCII:
+  // «i» в турецком становится «İ», и `toUpperCase()` без локали это ломает.
+  return capitalize(text, locale);
+}
+
+/**
+ * То же самое, что `bookingDateLabel`, но для настоящего МОМЕНТА времени
+ * (`Event.startsAt` / `Promo.endsAt` — RFC3339, сервер отдаёт `...Z`), а не
+ * для литеральной даты без времени.
+ *
+ * `bookingDateLabel`/`slotDateIso` тут не годятся: `slotDateIso` вырезает из
+ * строки литеральный «YYYY-MM-DD» ДО учёта часового пояса, а сервер шлёт этот
+ * момент в UTC — календарный день в самой строке ЭТО ДЕНЬ В UTC, а не в поясе
+ * заведения. Смешивание такого литерала с `eventDateParts` (который берёт
+ * время из `new Date`, то есть уже в поясе среды исполнения) даёт дату и
+ * время из РАЗНЫХ дней при переходе через полночь по UTC (событие в Алматы
+ * 12.09 00:30 → `startsAt` `2026-09-11T19:30:00Z` → литерал даёт «11
+ * сентября», а `new Date` в поясе Алматы — 00:30). Поэтому здесь, как и в
+ * `eventDateParts`, дата тоже считается через `new Date`: оба значения из
+ * ОДНОГО инстанта и одного (пусть и неявного) часового пояса среды не
+ * разъедутся между собой.
+ */
+export function instantDateLabel(
+  iso: string,
+  locale: WebLocale,
+  style: BookingDateStyle = "dayMonth",
+): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const text = new Intl.DateTimeFormat(INTL_TAG[locale], DATE_STYLE_OPTIONS[style])
+    .format(date)
+    // «25 авг.» → «25 авг»: точку в макете не рисуют, а Intl её ставит.
+    .replace(/\.$/, "");
+  return capitalize(text, locale);
+}
+
+function capitalize(text: string, locale: WebLocale): string {
+  if (!text) return text;
+  return text[0].toLocaleUpperCase(INTL_TAG[locale]) + text.slice(1);
+}
+
+/**
+ * Запасная зона заведения, когда сервер её не назвал.
+ *
+ * То же значение и та же причина, что в маппере доступности
+ * (`packages/api/src/http-mapping.ts`: `text(api.timezone) || "Asia/Almaty"`):
+ * весь каталог сегодня казахстанский, и «зона неизвестна» на практике значит
+ * «поле не приехало», а не «заведение в другом поясе».
+ */
+export const VENUE_TIMEZONE_FALLBACK = "Asia/Almaty";
+
+/**
+ * Момент времени — в СТЕННЫХ ЧАСАХ ЗАВЕДЕНИЯ.
+ *
+ * Зачем вообще: `Booking.startsAt` приходит в UTC («RFC3339 UTC as stored by
+ * the backend»), а гостю надо показать то время, на которое его ждут за
+ * столом. Печать через `new Date(...)` без зоны перевела бы момент в пояс
+ * БРАУЗЕРА, и гость, открывший ссылку из Берлина, увидел бы 16:30 у брони,
+ * которую ресторан называет 19:30. На телефоне такого не бывает (устройство
+ * стоит в том же поясе), а сайт открывают откуда угодно.
+ *
+ * Зону берём с заведения (`Restaurant.schedule.timezone` — это IANA-строка
+ * сервера, которой он же считал `open_now`). Битую или пустую подменяем
+ * запасной: `Intl` на неизвестной зоне БРОСАЕТ, и один кривой ответ сервера
+ * иначе уронил бы страницу целиком.
+ *
+ * `null` — момент не разобрали; вызывающий обязан не печатать «Invalid Date».
+ */
+export function venueWallClock(
+  iso: string,
+  timeZone: string | null | undefined,
+): { date: string; time: string } | null {
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return null;
+  const zone = (timeZone ?? "").trim();
+  return (zone ? partsIn(instant, zone) : null) ?? partsIn(instant, VENUE_TIMEZONE_FALLBACK);
+}
+
+function partsIn(instant: Date, timeZone: string): { date: string; time: string } | null {
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      // `hour12: false` в некоторых движках даёт «24:00» вместо «00:00»;
+      // `h23` — единственная запись, у которой полночь это ноль.
+      hourCycle: "h23",
+    }).formatToParts(instant);
+  } catch {
+    // Неизвестная зона — `Intl` бросает RangeError.
+    return null;
+  }
+  const at = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  const [year, month, day, hour, minute] = [
+    at("year"),
+    at("month"),
+    at("day"),
+    at("hour"),
+    at("minute"),
+  ];
+  if (!year || !month || !day || !hour || !minute) return null;
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` };
+}
+
+/**
+ * «19:30» из `AvailabilitySlot.startsAt`.
+ *
+ * ЧАСЫ БЕРУТСЯ ИЗ САМОЙ СТРОКИ, а не из `new Date(...)`. Слот приходит как
+ * RFC3339 со смещением ЗАВЕДЕНИЯ («2026-08-25T19:30:00+05:00»), и это стенные
+ * часы ресторана — то время, на которое гостя ждут за столом. `Date` перевёл
+ * бы его в пояс браузера, и гость из Берлина увидел бы 16:30 у слота, который
+ * ресторан называет 19:30. На телефоне такого не бывает (устройство стоит в
+ * том же поясе), а сайт открывают откуда угодно.
+ *
+ * Пустая строка — «время не разобрали»: вызывающий не должен печатать
+ * «Invalid Date» на кнопке.
+ */
+export function slotTimeLabel(startsAt: string): string {
+  const match = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})/.exec(startsAt.trim());
+  if (!match) return "";
+  return `${match[1]}:${match[2]}`;
+}
+
+/**
+ * Календарный день слота в поясе ЗАВЕДЕНИЯ — «YYYY-MM-DD» из той же строки и
+ * по той же причине, что и `slotTimeLabel`.
+ */
+export function slotDateIso(startsAt: string): string | null {
+  const match = /^(\d{4}-\d{2}-\d{2})[T ]/.exec(startsAt.trim());
+  return match ? match[1] : null;
+}
+
+/**
+ * «марта 2025» для строки карточки гостя «с BookEat с марта 2025» (узел
+ * 3525:15162). Месяц нужен в РОДИТЕЛЬНОМ падеже, а `{ month: "long" }` сам по
+ * себе даёт именительный («март»). Родительный Intl печатает только рядом с
+ * числом дня, поэтому форматируем полную дату и берём из частей месяц и год.
+ * Для kk и en это ничего не меняет. `null` — когда даты нет или она битая:
+ * строка контактов тогда просто короче, а не «с BookEat с undefined».
+ */
+export function membershipMonthYear(createdAt: string | null, locale: WebLocale): string | null {
+  if (!createdAt) return null;
+  const started = new Date(createdAt);
+  if (Number.isNaN(started.getTime())) return null;
+  const parts = new Intl.DateTimeFormat(INTL_TAG[locale], {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).formatToParts(started);
+  const month = parts.find((part) => part.type === "month")?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
+  if (!month || !year) return null;
+  return `${month} ${year}`;
 }

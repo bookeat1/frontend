@@ -6,6 +6,7 @@ import {
   mapGuideRoutes,
   mapHomePromos,
   mapMenuHighlights,
+  mapPromoBanners,
   mapRestaurantDetail,
   mapRestaurantSummary,
   mapSchedule,
@@ -15,6 +16,7 @@ import {
   type ApiFeedItem,
   type ApiGuideCollectionDetail,
   type ApiMenuItem,
+  type ApiPromo,
   type ApiRestaurant,
 } from "../http-mapping";
 
@@ -425,6 +427,49 @@ describe("mapHomePromos — the Home «Акции» feed", () => {
   it("survives a null/undefined items array (an empty feed hides the section)", () => {
     expect(mapHomePromos(null)).toEqual([]);
     expect(mapHomePromos(undefined)).toEqual([]);
+  });
+});
+
+describe("mapPromoBanners — «Акции заведения» on the venue page (B1)", () => {
+  const apiPromo = (overrides: Partial<ApiPromo> = {}): ApiPromo => ({
+    id: "promo-1",
+    restaurant_id: "r-1",
+    title: "Два стейка за 8 990 ₸",
+    description: "",
+    starts_at: "2026-01-01T00:00:00Z",
+    ends_at: "2026-12-31T18:59:59Z",
+    status: "published",
+    ...overrides,
+  });
+
+  it("carries a real discount as a number and an absent one as null, never 0", () => {
+    expect(mapPromoBanners([apiPromo({ discount_percent: 25 })])[0].discountPercent).toBe(25);
+    expect(mapPromoBanners([apiPromo({ discount_percent: undefined })])[0].discountPercent).toBeNull();
+    expect(mapPromoBanners([apiPromo({ discount_percent: null })])[0].discountPercent).toBeNull();
+  });
+
+  it("folds an absent terms to an empty string, not undefined", () => {
+    expect(mapPromoBanners([apiPromo({ terms: undefined })])[0].terms).toBe("");
+    expect(mapPromoBanners([apiPromo({ terms: "будни до 18:00" })])[0].terms).toBe("будни до 18:00");
+  });
+
+  it("folds an absent or blank cover image to null rather than an empty string", () => {
+    expect(mapPromoBanners([apiPromo({ cover_image_url: undefined })])[0].coverImageUrl).toBeNull();
+    expect(mapPromoBanners([apiPromo({ cover_image_url: null })])[0].coverImageUrl).toBeNull();
+    expect(mapPromoBanners([apiPromo({ cover_image_url: "https://x/c.jpg" })])[0].coverImageUrl).toBe(
+      "https://x/c.jpg",
+    );
+  });
+
+  it("carries endsAt verbatim for the «до {date}» fallback subtitle", () => {
+    expect(mapPromoBanners([apiPromo({ ends_at: "2026-09-30T18:59:59Z" })])[0].endsAt).toBe(
+      "2026-09-30T18:59:59Z",
+    );
+  });
+
+  it("survives a null/undefined items array", () => {
+    expect(mapPromoBanners(null)).toEqual([]);
+    expect(mapPromoBanners(undefined)).toEqual([]);
   });
 });
 

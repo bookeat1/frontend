@@ -6,6 +6,7 @@ import {
   BellSimple,
   BookOpen,
   CalendarBlank,
+  CalendarCheck,
   Camera,
   CaretDown,
   CaretLeft,
@@ -33,9 +34,11 @@ import {
   Percent,
   Phone,
   Plus,
+  QrCode,
   Question,
   SealPercent,
   Shield,
+  Sparkle,
   SignOut,
   Spiral,
   ThumbsUp,
@@ -116,6 +119,13 @@ import {
  * ближайшие глифы того же набора, а расхождение вынесено в отчёт и в описание
  * PR. Когда экспорт откроется — эти шесть можно заменить настоящими
  * контурами, не трогая экраны.
+ *
+ * CalendarCheck и QrCode — шаги «Бронь через BookEat» и «Покажите QR хостес»
+ * в шторке welcome drink (узлы 5012:5714, 5012:5723). В макете это
+ * «Calendar Search» и «Linear / Security / QR Code» — свои рисунки дизайнера,
+ * взяты ближайшие глифы Phosphor. Wine там же в третьем шаге, он уже был.
+ * Sparkle — значок плашки «ПРОМО BOOKEAT x OCEAN BASKET» в той же шторке
+ * (node 5012:5680, в макете `si:ai-line`).
  */
 export type { IconProps };
 export {
@@ -126,6 +136,7 @@ export {
   BellSimple,
   BookOpen,
   CalendarBlank,
+  CalendarCheck,
   Camera,
   CaretDown,
   CaretLeft,
@@ -153,9 +164,11 @@ export {
   Percent,
   Phone,
   Plus,
+  QrCode,
   Question,
   SealPercent,
   Shield,
+  Sparkle,
   SignOut,
   Spiral,
   ThumbsUp,

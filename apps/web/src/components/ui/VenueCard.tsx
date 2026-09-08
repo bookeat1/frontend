@@ -1,33 +1,32 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Card } from "@web/components/ui/Card";
+import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
 
 /**
  * Карточка заведения — единственная карточка, полностью размеченная в
- * десктопных кадрах (Figma 49Zk9oEV3ZCiCdh6Cz9dE2, узел 3280:5482 в кадре
- * главной; в блоке «Выбрали для вас» и в «Все заведения» это ОДИН и тот же
- * компонент, 282×318).
+ * десктопных кадрах (Figma QovvuAoI9YxsLMwWkfgKN8, узел 3280:4748; в блоке
+ * «Выбрали для вас» (3525:14214) и в «Все заведения» (3525:14246) это ОДИН и
+ * тот же компонент, 282 шириной).
  *
  * Размеры оттуда же: фото 190 высотой, тело с паддингом 16 и просветом 16,
- * название 18/24 SemiBold, подпись 14/20 Regular #595959, слоты-подсказки
- * 32 высотой с радиусом 10 (первый — фирменный #FBEFF0/#96272C, остальные
- * серые #F8F8F8). Ширина карточки в макете 282, но она НЕ зашита: карточка
- * тянется на ширину ячейки сетки, иначе колонки на 1024 и 1280 разъедутся.
+ * название 18/24 SemiBold, подпись 14/20 Regular #595959. Ширина карточки в
+ * макете 282, но она НЕ зашита: карточка тянется на ширину ячейки сетки,
+ * иначе колонки на 1024 и 1280 разъедутся.
  *
  * Данные приходят пропсами. Своего запроса у карточки нет — сеть живёт в
  * `@bookeat/api`, и экран передаёт сюда уже разобранный ответ.
  *
- * `slots` РАЗЛИЧАЕТ два случая, которые легко перепутать:
- *   • `undefined` — свободное время не спрашивали (сайт не делает запрос
- *     доступности на каждую карточку выдачи), и блок не рисуется вовсе;
- *   • `[]` — спросили, и свободного времени нет; тогда это сказано словами.
- * Раньше оба случая выглядели как «Свободного времени нет», то есть карточка
- * утверждала про заведение то, чего никто не проверял.
+ * Слотов-подсказок свободного времени карточка больше не рисует: решение
+ * владельца от 07.09.2026 убрало онлайн-бронь с карточек листинга (см.
+ * `VenueWideCard`) — сайт нигде не делает запрос доступности на каждую
+ * карточку, поэтому и предлагать выбрать время здесь было бы нечестно.
  */
 export interface VenueCardProps {
   name: string;
@@ -38,11 +37,13 @@ export interface VenueCardProps {
   tag?: string;
   /** Куда ведёт карточка. Есть — вся карточка становится ссылкой. */
   href?: string;
-  /** Подсказки свободного времени. См. комментарий выше о `undefined` и `[]`. */
-  slots?: readonly string[];
   favorite?: boolean;
+  /** Запрос по этой карточке в полёте — кнопка заблокирована. */
+  favoritePending?: boolean;
   onToggleFavorite?: () => void;
-  onSelectSlot?: (time: string) => void;
+  /** Нижний слот тела — кнопка «Забронировать» в избранном профиля
+   * (узел 3525:15403). Кнопка стоит ПОВЕРХ растянутой ссылки заголовка. */
+  action?: ReactNode;
   className?: string;
 }
 
@@ -52,10 +53,10 @@ export function VenueCard({
   imageUrl,
   tag,
   href,
-  slots,
   favorite = false,
+  favoritePending = false,
   onToggleFavorite,
-  onSelectSlot,
+  action,
   className,
 }: VenueCardProps) {
   const t = useT();
@@ -90,9 +91,13 @@ export function VenueCard({
           <button
             type="button"
             onClick={onToggleFavorite}
+            disabled={favoritePending}
             aria-pressed={favorite}
-            aria-label={favorite ? t.web.ui.removeFromFavorites : t.web.ui.addToFavorites}
-            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            // Имя ПОСТОЯННОЕ, состояние несёт `aria-pressed`. Меняющееся имя
+            // рядом с состоянием читается вслух как «Убрать из избранного,
+            // нажато» — гость слышит противоречие вместо подсказки.
+            aria-label={t.web.ui.favoriteToggle}
+            className="absolute right-card-favorite-inset top-card-favorite-inset z-10 flex h-card-favorite w-card-favorite items-center justify-center rounded-full bg-photo-control text-ink disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <HeartIcon filled={favorite} />
           </button>
@@ -107,7 +112,7 @@ export function VenueCard({
           <h3 className="break-words text-[18px] font-semibold leading-6 text-ink">
             {href ? (
               // Ссылкой становится ЗАГОЛОВОК, а не вся карточка: внутри
-              // карточки живут кнопки (избранное, слоты), а кнопка внутри
+              // карточки живёт кнопка избранного, а кнопка внутри
               // ссылки — невалидная разметка, которую браузеры и скринридеры
               // разбирают каждый по-своему. `after:absolute` растягивает
               // область нажатия ссылки на всю карточку, оставляя кнопки
@@ -125,46 +130,8 @@ export function VenueCard({
           <p className="break-words text-[14px] leading-5 text-ink-secondary">{meta}</p>
         </div>
 
-        {slots === undefined ? null : slots.length > 0 ? (
-          <ul aria-label={t.web.ui.slotsLabel} className="relative z-10 flex flex-wrap gap-2">
-            {slots.map((time, index) => (
-              <li key={time}>
-                <button
-                  type="button"
-                  onClick={() => onSelectSlot?.(time)}
-                  className={cx(
-                    "inline-flex h-8 items-center justify-center rounded-slot px-3 text-[13px] font-semibold leading-[18px]",
-                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                    // Первый слот в макете выделен фирменным тоном — это
-                    // ближайшее свободное время, а не «выбранное».
-                    index === 0 ? "bg-brand-subtle text-brand-text" : "bg-subtle text-ink",
-                  )}
-                >
-                  {time}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[13px] leading-[18px] text-ink-tertiary">{t.web.ui.noSlots}</p>
-        )}
+        {action ? <div className="relative z-10 mt-auto">{action}</div> : null}
       </div>
     </Card>
-  );
-}
-
-/** Сердце из мобильного набора Phosphor, перерисованное как inline-SVG:
- * тянуть иконочный пакет ради одной формы в вебе не за что. */
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M12 20.7 3.9 12.6a5.4 5.4 0 0 1 7.6-7.6l.5.5.5-.5a5.4 5.4 0 0 1 7.6 7.6Z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
