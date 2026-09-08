@@ -8,10 +8,11 @@ import {
 } from "@bookeat/api";
 import { getCurrentLocale } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { identifyUser, trackEvent } from "./analytics";
 import { runPushSignOutHook } from "./push-signout";
+import * as SecureStore from "./secure-store";
+import { SESSION_KEY } from "./session-key";
 import {
   getFreshAccessToken,
   refreshAfterUnauthorized as gatewayRefreshAfterUnauthorized,
@@ -38,11 +39,22 @@ import {
  *
  * WHY SecureStore: the access token is a bearer credential. Keychain /
  * Android Keystore is the only storage in this app that isn't plain
- * JS-readable text. On web SecureStore is unavailable, so the session simply
- * does not persist there (the app still works, sign-in just doesn't survive
- * a reload) — no silent downgrade to localStorage.
+ * JS-readable text. This is still true for the NATIVE build — nothing here
+ * changed. `./secure-store` is a thin wrapper (`.ts` re-exports
+ * `expo-secure-store` unchanged); its `.web.ts` sibling swaps in
+ * `localStorage`, a deliberate, ADR-046 (2026-09-07) choice for the mobile
+ * web build only, not a silent downgrade slipped into this file.
+ *
+ * MW-4: on web, `secure-store.web.ts` stores THIS key's value in
+ * `apps/web`'s own session format (`bookeat.web.access_token` /
+ * `refresh_token` / `access_expires_at`, see
+ * `apps/web/src/lib/session-store.ts`), not as a mobile-shaped JSON blob —
+ * ADR-046 calls for a genuinely SHARED session (same origin, same keys)
+ * rather than a namespaced `bookeat.m.*` copy, so signing in on one web
+ * front does not sign the other out. `SESSION_KEY` moved to its own file
+ * (`./session-key`) so that translation can reference it without a
+ * circular import back into this module.
  */
-const SESSION_KEY = "bookeat.session.v1";
 /** Refresh this long before the access token actually expires, so a request
  * started right at the boundary doesn't race the clock. */
 const REFRESH_SKEW_MS = 60_000;

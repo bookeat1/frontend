@@ -1,6 +1,5 @@
 import type { AppUpdateDecision } from "@bookeat/api";
 import Constants from "expo-constants";
-import * as Updates from "expo-updates";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
 import {
@@ -20,6 +19,7 @@ import {
   writeUpdateSnooze,
   type UpdateSnooze,
 } from "../lib/update-snooze";
+import * as Updates from "../lib/updates";
 
 /**
  * Не спрашивать сервер чаще, чем он сам разрешает кэшировать ответ

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<!--
+  MW-3 (ADR-046) custom copy of the Expo CLI's own web/index.html template
+  (@expo/cli/static/template/index.html) — that packaged file is what
+  `expo export --platform web` actually uses for this app's `web.output:
+  "single"` mode; the newer app/+html.tsx convention only applies to the
+  "static"/"server" per-route render pipeline (confirmed by reading
+  @expo/cli/build/src/start/server/webTemplate.js), not this one.
+
+  The CLI does a plain, FIRST-MATCH-ONLY string replace against two
+  placeholder tokens in the html tag's lang attribute and the title element
+  below (sourced from app.json's expo.web.lang / expo.name), and against the
+  head- and body-closing tags further down (to inject scripts, theme-color,
+  description). Do not spell any of those four literal strings out anywhere
+  above them in this file, including in comments — an earlier draft of this
+  file quoted them here for documentation and the replace matched the
+  comment instead of the real tag, corrupting the export.
+
+  Two changes vs. the packaged default:
+   - the html tag's language now resolves to Russian instead of the CLI's
+     English fallback — this app's default and only-shipped language is
+     Russian (packages/i18n).
+   - the viewport meta below gained a cover directive: without it,
+     env(safe-area-inset-*) always resolves to 0 in the browser, so
+     react-native-safe-area-context's web provider (reads exactly those CSS
+     vars) reports all-zero insets even on a notched phone — the same
+     useSafeAreaInsets() the floating BottomNavBar and sheets already call
+     on native.
+-->
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <title>%WEB_TITLE%</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

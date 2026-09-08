@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
 import { useCallback } from "react";
+import * as SecureStore from "./secure-store";
 
 /**
  * The city chosen ON THIS DEVICE.
