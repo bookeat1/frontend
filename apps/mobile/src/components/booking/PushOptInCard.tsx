@@ -1,7 +1,7 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { usePush } from "../../lib/push";
 import { PrimaryButton } from "../PrimaryButton";
 import { BookingCard } from "./BookingCard";
@@ -26,6 +26,13 @@ const t = getDictionary();
  * It renders nothing at all when push is unsupported (web, simulator, Expo Go
  * on Android, no EAS project id) or when permission has already been answered
  * — an unsupported runtime shows the guest no card and no error.
+ *
+ * MW-3 (ADR-046): `push.supported` is already `false` on web
+ * (`push-support.ts` answers `{ supported: false, reason: "web" }` before any
+ * other check), so the effect below already sets `state` to `"hidden"` there
+ * — the explicit `Platform.OS === "web"` in the render guard is a second,
+ * component-local line making that fact visible without tracing
+ * `push-support.ts` → `push.tsx` → here.
  */
 type CardState = "checking" | "hidden" | "ask" | "working" | "enabled" | "denied" | "failed";
 
@@ -85,7 +92,7 @@ export function PushOptInCard() {
     });
   };
 
-  if (state === "checking" || state === "hidden") return null;
+  if (state === "checking" || state === "hidden" || Platform.OS === "web") return null;
 
   if (state === "enabled") {
     return (

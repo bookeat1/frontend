@@ -1,11 +1,11 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "../lib/glass-effect";
 import {
   CompassIcon,
   MagniferIcon,

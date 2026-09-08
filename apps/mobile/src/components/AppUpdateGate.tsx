@@ -1,4 +1,5 @@
 import React from "react";
+import { Platform } from "react-native";
 import { useAppUpdate } from "../hooks/useAppUpdate";
 import { useLocale } from "../lib/locale";
 import { AppUpdateDialog } from "./AppUpdateDialog";
@@ -18,10 +19,21 @@ import { AppUpdateDialog } from "./AppUpdateDialog";
  * `getDictionary()` на уровне модуля: смена языка обязана менять их без
  * перезапуска, и здесь это особенно важно — окно может висеть поверх экрана
  * настроек, где язык и переключают.
+ *
+ * MW-3 (ADR-046): на вебе `prompt` и так всегда `null` — `useAppUpdate` уже
+ * не спрашивает бэкенд про версию магазина (`storePlatform()` возвращает
+ * `null` для web) и `Updates.useUpdates()` резолвится через `updates.web.ts`
+ * (MW-2) в `{ isUpdatePending: false }`, так что "обновиться по воздуху"
+ * тоже нечего предлагать. `Platform.OS === "web"` ниже — явная страховка на
+ * уровне компонента поверх этого, а не что-то, что нужно выводить из трёх
+ * файлов; хуки при этом вызываются безусловно (иначе react-hooks/rules-of-
+ * hooks), сам ранний выход — только в JSX.
  */
 export function AppUpdateGate() {
   const { dictionary } = useLocale();
   const { prompt, acting, actionError, act, dismiss } = useAppUpdate();
+
+  if (Platform.OS === "web") return null;
 
   return (
     <AppUpdateDialog

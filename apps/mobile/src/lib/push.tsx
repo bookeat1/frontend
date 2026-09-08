@@ -1,10 +1,10 @@
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { useRootNavigationState, useRouter } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "./auth";
+import * as Notifications from "./notifications";
 import { readNotificationsPref, writeNotificationsPref } from "./notifications-pref";
 import {
   GuestPushRegistrar,

@@ -47,10 +47,8 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
-      "output": "single"
-    },
-    "experiments": {
-      "baseUrl": "/preview"
+      "output": "single",
+      "lang": "ru"
     },
     "extra": {
       "router": {},
