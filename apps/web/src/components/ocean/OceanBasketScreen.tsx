@@ -206,12 +206,15 @@ function OceanMapAndPoints({ query }: { query: ReturnType<typeof useOceanBasketV
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Узел 5115:9797: этот блок вне «золотой» ocean-палитры — обычные
+              `ink`-токены (#1B1B1B/#595959), не `ocean-navy`/`ocean-muted`
+              как у остальной страницы. Заголовок 26/38 Bold, подпись 16/23. */}
           <div className="flex flex-col gap-1">
-            <h3 className="text-[20px] font-bold leading-6 text-ocean-navy">
+            <h3 className="text-[22px] font-bold leading-8 tracking-[-0.4px] text-ink lg:text-[26px]">
               {t.oceanBasket.webPointsTitle}
             </h3>
             {venues.length > 0 ? (
-              <p className="text-[14px] leading-5 text-ocean-muted">
+              <p className="text-[16px] leading-[23px] text-ink-secondary">
                 {t.oceanBasket.webPointsSubtitle(city, venues.length)}
               </p>
             ) : null}
@@ -258,19 +261,18 @@ function OceanMapAndPoints({ query }: { query: ReturnType<typeof useOceanBasketV
 function OceanPointRow({ venue, index }: { venue: RestaurantSummary; index: number }) {
   const t = useT();
   return (
+    // Узел 5115:9797 «Выбрать / …»: карточка 16px радиуса (не 12), номер —
+    // фирменный красный `brand-text` (#96272C) 16 regular, название — 18
+    // regular `ink` (не Bold/navy как у ocean-палитры остальной страницы).
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="flex items-center justify-between gap-4 rounded-xl bg-canvas px-5 py-4 shadow-card transition-colors hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
+      className="flex items-center justify-between gap-4 rounded-2xl bg-canvas px-5 py-5 shadow-card transition-colors hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="text-[13px] font-bold leading-4 text-ocean-gold-muted">
-          {t.oceanBasket.pointNumber(index)}
-        </span>
-        <span className="truncate text-[16px] font-semibold leading-6 text-ocean-navy">
-          {oceanPointName(venue.name)}
-        </span>
+        <span className="text-[16px] leading-[23px] text-brand-text">{t.oceanBasket.pointNumber(index)}</span>
+        <span className="truncate text-[18px] leading-6 text-ink">{oceanPointName(venue.name)}</span>
       </span>
-      <span aria-hidden="true" className="shrink-0 text-ocean-navy">
+      <span aria-hidden="true" className="shrink-0 text-ink">
         <ChevronIcon direction="right" size={16} />
       </span>
     </Link>
@@ -298,7 +300,9 @@ function OceanDishesSection({ state }: { state: OceanSignatureDishesState }) {
           {t.oceanBasket.webDishesSubtitle}
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Отступ между карточками — 32 (узел 5115:9809: карточки 584 при
+          контейнере 1200 → 1200 - 2×584 = 32), а не стандартные 16. */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
         {OCEAN_SIGNATURE_DISHES.map((signature, index) => (
           <OceanDishCard key={signature.menuName} photo={signature.photo} state={state} index={index} />
         ))}
@@ -358,7 +362,8 @@ function OceanDishCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-canvas shadow-card">
+    // Радиус 24 (узел 5115:9812/9818), не 16.
+    <div className="overflow-hidden rounded-3xl bg-canvas shadow-card">
       {picture}
       <div className="flex flex-col gap-1 px-5 py-4">{caption}</div>
     </div>
