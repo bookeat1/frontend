@@ -2749,7 +2749,6 @@ export const en: LocaleOverride<Dictionary> = {
         qtyMore: "Increase quantity",
         preorderTotal: (amount: string) => `Total ≈ ${amount}`,
         viewAll: "Full menu →",
-        fullMenuOnly: "Full menu — on a separate page",
       },
       menuPage: {
         title: (name: string) => `${name} menu`,

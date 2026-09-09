@@ -758,12 +758,13 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
  * `apps/mobile` степпер НЕ переносится (решение владельца 2026-09-06,
  * см. спеку), `DishDetailSheet` там не тронут.
  *
- * БЕЗ КАРТОЧЕК «ПОПУЛЯРНОЕ» (A10, ТЗ `web-preorder-menu-20260908`): секция
- * теперь рендерится и у заведения с пустым `menuHighlights`, пока
- * `acceptsOnlineBookings` — заголовок и ссылка «Всё меню →» остаются входом
- * в полное меню (`/venues/[id]/menu`), сетка карточек заменяется одной
- * строкой `fullMenuOnly`. Раньше у 6/20 заведений стенда без «Популярного» не
- * было вообще никакого входа в меню с этой страницы.
+ * БЕЗ КАРТОЧЕК «ПОПУЛЯРНОЕ» (2026-09-09, решение владельца): секция целиком
+ * не рендерится, если у заведения пустой `menuHighlights` — заголовок
+ * «Лучшие позиции» и ссылка «Всё меню →» дублировали вкладку «Меню» на этой
+ * же странице (`hasMenu`/`fullMenuQuery` в `VenueBody`, не связана с этим
+ * компонентом). Раньше здесь была заглушка `fullMenuOnly` (A10,
+ * `web-preorder-menu-20260908`) — убрана, вход в меню остаётся только через
+ * вкладку.
  */
 function MenuSection({
   venue,
@@ -775,6 +776,10 @@ function MenuSection({
 }) {
   const t = useT();
   const canPreorder = venue.acceptsOnlineBookings;
+
+  if (venue.menuHighlights.length === 0) {
+    return null;
+  }
 
   return (
     <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
@@ -802,14 +807,8 @@ function MenuSection({
           </Link>
         </div>
       </div>
-      {venue.menuHighlights.length === 0 ? (
-        // A10: заведение без карточек «Популярное» — секция сохраняет вход в
-        // полное меню (заголовок + ссылка выше), просто без сетки: сама сетка
-        // требовала бы шести карточек, которых у заведения нет.
-        <StateMessage text={t.web.venue.menu.fullMenuOnly} />
-      ) : (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {venue.menuHighlights.slice(0, 6).map((dish) => {
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {venue.menuHighlights.slice(0, 6).map((dish) => {
             const canAdd = canPreorder && dish.priceMinor !== null;
             const quantity = preorder.quantityOf(dish.id);
             return (
@@ -864,9 +863,8 @@ function MenuSection({
                 </div>
               </li>
             );
-          })}
-        </ul>
-      )}
+        })}
+      </ul>
     </section>
   );
 }
