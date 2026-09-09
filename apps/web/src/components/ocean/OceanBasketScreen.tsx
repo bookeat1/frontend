@@ -595,12 +595,19 @@ function OceanWelcomeModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title={sheet.title} description={sheet.subtitle} onClose={onClose}>
+      {/* Узел 5129:10805: заголовки секций — приглушённое золото
+          `ocean-gold-section-title` (#A09B61), не обычный `ink`; текст
+          списков — фирменный navy (#052747), не серый `ink-secondary`;
+          карточка условий — тёплая подложка `ocean-accent-surface`
+          (#F6EAD4), не нейтральный `bg-subtle`. */}
       <div className="flex flex-col gap-6">
         <div>
-          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ink">{sheet.includesTitle}</h3>
+          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ocean-gold-section-title">
+            {sheet.includesTitle}
+          </h3>
           <ul className="flex flex-col gap-2">
             {sheet.includes.map((line) => (
-              <li key={line} className="flex items-start gap-2 text-bodyM text-ink-secondary">
+              <li key={line} className="flex items-start gap-2 text-bodyM text-ocean-navy">
                 <CheckIcon size={16} />
                 <span>{line}</span>
               </li>
@@ -609,17 +616,19 @@ function OceanWelcomeModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div>
-          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ink">{sheet.stepsTitle}</h3>
-          <ol className="flex flex-col gap-1 text-bodyM text-ink-secondary">
+          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ocean-gold-section-title">
+            {sheet.stepsTitle}
+          </h3>
+          <ol className="flex flex-col gap-1 text-bodyM text-ocean-navy">
             {sheet.steps.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ol>
         </div>
 
-        <div className="rounded-lg bg-subtle px-4 py-3">
-          <h3 className="mb-1 text-[14px] font-semibold leading-5 text-ink">{sheet.termsTitle}</h3>
-          <p className="whitespace-pre-line text-[13px] leading-5 text-ink-tertiary">
+        <div className="rounded-2xl bg-ocean-accent-surface px-4 py-3">
+          <h3 className="mb-1 text-[16px] font-semibold leading-6 text-ocean-navy">{sheet.termsTitle}</h3>
+          <p className="whitespace-pre-line text-[14px] leading-5 text-ocean-muted">
             {sheet.terms.map((line) => `· ${line}`).join("\n")}
           </p>
         </div>
