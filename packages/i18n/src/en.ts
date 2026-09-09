@@ -2742,7 +2742,6 @@ export const en: LocaleOverride<Dictionary> = {
         empty: "The venue has not told anything about itself yet.",
       },
       menu: {
-        title: "Popular on the menu",
         empty: "The menu is not filled in yet.",
         noPrice: "Price is not set",
         addDish: (name: string) => `Add ${name}`,

@@ -2747,7 +2747,6 @@ export const kk: LocaleOverride<Dictionary> = {
         empty: "Орын өзі туралы әлі жазбаған.",
       },
       menu: {
-        title: "Мәзірдегі танымал",
         empty: "Мәзір әлі толтырылмаған.",
         noPrice: "Бағасы көрсетілмеген",
         addDish: (name: string) => `${name} қосу`,

@@ -85,7 +85,7 @@ describe("страница брони — состояния", () => {
 });
 
 describe("страница брони — билет", () => {
-  it("подтверждённая: заголовок макета, время в часах заведения, код из идентификатора, QR", async () => {
+  it("подтверждённая: заголовок макета, время в часах заведения", async () => {
     renderResult();
 
     expect(await screen.findByText("Столик забронирован")).toBeTruthy();
@@ -99,8 +99,15 @@ describe("страница брони — билет", () => {
     expect(screen.getByText("19:30")).toBeTruthy();
     expect(screen.getByText("2 гостя")).toBeTruthy();
     expect(screen.getByText("Подтверждена")).toBeTruthy();
-    expect(screen.getByText("BE-A1B2-C3D4")).toBeTruthy();
-    expect(screen.getByRole("img", { name: "QR-код с номером брони" })).toBeTruthy();
+  });
+
+  it("блок «Код брони» (QR + BE-XXXX-XXXX) скрыт по решению владельца от 2026-09-09", async () => {
+    renderResult();
+
+    expect(await screen.findByText("Столик забронирован")).toBeTruthy();
+    expect(screen.queryByText("BE-A1B2-C3D4")).toBeNull();
+    expect(screen.queryByRole("img", { name: "QR-код с номером брони" })).toBeNull();
+    expect(screen.queryByText("Код брони")).toBeNull();
   });
 
   it("«Изменить бронь» ведёт на страницу бронирования в режиме переноса с датой и гостями", async () => {

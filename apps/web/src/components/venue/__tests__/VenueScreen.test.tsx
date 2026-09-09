@@ -80,7 +80,7 @@ describe("карточка заведения", () => {
     // — единственный дешёвый признак, см. `MenuSection`).
     expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
     expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Популярное в меню" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
   });
 
   /** A10 (`web-preorder-menu-20260908`): раньше у заведения без карточек
@@ -93,7 +93,7 @@ describe("карточка заведения", () => {
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByRole("heading", { name: "Популярное в меню" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Лучшие позиции" })).toBeTruthy();
     expect(screen.getByText("Полное меню — на отдельной странице")).toBeTruthy();
     const link = screen.getByRole("link", { name: "Всё меню →" });
     expect(link.getAttribute("href")).toBe("/venues/venue-1/menu");
