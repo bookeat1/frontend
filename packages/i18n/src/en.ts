@@ -2799,7 +2799,7 @@ export const en: LocaleOverride<Dictionary> = {
         title: "Venue deals",
       },
       contacts: {
-        title: "Contacts and how to get there",
+        title: "Contacts",
         address: "Address",
         phone: "Phone",
         social: "Social",

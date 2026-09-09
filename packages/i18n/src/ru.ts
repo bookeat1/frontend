@@ -4028,7 +4028,7 @@ export const ru = {
         title: "Акции заведения",
       },
       contacts: {
-        title: "Контакты и как добраться",
+        title: "Контакты",
         address: "Адрес",
         phone: "Телефон",
         social: "Соцсети",
