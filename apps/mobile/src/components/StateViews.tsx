@@ -137,7 +137,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   compact: {
-    flex: 0,
+    // `flex: 0` is NOT the same on native and web: Yoga (native) reads a
+    // literal 0 as "don't grow, don't shrink, size to content", but
+    // react-native-web forwards `flex` straight to CSS, where the `flex: 0`
+    // shorthand means `flex: 0 1 0%` — flex-basis 0%. Inside a plain column
+    // View (no fixed height) that collapses this box to just its padding,
+    // and `alignItems/justifyContent: center` then centers the real content
+    // through that collapsed box, painting it over whatever sits above (the
+    // web-only overlap on the booking screen's day-off empty state, over
+    // the "Время" section title — reported 2026-09-08). `flexBasis` must be
+    // set to "auto" explicitly — leaving it unset still resolves to 0% on
+    // web, same collapse as above.
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: "auto",
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.none,
   },
