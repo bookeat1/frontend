@@ -280,7 +280,7 @@ export function HomeScreen() {
                   <li key={collection.slug}>
                     <GuideCard
                       collection={collection}
-                      href={guideCardHref(collection, SHOW_SECTION_LINKS)}
+                      href={guideCardHref(collection)}
                     />
                   </li>
                 ))}

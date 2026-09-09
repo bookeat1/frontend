@@ -34,6 +34,13 @@ export interface ModalProps {
   title: string;
   /** Подпись под заголовком (узел 3272:10). */
   description?: string;
+  /** Строка НАД заголовком (напр. плашка-бейдж промо у `OceanWelcomeModal`,
+   * узел 5129:10805) — редкий случай, у большинства окон её нет. */
+  eyebrow?: ReactNode;
+  /** Значок слева от заголовка (та же шторка Ocean Basket — золотой кружок с
+   * иконкой бокала). Заголовок остаётся одним доступным именем, значок
+   * `aria-hidden` через своё содержимое. */
+  titleIcon?: ReactNode;
   onClose: () => void;
   children: ReactNode;
   className?: string;
@@ -42,7 +49,15 @@ export interface ModalProps {
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ title, description, onClose, children, className }: ModalProps) {
+export function Modal({
+  title,
+  description,
+  eyebrow,
+  titleIcon,
+  onClose,
+  children,
+  className,
+}: ModalProps) {
   const t = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
   const pressedOnScrim = useRef(false);
@@ -120,7 +135,9 @@ export function Modal({ title, description, onClose, children, className }: Moda
       >
         <header className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h2 id={titleId} className="text-h3 tracking-[-0.4px] text-ink">
+            {eyebrow}
+            <h2 id={titleId} className="flex items-center gap-2 text-h3 tracking-[-0.4px] text-ink">
+              {titleIcon}
               {title}
             </h2>
             {description ? (

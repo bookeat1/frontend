@@ -57,32 +57,29 @@ export const SHOW_PROMOS_LINK: boolean = true;
 export const EVENTS_PATH = "/events";
 export const GUIDE_PATH = "/guide";
 export const PROMOS_PATH = "/promos";
-export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
 export const eventHref = (id: string) => `${EVENTS_PATH}/${id}`;
 export const promoHref = (id: string) => `${PROMOS_PATH}/${id}`;
 
 /**
- * Ссылка карточки гастрогида на главной. `/guide` (листинг) уже существует
- * (2026-09-09), но `/guide/[slug]` (страница отдельной подборки) — нет, туда
- * `SHOW_SECTION_LINKS` всё ещё не пускает. Ocean Basket — исключение с
- * зашитым собственным маршрутом `/brand/ocean-basket`, тот же приём, что в
+ * Ссылка карточки гастрогида на главной. Ocean Basket — исключение с зашитым
+ * собственным маршрутом `/brand/ocean-basket`, тот же приём, что в
  * `GuideScreen.tsx` (`EditorPickCard`, узел 2026-09-06) и на мобилке
  * (`app/gastroguide/index.tsx`, PR #105): у него есть страница уже сейчас,
  * остальные подборки — нет.
  *
- * Флаг передаётся параметром, а не читается из модуля напрямую: вызывающая
- * сторона (`HomeScreen`) импортирует `SHOW_SECTION_LINKS` своим биндингом,
- * и тесты подменяют именно его — если бы функция читала константу из
- * замыкания этого же модуля, подмена в тестах молча не работала бы.
+ * Остальные подборки ведут на `/guide/rubric/[slug]` — тот же роут, что уже
+ * используют рубрики на `/guide` (`GuideScreen.tsx`), собранный из
+ * `collection.categorySlugs[0]`. Не зависит от `SHOW_SECTION_LINKS`
+ * (2026-09-09, решение владельца): у карточки есть реальный адрес, когда есть
+ * `categorySlugs`, независимо от флага — тот теперь управляет только
+ * ссылками «Вся афиша» / «Все подборки» в шапках секций.
  */
-export const guideCardHref = (
-  collection: GuideCollection,
-  showSectionLinks: boolean,
-): string | undefined => {
+export const guideCardHref = (collection: GuideCollection): string | undefined => {
   if (collection.slug === OCEAN_BASKET_SLUG) {
     return "/brand/ocean-basket";
   }
-  return showSectionLinks ? guideCollectionHref(collection.slug) : undefined;
+  const rubricSlug = collection.categorySlugs[0];
+  return rubricSlug ? `/guide/rubric/${rubricSlug}` : undefined;
 };
 
 /**

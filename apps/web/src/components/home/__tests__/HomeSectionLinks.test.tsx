@@ -6,11 +6,15 @@ import type { RestaurantSummary } from "@bookeat/api/client";
 import { eventSummary, guideCollection, pending, renderScreen, repositoryStub } from "@web/test/harness";
 
 /**
- * Ссылки «Вся афиша» / «Все подборки» и ссылка с карточки подборки живут за
- * флагом `SHOW_SECTION_LINKS` (роута `/guide` ещё нет; «Вся афиша» — за
- * отдельным `SHOW_EVENTS_LINK`, который включён). Проверяем
- * обе стороны флага: с включённым — ссылки есть и ведут куда надо, с
- * выключенным — их нет, но заголовки секций на месте.
+ * Ссылка «Все подборки» в шапке секции живёт за флагом `SHOW_SECTION_LINKS`
+ * (роута `/guide` листинга это не касается — он есть, но ссылка на него в
+ * шапке всё ещё под флагом; «Вся афиша» — за отдельным `SHOW_EVENTS_LINK`,
+ * который включён). Проверяем обе стороны флага: с включённым — ссылка есть
+ * и ведёт куда надо, с выключенным — её нет, но заголовки секций на месте.
+ *
+ * Ссылка С КАРТОЧКИ подборки (2026-09-09, решение владельца) от этого флага
+ * больше НЕ зависит — она есть, когда у подборки есть `categorySlugs`,
+ * независимо от `SHOW_SECTION_LINKS` (см. `guideCardHref` в `Cards.tsx`).
  */
 
 const flags = vi.hoisted(() => ({ showSectionLinks: false }));
@@ -51,7 +55,9 @@ function stubSections() {
     pages: 1,
     perPage: 3,
   }));
-  repository.getGuideCollections = vi.fn(async () => [guideCollection()]);
+  repository.getGuideCollections = vi.fn(async () => [
+    guideCollection({ categorySlugs: ["winter-terraces-rubric"] }),
+  ]);
 }
 
 afterEach(() => {
@@ -69,21 +75,43 @@ describe("ссылки секций главной", () => {
       "/events",
     );
     expect(screen.getByRole("link", { name: "Все подборки" }).getAttribute("href")).toBe("/guide");
+    // Карточка подборки — ссылка есть независимо от флага (см. тест ниже),
+    // но при включённом флаге она, разумеется, тоже на месте.
     expect(
       (await screen.findByRole("link", { name: "Зимние террасы" })).getAttribute("href"),
-    ).toBe("/guide/winter-terraces");
+    ).toBe("/guide/rubric/winter-terraces-rubric");
   });
 
-  it("при выключенном флаге ссылок нет, а секции и карточка на месте", async () => {
+  it("при выключенном флаге «Всей афиши»/«Всех подборок» нет, но карточка подборки с categorySlugs всё равно ссылка", async () => {
     stubSections();
 
     renderScreen(<HomeScreen />);
 
-    expect(await screen.findByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Афиша" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Афиша" })).toBeTruthy();
     // «Вся афиша» живёт за своим флагом SHOW_EVENTS_LINK: роут /events есть.
     expect(screen.getByRole("link", { name: "Вся афиша" }).getAttribute("href")).toBe("/events");
     expect(screen.queryByRole("link", { name: "Все подборки" })).toBeNull();
+    // Карточка подборки больше не зависит от SHOW_SECTION_LINKS (2026-09-09):
+    // у неё есть categorySlugs — значит есть и адрес, флаг ни при чём.
+    expect(
+      (await screen.findByRole("link", { name: "Зимние террасы" })).getAttribute("href"),
+    ).toBe("/guide/rubric/winter-terraces-rubric");
+  });
+
+  it("при выключенном флаге и без categorySlugs у карточки подборки ссылки нет", async () => {
+    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantSummary[]>());
+    repository.listUpcomingEvents = vi.fn(async () => ({
+      items: [eventSummary()],
+      total: 1,
+      page: 1,
+      pages: 1,
+      perPage: 3,
+    }));
+    repository.getGuideCollections = vi.fn(async () => [guideCollection({ categorySlugs: [] })]);
+
+    renderScreen(<HomeScreen />);
+
+    expect(await screen.findByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Зимние террасы" })).toBeNull();
   });
 

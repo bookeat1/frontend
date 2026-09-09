@@ -3,7 +3,7 @@ import { screen } from "@testing-library/react";
 
 import type { HomePromo } from "@bookeat/api/client";
 
-import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
+import { EventCard, GuideCard, PromoCard, guideCardHref } from "@web/components/home/Cards";
 import { eventSummary, guideCollection, renderScreen } from "@web/test/harness";
 
 /**
@@ -72,11 +72,39 @@ describe("карточка подборки", () => {
     expect(link.getAttribute("href")).toBe("/guide/winter-terraces");
   });
 
-  it("без адреса (флаг выключен) ссылки нет, заголовок остаётся", () => {
+  it("без адреса (нет categorySlugs) ссылки нет, заголовок остаётся", () => {
     renderScreen(<GuideCard collection={guideCollection()} />);
 
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
+  });
+});
+
+/**
+ * `guideCardHref` (2026-09-09, решение владельца): карточка гастрогида
+ * ведёт на `/guide/rubric/[slug]` (тот же роут, что уже используют рубрики
+ * на `/guide`, см. `GuideScreen.tsx`), когда у подборки есть `categorySlugs`
+ * — независимо от `SHOW_SECTION_LINKS` (тот больше не влияет на карточку,
+ * только на ссылки «Вся афиша»/«Все подборки» в шапках секций). Ocean Basket
+ * — по-прежнему исключение с зашитым `/brand/ocean-basket`.
+ */
+describe("guideCardHref", () => {
+  it("с categorySlugs — ссылка на /guide/rubric/[первый слаг]", () => {
+    const collection = guideCollection({
+      slug: "kazakh-cuisine",
+      categorySlugs: ["kazakh-cuisine-rubric", "other-rubric"],
+    });
+    expect(guideCardHref(collection)).toBe("/guide/rubric/kazakh-cuisine-rubric");
+  });
+
+  it("без categorySlugs (и не Ocean Basket) — адреса нет", () => {
+    const collection = guideCollection({ slug: "week-picks", categorySlugs: [] });
+    expect(guideCardHref(collection)).toBeUndefined();
+  });
+
+  it("Ocean Basket — всегда на /brand/ocean-basket, даже без categorySlugs", () => {
+    const collection = guideCollection({ slug: "ocean-basket", categorySlugs: [] });
+    expect(guideCardHref(collection)).toBe("/brand/ocean-basket");
   });
 });
 

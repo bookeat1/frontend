@@ -9,7 +9,6 @@ import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Modal } from "@web/components/ui/Modal";
-import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { formatMoneyMinor } from "@web/lib/format";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
@@ -69,15 +68,9 @@ export function OceanBasketScreen() {
     pointsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const heroPhoto = venuesQuery.data?.[0]?.coverPhoto?.uri;
-
   return (
     <SiteChrome>
-      <OceanHero
-        heroPhoto={heroPhoto}
-        onBook={scrollToPoints}
-        onWelcomeDrink={() => setWelcomeOpen(true)}
-      />
+      <OceanHero onBook={scrollToPoints} onWelcomeDrink={() => setWelcomeOpen(true)} />
 
       <div className="bg-ocean-sheet">
         <Container className="flex flex-col gap-12 py-10 lg:gap-16 lg:py-16">
@@ -107,11 +100,9 @@ export function OceanBasketScreen() {
  * ------------------------------------------------------------------------ */
 
 function OceanHero({
-  heroPhoto,
   onBook,
   onWelcomeDrink,
 }: {
-  heroPhoto: string | undefined;
   onBook: () => void;
   onWelcomeDrink: () => void;
 }) {
@@ -184,11 +175,14 @@ function OceanHero({
         </div>
 
         <div className="relative h-[240px] overflow-hidden rounded-2xl bg-ocean-navy-deep lg:h-[340px]">
-          <RemoteImage
-            src={heroPhoto}
+          <Image
+            src={oceanAssets.storefrontPhoto}
             alt=""
+            fill
             sizes="(min-width: 1024px) 560px, 100vw"
+            className="object-cover"
             priority
+            unoptimized
           />
         </div>
       </Container>
