@@ -26,18 +26,20 @@ export function MapPreview({
   hasCoords,
   alt,
   unavailableText,
-  noMapText,
 }: {
   venueId: string;
   hasCoords: boolean;
   alt: string;
   unavailableText: string;
-  noMapText: string;
 }) {
   const mapUrl = hasCoords ? repository.getMapPreviewUrl(venueId, { size: "detail" }) : undefined;
 
+  // Координат нет — карту не строим и ничего не объясняем гостю: заведение
+  // не виновато в отсутствии данных, а текст-заглушка сам стал жалобой на
+  // заведение (снято 2026-09-09). Просто скрываем блок карты; адрес и
+  // телефон ниже (если есть) рисуются как обычно.
   if (!mapUrl) {
-    return <p className="text-bodyM text-ink-tertiary">{noMapText}</p>;
+    return null;
   }
 
   return (

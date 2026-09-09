@@ -26,7 +26,7 @@ import { usePreorderDraft } from "@web/lib/use-preorder-draft";
 import { DishStepper } from "@web/components/venue/DishStepper";
 import { scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
 import { useLocale, useT } from "@web/lib/locale";
-import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
+import { useFavoriteIds, useMenuSections, useToggleFavorite, useVenue } from "@web/lib/queries";
 
 /**
  * Карточка заведения — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 03 · Карточка
@@ -131,15 +131,29 @@ function VenueBody({ venue }: { venue: Restaurant }) {
    * вкладка «Фото · N», — поэтому его состояние живёт здесь, а не в галерее. */
   const [galleryOpen, setGalleryOpen] = useState(false);
 
+  /**
+   * Есть ли меню вообще (решение владельца 2026-09-09, отменяет прежний
+   * дешёвый признак `acceptsOnlineBookings` из A10/`web-preorder-menu-20260908`):
+   * если карточек «Популярное» уже нет — это точный ответ, второй запрос не
+   * нужен. Если карточек нет, а бронь принимается — раньше секция всё равно
+   * рисовалась (могла вести в пустоту); теперь досматриваем полное меню
+   * (`GET /restaurants/:id/menu`) и, если оно тоже пусто, скрываем «Популярное
+   * в меню» и ссылку «Полное меню» целиком, а не показываем вход в пустоту.
+   * Пока запрос летит — секцию не рисуем (нет мигания «была → пропала»).
+   */
+  const needsMenuCheck = venue.menuHighlights.length === 0 && venue.acceptsOnlineBookings;
+  const fullMenuQuery = useMenuSections(venue.id, { enabled: needsMenuCheck });
+  const hasMenu =
+    venue.menuHighlights.length > 0 ||
+    (needsMenuCheck ? (fullMenuQuery.data?.length ?? 0) > 0 : false);
+
   /** Вкладки собираются из ТОГО, ЧТО НА СТРАНИЦЕ ЕСТЬ: нет акций — нет и
    * вкладки. `useMemo` здесь не украшение: список уходит в зависимость
    * наблюдателя прокрутки, и новый массив на каждый кадр пересоздавал бы его. */
   const tabs = useMemo<SectionTab[]>(() => {
     const all: (SectionTab | null)[] = [
       { id: SECTION_ID.about, label: t.web.venue.tabs.overview },
-      venue.menuHighlights.length > 0
-        ? { id: SECTION_ID.menu, label: t.web.venue.tabs.menu }
-        : null,
+      hasMenu ? { id: SECTION_ID.menu, label: t.web.venue.tabs.menu } : null,
       photos.length > 0
         ? {
             id: SECTION_ID.photos,
@@ -153,7 +167,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
       hasPromos ? { id: SECTION_ID.promos, label: t.web.venue.tabs.promos } : null,
     ];
     return all.filter((tab): tab is SectionTab => tab !== null);
-  }, [t, venue.menuHighlights.length, photos.length, hasPromos]);
+  }, [t, hasMenu, photos.length, hasPromos]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -175,17 +189,12 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           </section>
 
           <div className="flex flex-col gap-8">
-            {/* A10 (`web-preorder-menu-20260908`): 6/20 заведений на стенде не
-                заполняют «Популярное в меню», и без него страница не давала
-                НИКАКОГО входа в полное меню — ссылка жила внутри этой же
-                секции. `acceptsOnlineBookings` — дешёвый признак «у
-                заведения, вероятно, есть меню» (решение владельца, раздел 6
-                ТЗ, 🟡): второй запрос за числом блюд ради точного условия не
-                делаем, а секция для 4/20 заведений с формально пустым меню
-                ведёт в пустоту — цена, которую владелец принял явно. */}
-            {venue.menuHighlights.length > 0 || venue.acceptsOnlineBookings ? (
-              <MenuSection venue={venue} preorder={preorder} />
-            ) : null}
+            {/* У заведения без меню (ни «Популярного», ни полного) блока нет
+                вовсе — ни сетки карточек, ни ссылки «Полное меню»: вход в
+                пустоту хуже отсутствия входа (решение владельца 2026-09-09,
+                отменяет прежний 🟡-компромисс A10 `web-preorder-menu-20260908`
+                про «дешёвый признак `acceptsOnlineBookings`»). */}
+            {hasMenu ? <MenuSection venue={venue} preorder={preorder} /> : null}
             {hasPromos ? <PromoSection venue={venue} /> : null}
           </div>
         </div>

@@ -2814,7 +2814,6 @@ export const en: LocaleOverride<Dictionary> = {
           website: "Website",
         },
         mapAlt: (name: string) => `Map: where ${name} is`,
-        noMap: "The venue has not provided coordinates.",
         mapUnavailable: "The map is unavailable right now.",
         empty: "No contacts provided.",
       },
