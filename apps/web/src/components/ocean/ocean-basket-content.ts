@@ -56,6 +56,11 @@ export function spacedOut(text: string): string {
  * (те же экспорты из макета) в `apps/web/public/ocean-basket`. */
 export const oceanAssets = {
   map: assetUrl("/ocean-basket/map-almaty.png"),
+  /** Фирменная надпись «Seafood Expedition» — леттеринг из макета (не
+   * шрифт), те же PNG, что у мобильного `OceanHero`, скопированы 1:1 из
+   * `apps/mobile/assets/ocean-basket`. */
+  letteringSeafood: assetUrl("/ocean-basket/lettering-seafood.png"),
+  letteringExpedition: assetUrl("/ocean-basket/lettering-expedition.png"),
   dishFullDeckPlatter: assetUrl("/ocean-basket/dish-full-deck-platter.jpg"),
   dishKingPrawns: assetUrl("/ocean-basket/dish-king-prawns.jpg"),
   storyChapter1: assetUrl("/ocean-basket/story-chapter-1.png"),

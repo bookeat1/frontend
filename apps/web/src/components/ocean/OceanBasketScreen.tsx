@@ -129,11 +129,31 @@ function OceanHero({
             <AnchorIcon size={16} />
             {t.oceanBasket.webHeroEyebrow}
           </p>
-          <h1 className="break-words font-serif text-[44px] italic leading-[1.08] lg:text-[64px]">
-            <span className="block text-ocean-on-navy">Seafood</span>
-            <span className="block text-ocean-gold">Expedition</span>
-          </h1>
-          <p className="max-w-[420px] break-words text-[18px] leading-6 text-ocean-on-navy">
+          {/* Заголовок «Seafood Expedition» — НЕ текст: это фирменный
+              леттеринг (Lobster из макета, которого в сборке нет), тот же
+              приём и те же PNG-экспорты, что у мобильного `OceanHero`
+              (`apps/mobile/assets/ocean-basket/lettering-*.png`). Ширины
+              подобраны по эталонному скриншоту (~245/335 на 1440), исходное
+              соотношение сторон (268×87 и 371×97) сохранено через `h-auto`. */}
+          <div className="flex flex-col gap-1">
+            <Image
+              src={oceanAssets.letteringSeafood}
+              alt="Seafood Expedition"
+              width={268}
+              height={87}
+              unoptimized
+              className="h-auto w-[190px] lg:w-[245px]"
+            />
+            <Image
+              src={oceanAssets.letteringExpedition}
+              alt=""
+              width={371}
+              height={97}
+              unoptimized
+              className="h-auto w-[260px] lg:w-[335px]"
+            />
+          </div>
+          <p className="max-w-[520px] break-words text-[18px] leading-6 text-ocean-on-navy">
             {t.oceanBasket.webHeroSubtitle}
           </p>
           <div className="flex flex-wrap items-center gap-4">
@@ -302,7 +322,7 @@ function OceanDishesSection({ state }: { state: OceanSignatureDishesState }) {
       </div>
       {/* Отступ между карточками — 32 (узел 5115:9809: карточки 584 при
           контейнере 1200 → 1200 - 2×584 = 32), а не стандартные 16. */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
         {OCEAN_SIGNATURE_DISHES.map((signature, index) => (
           <OceanDishCard key={signature.menuName} photo={signature.photo} state={state} index={index} />
         ))}
