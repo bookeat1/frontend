@@ -22,6 +22,15 @@ import { useBooking, usePreorder, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
 
 /**
+ * Блок «Код брони» (QR + `BE-XXXX-XXXX`) на билете временно скрыт по решению
+ * владельца (2026-09-09) до отдельного решения по QR — компонент и данные
+ * (`bookingCode`/`bookingQrPayload`/`QrCode`) не удалены, просто не
+ * рендерятся. Флаг на весь модуль, не локальный, чтобы не разойтись между
+ * местами использования, если они появятся.
+ */
+const SHOW_BOOKING_QR_CODE = false;
+
+/**
  * Страница «Бронь подтверждена» — Figma **QovvuAoI9YxsLMwWkfgKN8**, узел
  * `3525:15019` («WEB / 04b»). Разбор:
  * `/home/tai/work/design-specs/web/spec-booking-confirmed.md`, числа — в
@@ -301,21 +310,25 @@ function Ticket({ booking }: { booking: Booking }) {
             </p>
           ) : null}
 
-          <Divider />
+          {SHOW_BOOKING_QR_CODE ? (
+            <>
+              <Divider />
 
-          {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. Рамка
-              (3525:15048) обведена `border/strong` #DADADA, как и сам билет,
-              а не обводкой контрола #B2B2B2: QR — не кнопка и не поле. */}
-          <div className="flex items-center gap-5">
-            <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-strong bg-canvas p-1.5 text-ink">
-              <QrCode value={bookingQrPayload(booking.id)} label={texts.qrLabel} />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-ticket-code-label text-ink-tertiary">{texts.codeLabel}</p>
-              <p className="break-all text-ticket-code tracking-[1px] text-ink">{code ?? booking.id}</p>
-              <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
-            </div>
-          </div>
+              {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. Рамка
+                  (3525:15048) обведена `border/strong` #DADADA, как и сам билет,
+                  а не обводкой контрола #B2B2B2: QR — не кнопка и не поле. */}
+              <div className="flex items-center gap-5">
+                <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-strong bg-canvas p-1.5 text-ink">
+                  <QrCode value={bookingQrPayload(booking.id)} label={texts.qrLabel} />
+                </div>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="text-ticket-code-label text-ink-tertiary">{texts.codeLabel}</p>
+                  <p className="break-all text-ticket-code tracking-[1px] text-ink">{code ?? booking.id}</p>
+                  <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
+                </div>
+              </div>
+            </>
+          ) : null}
 
           <Divider />
 

@@ -744,7 +744,11 @@ function MenuSection({
   return (
     <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.menu.title}</h2>
+        {/* Заголовок «Лучшие позиции» — тот же ключ и та же формулировка, что
+            на `apps/mobile` (`t.restaurant.menuHighlights`), а не отдельная
+            веб-строка «Популярное в меню»: решение владельца, секция одна и
+            та же на обеих платформах. */}
+        <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.restaurant.menuHighlights}</h2>
         <div className="flex items-baseline gap-4">
           {/* Растёт сразу по клику «+» на карточке блюда ниже — общий
               `preorder` с родителем, без второго вызова хука (см. VenueBody). */}
