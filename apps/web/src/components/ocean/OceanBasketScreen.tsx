@@ -286,10 +286,17 @@ function OceanDishesSection({ state }: { state: OceanSignatureDishesState }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[32px]">
+        {/* Кегль 40/48 Cormorant Garamond Bold — узел 5115:9810; ниже `lg`
+            размер приложения (нет отдельного узла для мобильной ширины
+            веб-страницы). */}
+        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[40px] lg:leading-[48px]">
           {t.oceanBasket.dishesTitle}
         </h2>
-        <p className="text-[15px] leading-5 text-ocean-muted">{t.oceanBasket.webDishesSubtitle}</p>
+        {/* Цвет подписи — узел 5115:9811: `text/secondary` (#595959), а не
+            фирменное золото `ocean-muted`; кегль 20/23 на `lg`. */}
+        <p className="text-[15px] leading-5 text-ink-secondary lg:text-[20px] lg:leading-[23px]">
+          {t.oceanBasket.webDishesSubtitle}
+        </p>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {OCEAN_SIGNATURE_DISHES.map((signature, index) => (
@@ -338,8 +345,11 @@ function OceanDishCard({
     const price = priceMeta?.from ? `${t.oceanBasket.pricePrefixFrom} ${priceValue}` : priceValue;
     caption = (
       <div className="flex flex-col gap-1">
-        <p className="break-words text-[20px] font-bold leading-6 text-ocean-navy">{dish.name}</p>
-        <p className="text-[15px] leading-5 text-ocean-muted">
+        {/* Название — 22 SemiBold (узлы 5115:9816/9821), не 20 Bold. */}
+        <p className="break-words text-[22px] font-semibold leading-7 text-ocean-navy">{dish.name}</p>
+        {/* Цена — 16, не 15 (узлы 5115:9817/9822); цвет тот же navy, что и
+            название, а не приглушённый `ocean-muted`. */}
+        <p className="text-[16px] leading-8 text-ocean-navy">
           {price}
           {priceMeta ? ` · ${priceMeta.note}` : null}
         </p>
