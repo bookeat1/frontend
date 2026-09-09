@@ -16,7 +16,9 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://test.backend.book-eat.com/api/v1",
         "EXPO_PUBLIC_OTP_DELIVERY_DISABLED": "1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404",
+        "EXPO_PUBLIC_DETOUR_API_KEY": "ecb953bd9c70db9c25b9c75719951fe40b7d27871bff8af49f40883f5196568f",
+        "EXPO_PUBLIC_DETOUR_APP_ID": "65f53477-b49c-4dc5-b7db-ea555a681700"
       },
       "channel": "preview"
     },
@@ -25,7 +27,9 @@
       "credentialsSource": "local",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://test.backend.book-eat.com/api/v1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404",
+        "EXPO_PUBLIC_DETOUR_API_KEY": "ecb953bd9c70db9c25b9c75719951fe40b7d27871bff8af49f40883f5196568f",
+        "EXPO_PUBLIC_DETOUR_APP_ID": "65f53477-b49c-4dc5-b7db-ea555a681700"
       },
       "channel": "production"
     },
@@ -37,7 +41,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://test.backend.book-eat.com/api/v1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "ea6dc484a21af0092fc13af158f8c404",
+        "EXPO_PUBLIC_DETOUR_API_KEY": "ecb953bd9c70db9c25b9c75719951fe40b7d27871bff8af49f40883f5196568f",
+        "EXPO_PUBLIC_DETOUR_APP_ID": "65f53477-b49c-4dc5-b7db-ea555a681700"
       },
       "channel": "production"
     },
@@ -47,7 +53,9 @@
       "env": {
         "BOOKEAT_TARGET": "main",
         "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57",
+        "EXPO_PUBLIC_DETOUR_API_KEY": "ecb953bd9c70db9c25b9c75719951fe40b7d27871bff8af49f40883f5196568f",
+        "EXPO_PUBLIC_DETOUR_APP_ID": "65f53477-b49c-4dc5-b7db-ea555a681700"
       },
       "channel": "production"
     },
@@ -60,7 +68,9 @@
       "env": {
         "BOOKEAT_TARGET": "main",
         "EXPO_PUBLIC_API_URL": "https://backend.book-eat.com/api/v1",
-        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57"
+        "EXPO_PUBLIC_AMPLITUDE_API_KEY": "d084c0beaf84da775fd428b3b5544b57",
+        "EXPO_PUBLIC_DETOUR_API_KEY": "ecb953bd9c70db9c25b9c75719951fe40b7d27871bff8af49f40883f5196568f",
+        "EXPO_PUBLIC_DETOUR_APP_ID": "65f53477-b49c-4dc5-b7db-ea555a681700"
       },
       "channel": "production"
     }
