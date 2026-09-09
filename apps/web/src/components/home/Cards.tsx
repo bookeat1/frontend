@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { EventSummary, GuideCollection } from "@bookeat/api/client";
 
+import { OCEAN_BASKET_SLUG } from "@web/components/ocean/ocean-basket-content";
 import { Card } from "@web/components/ui/Card";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { cx } from "@web/lib/cx";
@@ -59,6 +60,30 @@ export const PROMOS_PATH = "/promos";
 export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
 export const eventHref = (id: string) => `${EVENTS_PATH}/${id}`;
 export const promoHref = (id: string) => `${PROMOS_PATH}/${id}`;
+
+/**
+ * Ссылка карточки гастрогида на главной. `/guide` (листинг) уже существует
+ * (2026-09-09), но `/guide/[slug]` (страница отдельной подборки) — нет, туда
+ * `SHOW_SECTION_LINKS` всё ещё не пускает. Ocean Basket — исключение с
+ * зашитым собственным маршрутом `/brand/ocean-basket`, тот же приём, что в
+ * `GuideScreen.tsx` (`EditorPickCard`, узел 2026-09-06) и на мобилке
+ * (`app/gastroguide/index.tsx`, PR #105): у него есть страница уже сейчас,
+ * остальные подборки — нет.
+ *
+ * Флаг передаётся параметром, а не читается из модуля напрямую: вызывающая
+ * сторона (`HomeScreen`) импортирует `SHOW_SECTION_LINKS` своим биндингом,
+ * и тесты подменяют именно его — если бы функция читала константу из
+ * замыкания этого же модуля, подмена в тестах молча не работала бы.
+ */
+export const guideCardHref = (
+  collection: GuideCollection,
+  showSectionLinks: boolean,
+): string | undefined => {
+  if (collection.slug === OCEAN_BASKET_SLUG) {
+    return "/brand/ocean-basket";
+  }
+  return showSectionLinks ? guideCollectionHref(collection.slug) : undefined;
+};
 
 /**
  * Размеры обложек трёх карточек. Числа макета (260, 196/324, 300) живут только

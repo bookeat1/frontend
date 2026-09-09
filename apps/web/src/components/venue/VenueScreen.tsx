@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { type Amenity, type Photo, type Restaurant } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
@@ -21,10 +21,24 @@ import { useLoginHref } from "@web/lib/favorites";
 import { bookingHref } from "@web/lib/booking-link";
 import { promoHref } from "@web/components/home/Cards";
 import { cx } from "@web/lib/cx";
-import { formatMoneyMinor, instantDateLabel, venueMeta } from "@web/lib/format";
+import {
+  formatMoneyMinor,
+  instagramHandle,
+  instantDateLabel,
+  venueMeta,
+  websiteHost,
+} from "@web/lib/format";
 import { usePreorderDraft } from "@web/lib/use-preorder-draft";
 import { DishStepper } from "@web/components/venue/DishStepper";
-import { scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
+import {
+  ContactCard,
+  ContactLink,
+  InstagramIcon,
+  LinkIcon,
+  PhoneIcon,
+  PinIcon,
+} from "@web/components/venue/VenueContacts";
+import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
 import { useLocale, useT } from "@web/lib/locale";
 import { useFavoriteIds, useMenuSections, useToggleFavorite, useVenue } from "@web/lib/queries";
 
@@ -131,6 +145,15 @@ function VenueBody({ venue }: { venue: Restaurant }) {
    * вкладка «Фото · N», — поэтому его состояние живёт здесь, а не в галерее. */
   const [galleryOpen, setGalleryOpen] = useState(false);
 
+  /** Есть ли что показать в блоке контактов (2026-09-09, блок вернули без
+   * карты) — та же `hasAnything`-проверка, что раньше жила внутри `Contacts`,
+   * поднята сюда, потому что от неё зависит и вкладка «Контакты»: вкладка на
+   * пустую секцию вела бы в никуда. */
+  const hasContacts =
+    venue.address.trim().length > 0 ||
+    Boolean(venue.phone) ||
+    Boolean(venue.social?.instagram || venue.social?.whatsapp || venue.social?.website);
+
   /**
    * Есть ли меню вообще (решение владельца 2026-09-09, отменяет прежний
    * дешёвый признак `acceptsOnlineBookings` из A10/`web-preorder-menu-20260908`):
@@ -165,9 +188,10 @@ function VenueBody({ venue }: { venue: Restaurant }) {
           }
         : null,
       hasPromos ? { id: SECTION_ID.promos, label: t.web.venue.tabs.promos } : null,
+      hasContacts ? { id: SECTION_ID.contacts, label: t.web.venue.tabs.contacts } : null,
     ];
     return all.filter((tab): tab is SectionTab => tab !== null);
-  }, [t, hasMenu, photos.length, hasPromos]);
+  }, [t, hasMenu, photos.length, hasPromos, hasContacts]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -196,6 +220,7 @@ function VenueBody({ venue }: { venue: Restaurant }) {
                 про «дешёвый признак `acceptsOnlineBookings`»). */}
             {hasMenu ? <MenuSection venue={venue} preorder={preorder} /> : null}
             {hasPromos ? <PromoSection venue={venue} /> : null}
+            {hasContacts ? <Contacts venue={venue} /> : null}
           </div>
         </div>
 
@@ -218,8 +243,8 @@ function VenueBody({ venue }: { venue: Restaurant }) {
               заведения (3525:14586 «Открыто до 23:00», из `venue.schedule` в
               `lib/schedule.ts`, ярлык берёт время закрытия сегодняшнего дня).
               Строка под телефоном в блоке контактов («Ежедневно с … до …»)
-              ушла вместе со всем блоком «Контакты и как добраться»
-              (2026-09-07, карта без провайдера).
+              осталась только там же — блок контактов (без карты) вернули
+              2026-09-09.
 
               «Липкость» — единственное, что о ней известно, это слово (sticky)
               в имени слоя: ни оффсета, ни второго состояния в макете нет.
@@ -308,6 +333,7 @@ const SECTION_ID = {
   menu: "venue-menu",
   photos: "venue-photos",
   promos: "venue-promos",
+  contacts: "venue-contacts",
 } as const;
 
 interface SectionTab {
@@ -329,10 +355,10 @@ interface SectionTab {
  * JavaScript, средним кликом и с клавиатуры.
  *
  * Вкладки «Отзывы · 312» из макета здесь НЕТ: отзывов на сайте не существует
- * ни секцией, ни страницей, и вкладка вела бы в пустоту. Вкладки «Контакты»
- * тоже нет: блок «Контакты и как добраться» сняли со страницы целиком
- * (2026-09-07, см. комментарий выше про снятый блок) — вести вкладку было бы
- * некуда.
+ * ни секцией, ни страницей, и вкладка вела бы в пустоту. Вкладка «Контакты»
+ * снималась целиком вместе с блоком 2026-09-07 (карта без провайдера), но
+ * блок (без карты) вернули 2026-09-09 — вкладка с ним же, за тем же
+ * `hasContacts`, что и сама секция.
  *
  * Активная вкладка вычисляется наблюдателем прокрутки. Наблюдателя нет
  * (старый браузер) — активной остаётся первая: это хуже подсветки, но не
@@ -814,7 +840,7 @@ function MenuSection({
                       ) : null}
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="break-words text-[16px] font-bold leading-6 text-ink">
+                      <p className="break-words text-[16px] leading-6 text-ink">
                         {dish.price || t.web.venue.menu.noPrice}
                       </p>
                       {canAdd && dish.priceMinor !== null ? (
@@ -918,16 +944,80 @@ function PromoSection({ venue }: { venue: Restaurant }) {
 }
 
 /**
- * БЛОКА «КОНТАКТЫ И КАК ДОБРАТЬСЯ» НА СТРАНИЦЕ ЗАВЕДЕНИЯ БОЛЬШЕ НЕТ
- * (2026-09-07): карта была статичной картинкой с бэкенда
- * (`GET /restaurants/:id/map`, `MapPreview` в `VenueContacts.tsx`), а
- * настоящего провайдера карт для клиента по-прежнему нет — решение владельца
- * снять блок целиком, а не оставлять на странице карту-заглушку или обрезок
- * секции без неё. Тот же приём уже применён на странице маршрута
- * (`GuideRouteScreen.tsx`). `MapPreview`/`ContactCard`/иконки остались в
- * `VenueContacts.tsx` — их всё ещё рисуют страницы события и акции
- * (`EventVenueBlocks.tsx`), их не трогали.
+ * «Контакты» (узел 3264:66, без карты) — вернули 2026-09-09: адрес, телефон,
+ * соцсети (Instagram/WhatsApp/сайт). Карту (2026-09-07, `MapPreview`,
+ * `GET /restaurants/:id/map`) не рендерим — то решение про статичную картинку
+ * без настоящего провайдера карт не отменяли, отменили только полное снятие
+ * всего блока. Заголовок — просто «Контакты» (без «и как добраться»,
+ * `t.web.venue.contacts.title`). Примитивы те же, что у страницы
+ * события/акции (`EventVenueBlocks.tsx`) — `ContactCard`/`ContactLink`/иконки
+ * из `VenueContacts.tsx`.
  */
+type SocialChannel = { key: keyof NonNullable<Restaurant["social"]>; href: string; label: string };
+
+function socialChannelTitle(channel: SocialChannel): string {
+  if (channel.key === "instagram") return instagramHandle(channel.href) ?? channel.label;
+  if (channel.key === "website") return websiteHost(channel.href) ?? channel.label;
+  return channel.label;
+}
+
+function Contacts({ venue }: { venue: Restaurant }) {
+  const t = useT();
+  // Каналы в порядке макета (узел 3525:14729 «Instagram · WhatsApp»); сайт
+  // в макете не нарисован, но в API есть — идёт последним.
+  const channels: SocialChannel[] = [];
+  for (const key of ["instagram", "whatsapp", "website"] as const) {
+    const href = venue.social?.[key];
+    if (href) channels.push({ key, href, label: t.web.venue.contacts.channel[key] });
+  }
+  // Заголовок плашки (узел 3525:14728 «flourdemi.kz») — имя аккаунта
+  // Instagram; если первый канал — сайт, его домен; иначе имя канала.
+  const primary: SocialChannel | undefined = channels[0];
+  const primaryTitle = primary ? socialChannelTitle(primary) : null;
+  const phoneNote = venue.phone ? phoneHoursNote(venue.schedule, t) : null;
+
+  // Вызывающий код (`VenueBody`) уже проверил `hasContacts` и не рендерит
+  // компонент вовсе, если адреса/телефона/соцсетей нет — пустой секции здесь
+  // быть не может, поэтому веток «нечего показать» тут нет (тот же приём,
+  // что у `hasContacts` в `EventVenueBlocks.tsx`).
+  return (
+    <section id={SECTION_ID.contacts} className="flex scroll-mt-6 flex-col gap-5">
+      <h2 className="text-h3 tracking-[-0.4px] text-ink">{t.web.venue.contacts.title}</h2>
+
+      {/* Три плашки со значком слева — узел 3264:73. Значок несёт
+          `aria-hidden`: смысл уже сказан подписью строки. Карты (`MapPreview`)
+          здесь намеренно нет — 2026-09-07, статичная картинка без настоящего
+          провайдера. */}
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {venue.address.trim() ? (
+          <ContactCard icon={<PinIcon />} title={venue.address} note={venue.addressNote} />
+        ) : null}
+        {venue.phone ? (
+          <ContactCard
+            icon={<PhoneIcon />}
+            title={venue.phone}
+            href={`tel:${venue.phone.replace(/[^\d+]/g, "")}`}
+            note={phoneNote ?? t.web.venue.contacts.phone}
+          />
+        ) : null}
+        {primary && primaryTitle ? (
+          // Плашка соцсетей (узел 3525:14724): заголовок ведёт на первый
+          // канал, подпись перечисляет ВСЕ каналы, и каждый — ссылка.
+          <ContactCard
+            icon={primary.key === "instagram" ? <InstagramIcon /> : <LinkIcon />}
+            title={<ContactLink href={primary.href}>{primaryTitle}</ContactLink>}
+            note={channels.map((channel, index) => (
+              <Fragment key={channel.key}>
+                {index > 0 ? t.web.format.metaSeparator : null}
+                <ContactLink href={channel.href}>{channel.label}</ContactLink>
+              </Fragment>
+            ))}
+          />
+        ) : null}
+      </ul>
+    </section>
+  );
+}
 
 /**
  * «Поделиться» (узел 3261:72). Делает ровно то, что обещает: системное окно
