@@ -40,7 +40,7 @@ import {
 } from "@web/components/venue/VenueContacts";
 import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
 import { useLocale, useT } from "@web/lib/locale";
-import { useFavoriteIds, useMenuSections, useToggleFavorite, useVenue } from "@web/lib/queries";
+import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
 
 /**
  * Карточка заведения — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 03 · Карточка
