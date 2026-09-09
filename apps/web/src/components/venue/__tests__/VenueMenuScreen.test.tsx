@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { RepositoryError, type MenuSection } from "@bookeat/api/client";
 
-import { menuDish, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
-import { bookingHref } from "@web/lib/booking-link";
+import { menuDish, pending, preorder, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
+import { bookingHref, menuBookingHref } from "@web/lib/booking-link";
 import { formatMoneyMinor } from "@web/lib/format";
 
 /**
@@ -13,15 +13,23 @@ import { formatMoneyMinor } from "@web/lib/format";
  *
  * СТЕППЕР И КОРЗИНА (ТЗ `web-preorder-menu-20260908`, A-WEB-1..3): тесты этого
  * блока (`степпер...`, `карточка «Предзаказ»...`, `полоса ниже lg...`) сверены
- * с A1-A9.
+ * с A1-A9. РЕЖИМ ПРАВКИ БРОНИ (C-WEB-1, `?booking=<id>`) — блок в конце файла,
+ * сверен с C3-C7.
  */
 
 let search = new URLSearchParams("");
+const pushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn(), push: pushMock, prefetch: vi.fn() }),
   useSearchParams: () => search,
   usePathname: () => "/venues/venue-1/menu",
+}));
+
+let auth = { signedIn: true, isLoading: false, user: null };
+
+vi.mock("@web/lib/auth", () => ({
+  useAuth: () => ({ ...auth, completeSignIn: vi.fn(), signOut: vi.fn() }),
 }));
 
 const repository = repositoryStub();
@@ -401,5 +409,252 @@ describe("полоса ниже lg на странице меню (A7, A9)", () 
       name: `К бронированию · Итого ≈ ${formatMoneyMinor(540000)}`,
     });
     expect(toBookingLink.getAttribute("href")).toBe(bookingHref("venue-1", { guests: 2 }));
+  });
+});
+
+/** Режим правки предзаказа существующей брони — ТЗ `web-preorder-menu-20260908`,
+ * C-WEB-1, критерии C3-C7. */
+describe("режим ?booking= — правка предзаказа существующей брони (C3-C7)", () => {
+  const BOOKING_ID = "b1b2c3d4-0000-4000-8000-000000000099";
+
+  afterEach(() => {
+    window.sessionStorage.clear();
+    search = new URLSearchParams("");
+    auth = { signedIn: true, isLoading: false, user: null };
+    pushMock.mockClear();
+  });
+
+  it("без входа — просьба войти, сетки блюд нет (C4)", async () => {
+    auth = { signedIn: false, isLoading: false, user: null };
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    expect(await screen.findByText("Нужен вход")).toBeTruthy();
+    expect(screen.queryByText("Тартар из лосося")).toBeNull();
+  });
+
+  it("404 по предзаказу — «Бронь не найдена», без корзины (C4)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () => {
+      throw new RepositoryError("not found", undefined, 404);
+    });
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    expect(await screen.findByText("Бронь не найдена")).toBeTruthy();
+    expect(screen.queryByText("Тартар из лосося")).toBeNull();
+  });
+
+  it("корзина сеется из GET один раз; строка без menuItemId в неё не попадает (C3)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () =>
+      preorder({
+        items: [
+          {
+            id: "item-1",
+            menuItemId: "d2",
+            name: "Карпаччо из говядины",
+            priceMinor: 610000,
+            quantity: 2,
+            totalMinor: 1220000,
+            comment: null,
+          },
+          {
+            id: "item-manual",
+            menuItemId: null,
+            name: "Торт на заказ",
+            priceMinor: 500000,
+            quantity: 1,
+            totalMinor: 500000,
+            comment: null,
+          },
+        ],
+        totalMinor: 1720000,
+      }),
+    );
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    expect(await screen.findByRole("heading", { name: "Ваш заказ" })).toBeTruthy();
+    // Оценка «Итого» здесь — по строкам корзины (клиентская), а не серверный
+    // `totalMinor` ответа: ручная строка не вошла в корзину, значит и в
+    // клиентскую сумму не входит (2 × 6 100 ₸ = 12 200 ₸).
+    expect(screen.getByText("Итого ≈ 12 200 ₸")).toBeTruthy();
+    expect(screen.queryByText("Торт на заказ")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Предзаказ" })).toBeNull();
+  });
+
+  it("«Сохранить заказ» шлёт только menu_item_id+quantity и уводит на билет (C5)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () =>
+      preorder({
+        items: [
+          {
+            id: "item-1",
+            menuItemId: "d1",
+            name: "Тартар из лосося",
+            priceMinor: 540000,
+            quantity: 1,
+            totalMinor: 540000,
+            comment: null,
+          },
+        ],
+        totalMinor: 540000,
+      }),
+    );
+    repository.setPreorder = vi.fn(async () => preorder());
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Сохранить заказ" }));
+
+    await vi.waitFor(() => expect(repository.setPreorder).toHaveBeenCalledTimes(1));
+    expect(repository.setPreorder).toHaveBeenCalledWith(BOOKING_ID, [{ menuItemId: "d1", quantity: 1 }]);
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}`));
+  });
+
+  it("«Очистить» + «Сохранить заказ» с пустой корзиной спрашивает подтверждение перед снятием (C3)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () =>
+      preorder({
+        items: [
+          {
+            id: "item-1",
+            menuItemId: "d1",
+            name: "Тартар из лосося",
+            priceMinor: 540000,
+            quantity: 1,
+            totalMinor: 540000,
+            comment: null,
+          },
+        ],
+        totalMinor: 540000,
+      }),
+    );
+    repository.setPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Очистить" }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить заказ" }));
+
+    expect(await screen.findByText("Снять предзаказ?")).toBeTruthy();
+    expect(repository.setPreorder).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Снять предзаказ" }));
+
+    await vi.waitFor(() => expect(repository.setPreorder).toHaveBeenCalledWith(BOOKING_ID, []));
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith(`/bookings/${BOOKING_ID}`));
+  });
+
+  it.each([
+    ["preorder_locked", "Бронь подтверждена — состав меняет заведение, позвоните ему."],
+    ["preorder_payment_in_flight", "Идёт оплата — дождитесь её завершения."],
+    ["preorder_below_minimum", "Итог ниже минимального заказа заведения — добавьте ещё блюд и сохраните снова."],
+  ])("отказ %s — свой текст над кнопкой, без повтора (C6)", async (code, expectedText) => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () =>
+      preorder({
+        items: [
+          {
+            id: "item-1",
+            menuItemId: "d1",
+            name: "Тартар из лосося",
+            priceMinor: 540000,
+            quantity: 1,
+            totalMinor: 540000,
+            comment: null,
+          },
+        ],
+        totalMinor: 540000,
+      }),
+    );
+    repository.setPreorder = vi.fn(async () => {
+      throw new RepositoryError("refused", undefined, 422, "refused", code);
+    });
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Сохранить заказ" }));
+
+    expect(await screen.findByText(expectedText)).toBeTruthy();
+    expect(repository.setPreorder).toHaveBeenCalledTimes(1);
+  });
+
+  it("отказ preorder_booking_closed — текст и кнопка «На билет» (C6)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
+    repository.setPreorder = vi.fn(async () => {
+      throw new RepositoryError("closed", undefined, 422, "closed", "preorder_booking_closed");
+    });
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+    // Пустая корзина: «Сохранить заказ» сначала спрашивает подтверждение
+    // (то же самое поведение C3), и только «Снять предзаказ» реально шлёт `PUT`.
+    fireEvent.click(await screen.findByRole("button", { name: "Сохранить заказ" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Снять предзаказ" }));
+
+    const link = await screen.findByRole("link", { name: "На билет" });
+    expect(link.getAttribute("href")).toBe(`/bookings/${BOOKING_ID}`);
+    // Текст виден дважды: в модалке подтверждения сверху и в карточке
+    // «Ваш заказ» под ней (та же `cart.save.isError`) — оба честны.
+    expect(screen.getAllByText("Бронь завершена, менять нечего.").length).toBeGreaterThan(0);
+  });
+
+  it("date/guests/slot игнорируются, когда есть booking — приоритет у режима правки (раздел 5 ТЗ)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}&date=2026-08-25&guests=2&slot=2026-08-25T19:30:00%2B05:00`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    expect(await screen.findByRole("heading", { name: "Ваш заказ" })).toBeTruthy();
+    expect(screen.queryByText("Вернуться к бронированию")).toBeNull();
+  });
+
+  it("полоса ниже lg — «Сохранить заказ · Итого ≈ N ₸», а не «К бронированию» (C7)", async () => {
+    search = new URLSearchParams(`booking=${BOOKING_ID}`);
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    repository.getPreorder = vi.fn(async () =>
+      preorder({
+        items: [
+          {
+            id: "item-1",
+            menuItemId: "d1",
+            name: "Тартар из лосося",
+            priceMinor: 540000,
+            quantity: 1,
+            totalMinor: 540000,
+            comment: null,
+          },
+        ],
+        totalMinor: 540000,
+      }),
+    );
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+
+    const bars = await screen.findAllByRole("button", {
+      name: `Сохранить заказ · Итого ≈ ${formatMoneyMinor(540000)}`,
+    });
+    expect(bars.length).toBeGreaterThan(0);
+    expect(screen.queryByText("К бронированию")).toBeNull();
   });
 });

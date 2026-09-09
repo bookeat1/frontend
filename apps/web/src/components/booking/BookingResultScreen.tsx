@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import type { Booking, BookingStatus, Restaurant } from "@bookeat/api/client";
+import type { Booking, BookingStatus, Preorder, Restaurant } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -11,7 +11,7 @@ import { Button } from "@web/components/ui/Button";
 import { QrCode } from "@web/components/ui/QrCode";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { bookingCode, bookingQrPayload } from "@web/lib/booking-code";
-import { bookingHref } from "@web/lib/booking-link";
+import { bookingHref, menuBookingHref } from "@web/lib/booking-link";
 import { isNotFoundError } from "@web/lib/booking-submit";
 import { useAuth } from "@web/lib/auth";
 import { bookingDateLabel, formatMoneyMinor, venueWallClock } from "@web/lib/format";
@@ -20,6 +20,15 @@ import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
 import { consumePreorderFailedFlag, type PreorderFailedReason } from "@web/lib/preorder-failed-flag";
 import { useBooking, usePreorder, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
+
+/**
+ * Блок «Код брони» (QR + `BE-XXXX-XXXX`) на билете временно скрыт по решению
+ * владельца (2026-09-09) до отдельного решения по QR — компонент и данные
+ * (`bookingCode`/`bookingQrPayload`/`QrCode`) не удалены, просто не
+ * рендерятся. Флаг на весь модуль, не локальный, чтобы не разойтись между
+ * местами использования, если они появятся.
+ */
+const SHOW_BOOKING_QR_CODE = false;
 
 /**
  * Страница «Бронь подтверждена» — Figma **QovvuAoI9YxsLMwWkfgKN8**, узел
@@ -129,6 +138,43 @@ const STATUS_KEY: Record<BookingStatus, keyof typeof import("@bookeat/i18n").ru.
  * гость уже за столом. */
 const CHANGEABLE: readonly BookingStatus[] = ["pending", "waitlist", "confirmed"];
 
+/** Статусы, у которых менять предзаказ уже нечего (ТЗ
+ * `web-preorder-menu-20260908`, C-WEB-2, C1: «у терминальных статусов —
+ * ничего»). Та же четвёрка, что `preorder_booking_closed` на сервере
+ * (`ADR-030`), сверена независимо: кнопки тут нет ещё ДО похода на сервер. */
+const PREORDER_EDIT_TERMINAL: readonly BookingStatus[] = ["arrived", "completed", "cancelled", "no_show"];
+
+/** Что показать вместо/вокруг кнопки «Выбрать блюда»/«Изменить предзаказ»
+ * (C1-C2): либо действие (со счётом строк для подписи), либо один из двух
+ * текстов «закрыто», либо ничего вовсе. `undefined` предзаказа (запрос ещё
+ * летит или упал) — тоже «ничего»: показать кнопку на угад означало бы
+ * соврать про пустоту/непустоту корзины. */
+type PreorderEditState =
+  | { kind: "hidden" }
+  | { kind: "locked"; reason: "confirmedLocked" | "manualLocked" }
+  | { kind: "action"; itemsCount: number };
+
+function preorderEditState(booking: Booking, preorder: Preorder | undefined): PreorderEditState {
+  if (PREORDER_EDIT_TERMINAL.includes(booking.status)) return { kind: "hidden" };
+  if (!preorder) return { kind: "hidden" };
+
+  // C2: строка без `menu_item_id` — заведение добавило её вручную в кабинете.
+  // Полная замена (`PUT`) стёрла бы её, поэтому редактирование с сайта здесь
+  // закрыто целиком, независимо от статуса брони.
+  const hasManualLine = preorder.items.some((item) => item.menuItemId === null);
+  if (hasManualLine) return { kind: "locked", reason: "manualLocked" };
+
+  // C1: `confirmed` с УЖЕ прикреплённым составом — гостю больше не открыто
+  // (ADR-030); пустой состав на `confirmed` — это ещё не «первое
+  // прикрепление», которое `Replace` пускает (см. дополнение 2026-09-06 к
+  // ADR-030), поэтому кнопка остаётся.
+  if (booking.status === "confirmed" && preorder.items.length > 0) {
+    return { kind: "locked", reason: "confirmedLocked" };
+  }
+
+  return { kind: "action", itemsCount: preorder.items.length };
+}
+
 /** `PreorderFailedReason` (snake_case, машинный код сервера) → ключ словаря
  * `web.bookingResult.preorder.failedNotice` (camelCase, стиль остальных
  * ключей i18n этого файла) — D-WEB-1, D5. */
@@ -147,6 +193,10 @@ function Ticket({ booking }: { booking: Booking }) {
   // приедет казахстанское заведение (зона та же).
   const venue = useVenue(booking.restaurantId);
   const preorder = usePreorder(booking.id);
+  // ТЗ `web-preorder-menu-20260908`, C-WEB-2 (C1-C2): пока `GET /preorder` не
+  // ответил (или упал — тот же `AsyncBlock`-принцип «неизвестно ≠ пусто»,
+  // что и у блока «Предзаказ» чуть выше), кнопки/текста нет вовсе.
+  const editState = preorderEditState(booking, preorder.data);
 
   // A14: уведомление читается ОДИН раз, из sessionStorage, а не из URL —
   // ссылку на эту страницу можно переслать, и «предзаказ не прикрепился» не
@@ -235,21 +285,50 @@ function Ticket({ booking }: { booking: Booking }) {
             </>
           ) : null}
 
-          <Divider />
+          {/* ТЗ `web-preorder-menu-20260908`, C-WEB-2 (C1-C2): своего узла в
+              макете нет — ряд 3525:15104 рисует только «Изменить
+              бронь»/«На главную» (часть A+B этого же ТЗ). Кнопка/текст —
+              полноширинная строка над этим рядом, а не третья ячейка сетки
+              `md:grid-cols-2`: у трёх элементов на двух колонках последняя
+              съезжает в одинокую половину, что хуже честной отдельной строки
+              без макета под три кнопки (несверено с Figma). */}
+          {editState.kind === "action" ? (
+            <Button
+              size="ticket"
+              variant="outline"
+              block
+              asLink
+              href={menuBookingHref(booking.restaurantId, booking.id)}
+            >
+              {editState.itemsCount > 0 ? texts.preorder.edit : texts.preorder.choose}
+            </Button>
+          ) : editState.kind === "locked" ? (
+            <p className="text-bodyS text-ink-secondary">
+              {editState.reason === "confirmedLocked"
+                ? texts.preorder.confirmedLockedNotice
+                : texts.preorder.manualLockedNotice}
+            </p>
+          ) : null}
 
-          {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. Рамка
-              (3525:15048) обведена `border/strong` #DADADA, как и сам билет,
-              а не обводкой контрола #B2B2B2: QR — не кнопка и не поле. */}
-          <div className="flex items-center gap-5">
-            <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-strong bg-canvas p-1.5 text-ink">
-              <QrCode value={bookingQrPayload(booking.id)} label={texts.qrLabel} />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-ticket-code-label text-ink-tertiary">{texts.codeLabel}</p>
-              <p className="break-all text-ticket-code tracking-[1px] text-ink">{code ?? booking.id}</p>
-              <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
-            </div>
-          </div>
+          {SHOW_BOOKING_QR_CODE ? (
+            <>
+              <Divider />
+
+              {/* Узел 3525:15047: QR 96 в рамке радиуса 12, до текста 20. Рамка
+                  (3525:15048) обведена `border/strong` #DADADA, как и сам билет,
+                  а не обводкой контрола #B2B2B2: QR — не кнопка и не поле. */}
+              <div className="flex items-center gap-5">
+                <div className="h-ticket-qr w-ticket-qr shrink-0 rounded-md border border-line-strong bg-canvas p-1.5 text-ink">
+                  <QrCode value={bookingQrPayload(booking.id)} label={texts.qrLabel} />
+                </div>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="text-ticket-code-label text-ink-tertiary">{texts.codeLabel}</p>
+                  <p className="break-all text-ticket-code tracking-[1px] text-ink">{code ?? booking.id}</p>
+                  <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
+                </div>
+              </div>
+            </>
+          ) : null}
 
           <Divider />
 
