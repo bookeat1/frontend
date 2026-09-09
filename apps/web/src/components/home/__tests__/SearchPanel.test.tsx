@@ -38,6 +38,22 @@ function todayIso(): string {
   return `${now.getFullYear()}-${`${now.getMonth() + 1}`.padStart(2, "0")}-${`${now.getDate()}`.padStart(2, "0")}`;
 }
 
+/**
+ * Дата гарантированно НЕ «сегодня» — тест ниже проверяет, что руками
+ * выбранная дата отличается от автоподставленной. Раньше здесь была
+ * зашита буквальная строка "2026-09-10": она случайно совпала с
+ * `todayIso()` (`vitest.setup.ts` держит `TZ=Asia/Almaty`) и тест начал
+ * молча падать — при равных значениях jsdom/React не считают инпут
+ * изменившимся и не зовут `onChange`, а значит и `availabilityTouched`
+ * не взводится. Дата здесь всегда на N дней впереди «сегодня», без
+ * привязки к конкретному календарному дню.
+ */
+function futureIso(daysAhead: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`;
+}
+
 describe("панель поиска", () => {
   it("подставляет сегодняшнюю дату и текущее время в пустые поля", async () => {
     renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
@@ -117,12 +133,13 @@ describe("панель поиска", () => {
     const textField = await screen.findByLabelText("Место или кухня");
     fireEvent.change(textField, { target: { value: "Abay" } });
     const date = screen.getByLabelText("Дата") as HTMLInputElement;
-    fireEvent.change(date, { target: { value: "2026-09-10" } });
+    const chosenDate = futureIso(5);
+    fireEvent.change(date, { target: { value: chosenDate } });
     fireEvent.click(screen.getByRole("button", { name: "Найти" }));
 
     expect(push).toHaveBeenCalledTimes(1);
     const target = String(push.mock.calls[0][0]);
     expect(target).toContain("q=Abay");
-    expect(target).toContain("date=2026-09-10");
+    expect(target).toContain(`date=${chosenDate}`);
   });
 });
