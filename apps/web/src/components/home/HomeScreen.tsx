@@ -278,7 +278,10 @@ export function HomeScreen() {
               <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2">
                 {items.slice(0, 2).map((collection) => (
                   <li key={collection.slug}>
-                    <GuideCard collection={collection} href={guideCardHref(collection)} />
+                    <GuideCard
+                      collection={collection}
+                      href={guideCardHref(collection, SHOW_SECTION_LINKS)}
+                    />
                   </li>
                 ))}
               </ul>

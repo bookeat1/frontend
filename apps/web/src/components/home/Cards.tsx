@@ -69,12 +69,20 @@ export const promoHref = (id: string) => `${PROMOS_PATH}/${id}`;
  * `GuideScreen.tsx` (`EditorPickCard`, узел 2026-09-06) и на мобилке
  * (`app/gastroguide/index.tsx`, PR #105): у него есть страница уже сейчас,
  * остальные подборки — нет.
+ *
+ * Флаг передаётся параметром, а не читается из модуля напрямую: вызывающая
+ * сторона (`HomeScreen`) импортирует `SHOW_SECTION_LINKS` своим биндингом,
+ * и тесты подменяют именно его — если бы функция читала константу из
+ * замыкания этого же модуля, подмена в тестах молча не работала бы.
  */
-export const guideCardHref = (collection: GuideCollection): string | undefined => {
+export const guideCardHref = (
+  collection: GuideCollection,
+  showSectionLinks: boolean,
+): string | undefined => {
   if (collection.slug === OCEAN_BASKET_SLUG) {
     return "/brand/ocean-basket";
   }
-  return SHOW_SECTION_LINKS ? guideCollectionHref(collection.slug) : undefined;
+  return showSectionLinks ? guideCollectionHref(collection.slug) : undefined;
 };
 
 /**
