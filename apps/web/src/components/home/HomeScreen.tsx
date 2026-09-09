@@ -18,7 +18,7 @@ import {
   SHOW_EVENTS_LINK,
   SHOW_PROMOS_LINK,
   SHOW_SECTION_LINKS,
-  guideCollectionHref,
+  guideCardHref,
 } from "@web/components/home/Cards";
 import { CuisineRow, CuisineRowSkeleton } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
@@ -278,10 +278,7 @@ export function HomeScreen() {
               <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2">
                 {items.slice(0, 2).map((collection) => (
                   <li key={collection.slug}>
-                    <GuideCard
-                      collection={collection}
-                      href={SHOW_SECTION_LINKS ? guideCollectionHref(collection.slug) : undefined}
-                    />
+                    <GuideCard collection={collection} href={guideCardHref(collection)} />
                   </li>
                 ))}
               </ul>

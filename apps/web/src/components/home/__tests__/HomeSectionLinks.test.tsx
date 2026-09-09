@@ -86,4 +86,27 @@ describe("ссылки секций главной", () => {
     expect(screen.queryByRole("link", { name: "Все подборки" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Зимние террасы" })).toBeNull();
   });
+
+  /** Ocean Basket — исключение из `SHOW_SECTION_LINKS`: у него уже есть своя
+   * страница `/brand/ocean-basket`, поэтому карточка на главной кликабельна
+   * даже при выключенном флаге (2026-09-09, п.1 постмёрдж-фиксов). */
+  it("карточка Ocean Basket кликабельна даже при выключенном флаге", async () => {
+    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantSummary[]>());
+    repository.listUpcomingEvents = vi.fn(async () => ({
+      items: [eventSummary()],
+      total: 1,
+      page: 1,
+      pages: 1,
+      perPage: 3,
+    }));
+    repository.getGuideCollections = vi.fn(async () => [
+      guideCollection({ slug: "ocean-basket", title: "Ocean Basket" }),
+    ]);
+
+    renderScreen(<HomeScreen />);
+
+    expect((await screen.findByRole("link", { name: "Ocean Basket" })).getAttribute("href")).toBe(
+      "/brand/ocean-basket",
+    );
+  });
 });
