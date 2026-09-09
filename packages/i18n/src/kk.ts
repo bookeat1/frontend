@@ -2804,7 +2804,7 @@ export const kk: LocaleOverride<Dictionary> = {
         title: "Орын акциялары",
       },
       contacts: {
-        title: "Байланыс және қалай жетуге болады",
+        title: "Байланыс",
         address: "Мекенжайы",
         phone: "Телефон",
         social: "Әлеуметтік желілер",
@@ -2819,7 +2819,6 @@ export const kk: LocaleOverride<Dictionary> = {
           website: "Сайт",
         },
         mapAlt: (name: string) => `Карта: ${name} қай жерде`,
-        noMap: "Орын координаттарын көрсетпеген.",
         mapUnavailable: "Карта қазір қолжетімсіз.",
         empty: "Байланыс көрсетілмеген.",
       },

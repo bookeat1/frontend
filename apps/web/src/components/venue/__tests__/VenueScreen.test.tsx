@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
-import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
+import { menuDish, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
 import { bookingHref } from "@web/lib/booking-link";
 
 /**
@@ -83,13 +83,17 @@ describe("карточка заведения", () => {
     expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
   });
 
-  /** A10 (`web-preorder-menu-20260908`): раньше у заведения без карточек
-   * «Популярное» секции «Меню» не было вовсе — 6/20 заведений стенда не
-   * давали со страницы заведения НИКАКОГО входа в полное меню. */
-  it("заведение принимает брони, но без «Популярного» — секция «Меню» остаётся входом на полное меню (A10)", async () => {
+  /** A10 (`web-preorder-menu-20260908`) держала вход в меню по дешёвому
+   * признаку `acceptsOnlineBookings` без проверки, есть ли меню на самом
+   * деле. Решение владельца 2026-09-09 (см. `VenueScreen.tsx`) заменило его
+   * точным досмотром полного меню (`GET /restaurants/:id/menu`): без
+   * «Популярного» секция остаётся, только если на этой странице
+   * подтверждается, что блюда в принципе есть. */
+  it("заведение принимает брони, без «Популярного», но полное меню не пустое — секция остаётся входом на полное меню", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({ menuHighlights: [], acceptsOnlineBookings: true }),
     );
+    repository.getMenuSections = vi.fn(async () => [{ title: "Горячее", dishes: [menuDish()] }]);
 
     renderScreen(<VenueScreen id="venue-1" />);
 
@@ -97,8 +101,25 @@ describe("карточка заведения", () => {
     expect(screen.getByText("Полное меню — на отдельной странице")).toBeTruthy();
     const link = screen.getByRole("link", { name: "Всё меню →" });
     expect(link.getAttribute("href")).toBe("/venues/venue-1/menu");
-    // Сетки карточек нет — блюд для неё нет.
+    // Сетки карточек нет — «Популярного» у заведения по-прежнему нет, есть
+    // только доказанный факт «меню не пустое».
     expect(screen.queryByRole("button", { name: /^Добавить / })).toBeNull();
+  });
+
+  it("заведение принимает брони, без «Популярного», и полное меню тоже пустое — блока «Меню» нет вовсе", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ menuHighlights: [], acceptsOnlineBookings: true, description: "" }),
+    );
+    repository.getMenuSections = vi.fn(async () => []);
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    // Дожидаемся отрисовки чего-то однозначно стабильного (описания), чтобы
+    // не поймать «Лучшие позиции» просто потому, что запрос ещё летит.
+    expect(await screen.findByText("Заведение пока не рассказало о себе.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
+    expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
   });
 
   it("удобства заведения — ряд ярлыков из ответа сервера, а не выдумка", async () => {

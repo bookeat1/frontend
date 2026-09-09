@@ -103,17 +103,20 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
   return (
     <article
       className={cx(
-        "relative flex flex-col justify-end overflow-hidden rounded-card bg-muted p-5",
+        // Радиус, паддинг и затемнение — те же токены, что у карточки акции
+        // на странице заведения (`webVenuePage.promoCard`, узел 3379:11497):
+        // ЭТО ОДИН И ТОТ ЖЕ КОМПОНЕНТ МАКЕТА в двух местах сайта, только
+        // здесь высота фиксированная (узел 3525:14236, 260), а там — минимум
+        // (у карточки заведения бывает длиннее подпись).
+        "relative flex flex-col justify-end overflow-hidden rounded-promo bg-muted p-venue-promo-p",
         PROMO_CARD_FRAME,
       )}
     >
       <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={THIRD_COLUMN_SIZES} />
       {/* Затемнение снизу: белый текст поверх произвольной фотографии иначе
-          читается через раз. Градиент, а не сплошная плашка, — как в макете. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.72)] via-[rgba(0,0,0,0.25)] to-transparent"
-      />
+          читается через раз. Три стопа `bg-promo-scrim` — как в макете
+          (5%/35%/85% чёрного сверху вниз), не голый двухстопный градиент. */}
+      <span aria-hidden="true" className="absolute inset-0 bg-promo-scrim" />
       {promo.discountPercent !== null && promo.discountPercent > 0 ? (
         <span className="absolute left-5 top-5 inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold leading-[18px] text-ink-on-brand">
           {t.web.format.discount(promo.discountPercent)}
@@ -127,8 +130,8 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
           поймано вживую: клик по фото карточки на `/` не переходил на
           `/promos/[id]`, клик по заголовку — переходил). Единственный
           `relative` в дереве — у внешнего `article`, как у `EventCard`. */}
-      <div className="flex flex-col gap-0.5">
-        <h3 className="text-[20px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-inverse">
+      <div className="relative flex flex-col gap-1">
+        <h3 className="break-words text-[22px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-brand">
           <Link
             href={promoHref(promo.id)}
             className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -136,8 +139,12 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
             {promo.title}
           </Link>
         </h3>
+        {/* Название заведения — самостоятельная строка внутри карточки (узел
+            3525:14240 «Flour Demi · будни до 18:00»): здесь бэкенд отдаёт
+            только имя без часов работы (`HomePromo.restaurantName`), поэтому
+            строка короче макетной, но остаётся ВНУТРИ той же карточки. */}
         {promo.restaurantName ? (
-          <p className="text-[14px] leading-5 text-ink-on-inverse">{promo.restaurantName}</p>
+          <p className="truncate text-[14px] leading-5 text-on-brand-subtle">{promo.restaurantName}</p>
         ) : null}
       </div>
     </article>

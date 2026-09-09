@@ -356,12 +356,12 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
  * сервер не отдаёт. Локаль в ключе: названия и описания блюд переводит
  * сервер по `Accept-Language`.
  */
-export function useMenuSections(id: string): UseQueryResult<MenuSection[]> {
+export function useMenuSections(id: string, options?: { enabled?: boolean }): UseQueryResult<MenuSection[]> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "menu-sections", id],
     queryFn: () => repository.getMenuSections(id),
-    enabled: isApiConfigured && id.length > 0,
+    enabled: isApiConfigured && id.length > 0 && (options?.enabled ?? true),
   });
 }
 

@@ -206,12 +206,15 @@ function OceanMapAndPoints({ query }: { query: ReturnType<typeof useOceanBasketV
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Узел 5115:9797: этот блок вне «золотой» ocean-палитры — обычные
+              `ink`-токены (#1B1B1B/#595959), не `ocean-navy`/`ocean-muted`
+              как у остальной страницы. Заголовок 26/38 Bold, подпись 16/23. */}
           <div className="flex flex-col gap-1">
-            <h3 className="text-[20px] font-bold leading-6 text-ocean-navy">
+            <h3 className="text-[22px] font-bold leading-8 tracking-[-0.4px] text-ink lg:text-[26px]">
               {t.oceanBasket.webPointsTitle}
             </h3>
             {venues.length > 0 ? (
-              <p className="text-[14px] leading-5 text-ocean-muted">
+              <p className="text-[16px] leading-[23px] text-ink-secondary">
                 {t.oceanBasket.webPointsSubtitle(city, venues.length)}
               </p>
             ) : null}
@@ -258,19 +261,18 @@ function OceanMapAndPoints({ query }: { query: ReturnType<typeof useOceanBasketV
 function OceanPointRow({ venue, index }: { venue: RestaurantSummary; index: number }) {
   const t = useT();
   return (
+    // Узел 5115:9797 «Выбрать / …»: карточка 16px радиуса (не 12), номер —
+    // фирменный красный `brand-text` (#96272C) 16 regular, название — 18
+    // regular `ink` (не Bold/navy как у ocean-палитры остальной страницы).
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="flex items-center justify-between gap-4 rounded-xl bg-canvas px-5 py-4 shadow-card transition-colors hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
+      className="flex items-center justify-between gap-4 rounded-2xl bg-canvas px-5 py-5 shadow-card transition-colors hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="text-[13px] font-bold leading-4 text-ocean-gold-muted">
-          {t.oceanBasket.pointNumber(index)}
-        </span>
-        <span className="truncate text-[16px] font-semibold leading-6 text-ocean-navy">
-          {oceanPointName(venue.name)}
-        </span>
+        <span className="text-[16px] leading-[23px] text-brand-text">{t.oceanBasket.pointNumber(index)}</span>
+        <span className="truncate text-[18px] leading-6 text-ink">{oceanPointName(venue.name)}</span>
       </span>
-      <span aria-hidden="true" className="shrink-0 text-ocean-navy">
+      <span aria-hidden="true" className="shrink-0 text-ink">
         <ChevronIcon direction="right" size={16} />
       </span>
     </Link>
@@ -286,12 +288,21 @@ function OceanDishesSection({ state }: { state: OceanSignatureDishesState }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[32px]">
+        {/* Кегль 40/48 Cormorant Garamond Bold — узел 5115:9810; ниже `lg`
+            размер приложения (нет отдельного узла для мобильной ширины
+            веб-страницы). */}
+        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[40px] lg:leading-[48px]">
           {t.oceanBasket.dishesTitle}
         </h2>
-        <p className="text-[15px] leading-5 text-ocean-muted">{t.oceanBasket.webDishesSubtitle}</p>
+        {/* Цвет подписи — узел 5115:9811: `text/secondary` (#595959), а не
+            фирменное золото `ocean-muted`; кегль 20/23 на `lg`. */}
+        <p className="text-[15px] leading-5 text-ink-secondary lg:text-[20px] lg:leading-[23px]">
+          {t.oceanBasket.webDishesSubtitle}
+        </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Отступ между карточками — 32 (узел 5115:9809: карточки 584 при
+          контейнере 1200 → 1200 - 2×584 = 32), а не стандартные 16. */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
         {OCEAN_SIGNATURE_DISHES.map((signature, index) => (
           <OceanDishCard key={signature.menuName} photo={signature.photo} state={state} index={index} />
         ))}
@@ -338,8 +349,11 @@ function OceanDishCard({
     const price = priceMeta?.from ? `${t.oceanBasket.pricePrefixFrom} ${priceValue}` : priceValue;
     caption = (
       <div className="flex flex-col gap-1">
-        <p className="break-words text-[20px] font-bold leading-6 text-ocean-navy">{dish.name}</p>
-        <p className="text-[15px] leading-5 text-ocean-muted">
+        {/* Название — 22 SemiBold (узлы 5115:9816/9821), не 20 Bold. */}
+        <p className="break-words text-[22px] font-semibold leading-7 text-ocean-navy">{dish.name}</p>
+        {/* Цена — 16, не 15 (узлы 5115:9817/9822); цвет тот же navy, что и
+            название, а не приглушённый `ocean-muted`. */}
+        <p className="text-[16px] leading-8 text-ocean-navy">
           {price}
           {priceMeta ? ` · ${priceMeta.note}` : null}
         </p>
@@ -348,7 +362,8 @@ function OceanDishCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-canvas shadow-card">
+    // Радиус 24 (узел 5115:9812/9818), не 16.
+    <div className="overflow-hidden rounded-3xl bg-canvas shadow-card">
       {picture}
       <div className="flex flex-col gap-1 px-5 py-4">{caption}</div>
     </div>
@@ -580,12 +595,19 @@ function OceanWelcomeModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title={sheet.title} description={sheet.subtitle} onClose={onClose}>
+      {/* Узел 5129:10805: заголовки секций — приглушённое золото
+          `ocean-gold-section-title` (#A09B61), не обычный `ink`; текст
+          списков — фирменный navy (#052747), не серый `ink-secondary`;
+          карточка условий — тёплая подложка `ocean-accent-surface`
+          (#F6EAD4), не нейтральный `bg-subtle`. */}
       <div className="flex flex-col gap-6">
         <div>
-          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ink">{sheet.includesTitle}</h3>
+          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ocean-gold-section-title">
+            {sheet.includesTitle}
+          </h3>
           <ul className="flex flex-col gap-2">
             {sheet.includes.map((line) => (
-              <li key={line} className="flex items-start gap-2 text-bodyM text-ink-secondary">
+              <li key={line} className="flex items-start gap-2 text-bodyM text-ocean-navy">
                 <CheckIcon size={16} />
                 <span>{line}</span>
               </li>
@@ -594,17 +616,19 @@ function OceanWelcomeModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div>
-          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ink">{sheet.stepsTitle}</h3>
-          <ol className="flex flex-col gap-1 text-bodyM text-ink-secondary">
+          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ocean-gold-section-title">
+            {sheet.stepsTitle}
+          </h3>
+          <ol className="flex flex-col gap-1 text-bodyM text-ocean-navy">
             {sheet.steps.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ol>
         </div>
 
-        <div className="rounded-lg bg-subtle px-4 py-3">
-          <h3 className="mb-1 text-[14px] font-semibold leading-5 text-ink">{sheet.termsTitle}</h3>
-          <p className="whitespace-pre-line text-[13px] leading-5 text-ink-tertiary">
+        <div className="rounded-2xl bg-ocean-accent-surface px-4 py-3">
+          <h3 className="mb-1 text-[16px] font-semibold leading-6 text-ocean-navy">{sheet.termsTitle}</h3>
+          <p className="whitespace-pre-line text-[14px] leading-5 text-ocean-muted">
             {sheet.terms.map((line) => `· ${line}`).join("\n")}
           </p>
         </div>
