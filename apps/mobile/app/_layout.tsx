@@ -11,7 +11,6 @@ import { NotoSans_600SemiBold } from "@expo-google-fonts/noto-sans/600SemiBold";
 import { NotoSans_700Bold } from "@expo-google-fonts/noto-sans/700Bold";
 import { PlayfairDisplay_400Regular_Italic } from "@expo-google-fonts/playfair-display/400Regular_Italic";
 import { PlayfairDisplay_700Bold_Italic } from "@expo-google-fonts/playfair-display/700Bold_Italic";
-import { DetourProvider } from "@swmansion/react-native-detour";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -22,8 +21,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppUpdateGate } from "../src/components/AppUpdateGate";
 import { AnalyticsProvider } from "../src/lib/analytics-provider";
 import { AuthProvider } from "../src/lib/auth";
-import { detourConfig } from "../src/lib/detour";
+import { isDetourConfigured } from "../src/lib/detour";
 import { DetourLinkRouter } from "../src/lib/detour-link-router";
+import { DetourProviderGate } from "../src/lib/detour-provider-gate";
 import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
@@ -86,13 +86,16 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* DetourProvider (deferred deep linking, Software Mansion) sits
-          outermost: it owns no session, only device/link state, and its
-          single documented instance-per-app requirement is easiest to keep
-          if nothing else wraps it. No-ops on web (see the package's own
-          Platform.OS check) and, until EXPO_PUBLIC_DETOUR_APP_ID is set,
-          no-ops on native too — see src/lib/detour.ts. */}
-      <DetourProvider config={detourConfig}>
+      {/* DetourProviderGate (deferred deep linking, Software Mansion) sits
+          outermost: it owns no session, only device/link state, and
+          <DetourProvider>'s single documented instance-per-app requirement
+          is easiest to keep if nothing else wraps it. `<DetourProvider>`
+          itself no-ops on web (the package's own Platform.OS check); on
+          native the SDK has NO built-in no-op for a missing/empty
+          apiKey/appID (it still fires an automatic retention event on every
+          cold start), so DetourProviderGate skips mounting it at all in that
+          case — see src/lib/detour.ts and detour-provider-gate.tsx. */}
+      <DetourProviderGate>
         <SafeAreaProvider>
           {/* LocaleProvider sits at the top so every screen (and every provider
               below) can read the current language. It owns no session and no
@@ -123,8 +126,11 @@ export default function RootLayout() {
                 <ScreenViewTracker />
                 {/* Deferred Detour link → route, once resolved. Renders null;
                     a separate node so it re-renders on its own context change,
-                    not the whole Stack (same reasoning as ScreenViewTracker). */}
-                <DetourLinkRouter />
+                    not the whole Stack (same reasoning as ScreenViewTracker).
+                    Reads useDetourContext(), which throws outside a mounted
+                    <DetourProvider> — gated the same way DetourProviderGate
+                    decides whether to mount one. */}
+                {isDetourConfigured && <DetourLinkRouter />}
                 <Stack
                   screenOptions={{
                     headerShown: false,
@@ -143,7 +149,7 @@ export default function RootLayout() {
           </QueryClientProvider>
           </LocaleProvider>
         </SafeAreaProvider>
-      </DetourProvider>
+      </DetourProviderGate>
     </GestureHandlerRootView>
   );
 }

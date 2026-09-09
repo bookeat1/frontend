@@ -17,10 +17,13 @@ import { detourConfig } from "../src/lib/detour";
  *
  * `config` is passed (RESOLVE mode, not just intercept mode): the SDK calls
  * Detour's REST API to turn a short link into the real destination route in
- * one hop. `detourConfig.appID` is still a TODO — see `src/lib/detour.ts` —
- * until it's set this call fails fast and falls back to `fallbackPath`, same
- * as any other unmatched deep link today; no code change needed here once
- * the value arrives, only the env var.
+ * one hop. Both `detourConfig.apiKey`/`appID` are set for real now (see
+ * `src/lib/detour.ts`); this handler's own `sendUniversalLinkClick`/
+ * `resolveShortLink` calls already catch their own errors and fall back to
+ * `fallbackPath` (verified by reading the vendored source, not assumed —
+ * unlike `DetourProvider`'s automatic-events path, which does NOT have this
+ * safety net, see `detour.ts`/`detour-provider-gate.tsx`), so an
+ * empty/misconfigured build still degrades to a normal deep link here too.
  */
 export const redirectSystemPath = createDetourNativeIntentHandler({
   fallbackPath: "",

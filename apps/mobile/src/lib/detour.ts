@@ -12,14 +12,23 @@ import type { Config } from "@swmansion/react-native-detour";
  * The SECRET key (server-side REST API for creating/listing links) must
  * never appear here or anywhere under `apps/mobile` — see `~/.bookeat/detour.env`.
  *
- * TODO(detour-app-id): `EXPO_PUBLIC_DETOUR_APP_ID` is not set yet — product
- * owner is still locating it in the Detour dashboard. Until it is set in
- * `.env`/EAS build env, `appID` resolves to `""` and Detour's backend calls
- * (deferred-link fetch, short-link resolve, click tracking) will fail
- * gracefully — `DetourProvider`/`createDetourNativeIntentHandler` catch
- * their own errors and fall back to normal Expo Router navigation, so the
- * app does not break, it just can't resolve Detour links yet. No code
- * change needed here once the value arrives, only the env var.
+ * Both values are set for real now (App ID from the Detour dashboard,
+ * 2026-09-09; `.env.example`, `eas.json`). `isDetourConfigured` below is what
+ * actually keeps a misconfigured build (e.g. local dev with no `.env`) safe —
+ * NOT a "no-op without appID" built into the SDK itself. Read the vendored
+ * source before trusting a comment here again: `DetourProviderNative`
+ * (`node_modules/@swmansion/react-native-detour/src/DetourContext.tsx`) fires
+ * an automatic retention event on EVERY cold start via
+ * `useAppOpenRetention(shouldTrackAutomaticEvents)`, unconditionally — it
+ * does not check `apiKey`/`appID` before POSTing (would just go out with a
+ * blank `Authorization`/`X-App-ID`). Only `useDetour`'s own cold-start link
+ * effect skips its network call when either is empty. So the one place that
+ * actually has to gate on `isDetourConfigured` is OUR mount of
+ * `<DetourProvider>` in `app/_layout.tsx`: skip mounting it at all when
+ * either value is empty, and `DetourProviderNative` (and its automatic
+ * event) never runs. `shouldTrackAutomaticEvents` stays at its default
+ * (`true`) once the provider *is* mounted — that default is what we want in
+ * every properly configured build.
  */
 export const detourConfig: Config = {
   apiKey: process.env.EXPO_PUBLIC_DETOUR_API_KEY ?? "",
@@ -33,3 +42,6 @@ export const detourConfig: Config = {
   // handler, and avoids the same link being processed twice.
   linkProcessingMode: "deferred-only",
 };
+
+/** See the comment above: gates whether `<DetourProvider>` mounts at all. */
+export const isDetourConfigured = Boolean(detourConfig.apiKey && detourConfig.appID);

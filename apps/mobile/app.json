@@ -33,7 +33,8 @@
       "buildNumber": "33",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": ["applinks:bookeat.godetour.link"]
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +44,21 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.bookeatteam.bookeatapp"
+      "package": "com.bookeatteam.bookeatapp",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "bookeat.godetour.link",
+              "pathPrefix": "/lQ9BPpUvJc"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
