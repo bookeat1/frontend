@@ -786,6 +786,17 @@ export interface CreateBookingInput {
    */
   email?: string;
   notes?: string;
+  /**
+   * UUID of the promotion this booking is attributed to (e.g. a QR/Detour
+   * campaign the guest arrived through — see `bookeat-mobile`'s
+   * `campaign-attribution.ts` / `bookeat-web`'s `campaign-attribution.ts`).
+   * Maps to `POST /bookings`' `promotion_id`
+   * (`internal/transport/rest/bookings/request.go`, `parseOptionalUUID`) —
+   * an invalid (non-UUID) value is a 422, so callers must only ever send a
+   * value that already passed a UUID check, never a raw campaign slug.
+   * Omitted when there is no attribution to attach, same as `email`/`notes`.
+   */
+  promotionId?: string;
 }
 
 export interface PreorderLine {
