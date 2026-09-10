@@ -1,11 +1,28 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider } from "@web/lib/auth";
+import { captureCampaignFromUrl } from "@web/lib/campaign-attribution";
 import { CityProvider } from "@web/lib/city";
 import { LocaleProvider } from "@web/lib/locale";
+
+/**
+ * Читает `?promo=` из адресной строки РОВНО РАЗ, на монтаже — `Providers`
+ * живёт в корневом layout и не размонтируется между клиентскими переходами
+ * (App Router), так что это «при заходе на сайт», а не «на каждой странице».
+ * `window.location.search`, а не `useSearchParams()`: последний требует
+ * `<Suspense>` вокруг любого клиентского компонента, который его читает
+ * (иначе падает `next build` — см. PR #168), а здесь достаточно значения на
+ * момент первой загрузки документа.
+ */
+function CampaignAttributionCapture() {
+  useEffect(() => {
+    captureCampaignFromUrl(window.location.search);
+  }, []);
+  return null;
+}
 
 /**
  * Провайдеры сайта: кэш запросов, язык интерфейса и выбранный город.
@@ -35,6 +52,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <CampaignAttributionCapture />
       {/* Язык ВЫШЕ города: город приходит запросом, а у запроса заголовок
           `Accept-Language` берётся из выбранного языка. */}
       <AuthProvider>

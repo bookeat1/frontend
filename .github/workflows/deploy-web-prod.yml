@@ -55,6 +55,10 @@ env:
   # The ONLY build that may invite crawlers. Every other build (stand, local)
   # ships Disallow: /.
   NEXT_PUBLIC_ROBOTS_INDEX: "true"
+  # "Almaty Marathon" promo (backend migration 0107, 10.09.2026) — not a
+  # secret, checked against a guest's `?promo=` before it is ever sent as
+  # CreateBookingInput.promotionId (apps/web/src/lib/campaign-attribution.ts).
+  NEXT_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
   PUBLIC_URL: https://book-eat.com
   WEB_ROOT: /opt/bookeat/web
   # Neighbours on the same host and the same Caddy. They must survive every

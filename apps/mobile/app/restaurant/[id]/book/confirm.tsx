@@ -11,6 +11,7 @@ import { CalendarBlank, Minus, Plus, User } from "../../../../src/components/ico
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
+import { useCampaignAttribution } from "../../../../src/hooks/useCampaignAttribution";
 import { useCreateBooking } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../../src/lib/analytics";
@@ -56,6 +57,12 @@ export default function ConfirmBookingScreen() {
   const { status: authStatus, user } = useAuth();
   const { data: restaurant } = useRestaurant(id);
   const createBooking = useCreateBooking();
+  // «Марафон Алматы» и следующие QR/Detour-акции: если гость пришёл по такой
+  // ссылке (и метка не протухла за 30 дней), она уходит В ТОМ ЖЕ запросе
+  // создания брони — не вторым вызовом после, потому что тело этого самого
+  // POST входит в расчёт идемпотентности на бэкенде (`hashBody`), а
+  // догонять его отдельным PATCH после успеха было бы уже поздно.
+  const { attribution: campaignAttribution } = useCampaignAttribution();
 
   const [submitError, setSubmitError] = useState<SubmitError | null>(null);
 
@@ -161,6 +168,7 @@ export default function ConfirmBookingScreen() {
           name: contactName,
           phone: contactPhoneRaw,
           notes: draft.notes,
+          promotionId: campaignAttribution?.campaignId,
         },
         idempotencyKey: draft.idempotencyKey,
         preorder: draft.preorder.map((line) => ({
@@ -171,7 +179,10 @@ export default function ConfirmBookingScreen() {
       },
       {
         onSuccess: ({ booking, preorderFailed }) => {
-          trackEvent("booking_confirm", { restaurant_id: id });
+          trackEvent("booking_confirm", {
+            restaurant_id: id,
+            campaign_id: campaignAttribution?.campaignId ?? null,
+          });
           router.replace({
             pathname: "/booking/[id]",
             params: {
