@@ -83,13 +83,13 @@ describe("карточка заведения", () => {
     expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
   });
 
-  /** A10 (`web-preorder-menu-20260908`) держала вход в меню по дешёвому
-   * признаку `acceptsOnlineBookings` без проверки, есть ли меню на самом
-   * деле. Решение владельца 2026-09-09 (см. `VenueScreen.tsx`) заменило его
-   * точным досмотром полного меню (`GET /restaurants/:id/menu`): без
-   * «Популярного» секция остаётся, только если на этой странице
-   * подтверждается, что блюда в принципе есть. */
-  it("заведение принимает брони, без «Популярного», но полное меню не пустое — секция остаётся входом на полное меню", async () => {
+  /** Решение владельца 2026-09-09 (заведение-пример: «1100 Karaoke», реальный
+   * стенд): вкладка «Меню» в табах страницы уже даёт доступ к полному меню —
+   * заглушка `fullMenuOnly` под заголовком «Лучшие позиции» дублировала её
+   * хуже. Секция «Лучшие позиции» теперь не рендерит ничего в теле (ни сетки,
+   * ни заглушки), если `menuHighlights` пуст, — даже когда полное меню на
+   * самом деле не пустое (`GET /restaurants/:id/menu` находит блюда). */
+  it("заведение принимает брони, без «Популярного», но полное меню не пустое — секции «Лучшие позиции» всё равно нет", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({ menuHighlights: [], acceptsOnlineBookings: true }),
     );
@@ -97,12 +97,12 @@ describe("карточка заведения", () => {
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByRole("heading", { name: "Лучшие позиции" })).toBeTruthy();
-    expect(screen.getByText("Полное меню — на отдельной странице")).toBeTruthy();
-    const link = screen.getByRole("link", { name: "Всё меню →" });
-    expect(link.getAttribute("href")).toBe("/venues/venue-1/menu");
-    // Сетки карточек нет — «Популярного» у заведения по-прежнему нет, есть
-    // только доказанный факт «меню не пустое».
+    // Дожидаемся стабильной отрисовки (заголовок «О заведении» есть всегда),
+    // чтобы не поймать «Лучшие позиции» просто потому, что запрос ещё летит.
+    expect(await screen.findByRole("heading", { name: "О заведении" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
+    expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Добавить / })).toBeNull();
   });
 

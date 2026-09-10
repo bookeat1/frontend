@@ -2754,7 +2754,6 @@ export const kk: LocaleOverride<Dictionary> = {
         qtyMore: "Санын арттыру",
         preorderTotal: (amount: string) => `Барлығы ≈ ${amount}`,
         viewAll: "Толық мәзір →",
-        fullMenuOnly: "Толық мәзір — жеке бетте",
       },
       menuPage: {
         title: (name: string) => `${name} мәзірі`,

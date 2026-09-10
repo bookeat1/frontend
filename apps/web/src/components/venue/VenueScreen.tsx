@@ -40,7 +40,7 @@ import {
 } from "@web/components/venue/VenueContacts";
 import { phoneHoursNote, scheduleStatus, type ScheduleStatus } from "@web/lib/schedule";
 import { useLocale, useT } from "@web/lib/locale";
-import { useFavoriteIds, useMenuSections, useToggleFavorite, useVenue } from "@web/lib/queries";
+import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
 
 /**
  * Карточка заведения — Figma 3z0f6dgev4HMwBAHPjTjPo, кадр «WEB / 03 · Карточка
@@ -155,20 +155,19 @@ function VenueBody({ venue }: { venue: Restaurant }) {
     Boolean(venue.social?.instagram || venue.social?.whatsapp || venue.social?.website);
 
   /**
-   * Есть ли меню вообще (решение владельца 2026-09-09, отменяет прежний
-   * дешёвый признак `acceptsOnlineBookings` из A10/`web-preorder-menu-20260908`):
-   * если карточек «Популярное» уже нет — это точный ответ, второй запрос не
-   * нужен. Если карточек нет, а бронь принимается — раньше секция всё равно
-   * рисовалась (могла вести в пустоту); теперь досматриваем полное меню
-   * (`GET /restaurants/:id/menu`) и, если оно тоже пусто, скрываем «Популярное
-   * в меню» и ссылку «Полное меню» целиком, а не показываем вход в пустоту.
-   * Пока запрос летит — секцию не рисуем (нет мигания «была → пропала»).
+   * Есть ли меню вообще (решение владельца 2026-09-09, `MenuSection` больше
+   * не рисует ничего — ни сетки, ни заглушки — без карточек «Популярное»,
+   * см. комментарий над `MenuSection`). Раньше здесь ещё досматривался полный
+   * список блюд через `GET /restaurants/:id/menu` (`useMenuSections`), чтобы
+   * не прятать секцию с настоящим меню без «Популярного» — с тех пор как
+   * секция сама перестала что-либо показывать в этом случае, тот досмотр
+   * держал бы вкладку «Меню» включённой БЕЗ соответствующей секции на
+   * странице (`SECTION_ID.menu` не рендерится → вкладка ведёт в никуда, тот
+   * же класс бага, что разбирает комментарий у `hasContacts` выше). Поэтому
+   * признак — снова просто «есть карточки „Популярное“», без второго
+   * запроса.
    */
-  const needsMenuCheck = venue.menuHighlights.length === 0 && venue.acceptsOnlineBookings;
-  const fullMenuQuery = useMenuSections(venue.id, { enabled: needsMenuCheck });
-  const hasMenu =
-    venue.menuHighlights.length > 0 ||
-    (needsMenuCheck ? (fullMenuQuery.data?.length ?? 0) > 0 : false);
+  const hasMenu = venue.menuHighlights.length > 0;
 
   /** Вкладки собираются из ТОГО, ЧТО НА СТРАНИЦЕ ЕСТЬ: нет акций — нет и
    * вкладки. `useMemo` здесь не украшение: список уходит в зависимость
@@ -758,12 +757,13 @@ function ArrowIcon({ direction }: { direction: "left" | "right" }) {
  * `apps/mobile` степпер НЕ переносится (решение владельца 2026-09-06,
  * см. спеку), `DishDetailSheet` там не тронут.
  *
- * БЕЗ КАРТОЧЕК «ПОПУЛЯРНОЕ» (A10, ТЗ `web-preorder-menu-20260908`): секция
- * теперь рендерится и у заведения с пустым `menuHighlights`, пока
- * `acceptsOnlineBookings` — заголовок и ссылка «Всё меню →» остаются входом
- * в полное меню (`/venues/[id]/menu`), сетка карточек заменяется одной
- * строкой `fullMenuOnly`. Раньше у 6/20 заведений стенда без «Популярного» не
- * было вообще никакого входа в меню с этой страницы.
+ * БЕЗ КАРТОЧЕК «ПОПУЛЯРНОЕ» (2026-09-09, решение владельца): секция целиком
+ * не рендерится, если у заведения пустой `menuHighlights` — заголовок
+ * «Лучшие позиции» и ссылка «Всё меню →» дублировали вкладку «Меню» на этой
+ * же странице (`hasMenu`/`fullMenuQuery` в `VenueBody`, не связана с этим
+ * компонентом). Раньше здесь была заглушка `fullMenuOnly` (A10,
+ * `web-preorder-menu-20260908`) — убрана, вход в меню остаётся только через
+ * вкладку.
  */
 function MenuSection({
   venue,
@@ -775,6 +775,10 @@ function MenuSection({
 }) {
   const t = useT();
   const canPreorder = venue.acceptsOnlineBookings;
+
+  if (venue.menuHighlights.length === 0) {
+    return null;
+  }
 
   return (
     <section id={SECTION_ID.menu} className="flex scroll-mt-6 flex-col gap-5">
@@ -802,14 +806,8 @@ function MenuSection({
           </Link>
         </div>
       </div>
-      {venue.menuHighlights.length === 0 ? (
-        // A10: заведение без карточек «Популярное» — секция сохраняет вход в
-        // полное меню (заголовок + ссылка выше), просто без сетки: сама сетка
-        // требовала бы шести карточек, которых у заведения нет.
-        <StateMessage text={t.web.venue.menu.fullMenuOnly} />
-      ) : (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {venue.menuHighlights.slice(0, 6).map((dish) => {
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {venue.menuHighlights.slice(0, 6).map((dish) => {
             const canAdd = canPreorder && dish.priceMinor !== null;
             const quantity = preorder.quantityOf(dish.id);
             return (
@@ -864,9 +862,8 @@ function MenuSection({
                 </div>
               </li>
             );
-          })}
-        </ul>
-      )}
+        })}
+      </ul>
     </section>
   );
 }
