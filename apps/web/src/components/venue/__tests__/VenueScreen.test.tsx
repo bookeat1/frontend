@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
-import { pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
+import { menuDish, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
 import { bookingHref } from "@web/lib/booking-link";
 
 /**
@@ -80,25 +80,46 @@ describe("карточка заведения", () => {
     // — единственный дешёвый признак, см. `MenuSection`).
     expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
     expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Популярное в меню" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
   });
 
-  /** A10 (`web-preorder-menu-20260908`): раньше у заведения без карточек
-   * «Популярное» секции «Меню» не было вовсе — 6/20 заведений стенда не
-   * давали со страницы заведения НИКАКОГО входа в полное меню. */
-  it("заведение принимает брони, но без «Популярного» — секция «Меню» остаётся входом на полное меню (A10)", async () => {
+  /** Решение владельца 2026-09-09 (заведение-пример: «1100 Karaoke», реальный
+   * стенд): вкладка «Меню» в табах страницы уже даёт доступ к полному меню —
+   * заглушка `fullMenuOnly` под заголовком «Лучшие позиции» дублировала её
+   * хуже. Секция «Лучшие позиции» теперь не рендерит ничего в теле (ни сетки,
+   * ни заглушки), если `menuHighlights` пуст, — даже когда полное меню на
+   * самом деле не пустое (`GET /restaurants/:id/menu` находит блюда). */
+  it("заведение принимает брони, без «Популярного», но полное меню не пустое — секции «Лучшие позиции» всё равно нет", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({ menuHighlights: [], acceptsOnlineBookings: true }),
     );
+    repository.getMenuSections = vi.fn(async () => [{ title: "Горячее", dishes: [menuDish()] }]);
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    expect(await screen.findByRole("heading", { name: "Популярное в меню" })).toBeTruthy();
-    expect(screen.getByText("Полное меню — на отдельной странице")).toBeTruthy();
-    const link = screen.getByRole("link", { name: "Всё меню →" });
-    expect(link.getAttribute("href")).toBe("/venues/venue-1/menu");
-    // Сетки карточек нет — блюд для неё нет.
+    // Дожидаемся стабильной отрисовки (заголовок «О заведении» есть всегда),
+    // чтобы не поймать «Лучшие позиции» просто потому, что запрос ещё летит.
+    expect(await screen.findByRole("heading", { name: "О заведении" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
+    expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Добавить / })).toBeNull();
+  });
+
+  it("заведение принимает брони, без «Популярного», и полное меню тоже пустое — блока «Меню» нет вовсе", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ menuHighlights: [], acceptsOnlineBookings: true, description: "" }),
+    );
+    repository.getMenuSections = vi.fn(async () => []);
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    // Дожидаемся отрисовки чего-то однозначно стабильного (описания), чтобы
+    // не поймать «Лучшие позиции» просто потому, что запрос ещё летит.
+    expect(await screen.findByText("Заведение пока не рассказало о себе.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Лучшие позиции" })).toBeNull();
+    expect(screen.queryByText("Полное меню — на отдельной странице")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Всё меню →" })).toBeNull();
   });
 
   it("удобства заведения — ряд ярлыков из ответа сервера, а не выдумка", async () => {
@@ -256,13 +277,12 @@ describe("карточка заведения", () => {
   });
 
   /**
-   * Блок «Контакты и как добраться» (карта + адрес/телефон/соцсети) снят со
-   * страницы заведения целиком (2026-09-07): карты без провайдера показывать
-   * нечего, а половинчатую секцию решили не оставлять. Проверяем, что даже
-   * при полном наборе контактных данных от сервера ни карта, ни адрес, ни
-   * телефон, ни ссылки соцсетей на странице не появляются.
+   * Блок «Контакты» вернули на страницу заведения 2026-09-09 (владелец
+   * частично отменил решение 2026-09-07) — но БЕЗ карты: карта была
+   * статичной картинкой без настоящего провайдера, и это решение осталось в
+   * силе. Заголовок блока теперь просто «Контакты» (без «и как добраться»).
    */
-  it("контактов и карты на странице заведения больше нет", async () => {
+  it("блок «Контакты» — адрес, телефон и соцсети, но без карты", async () => {
     repository.getRestaurant = vi.fn(async () =>
       venueDetail({
         address: "Проспект Аль-Фараби, 128В",
@@ -278,19 +298,34 @@ describe("карточка заведения", () => {
 
     renderScreen(<VenueScreen id="venue-1" />);
 
-    // Ждём, пока страница дорисуется (уникальный заголовок первого уровня),
-    // и только потом проверяем отсутствие — иначе `queryBy*` прошёл бы и по
-    // ещё не загруженным данным.
     await screen.findByRole("heading", { level: 1 });
 
-    // «Контакты» ссылкой в подвале сайта осталась (ведёт на /contacts) — не
-    // трогаем; проверяем только заголовок и содержимое снятого блока.
     expect(screen.queryByText("Контакты и как добраться")).toBeNull();
-    expect(screen.queryByText("Проспект Аль-Фараби, 128В")).toBeNull();
-    expect(screen.queryByRole("link", { name: "tbilisi.almaty" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Контакты" })).toBeTruthy();
+    expect(screen.getByText("Проспект Аль-Фараби, 128В")).toBeTruthy();
     expect(
-      screen.queryByRole("link", { name: (name) => name.includes("+7 (707) 547-47-47") }),
-    ).toBeNull();
+      screen.getByRole("link", { name: (name) => name.includes("+7 (707) 547-47-47") }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "tbilisi.almaty" })).toBeTruthy();
+    // Карты (`MapPreview`, картинка `GET /restaurants/:id/map`) на странице
+    // нет — только контактные плашки.
+    expect(screen.queryByRole("img", { name: /Карта/ })).toBeNull();
+    expect(document.getElementById("venue-contacts")).not.toBeNull();
+  });
+
+  /** Без адреса, телефона и соцсетей блок контактов не рисуется вовсе — ни
+   * заголовка, ни пустых плашек (та же `hasContacts`-логика, что раньше
+   * жила в `Contacts`). */
+  it("без контактных данных блок «Контакты» не рисуется", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ address: "", phone: "", social: {} }),
+    );
+
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByRole("heading", { level: 1 });
+
+    expect(screen.queryByRole("heading", { name: "Контакты" })).toBeNull();
     expect(document.getElementById("venue-contacts")).toBeNull();
   });
 

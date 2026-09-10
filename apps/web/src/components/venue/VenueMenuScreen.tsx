@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
-import type { MenuDish, MenuSection, Restaurant } from "@bookeat/api/client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
+import type { MenuDish, MenuSection, PreorderLineInput, Restaurant } from "@bookeat/api/client";
+import { RepositoryError } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -13,15 +14,27 @@ import { BottomBar } from "@web/components/ui/BottomBar";
 import { Button } from "@web/components/ui/Button";
 import { Chip } from "@web/components/ui/Chip";
 import { DishStepper } from "@web/components/venue/DishStepper";
+import { Modal } from "@web/components/ui/Modal";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { isNotFound } from "@web/lib/not-found";
-import { BOOKING_PARAM, bookingHref, readBookingIntent, type BookingIntent } from "@web/lib/booking-link";
+import { useAuth } from "@web/lib/auth";
+import {
+  BOOKING_PARAM,
+  bookingHref,
+  bookingResultPath,
+  menuBookingHref,
+  readBookingIntent,
+  readMenuBookingId,
+  type BookingIntent,
+} from "@web/lib/booking-link";
 import { cx } from "@web/lib/cx";
 import { formatMoneyMinor } from "@web/lib/format";
 import { filterMenuSections } from "@web/lib/menu-search";
 import { useMenuSections, useVenue } from "@web/lib/queries";
 import { useT } from "@web/lib/locale";
+import { useBookingPreorderCart } from "@web/lib/use-booking-preorder-cart";
 import { usePreorderDraft } from "@web/lib/use-preorder-draft";
+import { loginHref } from "@web/lib/return-to";
 
 /**
  * Отдельная страница «Меню {заведение}» — Figma qmMsg4jO1ggmyEHNIAD2ll, узел
@@ -65,6 +78,14 @@ import { usePreorderDraft } from "@web/lib/use-preorder-draft";
  * блюда и сетка переиспользуют уже сверенные токены `webVenuePage.dishCard` —
  * тот же узор, что у «Популярное в меню» на странице заведения, а не числа на
  * глаз по PNG-скриншоту.
+ *
+ * РЕЖИМ ПРАВКИ ПРЕДЗАКАЗА (`?booking=<id>`, ТЗ `web-preorder-menu-20260908`,
+ * C-WEB-1): та же страница, не отдельная. `?booking` приоритетнее
+ * `?date/guests/slot` (раздел 5 ТЗ) — при его наличии карточка справа читает
+ * `GET /bookings/:id/preorder` (`useBookingPreorderCart`) вместо черновика
+ * заведения, «Забронировать» уступает место «Сохранить заказ», а гость без
+ * входа или не владелец брони видит экран-заглушку по образцу
+ * `BookingResultScreen.tsx`, а не сетку блюд.
  */
 export function VenueMenuScreen({ id }: { id: string }) {
   const t = useT();
@@ -86,6 +107,7 @@ export function VenueMenuScreen({ id }: { id: string }) {
       searchParams.has(BOOKING_PARAM.slot),
     [searchParams],
   );
+  const bookingId = useMemo(() => readMenuBookingId(searchParams), [searchParams]);
 
   return (
     <SiteChrome active="venues">
@@ -123,7 +145,9 @@ export function VenueMenuScreen({ id }: { id: string }) {
         </nav>
 
         <div className="pt-4">
-          {isNotFound(venueQuery.error) ? (
+          {bookingId ? (
+            <BookingModeGate venueId={id} bookingId={bookingId} venueQuery={venueQuery} />
+          ) : isNotFound(venueQuery.error) ? (
             <StateMessage title={t.web.venue.notFound.title} text={t.web.venue.notFound.text}>
               <Link
                 href="/venues"
@@ -133,24 +157,408 @@ export function VenueMenuScreen({ id }: { id: string }) {
               </Link>
             </StateMessage>
           ) : (
-            <AsyncBlock
-              query={venueQuery}
-              emptyText={t.web.venue.notFound.text}
-              isEmpty={() => false}
-              skeleton={
-                <div className="flex flex-col gap-8">
-                  <Skeleton className="h-12 w-1/3" />
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-64 w-full" />
-                </div>
-              }
-            >
+            <AsyncBlock query={venueQuery} emptyText={t.web.venue.notFound.text} isEmpty={() => false} skeleton={<VenueMenuSkeleton />}>
               {(venue) => <MenuPageBody venue={venue} intent={intent} hasIntent={hasIntent} />}
             </AsyncBlock>
           )}
         </div>
       </Container>
     </SiteChrome>
+  );
+}
+
+/** Скелет ровно страницы целиком (шапка + меню) — так грузится обычный
+ * `venueQuery` до появления заведения. */
+function VenueMenuSkeleton() {
+  return (
+    <div className="flex flex-col gap-8">
+      <Skeleton className="h-12 w-1/3" />
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}
+
+/** Скелет сетки блюд — поиск/шапка уже есть (заведение загружено), едет
+ * только `GET /restaurants/:id/menu`. Общий для обычного режима и режима
+ * `?booking=` (`MenuPageBody`/`BookingModeMenuBody`). */
+function MenuGridSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <Skeleton className="h-12 w-full" />
+      <Skeleton className="h-9 w-2/3" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} className="h-venue-dish-image w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Общая фигура степпера на карточке блюда — то, что реально нужно `DishCard`/
+ * `MenuBrowser` от корзины, независимо от того, живёт ли она в
+ * `sessionStorage` (`usePreorderDraft`, обычный режим) или в памяти страницы
+ * (`useBookingPreorderCart`, режим `?booking=`, C3). Оба хука структурно
+ * satisfy этот интерфейс без адаптера — сужаем тип на границе, а не копируем
+ * `MenuBrowser`/`DishCard` под каждый режим.
+ */
+interface PreorderCartControls {
+  quantityOf(menuItemId: string): number;
+  maxQty: number;
+  add(dish: { menuItemId: string; name: string; priceMinor: number }): void;
+  increment(menuItemId: string): void;
+  decrement(menuItemId: string): void;
+}
+
+/** C6: `RepositoryError.code` → причина отказа `PUT` для словаря
+ * `web.venue.menuPage.bookingCart.error`. Тот же принцип, что
+ * `preorderFailureReason` в `queries.ts` — ветвление ТОЛЬКО по коду. */
+type BookingSaveErrorReason =
+  | "locked"
+  | "paymentInFlight"
+  | "bookingClosed"
+  | "belowMinimum"
+  | "itemUnavailable"
+  | "other";
+
+function saveErrorReason(error: unknown): BookingSaveErrorReason {
+  if (error instanceof RepositoryError) {
+    switch (error.code) {
+      case "preorder_locked":
+        return "locked";
+      case "preorder_payment_in_flight":
+        return "paymentInFlight";
+      case "preorder_booking_closed":
+        return "bookingClosed";
+      case "preorder_below_minimum":
+        return "belowMinimum";
+      case "preorder_item_unavailable":
+        return "itemUnavailable";
+      default:
+        return "other";
+    }
+  }
+  return "other";
+}
+
+/**
+ * Ворота режима `?booking=<id>` (C-WEB-1, C4): гость без входа или не
+ * владелец брони видит экран-заглушку по образцу `BookingResultScreen.tsx`
+ * ВМЕСТО сетки блюд — редактировать чужой или неизвестной брони предзаказ
+ * незачем показывать даже как читаемое меню в этом режиме.
+ */
+function BookingModeGate({
+  venueId,
+  bookingId,
+  venueQuery,
+}: {
+  venueId: string;
+  bookingId: string;
+  venueQuery: ReturnType<typeof useVenue>;
+}) {
+  const t = useT();
+  const { signedIn, isLoading: authLoading } = useAuth();
+  const cart = useBookingPreorderCart(bookingId);
+
+  if (!signedIn && !authLoading) {
+    return (
+      <StateMessage title={t.web.bookingResult.signInTitle} text={t.web.bookingResult.signInText}>
+        <Button size="m" asLink href={loginHref(menuBookingHref(venueId, bookingId))}>
+          {t.web.bookingResult.signInAction}
+        </Button>
+      </StateMessage>
+    );
+  }
+
+  if (isNotFound(cart.query.error)) {
+    return <StateMessage title={t.web.bookingResult.notFoundTitle} text={t.web.bookingResult.notFoundText} />;
+  }
+
+  if (isNotFound(venueQuery.error)) {
+    return (
+      <StateMessage title={t.web.venue.notFound.title} text={t.web.venue.notFound.text}>
+        <Link
+          href="/venues"
+          className="text-[16px] font-semibold leading-6 text-brand-text underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {t.web.venue.notFound.back}
+        </Link>
+      </StateMessage>
+    );
+  }
+
+  return (
+    <AsyncBlock query={venueQuery} emptyText={t.web.venue.notFound.text} isEmpty={() => false} skeleton={<VenueMenuSkeleton />}>
+      {(venue) => (
+        <AsyncBlock query={cart.query} emptyText="" isEmpty={() => false} skeleton={<VenueMenuSkeleton />}>
+          {() => <BookingModeMenuBody venue={venue} bookingId={bookingId} cart={cart} />}
+        </AsyncBlock>
+      )}
+    </AsyncBlock>
+  );
+}
+
+/**
+ * Тело страницы в режиме `?booking=` (C3-C7). Отдельно от `MenuPageBody`:
+ * интент бронирования здесь не читается вовсе (режим `booking` его
+ * игнорирует, раздел 5 ТЗ), справа не карточка слотов `BookingCard` — правка
+ * УЖЕ существующей брони, а не создание новой, а низ и правая колонка ведут
+ * одно и то же действие («Сохранить заказ»), поэтому состояние сохранения и
+ * модалка подтверждения снятия живут ЗДЕСЬ, на уровень выше обеих — иначе
+ * полоса ниже `lg` (карточка справа там не смонтирована, `hidden lg:block`)
+ * не имела бы доступа к тому же запросу и к той же модалке.
+ */
+function BookingModeMenuBody({
+  venue,
+  bookingId,
+  cart,
+}: {
+  venue: Restaurant;
+  bookingId: string;
+  cart: ReturnType<typeof useBookingPreorderCart>;
+}) {
+  const t = useT();
+  const router = useRouter();
+  const menuQuery = useMenuSections(venue.id);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+
+  const handleSave = useCallback(
+    (items: PreorderLineInput[]) => {
+      cart.save.mutate(items, {
+        onSuccess: () => {
+          setConfirmingClear(false);
+          router.push(bookingResultPath(bookingId));
+        },
+      });
+    },
+    [cart.save, router, bookingId],
+  );
+
+  /** C3: «Очистить» + «Сохранить» с пустой корзиной — снятие предзаказа
+   * (`PUT {items:[]}`), решение продукта, поэтому СНАЧАЛА подтверждение, а
+   * не тихая отправка. Непустая корзина сохраняется сразу — это и есть
+   * обычный путь. */
+  const handleSaveClick = useCallback(() => {
+    if (cart.save.isPending) return;
+    const items = cart.saveInput();
+    if (items.length === 0) {
+      setConfirmingClear(true);
+      return;
+    }
+    handleSave(items);
+  }, [cart, handleSave]);
+
+  const errorReason = saveErrorReason(cart.save.error);
+
+  return (
+    <>
+      <div className="flex flex-col gap-8 lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <h1 className="text-h1 tracking-[-0.8px] text-ink">{t.web.venue.menuPage.title(venue.name)}</h1>
+
+          <AsyncBlock
+            query={menuQuery}
+            emptyText={t.web.venue.menu.empty}
+            isEmpty={(sections) => sections.length === 0}
+            skeleton={<MenuGridSkeleton />}
+          >
+            {(sections) => <MenuBrowser sections={sections} venue={venue} preorder={cart} />}
+          </AsyncBlock>
+        </div>
+
+        <aside className="hidden lg:block lg:w-venue-aside lg:shrink-0">
+          <div className="flex flex-col gap-4 lg:sticky lg:top-6">
+            <BookingPreorderCard cart={cart} sections={menuQuery.data} onSaveClick={handleSaveClick} />
+          </div>
+        </aside>
+      </div>
+
+      {/* C6: ВНЕ карточки справа — та ниже `lg` не смонтирована
+          (`hidden lg:block`), а `BottomBar` ниже `lg` несёт только кнопку
+          (C7), не текст. Отказ обязан быть виден на любой ширине, поэтому
+          строка отказа стоит здесь, в обычном потоке (не под `BottomBar`,
+          которая `fixed`). */}
+      {cart.save.isError ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-xl border border-danger-text bg-danger px-4 py-3">
+          <p className="text-bodyS text-danger-text">{t.web.venue.menuPage.bookingCart.error[errorReason]}</p>
+          {errorReason === "bookingClosed" ? (
+            <Button size="m" variant="outline" block asLink href={bookingResultPath(bookingId)}>
+              {t.web.venue.menuPage.bookingCart.backToTicket}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <BookingModeBottomBar totalMinor={cart.totalMinor} saving={cart.save.isPending} onSaveClick={handleSaveClick} />
+
+      {confirmingClear ? (
+        <RemovePreorderDialog
+          saving={cart.save.isPending}
+          isError={cart.save.isError}
+          errorText={t.web.venue.menuPage.bookingCart.error[errorReason]}
+          onConfirm={() => handleSave([])}
+          onClose={() => setConfirmingClear(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+const BOOKING_CART_TITLE_ID = "booking-preorder-title";
+
+/**
+ * Карточка «Ваш заказ» (C3) — В ОТЛИЧИЕ ОТ `MenuPreorderCard` обычного
+ * режима, показывается ВСЕГДА, даже при пустой корзине: это единственный
+ * путь до кнопки «Сохранить заказ», которым гость снимает предзаказ целиком
+ * (C3), и прятать его именно тогда, когда он больше всего нужен, нельзя.
+ */
+function BookingPreorderCard({
+  cart,
+  sections,
+  onSaveClick,
+}: {
+  cart: ReturnType<typeof useBookingPreorderCart>;
+  /** `undefined`, пока `GET /restaurants/:id/menu` ещё в полёте — тогда ни
+   * одна строка не помечена «нет в наличии» (тот же приём, что в
+   * `MenuPreorderCard`, A6). */
+  sections: MenuSection[] | undefined;
+  onSaveClick: () => void;
+}) {
+  const t = useT();
+  const texts = t.web.venue.menuPage.bookingCart;
+
+  const availability = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const section of sections ?? []) {
+      for (const dish of section.dishes) map.set(dish.id, dish.isAvailable);
+    }
+    return map;
+  }, [sections]);
+
+  return (
+    <section
+      aria-labelledby={BOOKING_CART_TITLE_ID}
+      className="flex flex-col gap-4 overflow-hidden rounded-xl border border-line-strong bg-canvas p-6 shadow-aside"
+    >
+      <h2 id={BOOKING_CART_TITLE_ID} className="text-aside-card-title tracking-[-0.2px] text-ink">
+        {texts.title}
+      </h2>
+
+      {cart.cart.lines.length > 0 ? (
+        <ul className="flex flex-col gap-3">
+          {cart.cart.lines.map((line) => {
+            const unavailable = availability.get(line.menuItemId) === false;
+            return (
+              <li key={line.menuItemId} className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-flow-summary-value text-ink">{line.name}</p>
+                  <p className="text-bodyS text-ink-tertiary">
+                    {t.web.booking.summary.preorder.lineQty(line.quantity, formatMoneyMinor(line.priceMinor))}
+                  </p>
+                  {unavailable ? (
+                    <p className="text-bodyS text-ink-tertiary">{t.web.venue.menuPage.unavailable}</p>
+                  ) : null}
+                </div>
+                <DishStepper
+                  quantity={line.quantity}
+                  max={cart.maxQty}
+                  dishName={line.name}
+                  size="l"
+                  onAdd={() => cart.increment(line.menuItemId)}
+                  onIncrement={() => cart.increment(line.menuItemId)}
+                  onDecrement={() => cart.decrement(line.menuItemId)}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      <hr className="border-0 border-t border-line" />
+
+      <div className="flex flex-col gap-1">
+        <p className="text-flow-summary-label text-ink">{texts.total(formatMoneyMinor(cart.totalMinor))}</p>
+        <p className="text-bodyS text-ink-tertiary">{texts.estimateNote}</p>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        <Button size="m" block onClick={onSaveClick} loading={cart.save.isPending}>
+          {texts.save}
+        </Button>
+        <Button size="m" variant="outline" block onClick={cart.clear} disabled={cart.save.isPending}>
+          {texts.clear}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Полоса ниже `lg` в режиме `booking` (C7) — та же полоса, что и в обычном
+ * режиме (`MenuBottomBar`), но кнопка не ссылка, а действие: «Сохранить
+ * заказ» шлёт `PUT` напрямую, а не уводит на другую страницу.
+ */
+function BookingModeBottomBar({
+  totalMinor,
+  saving,
+  onSaveClick,
+}: {
+  totalMinor: number;
+  saving: boolean;
+  onSaveClick: () => void;
+}) {
+  const t = useT();
+  const texts = t.web.venue.menuPage.bookingCart;
+
+  return (
+    <BottomBar>
+      <Button size="submit" block onClick={onSaveClick} loading={saving}>
+        {texts.saveBar(formatMoneyMinor(totalMinor))}
+      </Button>
+    </BottomBar>
+  );
+}
+
+/** Подтверждение снятия предзаказа (раздел 6 ТЗ, 🟡) — тот же узор, что
+ * `CancelBookingDialog` в `ProfileScreen.tsx`: отдельная модалка, а не
+ * `window.confirm`, чтобы заблокировать кнопку на время запроса и показать
+ * текст отказа при 4xx/5xx, не потеряв введённое (здесь — снятый список). */
+function RemovePreorderDialog({
+  saving,
+  isError,
+  errorText,
+  onConfirm,
+  onClose,
+}: {
+  saving: boolean;
+  isError: boolean;
+  errorText: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const texts = t.web.venue.menuPage.bookingCart.removeConfirm;
+
+  return (
+    <Modal title={texts.title} description={texts.text} onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        {isError ? (
+          <p role="alert" className="text-bodyS text-danger-strong">
+            {errorText}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap justify-end gap-3">
+          <Button variant="secondary" size="m" onClick={onClose} disabled={saving}>
+            {texts.keep}
+          </Button>
+          <Button variant="primary" size="m" onClick={onConfirm} loading={saving}>
+            {texts.confirm}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -184,17 +592,7 @@ function MenuPageBody({
             query={menuQuery}
             emptyText={t.web.venue.menu.empty}
             isEmpty={(sections) => sections.length === 0}
-            skeleton={
-              <div className="flex flex-col gap-6">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-9 w-2/3" />
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <Skeleton key={index} className="h-venue-dish-image w-full" />
-                  ))}
-                </div>
-              </div>
-            }
+            skeleton={<MenuGridSkeleton />}
           >
             {(sections) => <MenuBrowser sections={sections} venue={venue} preorder={preorder} />}
           </AsyncBlock>
@@ -234,7 +632,7 @@ function MenuBrowser({
 }: {
   sections: MenuSection[];
   venue: Restaurant;
-  preorder: ReturnType<typeof usePreorderDraft>;
+  preorder: PreorderCartControls;
 }) {
   const t = useT();
   const [search, setSearch] = useState("");
@@ -328,7 +726,7 @@ function DishCard({
 }: {
   dish: MenuDish;
   canPreorder: boolean;
-  preorder: ReturnType<typeof usePreorderDraft>;
+  preorder: PreorderCartControls;
 }) {
   const t = useT();
   const canAdd = canPreorder && dish.isAvailable && dish.priceMinor !== null;

@@ -2742,7 +2742,6 @@ export const en: LocaleOverride<Dictionary> = {
         empty: "The venue has not told anything about itself yet.",
       },
       menu: {
-        title: "Popular on the menu",
         empty: "The menu is not filled in yet.",
         noPrice: "Price is not set",
         addDish: (name: string) => `Add ${name}`,
@@ -2750,7 +2749,6 @@ export const en: LocaleOverride<Dictionary> = {
         qtyMore: "Increase quantity",
         preorderTotal: (amount: string) => `Total ≈ ${amount}`,
         viewAll: "Full menu →",
-        fullMenuOnly: "Full menu — on a separate page",
       },
       menuPage: {
         title: (name: string) => `${name} menu`,
@@ -2772,12 +2770,35 @@ export const en: LocaleOverride<Dictionary> = {
           toBooking: (amount: string) => `To booking · Total ≈ ${amount}`,
           book: "Book a table",
         },
+        bookingCart: {
+          title: "Your order",
+          total: (amount: string) => `Total ≈ ${amount}`,
+          estimateNote: "The venue will calculate the final total — this is an estimate from menu prices",
+          clear: "Clear",
+          save: "Save order",
+          saveBar: (amount: string) => `Save order · Total ≈ ${amount}`,
+          removeConfirm: {
+            title: "Remove the pre-order?",
+            text: "The dish list will become empty and we will remove the pre-order from this booking. You can only rebuild it by hand.",
+            confirm: "Remove pre-order",
+            keep: "Keep it",
+          },
+          error: {
+            locked: "The booking is confirmed — the venue changes the order now, call them.",
+            paymentInFlight: "A payment is in progress — wait for it to finish.",
+            bookingClosed: "The booking is over, there is nothing left to change.",
+            belowMinimum: "The total is below the venue's minimum order — add more dishes and save again.",
+            itemUnavailable: "One of the dishes is no longer available — remove it and save again.",
+            other: "The venue did not accept the order. Try again.",
+          },
+          backToTicket: "To the ticket",
+        },
       },
       promos: {
         title: "Venue deals",
       },
       contacts: {
-        title: "Contacts and how to get there",
+        title: "Contacts",
         address: "Address",
         phone: "Phone",
         social: "Social",
@@ -2792,7 +2813,6 @@ export const en: LocaleOverride<Dictionary> = {
           website: "Website",
         },
         mapAlt: (name: string) => `Map: where ${name} is`,
-        noMap: "The venue has not provided coordinates.",
         mapUnavailable: "The map is unavailable right now.",
         empty: "No contacts provided.",
       },
@@ -3000,6 +3020,10 @@ export const en: LocaleOverride<Dictionary> = {
           other:
             "The booking is confirmed, but the pre-order did not attach — tell the venue what you picked when they confirm.",
         },
+        choose: "Choose dishes",
+        edit: "Edit pre-order",
+        confirmedLockedNotice: "The venue changes a confirmed booking's order",
+        manualLockedNotice: "The venue edited this order — changes go through the venue",
       },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка

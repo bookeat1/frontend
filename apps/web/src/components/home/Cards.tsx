@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { EventSummary, GuideCollection } from "@bookeat/api/client";
 
+import { OCEAN_BASKET_SLUG } from "@web/components/ocean/ocean-basket-content";
 import { Card } from "@web/components/ui/Card";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { cx } from "@web/lib/cx";
@@ -56,9 +57,30 @@ export const SHOW_PROMOS_LINK: boolean = true;
 export const EVENTS_PATH = "/events";
 export const GUIDE_PATH = "/guide";
 export const PROMOS_PATH = "/promos";
-export const guideCollectionHref = (slug: string) => `${GUIDE_PATH}/${slug}`;
 export const eventHref = (id: string) => `${EVENTS_PATH}/${id}`;
 export const promoHref = (id: string) => `${PROMOS_PATH}/${id}`;
+
+/**
+ * Ссылка карточки гастрогида на главной. Ocean Basket — исключение с зашитым
+ * собственным маршрутом `/brand/ocean-basket`, тот же приём, что в
+ * `GuideScreen.tsx` (`EditorPickCard`, узел 2026-09-06) и на мобилке
+ * (`app/gastroguide/index.tsx`, PR #105): у него есть страница уже сейчас,
+ * остальные подборки — нет.
+ *
+ * Остальные подборки ведут на `/guide/rubric/[slug]` — тот же роут, что уже
+ * используют рубрики на `/guide` (`GuideScreen.tsx`), собранный из
+ * `collection.categorySlugs[0]`. Не зависит от `SHOW_SECTION_LINKS`
+ * (2026-09-09, решение владельца): у карточки есть реальный адрес, когда есть
+ * `categorySlugs`, независимо от флага — тот теперь управляет только
+ * ссылками «Вся афиша» / «Все подборки» в шапках секций.
+ */
+export const guideCardHref = (collection: GuideCollection): string | undefined => {
+  if (collection.slug === OCEAN_BASKET_SLUG) {
+    return "/brand/ocean-basket";
+  }
+  const rubricSlug = collection.categorySlugs[0];
+  return rubricSlug ? `/guide/rubric/${rubricSlug}` : undefined;
+};
 
 /**
  * Размеры обложек трёх карточек. Числа макета (260, 196/324, 300) живут только
@@ -103,17 +125,20 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
   return (
     <article
       className={cx(
-        "relative flex flex-col justify-end overflow-hidden rounded-card bg-muted p-5",
+        // Радиус, паддинг и затемнение — те же токены, что у карточки акции
+        // на странице заведения (`webVenuePage.promoCard`, узел 3379:11497):
+        // ЭТО ОДИН И ТОТ ЖЕ КОМПОНЕНТ МАКЕТА в двух местах сайта, только
+        // здесь высота фиксированная (узел 3525:14236, 260), а там — минимум
+        // (у карточки заведения бывает длиннее подпись).
+        "relative flex flex-col justify-end overflow-hidden rounded-promo bg-muted p-venue-promo-p",
         PROMO_CARD_FRAME,
       )}
     >
       <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={THIRD_COLUMN_SIZES} />
       {/* Затемнение снизу: белый текст поверх произвольной фотографии иначе
-          читается через раз. Градиент, а не сплошная плашка, — как в макете. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.72)] via-[rgba(0,0,0,0.25)] to-transparent"
-      />
+          читается через раз. Три стопа `bg-promo-scrim` — как в макете
+          (5%/35%/85% чёрного сверху вниз), не голый двухстопный градиент. */}
+      <span aria-hidden="true" className="absolute inset-0 bg-promo-scrim" />
       {promo.discountPercent !== null && promo.discountPercent > 0 ? (
         <span className="absolute left-5 top-5 inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-[13px] font-bold leading-[18px] text-ink-on-brand">
           {t.web.format.discount(promo.discountPercent)}
@@ -127,8 +152,8 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
           поймано вживую: клик по фото карточки на `/` не переходил на
           `/promos/[id]`, клик по заголовку — переходил). Единственный
           `relative` в дереве — у внешнего `article`, как у `EventCard`. */}
-      <div className="flex flex-col gap-0.5">
-        <h3 className="text-[20px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-inverse">
+      <div className="relative flex flex-col gap-1">
+        <h3 className="break-words text-[22px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-brand">
           <Link
             href={promoHref(promo.id)}
             className="after:absolute after:inset-0 after:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -136,8 +161,12 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
             {promo.title}
           </Link>
         </h3>
+        {/* Название заведения — самостоятельная строка внутри карточки (узел
+            3525:14240 «Flour Demi · будни до 18:00»): здесь бэкенд отдаёт
+            только имя без часов работы (`HomePromo.restaurantName`), поэтому
+            строка короче макетной, но остаётся ВНУТРИ той же карточки. */}
         {promo.restaurantName ? (
-          <p className="text-[14px] leading-5 text-ink-on-inverse">{promo.restaurantName}</p>
+          <p className="truncate text-[14px] leading-5 text-on-brand-subtle">{promo.restaurantName}</p>
         ) : null}
       </div>
     </article>

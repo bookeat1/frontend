@@ -291,6 +291,7 @@ const config: Config = {
           "navy-deep": webOceanBasketPage.navyDeep,
           gold: webOceanBasketPage.gold,
           "gold-muted": webOceanBasketPage.goldMuted,
+          "gold-section-title": webOceanBasketPage.goldSectionTitle,
           "on-navy": webOceanBasketPage.onNavy,
           muted: webOceanBasketPage.muted,
           "card-border": webOceanBasketPage.cardBorder,

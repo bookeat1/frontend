@@ -356,12 +356,12 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
  * сервер не отдаёт. Локаль в ключе: названия и описания блюд переводит
  * сервер по `Accept-Language`.
  */
-export function useMenuSections(id: string): UseQueryResult<MenuSection[]> {
+export function useMenuSections(id: string, options?: { enabled?: boolean }): UseQueryResult<MenuSection[]> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "menu-sections", id],
     queryFn: () => repository.getMenuSections(id),
-    enabled: isApiConfigured && id.length > 0,
+    enabled: isApiConfigured && id.length > 0 && (options?.enabled ?? true),
   });
 }
 
@@ -643,6 +643,33 @@ export function usePreorder(bookingId: string | undefined): UseQueryResult<Preor
     },
     enabled: isApiConfigured && Boolean(bookingId) && signedIn && !isLoading,
     retry: 1,
+  });
+}
+
+/**
+ * `PUT /bookings/:id/preorder` в режиме правки существующей брони
+ * (`/venues/[id]/menu?booking=<id>`, ТЗ `web-preorder-menu-20260908`,
+ * C-WEB-1, C5-C6). Полная замена — тело собирает `draftToPreorderInput` из
+ * `use-booking-preorder-cart.ts`: только `menu_item_id` и `quantity`.
+ *
+ * НИ ОДНОГО ПОВТОРА, В ОТЛИЧИЕ ОТ `useCreateBooking`: там повтор нужен, чтобы
+ * пережить обрыв сети ПОСЛЕ уже принятого `POST /bookings` — второй `PUT`
+ * безопасен, потому что это замена, а не добавление. Здесь кнопка «Сохранить
+ * заказ» сама блокируется на время запроса (C6: «кнопка — и есть повтор») —
+ * гость видит отказ и решает сам, а не получает второй запрос с тем же телом
+ * от кода, который не спросил.
+ */
+export function useSetBookingPreorder(bookingId: string) {
+  const client = useQueryClient();
+  return useMutation<Preorder, unknown, PreorderLineInput[]>({
+    mutationFn: (items) => repository.setPreorder(bookingId, items),
+    onSuccess: (data) => {
+      // C5: билет читает тот же `PREORDER_KEY` — обновляем кэш СРАЗУ, а не
+      // только дожидаемся инвалидации, чтобы переход на `/bookings/[id]`
+      // не увидел старый список на долю секунды.
+      client.setQueryData([...PREORDER_KEY, bookingId], data);
+      void client.invalidateQueries({ queryKey: [...PREORDER_KEY, bookingId] });
+    },
   });
 }
 

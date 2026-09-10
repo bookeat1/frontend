@@ -21,6 +21,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppUpdateGate } from "../src/components/AppUpdateGate";
 import { AnalyticsProvider } from "../src/lib/analytics-provider";
 import { AuthProvider } from "../src/lib/auth";
+import { isDetourConfigured } from "../src/lib/detour";
+import { DetourLinkRouter } from "../src/lib/detour-link-router";
+import { DetourProviderGate } from "../src/lib/detour-provider-gate";
 import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
@@ -83,52 +86,70 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        {/* LocaleProvider sits at the top so every screen (and every provider
-            below) can read the current language. It owns no session and no
-            query, only the chosen locale + its persisted value. */}
-        <LocaleProvider>
-        <QueryClientProvider client={queryClient}>
-          <RepositoryProvider>
-            {/* AuthProvider sits INSIDE RepositoryProvider on purpose: it
-                writes the token cell that the repository's getToken closure
-                reads, and mounting it here means the whole app (not just the
-                booking flow) can read the session. */}
-            <AuthProvider>
-            {/* AnalyticsProvider sits inside AuthProvider so it can read the
-                session: it brings Amplitude up once and keeps the analytics
-                identity in sync (identify on sign-in, reset on sign-out). It
-                renders nothing and no-ops entirely when no key is configured. */}
-            <AnalyticsProvider>
-            {/* PushProvider needs BOTH the session (whose account the token is
-                registered against) and the router (a tapped notification opens
-                the booking), so it sits inside AuthProvider and around the
-                Stack. It renders nothing and starts nothing on an unsupported
-                runtime. */}
-            <PushProvider>
-              <StatusBar style="dark" />
-              {/* Просмотры экранов — одним местом на всё приложение. Рисует
-                  null; отдельным узлом, а не хуком в AnalyticsProvider, чтобы
-                  переход по навигации не перерисовывал весь Stack. */}
-              <ScreenViewTracker />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.background.surface },
-                }}
-              />
-              {/* «Доступна новая версия» — ПОСЛЕ Stack, чтобы окно легло
-                  поверх любого экрана: жёсткий режим обязан накрывать и тот,
-                  на который гость пришёл по пуш-уведомлению. Пока показывать
-                  нечего, рисует null. */}
-              <AppUpdateGate />
-            </PushProvider>
-            </AnalyticsProvider>
-            </AuthProvider>
-          </RepositoryProvider>
-        </QueryClientProvider>
-        </LocaleProvider>
-      </SafeAreaProvider>
+      {/* DetourProviderGate (deferred deep linking, Software Mansion) sits
+          outermost: it owns no session, only device/link state, and
+          <DetourProvider>'s single documented instance-per-app requirement
+          is easiest to keep if nothing else wraps it. `<DetourProvider>`
+          itself no-ops on web (the package's own Platform.OS check); on
+          native the SDK has NO built-in no-op for a missing/empty
+          apiKey/appID (it still fires an automatic retention event on every
+          cold start), so DetourProviderGate skips mounting it at all in that
+          case — see src/lib/detour.ts and detour-provider-gate.tsx. */}
+      <DetourProviderGate>
+        <SafeAreaProvider>
+          {/* LocaleProvider sits at the top so every screen (and every provider
+              below) can read the current language. It owns no session and no
+              query, only the chosen locale + its persisted value. */}
+          <LocaleProvider>
+          <QueryClientProvider client={queryClient}>
+            <RepositoryProvider>
+              {/* AuthProvider sits INSIDE RepositoryProvider on purpose: it
+                  writes the token cell that the repository's getToken closure
+                  reads, and mounting it here means the whole app (not just the
+                  booking flow) can read the session. */}
+              <AuthProvider>
+              {/* AnalyticsProvider sits inside AuthProvider so it can read the
+                  session: it brings Amplitude up once and keeps the analytics
+                  identity in sync (identify on sign-in, reset on sign-out). It
+                  renders nothing and no-ops entirely when no key is configured. */}
+              <AnalyticsProvider>
+              {/* PushProvider needs BOTH the session (whose account the token is
+                  registered against) and the router (a tapped notification opens
+                  the booking), so it sits inside AuthProvider and around the
+                  Stack. It renders nothing and starts nothing on an unsupported
+                  runtime. */}
+              <PushProvider>
+                <StatusBar style="dark" />
+                {/* Просмотры экранов — одним местом на всё приложение. Рисует
+                    null; отдельным узлом, а не хуком в AnalyticsProvider, чтобы
+                    переход по навигации не перерисовывал весь Stack. */}
+                <ScreenViewTracker />
+                {/* Deferred Detour link → route, once resolved. Renders null;
+                    a separate node so it re-renders on its own context change,
+                    not the whole Stack (same reasoning as ScreenViewTracker).
+                    Reads useDetourContext(), which throws outside a mounted
+                    <DetourProvider> — gated the same way DetourProviderGate
+                    decides whether to mount one. */}
+                {isDetourConfigured && <DetourLinkRouter />}
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background.surface },
+                  }}
+                />
+                {/* «Доступна новая версия» — ПОСЛЕ Stack, чтобы окно легло
+                    поверх любого экрана: жёсткий режим обязан накрывать и тот,
+                    на который гость пришёл по пуш-уведомлению. Пока показывать
+                    нечего, рисует null. */}
+                <AppUpdateGate />
+              </PushProvider>
+              </AnalyticsProvider>
+              </AuthProvider>
+            </RepositoryProvider>
+          </QueryClientProvider>
+          </LocaleProvider>
+        </SafeAreaProvider>
+      </DetourProviderGate>
     </GestureHandlerRootView>
   );
 }

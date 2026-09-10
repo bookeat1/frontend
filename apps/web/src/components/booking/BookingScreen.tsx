@@ -38,6 +38,7 @@ import {
   newIdempotencyKey,
   type SubmitFailure,
 } from "@web/lib/booking-submit";
+import { readCampaignAttribution } from "@web/lib/campaign-attribution";
 import { bookingDateLabel, slotDateIso, slotTimeLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { isComplete, kzNationalDigits, toE164 } from "@web/lib/phone";
@@ -383,6 +384,12 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           phone: toE164(contacts.phoneDigits),
           email: contacts.email.trim() || undefined,
           notes: composedNotes || undefined,
+          // «Марафон Алматы» и следующие QR-акции: та же метка, что осела в
+          // sessionStorage при заходе по `?promo=` (см. `campaign-attribution.ts`
+          // и `providers.tsx`), уходит В ЭТОМ ЖЕ теле запроса — сервер считает
+          // хэш тела для идемпотентности ИЗ ТОГО, что реально пришло, поэтому
+          // добавлять поле вторым запросом после создания брони было бы поздно.
+          promotionId: readCampaignAttribution() ?? undefined,
         },
         idempotencyKey,
         preorder: draftToPreorderInput(preorderDraft.draft),

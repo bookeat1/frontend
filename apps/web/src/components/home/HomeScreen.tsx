@@ -18,7 +18,7 @@ import {
   SHOW_EVENTS_LINK,
   SHOW_PROMOS_LINK,
   SHOW_SECTION_LINKS,
-  guideCollectionHref,
+  guideCardHref,
 } from "@web/components/home/Cards";
 import { CuisineRow, CuisineRowSkeleton } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
@@ -280,7 +280,7 @@ export function HomeScreen() {
                   <li key={collection.slug}>
                     <GuideCard
                       collection={collection}
-                      href={SHOW_SECTION_LINKS ? guideCollectionHref(collection.slug) : undefined}
+                      href={guideCardHref(collection)}
                     />
                   </li>
                 ))}

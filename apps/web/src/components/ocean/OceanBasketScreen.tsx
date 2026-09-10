@@ -9,7 +9,6 @@ import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Modal } from "@web/components/ui/Modal";
-import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { formatMoneyMinor } from "@web/lib/format";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
@@ -69,15 +68,9 @@ export function OceanBasketScreen() {
     pointsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const heroPhoto = venuesQuery.data?.[0]?.coverPhoto?.uri;
-
   return (
     <SiteChrome>
-      <OceanHero
-        heroPhoto={heroPhoto}
-        onBook={scrollToPoints}
-        onWelcomeDrink={() => setWelcomeOpen(true)}
-      />
+      <OceanHero onBook={scrollToPoints} onWelcomeDrink={() => setWelcomeOpen(true)} />
 
       <div className="bg-ocean-sheet">
         <Container className="flex flex-col gap-12 py-10 lg:gap-16 lg:py-16">
@@ -107,11 +100,9 @@ export function OceanBasketScreen() {
  * ------------------------------------------------------------------------ */
 
 function OceanHero({
-  heroPhoto,
   onBook,
   onWelcomeDrink,
 }: {
-  heroPhoto: string | undefined;
   onBook: () => void;
   onWelcomeDrink: () => void;
 }) {
@@ -129,11 +120,31 @@ function OceanHero({
             <AnchorIcon size={16} />
             {t.oceanBasket.webHeroEyebrow}
           </p>
-          <h1 className="break-words font-serif text-[44px] italic leading-[1.08] lg:text-[64px]">
-            <span className="block text-ocean-on-navy">Seafood</span>
-            <span className="block text-ocean-gold">Expedition</span>
-          </h1>
-          <p className="max-w-[420px] break-words text-[18px] leading-6 text-ocean-on-navy">
+          {/* Заголовок «Seafood Expedition» — НЕ текст: это фирменный
+              леттеринг (Lobster из макета, которого в сборке нет), тот же
+              приём и те же PNG-экспорты, что у мобильного `OceanHero`
+              (`apps/mobile/assets/ocean-basket/lettering-*.png`). Ширины
+              подобраны по эталонному скриншоту (~245/335 на 1440), исходное
+              соотношение сторон (268×87 и 371×97) сохранено через `h-auto`. */}
+          <div className="flex flex-col gap-1">
+            <Image
+              src={oceanAssets.letteringSeafood}
+              alt="Seafood Expedition"
+              width={268}
+              height={87}
+              unoptimized
+              className="h-auto w-[190px] lg:w-[245px]"
+            />
+            <Image
+              src={oceanAssets.letteringExpedition}
+              alt=""
+              width={371}
+              height={97}
+              unoptimized
+              className="h-auto w-[260px] lg:w-[335px]"
+            />
+          </div>
+          <p className="max-w-[520px] break-words text-[18px] leading-6 text-ocean-on-navy">
             {t.oceanBasket.webHeroSubtitle}
           </p>
           <div className="flex flex-wrap items-center gap-4">
@@ -164,11 +175,14 @@ function OceanHero({
         </div>
 
         <div className="relative h-[240px] overflow-hidden rounded-2xl bg-ocean-navy-deep lg:h-[340px]">
-          <RemoteImage
-            src={heroPhoto}
+          <Image
+            src={oceanAssets.storefrontPhoto}
             alt=""
+            fill
             sizes="(min-width: 1024px) 560px, 100vw"
+            className="object-cover"
             priority
+            unoptimized
           />
         </div>
       </Container>
@@ -206,12 +220,15 @@ function OceanMapAndPoints({ query }: { query: ReturnType<typeof useOceanBasketV
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Узел 5115:9797: этот блок вне «золотой» ocean-палитры — обычные
+              `ink`-токены (#1B1B1B/#595959), не `ocean-navy`/`ocean-muted`
+              как у остальной страницы. Заголовок 26/38 Bold, подпись 16/23. */}
           <div className="flex flex-col gap-1">
-            <h3 className="text-[20px] font-bold leading-6 text-ocean-navy">
+            <h3 className="text-[22px] font-bold leading-8 tracking-[-0.4px] text-ink lg:text-[26px]">
               {t.oceanBasket.webPointsTitle}
             </h3>
             {venues.length > 0 ? (
-              <p className="text-[14px] leading-5 text-ocean-muted">
+              <p className="text-[16px] leading-[23px] text-ink-secondary">
                 {t.oceanBasket.webPointsSubtitle(city, venues.length)}
               </p>
             ) : null}
@@ -258,19 +275,18 @@ function OceanMapAndPoints({ query }: { query: ReturnType<typeof useOceanBasketV
 function OceanPointRow({ venue, index }: { venue: RestaurantSummary; index: number }) {
   const t = useT();
   return (
+    // Узел 5115:9797 «Выбрать / …»: карточка 16px радиуса (не 12), номер —
+    // фирменный красный `brand-text` (#96272C) 16 regular, название — 18
+    // regular `ink` (не Bold/navy как у ocean-палитры остальной страницы).
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="flex items-center justify-between gap-4 rounded-xl bg-canvas px-5 py-4 shadow-card transition-colors hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
+      className="flex items-center justify-between gap-4 rounded-2xl bg-canvas px-5 py-5 shadow-card transition-colors hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ocean-gold"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="text-[13px] font-bold leading-4 text-ocean-gold-muted">
-          {t.oceanBasket.pointNumber(index)}
-        </span>
-        <span className="truncate text-[16px] font-semibold leading-6 text-ocean-navy">
-          {oceanPointName(venue.name)}
-        </span>
+        <span className="text-[16px] leading-[23px] text-brand-text">{t.oceanBasket.pointNumber(index)}</span>
+        <span className="truncate text-[18px] leading-6 text-ink">{oceanPointName(venue.name)}</span>
       </span>
-      <span aria-hidden="true" className="shrink-0 text-ocean-navy">
+      <span aria-hidden="true" className="shrink-0 text-ink">
         <ChevronIcon direction="right" size={16} />
       </span>
     </Link>
@@ -286,12 +302,21 @@ function OceanDishesSection({ state }: { state: OceanSignatureDishesState }) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[32px]">
+        {/* Кегль 40/48 Cormorant Garamond Bold — узел 5115:9810; ниже `lg`
+            размер приложения (нет отдельного узла для мобильной ширины
+            веб-страницы). */}
+        <h2 className="font-serif text-[26px] leading-8 text-ocean-navy lg:text-[40px] lg:leading-[48px]">
           {t.oceanBasket.dishesTitle}
         </h2>
-        <p className="text-[15px] leading-5 text-ocean-muted">{t.oceanBasket.webDishesSubtitle}</p>
+        {/* Цвет подписи — узел 5115:9811: `text/secondary` (#595959), а не
+            фирменное золото `ocean-muted`; кегль 20/23 на `lg`. */}
+        <p className="text-[15px] leading-5 text-ink-secondary lg:text-[20px] lg:leading-[23px]">
+          {t.oceanBasket.webDishesSubtitle}
+        </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Отступ между карточками — 32 (узел 5115:9809: карточки 584 при
+          контейнере 1200 → 1200 - 2×584 = 32), а не стандартные 16. */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
         {OCEAN_SIGNATURE_DISHES.map((signature, index) => (
           <OceanDishCard key={signature.menuName} photo={signature.photo} state={state} index={index} />
         ))}
@@ -338,8 +363,11 @@ function OceanDishCard({
     const price = priceMeta?.from ? `${t.oceanBasket.pricePrefixFrom} ${priceValue}` : priceValue;
     caption = (
       <div className="flex flex-col gap-1">
-        <p className="break-words text-[20px] font-bold leading-6 text-ocean-navy">{dish.name}</p>
-        <p className="text-[15px] leading-5 text-ocean-muted">
+        {/* Название — 22 SemiBold (узлы 5115:9816/9821), не 20 Bold. */}
+        <p className="break-words text-[22px] font-semibold leading-7 text-ocean-navy">{dish.name}</p>
+        {/* Цена — 16, не 15 (узлы 5115:9817/9822); цвет тот же navy, что и
+            название, а не приглушённый `ocean-muted`. */}
+        <p className="text-[16px] leading-8 text-ocean-navy">
           {price}
           {priceMeta ? ` · ${priceMeta.note}` : null}
         </p>
@@ -348,7 +376,8 @@ function OceanDishCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-canvas shadow-card">
+    // Радиус 24 (узел 5115:9812/9818), не 16.
+    <div className="overflow-hidden rounded-3xl bg-canvas shadow-card">
       {picture}
       <div className="flex flex-col gap-1 px-5 py-4">{caption}</div>
     </div>
@@ -574,18 +603,60 @@ function OceanClosingCta({ onBook }: { onBook: () => void }) {
  * рисуется общим веб-компонентом `Modal` вместо RN bottom sheet.
  * ------------------------------------------------------------------------ */
 
+/** Значки шагов «Как получить» (узел 5129:10805, ряд 5012:5714/5723/5736 у
+ * мобильного эталона `OceanWelcomeDrinkSheet.tsx`: календарь-галочка, QR-код,
+ * бокал) — третий переиспользует `GobletIcon`, уже нарисованный для главы 4
+ * истории бренда ниже на этой же странице, вместо второго похожего значка. */
+const WELCOME_STEP_ICONS: readonly ((props: { size?: number }) => ReactNode)[] = [
+  CalendarCheckIcon,
+  QrIcon,
+  GobletIcon,
+];
+
 function OceanWelcomeModal({ onClose }: { onClose: () => void }) {
   const t = useT();
   const sheet = t.oceanBasket.welcomeSheet;
 
   return (
-    <Modal title={sheet.title} description={sheet.subtitle} onClose={onClose}>
+    <Modal
+      title={sheet.title}
+      description={sheet.subtitle}
+      onClose={onClose}
+      // Плашка-бейдж и значок у заголовка — догнано до мобильного эталона
+      // (узел 5129:10805, 2026-09-09): на вебе их не было, из-за чего шторка
+      // выглядела проще мобильной. Подложка бейджа — тот же приглушённый
+      // золотой токен `ocean-welcome-surface`, что уже красит пилюлю
+      // «WELCOME DRINK» на герое (мобильный `promoBadgeSurface` — тоже
+      // золотой оттенок, не зелёный, несмотря на то, как он мог показаться
+      // на скриншоте).
+      eyebrow={
+        <span className="mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-ocean-welcome-surface px-3 py-1 text-[11px] font-semibold uppercase leading-4 tracking-[0.06em] text-ocean-gold">
+          <SparkleIcon size={12} />
+          {sheet.promoBadge}
+        </span>
+      }
+      titleIcon={
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ocean-gold text-ocean-navy"
+        >
+          <GobletIcon size={16} />
+        </span>
+      }
+    >
+      {/* Узел 5129:10805: заголовки секций — приглушённое золото
+          `ocean-gold-section-title` (#A09B61), не обычный `ink`; текст
+          списков — фирменный navy (#052747), не серый `ink-secondary`;
+          карточка условий — тёплая подложка `ocean-accent-surface`
+          (#F6EAD4), не нейтральный `bg-subtle`. */}
       <div className="flex flex-col gap-6">
         <div>
-          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ink">{sheet.includesTitle}</h3>
+          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ocean-gold-section-title">
+            {sheet.includesTitle}
+          </h3>
           <ul className="flex flex-col gap-2">
             {sheet.includes.map((line) => (
-              <li key={line} className="flex items-start gap-2 text-bodyM text-ink-secondary">
+              <li key={line} className="flex items-start gap-2 text-bodyM text-ocean-navy">
                 <CheckIcon size={16} />
                 <span>{line}</span>
               </li>
@@ -594,17 +665,33 @@ function OceanWelcomeModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div>
-          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ink">{sheet.stepsTitle}</h3>
-          <ol className="flex flex-col gap-1 text-bodyM text-ink-secondary">
-            {sheet.steps.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ol>
+          <h3 className="mb-2 text-[16px] font-semibold leading-6 text-ocean-gold-section-title">
+            {sheet.stepsTitle}
+          </h3>
+          {/* Три колонки со значком сверху и подписью снизу — на мобильном
+              это не текстовый список, а плитки (узел 5012:5691), на веб
+              собраны тем же смыслом, без 1:1 копии bottom sheet. */}
+          <div className="grid grid-cols-3 gap-3">
+            {sheet.steps.map((label, index) => {
+              const Icon = WELCOME_STEP_ICONS[index] ?? GobletIcon;
+              return (
+                <div key={label} className="flex flex-col items-center gap-2 text-center">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ocean-accent-surface text-ocean-navy"
+                  >
+                    <Icon size={20} />
+                  </span>
+                  <p className="break-words text-[13px] leading-[18px] text-ocean-navy">{label}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="rounded-lg bg-subtle px-4 py-3">
-          <h3 className="mb-1 text-[14px] font-semibold leading-5 text-ink">{sheet.termsTitle}</h3>
-          <p className="whitespace-pre-line text-[13px] leading-5 text-ink-tertiary">
+        <div className="rounded-2xl bg-ocean-accent-surface px-4 py-3">
+          <h3 className="mb-1 text-[16px] font-semibold leading-6 text-ocean-navy">{sheet.termsTitle}</h3>
+          <p className="whitespace-pre-line text-[14px] leading-5 text-ocean-muted">
             {sheet.terms.map((line) => `· ${line}`).join("\n")}
           </p>
         </div>
@@ -703,6 +790,40 @@ function CheckIcon({ size = 16 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" focusable="false" className="mt-0.5 shrink-0">
       <circle cx="8" cy="8" r="8" fill="#D2C159" />
       <path d="M4.5 8.2l2.2 2.2 4.5-4.8" stroke="#052747" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+/** Значок 1/3 шагов «Как получить» — календарь с галочкой (тот же смысл, что
+ * `CalendarCheck` у мобильного эталона). */
+function CalendarCheckIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 9h16M8 3v3M16 3v3" strokeLinecap="round" />
+      <path d="M9 13.5l2 2 4-4.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Значок 2/3 шагов «Как получить» — QR-код (тот же смысл, что `QrCode` у
+ * мобильного эталона). */
+function QrIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="4" y="4" width="6" height="6" rx="0.8" />
+      <rect x="14" y="4" width="6" height="6" rx="0.8" />
+      <rect x="4" y="14" width="6" height="6" rx="0.8" />
+      <path d="M15 15h2v2h-2zM19 15h1M15 19h1M19 19h1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Значок бейджа «ПРОМО BOOKEAT x OCEAN BASKET» над заголовком шторки. */
+function SparkleIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="currentColor">
+      <path d="M8 1.5l1.4 4.1L13.5 7 9.4 8.4 8 12.5 6.6 8.4 2.5 7l4.1-1.4L8 1.5Z" />
     </svg>
   );
 }

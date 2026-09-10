@@ -2747,7 +2747,6 @@ export const kk: LocaleOverride<Dictionary> = {
         empty: "Орын өзі туралы әлі жазбаған.",
       },
       menu: {
-        title: "Мәзірдегі танымал",
         empty: "Мәзір әлі толтырылмаған.",
         noPrice: "Бағасы көрсетілмеген",
         addDish: (name: string) => `${name} қосу`,
@@ -2755,7 +2754,6 @@ export const kk: LocaleOverride<Dictionary> = {
         qtyMore: "Санын арттыру",
         preorderTotal: (amount: string) => `Барлығы ≈ ${amount}`,
         viewAll: "Толық мәзір →",
-        fullMenuOnly: "Толық мәзір — жеке бетте",
       },
       menuPage: {
         title: (name: string) => `${name} мәзірі`,
@@ -2777,12 +2775,35 @@ export const kk: LocaleOverride<Dictionary> = {
           toBooking: (amount: string) => `Броньға · Барлығы ≈ ${amount}`,
           book: "Брондау",
         },
+        bookingCart: {
+          title: "Сіздің тапсырысыңыз",
+          total: (amount: string) => `Барлығы ≈ ${amount}`,
+          estimateNote: "Соңғы соманы мекеме есептейді — бұл мәзір бағасы бойынша болжам",
+          clear: "Тазалау",
+          save: "Тапсырысты сақтау",
+          saveBar: (amount: string) => `Тапсырысты сақтау · Барлығы ≈ ${amount}`,
+          removeConfirm: {
+            title: "Алдын ала тапсырысты алып тастау керек пе?",
+            text: "Тағамдар тізімі бос болады, біз бұл броннан алдын ала тапсырысты алып тастаймыз. Оны қайта жинау тек қолмен мүмкін болады.",
+            confirm: "Алдын ала тапсырысты алып тастау",
+            keep: "Қалдыру",
+          },
+          error: {
+            locked: "Брон расталды — құрамын енді мекеме өзгертеді, оған қоңырау шалыңыз.",
+            paymentInFlight: "Төлем жүріп жатыр — оның аяқталуын күтіңіз.",
+            bookingClosed: "Брон аяқталды, өзгертетін ештеңе жоқ.",
+            belowMinimum: "Сома мекеменің ең аз тапсырысынан төмен — тағам қосып, қайта сақтаңыз.",
+            itemUnavailable: "Тағамдардың бірі енді қолжетімсіз — оны алып тастап, қайта сақтаңыз.",
+            other: "Мекеме құрамды қабылдамады. Қайталап көріңіз.",
+          },
+          backToTicket: "Билетке",
+        },
       },
       promos: {
         title: "Орын акциялары",
       },
       contacts: {
-        title: "Байланыс және қалай жетуге болады",
+        title: "Байланыс",
         address: "Мекенжайы",
         phone: "Телефон",
         social: "Әлеуметтік желілер",
@@ -2797,7 +2818,6 @@ export const kk: LocaleOverride<Dictionary> = {
           website: "Сайт",
         },
         mapAlt: (name: string) => `Карта: ${name} қай жерде`,
-        noMap: "Орын координаттарын көрсетпеген.",
         mapUnavailable: "Карта қазір қолжетімсіз.",
         empty: "Байланыс көрсетілмеген.",
       },
@@ -3006,6 +3026,10 @@ export const kk: LocaleOverride<Dictionary> = {
           other:
             "Брон қабылданды, бірақ алдын ала тапсырыс тіркелмеді — растаған кезде орынға тағамдарды атаңыз.",
         },
+        choose: "Тағамдарды таңдау",
+        edit: "Алдын ала тапсырысты өзгерту",
+        confirmedLockedNotice: "Расталған броннның құрамын мекеме өзгертеді",
+        manualLockedNotice: "Құрамын мекеме өзгертті — өзгерістер мекеме арқылы",
       },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка

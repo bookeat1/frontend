@@ -158,7 +158,6 @@ export function VenueBlock({
             hasCoords={hasCoords}
             alt={t.web.venue.contacts.mapAlt(venue.name)}
             unavailableText={t.web.venue.contacts.mapUnavailable}
-            noMapText={t.web.venue.contacts.noMap}
           />
           <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {venue.address.trim() ? (
