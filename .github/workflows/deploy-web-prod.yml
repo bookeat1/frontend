@@ -12,25 +12,33 @@ name: Deploy desktop site (prod)
 # here is safe before the domain is moved: the container has no published port
 # and is reachable only through Caddy, which only routes to it once the
 # book-eat.com site block has been added by hand (deploy/web-prod/
-# caddy-book-eat.com.snippet). Until then verification runs from inside the
-# container over SSH; the public check is opt-in via `public_url_live`.
+# caddy-book-eat.com.snippet). Verification always runs from inside the
+# container over SSH. The public check on top of it: always for an automatic
+# push run (book-eat.com answers 200 and serves this workflow's release.txt as
+# of 2026-09-10), opt-in via `public_url_live` for a manual one, which may be
+# used to publish a release before DNS points here.
 #
-# Manual only, and only from `main`. Branch model (product owner's decision,
-# 2026-09-08): every PR lands in develop, the stand deploys from develop on
-# push, and `main` is a plain merge of develop that production is released
-# from. A person runs this workflow from main and types the confirmation —
-# the same gate the backend's prod deploy uses. The `gate` job refuses any
-# other ref before the checks and build even start.
+# Runs on every push to `main`, and only from `main`. Branch model (product
+# owner's decision, 2026-09-10, supersedes the manual-only rule of 2026-09-08):
+# every PR lands in develop, the stand deploys from develop on push, and `main`
+# is a plain merge of develop — merging into main IS the release decision, so
+# it deploys production by itself, with no button and no typed confirmation.
+# The manual `workflow_dispatch` path is kept as a fallback (re-release the
+# same SHA after an incident) and still asks for the typed confirmation. The
+# `gate` job refuses any ref other than `main` before the checks and build even
+# start, whichever way the run was started.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "deploy-to-prod" to confirm a PRODUCTION release'
+        description: 'Manual runs only: type "deploy-to-prod" to confirm a PRODUCTION release'
         required: true
         type: string
       public_url_live:
-        description: "book-eat.com already points at this host: also verify through the public URL"
+        description: "Manual runs only: book-eat.com already points at this host, also verify through the public URL (push runs always do)"
         required: false
         type: boolean
         default: false
@@ -70,19 +78,23 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Require main and the typed confirmation
+      - name: Require main (and, for a manual run, the typed confirmation)
         env:
+          # Empty for a push: `inputs` does not exist outside workflow_dispatch.
           CONFIRM: ${{ inputs.confirm }}
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "::error::Refusing: production deploys only from main (got '$GITHUB_REF'). Re-run with 'Use workflow from: main'."
             exit 1
           fi
-          if [ "$CONFIRM" != "deploy-to-prod" ]; then
-            echo "::error::Refusing: the confirm input must be exactly 'deploy-to-prod' (got '$CONFIRM')."
+          # A push to main is the release decision itself (owner's decision,
+          # 2026-09-10) — nothing more to confirm. A manual re-run is a
+          # deliberate out-of-band action, so it still types the phrase.
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$CONFIRM" != "deploy-to-prod" ]; then
+            echo "::error::Refusing: on a manual run the confirm input must be exactly 'deploy-to-prod' (got '$CONFIRM')."
             exit 1
           fi
-          echo "Confirmed production release of $GITHUB_REF_NAME @ ${GITHUB_SHA::7} by $GITHUB_ACTOR"
+          echo "Releasing $GITHUB_REF_NAME @ ${GITHUB_SHA::7} to production (event: $GITHUB_EVENT_NAME, actor: $GITHUB_ACTOR)"
 
       - name: Fail early if the deploy secrets are missing
         env:
@@ -296,7 +308,9 @@ jobs:
           [ "$fail" = "0" ] || exit 1
 
       - name: Verify through the public domain
-        if: inputs.public_url_live
+        # Automatic (push to main) releases always check the live domain; a
+        # manual run keeps the opt-out for the case where DNS is not here yet.
+        if: github.event_name == 'push' || inputs.public_url_live
         env:
           RELEASE: ${{ steps.release.outputs.name }}
         run: |
