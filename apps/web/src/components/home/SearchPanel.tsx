@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { Calendar } from "@web/components/ui/Calendar";
-import { TimeSlot } from "@web/components/ui/TimeSlot";
+import { WheelPicker } from "@web/components/ui/WheelPicker";
 import { DEFAULT_GUESTS, GUEST_OPTIONS } from "@web/lib/booking-options";
 import { cx } from "@web/lib/cx";
 import { serializeCatalogParams, type CatalogState } from "@web/lib/catalog-params";
-import { nowTimeHhMm, quickTimeOptions, searchDateLabel, todayIso } from "@web/lib/format";
+import { formatHhMm, nowTimeHhMm, parseHhMm, searchDateLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { useDismissable } from "@web/lib/use-dismissable";
 
@@ -39,16 +39,20 @@ import { useDismissable } from "@web/lib/use-dismissable";
  * браузер, у сервера свой часовой пояс, и посчитанное в разметке значение
  * разошлось бы с браузерным — это ошибка гидратации.
  *
- * КАЛЕНДАРЬ, СПИСОК ВРЕМЕНИ И СТЕППЕР ГОСТЕЙ (добавлено по задаче
- * «виджет выбора даты/времени/гостей», Figma `qmMsg4jO1ggmyEHNIAD2ll`,
- * узлы `5177:12242`/`5178:19076`/`5178:19173`) — эти три узла НЕ ОТДАЛИСЬ:
- * и `/v1/files/:key`, и `/v1/images` ответили 429 (`retry-after` ~14 часов)
- * в момент работы, хотя сам файл тронут designer'ом в то же утро. Раскладка
- * попапов — ПОВЕДЕНИЕ (поведение работает: выбор дня в календаре, выбор
- * получаса из списка, степпер гостей 1…8), а геометрия и цвета внутри
- * попапов переиспользуют уже сверенные по Figma токены из этого же
- * приложения (см. комментарии `Calendar.tsx` и степпера ниже), а не новые
- * подобранные на глаз числа. Нативные `input[type=date|time]` ОСТАЮТСЯ под
+ * КАЛЕНДАРЬ, КОЛЕСО ВРЕМЕНИ И КОЛЕСО ГОСТЕЙ (добавлено по задаче «виджет
+ * выбора даты/времени/гостей», Figma `qmMsg4jO1ggmyEHNIAD2ll`, узлы
+ * `5177:12242`/`5178:19076`/`5178:19173`). Первый заход (2026-09-11, утро) на
+ * эти три узла упёрся в 429 у `/v1/files/:key` и `/v1/images` — время и гости
+ * тогда сделали заглушками (список получасовых слотов, степпер `−`/`+`).
+ * Второй заход (тот же день, после доступа к DesignAgent-мосту) разобрал
+ * реальный макет по СКРИНШОТАМ узлов (REST по-прежнему 429, `retry-after`
+ * ~11.5 часа) — оба узла времени и гостей это ОДИН компонент кита,
+ * «колесо со стрелками» (`WheelPicker`, см. его комментарий): шеврон
+ * вверх/вниз листает значение на ±1, зациклено (после 23 часов — 00, после
+ * 59 минут — 00, после 8 гостей — 1 и обратно), текущее значение — большое
+ * число в сплошном фирменном круге, соседние — серым мельче. Список
+ * получасовых слотов и степпер `−`/`+` убраны — это была заглушка, а не
+ * альтернативный путь. Нативные `input[type=date|time]` ОСТАЮТСЯ под
  * капотом — значение по-прежнему можно набрать с клавиатуры, попап лишь
  * даёт способ выбрать мышью, не открывая календарь операционной системы.
  */
@@ -104,6 +108,11 @@ export function SearchPanel({
   }, []);
 
   const dateLabel = date ? searchDateLabel(date, locale, t, today) : null;
+  // Часы и минуты для двух колонок `WheelPicker` попапа «Время» — битую
+  // или пустую строку `time` (не должно случиться после автозаполнения, но
+  // поле остаётся набираемым с клавиатуры) читаем как полночь, а не роняем
+  // попап.
+  const wheelTime = parseHhMm(time) ?? { hour: 0, minute: 0 };
 
   function pickDate(iso: string) {
     availabilityTouched.current = true;
@@ -111,10 +120,18 @@ export function SearchPanel({
     setOpenPopover(null);
   }
 
-  function pickTime(next: string) {
+  // Колесо времени НЕ закрывает попап на каждый клик (в отличие от
+  // календаря и списка-заглушки, который был раньше): часы и минуты — две
+  // независимые колонки, и закрытие после первой же отменяло бы выбор
+  // второй. Попап закрывается кликом вне или Escape (`useDismissable`).
+  function pickHour(hour: number) {
     availabilityTouched.current = true;
-    setTime(next);
-    setOpenPopover(null);
+    setTime(formatHhMm(hour, wheelTime.minute));
+  }
+
+  function pickMinute(minute: number) {
+    availabilityTouched.current = true;
+    setTime(formatHhMm(wheelTime.hour, minute));
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -234,15 +251,37 @@ export function SearchPanel({
           </div>
         </Field>
         {openPopover === "time" ? (
-          <Popover className="w-[220px]">
-            {/* Список ОГРАНИЧЕН (28 значений, 10:00…23:30 с шагом получаса) —
-                см. `quickTimeOptions`. Слот — тот же `TimeSlot` кита, что в
-                карточке брони (узел 3z0f…:3274:33), размер `m`. */}
-            <div role="group" aria-label={t.web.home.hero.timeLabel} className="grid grid-cols-3 gap-2">
-              {quickTimeOptions().map((option) => (
-                <TimeSlot key={option} time={option} selected={option === time} onSelect={pickTime} />
-              ))}
-            </div>
+          <Popover className="w-[248px]">
+            {/* Часы 0…23 и минуты 0…59, оба зациклены (узел `5178:19076`
+                «select_hour_desktop») — не ограничены «разумными часами
+                работы», это было допущение первого захода (см. комментарий
+                компонента выше), а не контракт. Поле по-прежнему принимает
+                любую минуту с клавиатуры через нативный `input[type=time]`,
+                колесо — только способ выбрать мышью. */}
+            <WheelPicker
+              columns={[
+                {
+                  value: wheelTime.hour,
+                  min: 0,
+                  max: 23,
+                  format: (value) => `${value}`.padStart(2, "0"),
+                  label: t.web.home.hero.hoursLabel,
+                  incrementLabel: t.web.home.hero.wheelIncrease(t.web.home.hero.hoursLabel),
+                  decrementLabel: t.web.home.hero.wheelDecrease(t.web.home.hero.hoursLabel),
+                  onChange: pickHour,
+                },
+                {
+                  value: wheelTime.minute,
+                  min: 0,
+                  max: 59,
+                  format: (value) => `${value}`.padStart(2, "0"),
+                  label: t.web.home.hero.minutesLabel,
+                  incrementLabel: t.web.home.hero.wheelIncrease(t.web.home.hero.minutesLabel),
+                  decrementLabel: t.web.home.hero.wheelDecrease(t.web.home.hero.minutesLabel),
+                  onChange: pickMinute,
+                },
+              ]}
+            />
           </Popover>
         ) : null}
       </div>
@@ -264,44 +303,30 @@ export function SearchPanel({
           </button>
         </Field>
         {openPopover === "guests" ? (
-          <Popover className="w-[240px]">
-            {/* Степпер — те же токены, что у карточки «Гости» страницы
-                бронирования (`webBookingFlow`, узел 3525:14870): группа
-                52 высотой, радиус 14, подложка `bg-subtle`, кнопки 40
-                радиуса 10. Здесь тот же компонент семьи, не новый размер. */}
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-[14px] font-medium leading-5 text-ink-secondary">
-                {t.web.home.hero.guestsLabel}
-              </span>
-              <div
-                role="group"
-                aria-label={t.web.home.hero.guestsLabel}
-                className="flex h-flow-stepper shrink-0 items-center rounded-field bg-subtle p-flow-stepper-p"
-              >
-                <StepperButton
-                  label={t.web.booking.party.fewer}
-                  disabled={guests <= GUEST_OPTIONS[0]}
-                  onClick={() => setGuests((value) => Math.max(GUEST_OPTIONS[0], value - 1))}
-                >
-                  −
-                </StepperButton>
-                <output
-                  aria-live="polite"
-                  className="flex w-flow-stepper-value items-center justify-center text-flow-stepper-value text-ink"
-                >
-                  {guests}
-                </output>
-                <StepperButton
-                  label={t.web.booking.party.more}
-                  disabled={guests >= GUEST_OPTIONS[GUEST_OPTIONS.length - 1]}
-                  onClick={() =>
-                    setGuests((value) => Math.min(GUEST_OPTIONS[GUEST_OPTIONS.length - 1], value + 1))
-                  }
-                >
-                  +
-                </StepperButton>
-              </div>
-            </div>
+          <Popover className="w-[160px]">
+            {/* Один столбец того же компонента, что у времени (узел
+                `5178:19173`) — один и тот же «select_hour_desktop» кита,
+                просто с одной колонкой вместо двух. Диапазон — тот же
+                `GUEST_OPTIONS` (1…8), что был у прежнего степпера, не новое
+                ограничение. */}
+            <WheelPicker
+              columns={[
+                {
+                  value: guests,
+                  min: GUEST_OPTIONS[0],
+                  max: GUEST_OPTIONS[GUEST_OPTIONS.length - 1],
+                  format: (value) => `${value}`,
+                  label: t.web.home.hero.guestsLabel,
+                  incrementLabel: t.web.home.hero.wheelIncrease(t.web.home.hero.guestsLabel),
+                  decrementLabel: t.web.home.hero.wheelDecrease(t.web.home.hero.guestsLabel),
+                  // Гости НЕ взводят `availabilityTouched` — как и у прежнего
+                  // степпера. Флаг только про дату/время: пара `date+guests`
+                  // включает серверный фильтр доступности лишь когда гость
+                  // САМ выбрал КОГДА он хочет стол, а не сколько их придёт.
+                  onChange: setGuests,
+                },
+              ]}
+            />
           </Popover>
         ) : null}
       </div>
@@ -357,33 +382,5 @@ function Popover({ className, children }: { className?: string; children: ReactN
     >
       {children}
     </div>
-  );
-}
-
-function StepperButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={cx(
-        "flex h-flow-stepper-btn w-flow-stepper-btn items-center justify-center rounded-stepper-btn bg-canvas text-flow-stepper-sign text-ink transition-colors",
-        "hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-        "disabled:cursor-not-allowed disabled:bg-disabled disabled:text-ink-disabled",
-      )}
-    >
-      {children}
-    </button>
   );
 }

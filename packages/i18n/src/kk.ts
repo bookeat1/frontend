@@ -2555,6 +2555,10 @@ export const kk: LocaleOverride<Dictionary> = {
         calendarNextMonth: "Келесі ай",
         timeOpen: "Уақыт таңдауды ашу",
         guestsOpen: "Қонақтар санын таңдауды ашу",
+        hoursLabel: "Сағат",
+        minutesLabel: "Минут",
+        wheelIncrease: (label: string) => `${label}: келесі мән`,
+        wheelDecrease: (label: string) => `${label}: алдыңғы мән`,
       },
       cuisines: {
         title: "Асхананы таңдаңыз",

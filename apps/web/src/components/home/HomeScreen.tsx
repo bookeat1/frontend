@@ -348,7 +348,15 @@ function Hero() {
   const t = useT();
 
   return (
-    <section className="relative w-full overflow-hidden bg-inverse">
+    // БЕЗ `overflow-hidden`: секция с ним обрезала попапы панели поиска
+    // (календарь/колесо времени/колесо гостей — все `position: absolute`
+    // внутри этой секции), как только попап выше остатка секции — снизу
+    // пропадали нижние строки колеса и сама кнопка-шеврон «вниз» (поймано
+    // 2026-09-11 на скриншоте попапа времени). Класс не был нужен и для
+    // картинки: `fill` + `object-cover` у `next/image` сами дают
+    // `position: absolute; inset: 0`, картинка не может вылезти за границы
+    // секции без него.
+    <section className="relative w-full bg-inverse">
       <Image
         src={assetUrl("/brand/hero.webp")}
         alt=""
