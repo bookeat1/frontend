@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import { Container } from "@web/components/layout/Container";
 import { BrandLogo } from "@web/components/layout/BrandLogo";
@@ -130,6 +130,44 @@ export function SiteHeader({
   const navId = useId();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
+  // Открытое мобильное меню — это отдельный `Modal` (скрим на весь экран +
+  // `overflow: hidden` на body, см. Modal.tsx). Он скрыт по `xl:hidden`, но
+  // это только CSS-видимость: сам диалог остаётся смонтированным. Если
+  // растянуть окно браузера с <1280 до ≥1280 при открытом бургер-меню, панель
+  // спрячется, а подложка-скрим и блокировка скролла — нет, потому что для
+  // них ничего не размонтировалось (найдено ревью PR #190; при этом ДО
+  // фикса подложка ещё и оставалась видимой поверх десктопной шапки, так
+  // как `xl:hidden` в Modal.tsx висел только на панели диалога, а не на
+  // самой подложке). Правильный фикс — закрывать меню как состояние, а не
+  // прятать его кусками CSS: при пересечении границы `xl` (1280, тот же
+  // порог, что у бургера и `nav` выше) Modal размонтируется целиком, и его
+  // собственный cleanup-эффект сам снимает `overflow: hidden` с body.
+  useEffect(() => {
+    if (!menuOpen) return;
+    // jsdom (тесты) не реализует matchMedia вовсе — без проверки эффект
+    // падал бы в каждом тесте, открывающем меню, TypeError'ом вместо
+    // закрытия панели.
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(min-width: 1280px)");
+    if (query.matches) {
+      closeMenu();
+      return;
+    }
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) closeMenu();
+    };
+    // `addEventListener`/`removeEventListener` на MediaQueryList — Safari
+    // 14+ (iOS 13 их не имеет, там только устаревшие `addListener`/
+    // `removeListener`). Без гварда апдейт на iOS 13 падал бы TypeError'ом
+    // и не закрывал бы меню при пересечении xl — деградация до "просто не
+    // подписались", а не крэш.
+    if ("addEventListener" in query) {
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    }
+    return undefined;
+  }, [menuOpen, closeMenu]);
+
   const navList = (stacked: boolean) => (
     <ul
       className={
@@ -227,7 +265,7 @@ export function SiteHeader({
         label={t.web.header.forBusiness}
         className={cx(
           "px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-          stacked && "flex h-11 w-full items-center px-0",
+          stacked ? "flex h-11 w-full items-center px-0" : "whitespace-nowrap",
         )}
       >
         {t.web.header.forBusiness}
@@ -240,7 +278,7 @@ export function SiteHeader({
       // чтобы шапка не дёрнулась, когда состояние станет известно.
       <span aria-hidden="true" className={cx("h-btn-header", stacked ? "w-full" : "w-[109px]")} />
     ) : account ? (
-      <div className={stacked ? "flex flex-col gap-3" : "flex items-center gap-header-right-gap"}>
+      <div className={stacked ? "flex flex-col gap-3" : "flex min-w-0 items-center gap-header-right-gap"}>
         {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
             В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
             месте, где макет главной рисует «Войти». Текстом имя
@@ -291,7 +329,7 @@ export function SiteHeader({
   return (
     <header className={cx("w-full border-b border-line-strong bg-canvas", className)}>
       <Container className="flex min-h-header items-center justify-between gap-4 py-header-y">
-        <div className="flex items-center gap-6 lg:gap-header-brand-gap">
+        <div className="flex shrink-0 items-center gap-6 xl:gap-header-brand-gap">
           <Link
             href="/"
             aria-label={t.web.header.brand}
@@ -307,13 +345,28 @@ export function SiteHeader({
               контейнер на 1024 — «Статьи» и «Для бизнеса» переносились
               на вторую строку и ломали высоту шапки (`flex-wrap` строки
               это маскировал, а не чинил, см. заголовок компонента). На
-              1280 строка проверена скриншотом — влезает с запасом. */}
-          <nav aria-label={t.web.header.navLabel} className="hidden xl:block">
+              1280 строка проверена скриншотом — влезает с запасом.
+              Сам `<nav>` держим на `shrink-0`: без него дефолтный
+              `flex-shrink: 1` родителя сжимает список пунктов при
+              нехватке места и подписи переносятся ВНУТРИ `<li>` вместо
+              видимого переполнения строки — то же самое переносило
+              «Для бизнеса»/«Статьи» на вторую строку, только внутри
+              одного пункта, а не между ними (найдено ревью PR #190). */}
+          <nav aria-label={t.web.header.navLabel} className="hidden shrink-0 xl:block">
             {navList(false)}
           </nav>
         </div>
 
-        <div className="hidden items-center gap-header-right-gap xl:flex">
+        {/* `min-w-0`: без него дефолтный `min-width: auto` этой группы
+            равен её min-content — то есть полной ширине непереносимого
+            имени гостя (`truncate` не срабатывает, пока родитель не
+            может сжаться ниже этой ширины). Левая группа теперь на
+            `shrink-0` и больше не уступает место, поэтому вся строка
+            вместе с кнопкой «Выйти» вылезала за контейнер на длинных
+            именах (найдено ревью PR #193, ru «Айгерім Нұрлыбекқызы» на
+            1280 — overflow 25px). Тот же `min-w-0` нужен и на
+            account-row внутри `accountControl`, по той же причине. */}
+        <div className="hidden min-w-0 items-center gap-header-right-gap xl:flex">
           {cityControl(false)}
           {businessLink(false)}
           {accountControl(false)}
