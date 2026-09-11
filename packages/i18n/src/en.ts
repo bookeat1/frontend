@@ -2534,9 +2534,9 @@ export const en: LocaleOverride<Dictionary> = {
       hero: {
         title: "A table at the best places",
         subtitle:
-          "Book online in 30 seconds — no calls, no waiting. Confirmation arrives right away.",
+          "Book in 30 seconds, no calls. No waiting for confirmation.",
         placeLabel: "Place or cuisine",
-        placePlaceholder: "Restaurant, bar, district…",
+        placePlaceholder: "Restaurant, cuisine, or dish",
         dateLabel: "Date",
         anyDate: "Any date",
         anyTime: "Any time",
@@ -2544,6 +2544,15 @@ export const en: LocaleOverride<Dictionary> = {
         guestsLabel: "Guests",
         submit: "Search",
         quickFilters: "Quick filters",
+        calendarOpen: "Open calendar",
+        calendarPrevMonth: "Previous month",
+        calendarNextMonth: "Next month",
+        timeOpen: "Open time picker",
+        guestsOpen: "Open guest count picker",
+        hoursLabel: "Hours",
+        minutesLabel: "Minutes",
+        wheelIncrease: (label: string) => `${label}: next value`,
+        wheelDecrease: (label: string) => `${label}: previous value`,
       },
       cuisines: {
         title: "Pick a cuisine",

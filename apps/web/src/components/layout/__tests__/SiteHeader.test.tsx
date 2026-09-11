@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
 
@@ -8,6 +8,14 @@ import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
  * так, чтобы это было слышно, а не только видно по красному подчёркиванию.
  */
 describe("SiteHeader", () => {
+  // Ревью PR #193: `vi.unstubAllGlobals()` в конце test body не выполнялся,
+  // если assert выше по тесту падал — matchMedia-стаб с мутированным
+  // `matches: true` утекал в следующий тест файла. `afterEach` гарантирует
+  // очистку независимо от того, где именно тест упал.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("рисует все пункты меню из макета — их ШЕСТЬ", () => {
     render(<SiteHeader />);
 
@@ -125,7 +133,7 @@ describe("SiteHeader", () => {
   });
 
   /**
-   * Дыра № 1 (`apps/web/docs/responsive.md`, § 5): ниже `lg` строки макета
+   * Дыра № 1 (`apps/web/docs/responsive.md`, § 5): ниже `xl` строки макета
    * нет вовсе — есть бургер, который открывает панель со всеми пунктами.
    * Панель смонтирована только пока открыта: закрытая шапка не должна
    * держать вторую копию каждой ссылки в DOM.
@@ -158,5 +166,43 @@ describe("SiteHeader", () => {
     fireEvent.keyDown(dialog, { key: "Escape" });
 
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  /**
+   * Ревью PR #190: растянуть окно с открытым бургер-меню до `xl` (1280)
+   * оставляло подложку-скрим на весь экран и `overflow: hidden` на body —
+   * панель диалога прятал `xl:hidden`, а сам `Modal` не размонтировался.
+   * Фикс закрывает меню как состояние при пересечении порога, слушая
+   * `matchMedia("(min-width: 1280px)")`, а не полагается на CSS-видимость.
+   */
+  it("закрывает мобильное меню, когда ширина пересекает xl (1280)", () => {
+    const listeners = new Set<(event: MediaQueryListEvent) => void>();
+    const mediaQueryList = {
+      matches: false,
+      media: "(min-width: 1280px)",
+      addEventListener: (_type: "change", listener: (event: MediaQueryListEvent) => void) => {
+        listeners.add(listener);
+      },
+      removeEventListener: (_type: "change", listener: (event: MediaQueryListEvent) => void) => {
+        listeners.delete(listener);
+      },
+    };
+    const matchMedia = vi.fn().mockReturnValue(mediaQueryList);
+    vi.stubGlobal("matchMedia", matchMedia);
+
+    render(<SiteHeader />);
+    fireEvent.click(screen.getByRole("button", { name: "Открыть меню" }));
+    expect(screen.getByRole("dialog", { name: "Меню" })).toBeTruthy();
+    expect(document.body.style.overflow).toBe("hidden");
+
+    // Окно браузера растянуто через 1280 — эмулируем срабатывание слушателя,
+    // который в реальном браузере вызывает matchMedia сам.
+    mediaQueryList.matches = true;
+    act(() => {
+      listeners.forEach((listener) => listener({ matches: true } as MediaQueryListEvent));
+    });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
   });
 });

@@ -142,4 +142,117 @@ describe("панель поиска", () => {
     expect(target).toContain("q=Abay");
     expect(target).toContain(`date=${chosenDate}`);
   });
+
+  /**
+   * Календарь (попап поля «Дата»): клик по полю открывает сетку месяца,
+   * клик по «сегодня» ставит дату и закрывает попап — тот же `date`, что и
+   * у нативного поля (проверяется его значением, а не разметкой попапа).
+   */
+  it("календарь: клик по сегодняшнему дню ставит дату в поле и закрывает попап", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const date = (await screen.findByLabelText("Дата")) as HTMLInputElement;
+    fireEvent.click(date);
+
+    const iso = todayIso();
+    const day = String(Number(iso.slice(8, 10)));
+    const cell = await screen.findByRole("button", { name: iso });
+    expect(cell.textContent).toBe(day);
+    fireEvent.click(cell);
+
+    expect(date.value).toBe(iso);
+    // Попап закрылся — ячейки календаря больше нет в DOM.
+    expect(screen.queryByRole("button", { name: iso })).toBeNull();
+  });
+
+  /**
+   * Баг владельца 2026-09-11 (скриншот): клик по «Дате»/«Времени» открывал
+   * СРАЗУ два календаря — кастомный попап и поверх него нативный
+   * date/time-picker браузера. Причина — `input[type=date|time]` сам
+   * оставался кликабельным для мыши: клик по нему открывает нативный picker
+   * как встроенное поведение браузера, независимо от `onClick`-обработчика
+   * в React (`preventDefault` в `onClick` этого не отменяет). Фикс —
+   * `pointer-events: none` на самих полях: мышь до них не долетает, попап
+   * открывает обёртка `Field`. jsdom не считает реальный hit-test по CSS, но
+   * класс — это контракт: если он однажды пропадёт, поле снова станет
+   * кликабельным для мыши и баг вернётся молча.
+   */
+  it("нативные поля даты и времени исключены из hit-теста мыши (pointer-events-none)", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const date = (await screen.findByLabelText("Дата")) as HTMLInputElement;
+    const time = screen.getByLabelText("Время") as HTMLInputElement;
+
+    expect(date.className).toContain("pointer-events-none");
+    expect(time.className).toContain("pointer-events-none");
+  });
+
+  /**
+   * Гости: колесо-пикер (`WheelPicker`) заменил степпер `−`/`+` (задача
+   * «виджет выбора даты/времени/гостей», узел `5178:19173`). Диапазон
+   * тот же 1…8 (`GUEST_OPTIONS`), но границы теперь ЗАЦИКЛЕНЫ, а не
+   * клампятся — так ведёт себя колесо в макете (шеврон листает значение на
+   * ±1 и оборачивается на границе), это не регрессия прежнего степпера.
+   */
+  it("гости: колесо меняет количество и зациклено на границах 1…8", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Гости: 2 гостя" }));
+    const output = screen.getByRole("status");
+    const decrease = screen.getByRole("button", { name: "Гости: предыдущее значение" });
+    fireEvent.click(decrease);
+    expect(output.textContent).toBe("1");
+    fireEvent.click(decrease); // граница снизу — оборот на 8, а не остановка на 1
+    expect(output.textContent).toBe("8");
+
+    const increase = screen.getByRole("button", { name: "Гости: следующее значение" });
+    fireEvent.click(increase); // граница сверху — оборот на 1
+    expect(output.textContent).toBe("1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+    expect(String(push.mock.calls[0][0])).toContain("guests=1");
+  });
+
+  /**
+   * Время: колесо часов (0…23) и колесо минут (0…59), оба независимо
+   * зациклены (узел `5178:19076` «select_hour_desktop») — заменили список
+   * получасовых слотов первого захода. Начинаем с граничного значения
+   * "23:59", чтобы одним кликом на каждый шеврон проверить оборот в обе
+   * стороны у обеих колонок.
+   */
+  it("время: шеврон часов/минут листает значение и оборачивается на границах", async () => {
+    renderScreen(
+      <SearchPanel state={{ ...EMPTY_CATALOG_STATE, date: "2026-09-06", time: "23:59" }} />,
+    );
+
+    const time = (await screen.findByLabelText("Время")) as HTMLInputElement;
+    fireEvent.click(time);
+
+    const hourUp = await screen.findByRole("button", { name: "Часы: следующее значение" });
+    fireEvent.click(hourUp);
+    expect(time.value).toBe("00:59"); // 23 + 1 → 0, минуты не тронуты
+
+    const minuteUp = screen.getByRole("button", { name: "Минуты: следующее значение" });
+    fireEvent.click(minuteUp);
+    expect(time.value).toBe("00:00"); // 59 + 1 → 0
+
+    const hourDown = screen.getByRole("button", { name: "Часы: предыдущее значение" });
+    fireEvent.click(hourDown);
+    expect(time.value).toBe("23:00"); // 0 − 1 → 23
+
+    const minuteDown = screen.getByRole("button", { name: "Минуты: предыдущее значение" });
+    fireEvent.click(minuteDown);
+    expect(time.value).toBe("23:59"); // 0 − 1 → 59
+  });
+
+  it("попап закрывается по Escape", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const time = (await screen.findByLabelText("Время")) as HTMLInputElement;
+    fireEvent.click(time);
+    expect(await screen.findByRole("group", { name: "Часы" })).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "Часы" })).toBeNull();
+  });
 });

@@ -2540,9 +2540,9 @@ export const kk: LocaleOverride<Dictionary> = {
       hero: {
         title: "Қаланың таңдаулы орындарында үстел",
         subtitle:
-          "30 секундта онлайн брондаңыз — қоңырауcыз және күтусіз. Растау бірден келеді.",
+          "30 секундта брондаңыз, қоңыраусыз. Растауды күтудің қажеті жоқ.",
         placeLabel: "Орын немесе асхана",
-        placePlaceholder: "Мейрамхана, бар, аудан…",
+        placePlaceholder: "Мейрамхана, тағам түрі немесе атауы",
         dateLabel: "Күні",
         anyDate: "Кез келген күн",
         anyTime: "Кез келген уақыт",
@@ -2550,6 +2550,15 @@ export const kk: LocaleOverride<Dictionary> = {
         guestsLabel: "Қонақтар",
         submit: "Іздеу",
         quickFilters: "Жылдам сүзгілер",
+        calendarOpen: "Күнтізбені ашу",
+        calendarPrevMonth: "Алдыңғы ай",
+        calendarNextMonth: "Келесі ай",
+        timeOpen: "Уақыт таңдауды ашу",
+        guestsOpen: "Қонақтар санын таңдауды ашу",
+        hoursLabel: "Сағат",
+        minutesLabel: "Минут",
+        wheelIncrease: (label: string) => `${label}: келесі мән`,
+        wheelDecrease: (label: string) => `${label}: алдыңғы мән`,
       },
       cuisines: {
         title: "Асхананы таңдаңыз",
