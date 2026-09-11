@@ -3655,6 +3655,19 @@ export const ru = {
         guestsLabel: "Гости",
         submit: "Найти",
         quickFilters: "Быстрые фильтры",
+        calendarOpen: "Открыть календарь",
+        calendarPrevMonth: "Предыдущий месяц",
+        calendarNextMonth: "Следующий месяц",
+        timeOpen: "Открыть выбор времени",
+        guestsOpen: "Открыть выбор количества гостей",
+        /** Подписи колонок `WheelPicker` попапа «Время» (узел `5178:19076`). */
+        hoursLabel: "Часы",
+        minutesLabel: "Минуты",
+        /** `aria-label` кнопок-шевронов `WheelPicker` — «Часы: следующее
+         * значение» и т.п.; общие для колонок времени и гостей, одна пара
+         * функций вместо шести буквальных строк. */
+        wheelIncrease: (label: string) => `${label}: следующее значение`,
+        wheelDecrease: (label: string) => `${label}: предыдущее значение`,
       },
       cuisines: {
         title: "Выберите кухню",
