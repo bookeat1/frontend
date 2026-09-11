@@ -220,7 +220,7 @@ export function SearchPanel({
           </div>
         </Field>
         {openPopover === "date" ? (
-          <Popover>
+          <Popover className="p-4">
             <Calendar value={date || null} min={today} today={today} onSelect={pickDate} />
           </Popover>
         ) : null}
@@ -251,7 +251,7 @@ export function SearchPanel({
           </div>
         </Field>
         {openPopover === "time" ? (
-          <Popover className="w-fit">
+          <Popover className="w-fit px-3 py-2">
             {/* Часы 0…23 и минуты 0…59, оба зациклены (узел `5178:19076`
                 «select_hour_desktop») — не ограничены «разумными часами
                 работы», это было допущение первого захода (см. комментарий
@@ -264,7 +264,11 @@ export function SearchPanel({
                 паддингом 12/8, то есть попап ХУГАЕТ содержимое, а не задан
                 отдельным числом. `w-fit` — то же самое поведение, что уже у
                 попапа календаря (там `className` вообще не переопределяет
-                ширину), без нового магического пикселя. */}
+                ширину), без нового магического пикселя.
+                Паддинг: код-ревью PR #189 нашло, что общий `p-4` (16px со
+                всех сторон) шире узла — тот же `get_metadata` для
+                `5178:19076` даёт паддинг 12px слева/справа, 8px сверху/снизу,
+                то есть `px-3 py-2` (3*4=12, 2*4=8), не uniform `p-4`. */}
             <WheelPicker
               columns={[
                 {
@@ -310,7 +314,7 @@ export function SearchPanel({
           </button>
         </Field>
         {openPopover === "guests" ? (
-          <Popover className="w-fit">
+          <Popover className="w-fit px-3 py-2">
             {/* Один столбец того же компонента, что у времени (узел
                 `5178:19173`) — один и тот же «select_hour_desktop» кита,
                 просто с одной колонкой вместо двух. Диапазон — тот же
@@ -320,7 +324,11 @@ export function SearchPanel({
                 429); реальная геометрия узла `5178:19173` (снято 2026-09-11
                 через MCP `get_metadata`) — рамка 66×234, то есть попап
                 ХУГАЕТ одну колонку, а не задан отдельным числом — тот же
-                `w-fit`, что у времени выше. */}
+                `w-fit`, что у времени выше.
+                Паддинг тот же `px-3 py-2`, что у времени — тот же кит
+                «select_hour_desktop», паддинг 12px слева/справа и 8px
+                сверху/снизу подтверждён `get_metadata` для узла
+                `5178:19173`. */}
             <WheelPicker
               columns={[
                 {
@@ -378,6 +386,10 @@ function Divider() {
  * `absolute` под полем; ширина по умолчанию под календарь (280 + паддинг),
  * `className` сужает под время/гостей. `max-w-[calc(100vw-32px)]` не даёт
  * попапу вылезти за экран 360 px.
+ * Паддинг НЕ задан здесь: `cx` — простая склейка без tailwind-merge (см.
+ * `@web/lib/cx`), так что `p-*` в базе и переопределение в `className` могли
+ * бы конфликтовать по порядку в сгенерированном CSS, а не по порядку в
+ * строке класса. Поэтому паддинг явный на каждом вызове ниже.
  */
 function Popover({ className, children }: { className?: string; children: ReactNode }) {
   return (
@@ -388,7 +400,7 @@ function Popover({ className, children }: { className?: string; children: ReactN
         // фиксированной ширины, прижатый левым краем к полю, вылезал бы за
         // правую границу. Центрирование распределяет риск на обе стороны;
         // `max-w` дополнительно не даёт попапу быть шире экрана.
-        "absolute left-1/2 top-full z-20 mt-2 max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-panel border border-line-control bg-canvas p-4 shadow-panel",
+        "absolute left-1/2 top-full z-20 mt-2 max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-panel border border-line-control bg-canvas shadow-panel",
         className,
       )}
     >
