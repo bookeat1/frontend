@@ -2544,6 +2544,11 @@ export const en: LocaleOverride<Dictionary> = {
         guestsLabel: "Guests",
         submit: "Search",
         quickFilters: "Quick filters",
+        calendarOpen: "Open calendar",
+        calendarPrevMonth: "Previous month",
+        calendarNextMonth: "Next month",
+        timeOpen: "Open time picker",
+        guestsOpen: "Open guest count picker",
       },
       cuisines: {
         title: "Pick a cuisine",

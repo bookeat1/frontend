@@ -142,4 +142,56 @@ describe("панель поиска", () => {
     expect(target).toContain("q=Abay");
     expect(target).toContain(`date=${chosenDate}`);
   });
+
+  /**
+   * Календарь (попап поля «Дата»): клик по полю открывает сетку месяца,
+   * клик по «сегодня» ставит дату и закрывает попап — тот же `date`, что и
+   * у нативного поля (проверяется его значением, а не разметкой попапа).
+   */
+  it("календарь: клик по сегодняшнему дню ставит дату в поле и закрывает попап", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const date = (await screen.findByLabelText("Дата")) as HTMLInputElement;
+    fireEvent.click(date);
+
+    const iso = todayIso();
+    const day = String(Number(iso.slice(8, 10)));
+    const cell = await screen.findByRole("button", { name: iso });
+    expect(cell.textContent).toBe(day);
+    fireEvent.click(cell);
+
+    expect(date.value).toBe(iso);
+    // Попап закрылся — ячейки календаря больше нет в DOM.
+    expect(screen.queryByRole("button", { name: iso })).toBeNull();
+  });
+
+  it("гости: степпер меняет количество и не уходит за границы 1…8", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Гости: 2 гостя" }));
+    const output = screen.getByRole("status");
+    const fewer = screen.getByRole("button", { name: "Меньше гостей" });
+    fireEvent.click(fewer);
+    expect(output.textContent).toBe("1");
+    fireEvent.click(fewer);
+    expect(output.textContent).toBe("1"); // граница снизу — 1, дальше не уходит
+
+    const more = screen.getByRole("button", { name: "Больше гостей" });
+    for (let i = 0; i < 8; i += 1) fireEvent.click(more);
+    expect(output.textContent).toBe("8"); // граница сверху — 8
+
+    fireEvent.click(screen.getByRole("button", { name: "Найти" }));
+    expect(String(push.mock.calls[0][0])).toContain("guests=8");
+  });
+
+  it("попап закрывается по Escape", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const time = (await screen.findByLabelText("Время")) as HTMLInputElement;
+    fireEvent.click(time);
+    expect(await screen.findByRole("group", { name: "Время" })).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("group", { name: "Время" })).toBeNull();
+  });
 });

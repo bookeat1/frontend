@@ -3655,6 +3655,11 @@ export const ru = {
         guestsLabel: "Гости",
         submit: "Найти",
         quickFilters: "Быстрые фильтры",
+        calendarOpen: "Открыть календарь",
+        calendarPrevMonth: "Предыдущий месяц",
+        calendarNextMonth: "Следующий месяц",
+        timeOpen: "Открыть выбор времени",
+        guestsOpen: "Открыть выбор количества гостей",
       },
       cuisines: {
         title: "Выберите кухню",

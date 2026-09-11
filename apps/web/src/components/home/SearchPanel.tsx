@@ -1,13 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
+import { Calendar } from "@web/components/ui/Calendar";
+import { TimeSlot } from "@web/components/ui/TimeSlot";
 import { DEFAULT_GUESTS, GUEST_OPTIONS } from "@web/lib/booking-options";
 import { cx } from "@web/lib/cx";
 import { serializeCatalogParams, type CatalogState } from "@web/lib/catalog-params";
-import { nowTimeHhMm, searchDateLabel, todayIso } from "@web/lib/format";
+import { nowTimeHhMm, quickTimeOptions, searchDateLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
+import { useDismissable } from "@web/lib/use-dismissable";
 
 /**
  * Панель поиска. Один компонент на два места макета:
@@ -35,6 +38,19 @@ import { useLocale } from "@web/lib/locale";
  * Оба значения появляются ПОСЛЕ гидратации: «сегодня» и «сейчас» знает только
  * браузер, у сервера свой часовой пояс, и посчитанное в разметке значение
  * разошлось бы с браузерным — это ошибка гидратации.
+ *
+ * КАЛЕНДАРЬ, СПИСОК ВРЕМЕНИ И СТЕППЕР ГОСТЕЙ (добавлено по задаче
+ * «виджет выбора даты/времени/гостей», Figma `qmMsg4jO1ggmyEHNIAD2ll`,
+ * узлы `5177:12242`/`5178:19076`/`5178:19173`) — эти три узла НЕ ОТДАЛИСЬ:
+ * и `/v1/files/:key`, и `/v1/images` ответили 429 (`retry-after` ~14 часов)
+ * в момент работы, хотя сам файл тронут designer'ом в то же утро. Раскладка
+ * попапов — ПОВЕДЕНИЕ (поведение работает: выбор дня в календаре, выбор
+ * получаса из списка, степпер гостей 1…8), а геометрия и цвета внутри
+ * попапов переиспользуют уже сверенные по Figma токены из этого же
+ * приложения (см. комментарии `Calendar.tsx` и степпера ниже), а не новые
+ * подобранные на глаз числа. Нативные `input[type=date|time]` ОСТАЮТСЯ под
+ * капотом — значение по-прежнему можно набрать с клавиатуры, попап лишь
+ * даёт способ выбрать мышью, не открывая календарь операционной системы.
  */
 export function SearchPanel({
   state,
@@ -50,6 +66,16 @@ export function SearchPanel({
   const [time, setTime] = useState(state.time ?? "");
   const [guests, setGuests] = useState(state.guests ?? DEFAULT_GUESTS);
   const [today, setToday] = useState<string | null>(null);
+  /** Какой попап открыт — сразу один, второй закрывается сам. */
+  const [openPopover, setOpenPopover] = useState<"date" | "time" | "guests" | null>(null);
+  const dateFieldRef = useRef<HTMLDivElement>(null);
+  const timeFieldRef = useRef<HTMLDivElement>(null);
+  const guestsFieldRef = useRef<HTMLDivElement>(null);
+
+  useDismissable(openPopover === "date", dateFieldRef, () => setOpenPopover(null));
+  useDismissable(openPopover === "time", timeFieldRef, () => setOpenPopover(null));
+  useDismissable(openPopover === "guests", guestsFieldRef, () => setOpenPopover(null));
+
   /**
    * Дата/время пришли из адреса (гость их выбирал раньше — на листинге, до
    * возврата сюда) или гость руками тронул поле в ЭТОЙ форме — тогда «когда
@@ -79,6 +105,18 @@ export function SearchPanel({
 
   const dateLabel = date ? searchDateLabel(date, locale, t, today) : null;
 
+  function pickDate(iso: string) {
+    availabilityTouched.current = true;
+    setDate(iso);
+    setOpenPopover(null);
+  }
+
+  function pickTime(next: string) {
+    availabilityTouched.current = true;
+    setTime(next);
+    setOpenPopover(null);
+  }
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     // Поиск по названию (`text` непустой) без того, чтобы гость САМ выбрал
@@ -107,14 +145,12 @@ export function SearchPanel({
   // «mm/dd/yyyy» и «--:-- --» вместо «Сегодня, 25 авг» и «19:30» из макета.
   // Ни `lang`, ни `Intl` на это не влияют. Поэтому текст самого поля делаем
   // прозрачным и кладём поверх свою подпись, а поле остаётся нативным —
-  // календарь, клавиатура и системный список часов достаются бесплатно.
+  // клавиатура и ручной ввод минуты достаются бесплатно, календарь ОС —
+  // нет: клик по полю открывает наш попап вместо него (см. `onClick` ниже).
   // Пока поле в фокусе, показываем родное содержимое: иначе гость правил бы
   // невидимые для себя цифры.
   const nativeValue =
     "search-native-picker peer col-start-1 row-start-1 cursor-pointer text-transparent focus:text-ink";
-  // Места под значок календаря/часов здесь НЕ резервируется: значок скрыт
-  // (см. .search-native-picker в globals.css), потому что в макете его нет, а
-  // отведённые под него 28 px обрезали «Сегодня, 31 авг» многоточием.
   const shownValue =
     "pointer-events-none col-start-1 row-start-1 self-center truncate text-[16px] leading-6 peer-focus:invisible";
   const filled = "font-semibold text-ink";
@@ -144,71 +180,131 @@ export function SearchPanel({
 
       <Divider />
 
-      <Field className="w-full lg:w-search-date">
-        <label className={label} htmlFor="catalog-search-date">
-          {t.web.home.hero.dateLabel}
-        </label>
-        <div className="grid">
-          <input
-            id="catalog-search-date"
-            type="date"
-            value={date}
-            onChange={(event) => {
-              availabilityTouched.current = true;
-              setDate(event.target.value);
-            }}
-            onClick={openPicker}
-            className={cx(input, nativeValue)}
-          />
-          <span aria-hidden="true" className={cx(shownValue, date ? filled : placeholder)}>
-            {dateLabel ?? t.web.home.hero.anyDate}
-          </span>
-        </div>
-      </Field>
+      <div ref={dateFieldRef} className="relative w-full lg:w-search-date">
+        <Field>
+          <label className={label} htmlFor="catalog-search-date">
+            {t.web.home.hero.dateLabel}
+          </label>
+          <div className="grid">
+            <input
+              id="catalog-search-date"
+              type="date"
+              value={date}
+              onChange={(event) => {
+                availabilityTouched.current = true;
+                setDate(event.target.value);
+              }}
+              onClick={() => setOpenPopover((current) => (current === "date" ? null : "date"))}
+              className={cx(input, nativeValue)}
+            />
+            <span aria-hidden="true" className={cx(shownValue, date ? filled : placeholder)}>
+              {dateLabel ?? t.web.home.hero.anyDate}
+            </span>
+          </div>
+        </Field>
+        {openPopover === "date" ? (
+          <Popover>
+            <Calendar value={date || null} min={today} today={today} onSelect={pickDate} />
+          </Popover>
+        ) : null}
+      </div>
 
       <Divider />
 
-      <Field className="w-full lg:w-search-time">
-        <label className={label} htmlFor="catalog-search-time">
-          {t.web.home.hero.timeLabel}
-        </label>
-        <div className="grid">
-          <input
-            id="catalog-search-time"
-            type="time"
-            value={time}
-            onChange={(event) => {
-              availabilityTouched.current = true;
-              setTime(event.target.value);
-            }}
-            onClick={openPicker}
-            className={cx(input, nativeValue)}
-          />
-          <span aria-hidden="true" className={cx(shownValue, time ? filled : placeholder)}>
-            {time || t.web.home.hero.anyTime}
-          </span>
-        </div>
-      </Field>
+      <div ref={timeFieldRef} className="relative w-full lg:w-search-time">
+        <Field>
+          <label className={label} htmlFor="catalog-search-time">
+            {t.web.home.hero.timeLabel}
+          </label>
+          <div className="grid">
+            <input
+              id="catalog-search-time"
+              type="time"
+              value={time}
+              onChange={(event) => {
+                availabilityTouched.current = true;
+                setTime(event.target.value);
+              }}
+              onClick={() => setOpenPopover((current) => (current === "time" ? null : "time"))}
+              className={cx(input, nativeValue)}
+            />
+            <span aria-hidden="true" className={cx(shownValue, time ? filled : placeholder)}>
+              {time || t.web.home.hero.anyTime}
+            </span>
+          </div>
+        </Field>
+        {openPopover === "time" ? (
+          <Popover className="w-[220px]">
+            {/* Список ОГРАНИЧЕН (28 значений, 10:00…23:30 с шагом получаса) —
+                см. `quickTimeOptions`. Слот — тот же `TimeSlot` кита, что в
+                карточке брони (узел 3z0f…:3274:33), размер `m`. */}
+            <div role="group" aria-label={t.web.home.hero.timeLabel} className="grid grid-cols-3 gap-2">
+              {quickTimeOptions().map((option) => (
+                <TimeSlot key={option} time={option} selected={option === time} onSelect={pickTime} />
+              ))}
+            </div>
+          </Popover>
+        ) : null}
+      </div>
 
       <Divider />
 
-      <Field className="w-full lg:w-search-guests">
-        <label className={label} htmlFor="catalog-search-guests">
-          {t.web.home.hero.guestsLabel}
-        </label>
-        <select
-          id="catalog-search-guests"
-          value={guests}
-          onChange={(event) => setGuests(Number(event.target.value))}
-          className={cx(input, "cursor-pointer appearance-none")}
-        >
-          {GUEST_OPTIONS.map((count) => (
-            <option key={count} value={count}>
-              {t.web.format.guests(count)}
-            </option>
-          ))}
-        </select>
-      </Field>
+      <div ref={guestsFieldRef} className="relative w-full lg:w-search-guests">
+        <Field>
+          <span className={label}>{t.web.home.hero.guestsLabel}</span>
+          <button
+            type="button"
+            aria-haspopup="true"
+            aria-expanded={openPopover === "guests"}
+            aria-label={`${t.web.home.hero.guestsLabel}: ${t.web.format.guests(guests)}`}
+            onClick={() => setOpenPopover((current) => (current === "guests" ? null : "guests"))}
+            className={cx(input, "cursor-pointer text-left")}
+          >
+            {t.web.format.guests(guests)}
+          </button>
+        </Field>
+        {openPopover === "guests" ? (
+          <Popover className="w-[240px]">
+            {/* Степпер — те же токены, что у карточки «Гости» страницы
+                бронирования (`webBookingFlow`, узел 3525:14870): группа
+                52 высотой, радиус 14, подложка `bg-subtle`, кнопки 40
+                радиуса 10. Здесь тот же компонент семьи, не новый размер. */}
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[14px] font-medium leading-5 text-ink-secondary">
+                {t.web.home.hero.guestsLabel}
+              </span>
+              <div
+                role="group"
+                aria-label={t.web.home.hero.guestsLabel}
+                className="flex h-flow-stepper shrink-0 items-center rounded-field bg-subtle p-flow-stepper-p"
+              >
+                <StepperButton
+                  label={t.web.booking.party.fewer}
+                  disabled={guests <= GUEST_OPTIONS[0]}
+                  onClick={() => setGuests((value) => Math.max(GUEST_OPTIONS[0], value - 1))}
+                >
+                  −
+                </StepperButton>
+                <output
+                  aria-live="polite"
+                  className="flex w-flow-stepper-value items-center justify-center text-flow-stepper-value text-ink"
+                >
+                  {guests}
+                </output>
+                <StepperButton
+                  label={t.web.booking.party.more}
+                  disabled={guests >= GUEST_OPTIONS[GUEST_OPTIONS.length - 1]}
+                  onClick={() =>
+                    setGuests((value) => Math.min(GUEST_OPTIONS[GUEST_OPTIONS.length - 1], value + 1))
+                  }
+                >
+                  +
+                </StepperButton>
+              </div>
+            </div>
+          </Popover>
+        ) : null}
+      </div>
 
       {/* Кнопка панели поиска — НЕ `Button` кита: у той высота 54 и радиус 16,
           а макет 3253:52 рисует здесь 168×48 с радиусом 14. */}
@@ -220,24 +316,6 @@ export function SearchPanel({
       </button>
     </form>
   );
-}
-
-/**
- * Открыть родной календарь или список часов кликом по ЛЮБОМУ месту поля.
- *
- * Штатно в Chrome это делает только кнопка справа, а её мы прячем: в макете
- * её нет. `showPicker` есть не везде (и бросает, если браузер не считает
- * событие пользовательским) — отсюда проверка и `try`. Без него поле
- * остаётся обычным: клавиатурой оно работает всегда.
- */
-function openPicker(event: MouseEvent<HTMLInputElement>) {
-  const input = event.currentTarget;
-  if (typeof input.showPicker !== "function") return;
-  try {
-    input.showPicker();
-  } catch {
-    // Браузер отказался — поле по-прежнему редактируется с клавиатуры.
-  }
 }
 
 /** Ячейка панели: радиус 14, паддинг 8/20, просвет «подпись → значение» 2
@@ -256,3 +334,56 @@ function Divider() {
   return <span aria-hidden="true" className="hidden w-px self-stretch bg-line-strong lg:block" />;
 }
 
+/**
+ * Оболочка попапа: белая подложка с той же тенью, что у самой панели поиска
+ * (`shadow-panel`, узел 3253:36 — переиспользован, а не придуман заново),
+ * радиус 20 (`rounded-panel`, тот же токен, что у панели). Позиционирование
+ * `absolute` под полем; ширина по умолчанию под календарь (280 + паддинг),
+ * `className` сужает под время/гостей. `max-w-[calc(100vw-32px)]` не даёт
+ * попапу вылезти за экран 360 px.
+ */
+function Popover({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div
+      className={cx(
+        // Центр под полем, а не левый край: на 360 px левый край поля уже
+        // близко к краю экрана (паддинги контейнера + панели), и попап
+        // фиксированной ширины, прижатый левым краем к полю, вылезал бы за
+        // правую границу. Центрирование распределяет риск на обе стороны;
+        // `max-w` дополнительно не даёт попапу быть шире экрана.
+        "absolute left-1/2 top-full z-20 mt-2 max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-panel border border-line-control bg-canvas p-4 shadow-panel",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function StepperButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cx(
+        "flex h-flow-stepper-btn w-flow-stepper-btn items-center justify-center rounded-stepper-btn bg-canvas text-flow-stepper-sign text-ink transition-colors",
+        "hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "disabled:cursor-not-allowed disabled:bg-disabled disabled:text-ink-disabled",
+      )}
+    >
+      {children}
+    </button>
+  );
+}

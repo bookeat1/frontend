@@ -193,6 +193,24 @@ export function nowTimeHhMm(now: Date = new Date()): string {
 }
 
 /**
+ * Быстрый выбор времени попапа панели поиска — «HH:MM» с шагом получаса,
+ * 10:00…23:30 (28 значений). Граница выбрана как разумные часы работы
+ * заведений, а не взята с макета (см. `Calendar.tsx` — узлы этой задачи не
+ * отдались, 429). Список ОГРАНИЧЕН нарочно: поле по-прежнему принимает любую
+ * минуту с клавиатуры через нативный `input[type=time]`, список — только
+ * быстрый путь для мыши, не единственный.
+ */
+export function quickTimeOptions(): string[] {
+  const options: string[] = [];
+  for (let minutes = 10 * 60; minutes <= 23 * 60 + 30; minutes += 30) {
+    const hh = `${Math.floor(minutes / 60)}`.padStart(2, "0");
+    const mm = `${minutes % 60}`.padStart(2, "0");
+    options.push(`${hh}:${mm}`);
+  }
+  return options;
+}
+
+/**
  * «25 августа» — подпись выбранной даты в карточке брони (узлы 3525:14739 и
  * 3525:14770 файла QovvuAoI9YxsLMwWkfgKN8).
  *
@@ -278,6 +296,32 @@ export function instantDateLabel(
 function capitalize(text: string, locale: WebLocale): string {
   if (!text) return text;
   return text[0].toLocaleUpperCase(INTL_TAG[locale]) + text.slice(1);
+}
+
+/** «Сентябрь 2026» — заголовок месяца в попапе календаря панели поиска. */
+export function calendarMonthLabel(year: number, month: number, locale: WebLocale): string {
+  const date = new Date(Date.UTC(year, month, 1));
+  const text = new Intl.DateTimeFormat(INTL_TAG[locale], {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+  return capitalize(text, locale);
+}
+
+/**
+ * Подписи дней недели попапа календаря, ПОНЕДЕЛЬНИК первым (RU/KZ неделя),
+ * усечённые до 2 знаков («Пн», «Вт» …). Считаются от заведомо известного
+ * понедельника (2024-01-01 — понедельник в UTC), а не от «сегодня»: список
+ * не зависит от даты, печатать его нужно один раз на любой месяц.
+ */
+export function calendarWeekdayLabels(locale: WebLocale): string[] {
+  const monday = Date.UTC(2024, 0, 1);
+  const formatter = new Intl.DateTimeFormat(INTL_TAG[locale], { weekday: "short", timeZone: "UTC" });
+  return Array.from({ length: 7 }, (_, index) => {
+    const label = formatter.format(new Date(monday + index * 86_400_000)).replace(/\.$/, "");
+    return capitalize(label, locale).slice(0, 2);
+  });
 }
 
 /**

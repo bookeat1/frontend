@@ -2550,6 +2550,11 @@ export const kk: LocaleOverride<Dictionary> = {
         guestsLabel: "Қонақтар",
         submit: "Іздеу",
         quickFilters: "Жылдам сүзгілер",
+        calendarOpen: "Күнтізбені ашу",
+        calendarPrevMonth: "Алдыңғы ай",
+        calendarNextMonth: "Келесі ай",
+        timeOpen: "Уақыт таңдауды ашу",
+        guestsOpen: "Қонақтар санын таңдауды ашу",
       },
       cuisines: {
         title: "Асхананы таңдаңыз",
