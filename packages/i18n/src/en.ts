@@ -2536,7 +2536,7 @@ export const en: LocaleOverride<Dictionary> = {
         subtitle:
           "Book online in 30 seconds — no calls, no waiting. Confirmation arrives right away.",
         placeLabel: "Place or cuisine",
-        placePlaceholder: "Restaurant, bar, district…",
+        placePlaceholder: "Restaurant, cuisine, or dish",
         dateLabel: "Date",
         anyDate: "Any date",
         anyTime: "Any time",

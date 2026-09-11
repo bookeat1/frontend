@@ -2542,7 +2542,7 @@ export const kk: LocaleOverride<Dictionary> = {
         subtitle:
           "30 секундта онлайн брондаңыз — қоңырауcыз және күтусіз. Растау бірден келеді.",
         placeLabel: "Орын немесе асхана",
-        placePlaceholder: "Мейрамхана, бар, аудан…",
+        placePlaceholder: "Мейрамхана, тағам түрі немесе атауы",
         dateLabel: "Күні",
         anyDate: "Кез келген күн",
         anyTime: "Кез келген уақыт",

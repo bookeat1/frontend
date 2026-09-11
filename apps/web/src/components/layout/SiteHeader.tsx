@@ -28,14 +28,21 @@ import { BUSINESS_URL } from "@web/lib/site-links";
  * Вошедшему гостю на месте «Войти» показывается имя и «Выйти»: этого состояния
  * в макете нет вовсе — там нарисован только гость без сессии.
  *
- * НИЖЕ `lg` строка из макета не рисуется вовсе (`apps/web/docs/responsive.md`,
+ * НИЖЕ `xl` строка из макета не рисуется вовсе (`apps/web/docs/responsive.md`,
  * § 5, дыра № 1): в макете нет мобильной шапки, у сайта на 360 px нет ни
  * бургера, ни своей структуры для узкого экрана — источник для НЕЁ не Figma
  * WEB (там только кадр 1440), а обычный контракт «кнопка-меню открывает
- * список» без привязки к конкретному кадру. Ниже `lg` видны только логотип и
+ * список» без привязки к конкретному кадру. Ниже `xl` видны только логотип и
  * кнопка-бургер; пункты меню, город, «Для бизнеса» и вход/выход уезжают в
  * панель поверх страницы — общий `Modal` (тот же примитив, что шторка
  * фильтров каталога), а не новый оверлей.
+ *
+ * Порог именно `xl` (1280), а не общий для сайта `lg` (1024): шесть пунктов
+ * меню («Главная… Статьи») плюс город/«Для бизнеса»/кнопка входа физически
+ * не помещаются в контейнер на 1024–1100 px, что и ломало высоту шапки
+ * (перенос «Статьи» и «Для бизнеса» на вторую строку). На 1280 строка влезает
+ * с запасом (проверено скриншотом), поэтому бургер отдан всему диапазону
+ * 0–1279, а не только 0–1023.
  *
  * Подписи пунктов берутся из словаря ПО КЛЮЧУ, а не передаются строкой:
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
@@ -128,7 +135,7 @@ export function SiteHeader({
       className={
         stacked
           ? "flex flex-col gap-1"
-          : "flex flex-wrap items-center gap-5 lg:gap-header-nav-gap"
+          : "flex flex-nowrap items-center gap-header-nav-gap"
       }
     >
       {items.map((item) => {
@@ -292,15 +299,21 @@ export function SiteHeader({
           >
             <BrandLogo />
           </Link>
-          {/* Ниже `lg` пункты меню, город, «Для бизнеса» и вход уезжают в
+          {/* Ниже `xl` пункты меню, город, «Для бизнеса» и вход уезжают в
               панель по бургеру (дыра № 1, `apps/web/docs/responsive.md`,
-              § 5) — здесь остаётся только строка макета `lg:` и выше. */}
-          <nav aria-label={t.web.header.navLabel} className="hidden lg:block">
+              § 5) — здесь остаётся только строка макета `xl:` и выше.
+              Порог поднят с `lg` (1024) на `xl` (1280) 2026-09-11: шесть
+              пунктов меню + правая группа физически не помещаются в
+              контейнер на 1024 — «Статьи» и «Для бизнеса» переносились
+              на вторую строку и ломали высоту шапки (`flex-wrap` строки
+              это маскировал, а не чинил, см. заголовок компонента). На
+              1280 строка проверена скриншотом — влезает с запасом. */}
+          <nav aria-label={t.web.header.navLabel} className="hidden xl:block">
             {navList(false)}
           </nav>
         </div>
 
-        <div className="hidden items-center gap-header-right-gap lg:flex">
+        <div className="hidden items-center gap-header-right-gap xl:flex">
           {cityControl(false)}
           {businessLink(false)}
           {accountControl(false)}
@@ -312,7 +325,7 @@ export function SiteHeader({
           aria-expanded={menuOpen}
           aria-controls={navId}
           aria-label={t.web.header.openMenu}
-          className="flex h-11 w-11 items-center justify-center rounded-md text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand xl:hidden"
         >
           <BurgerIcon />
         </button>
@@ -320,7 +333,7 @@ export function SiteHeader({
 
       {menuOpen ? (
         <div id={navId}>
-          <Modal title={t.web.header.menuTitle} onClose={closeMenu} className="lg:hidden">
+          <Modal title={t.web.header.menuTitle} onClose={closeMenu} className="xl:hidden">
             <nav aria-label={t.web.header.navLabel}>{navList(true)}</nav>
             <div className="flex flex-col gap-3 border-t border-line-strong pt-5">
               {cityControl(true)}
