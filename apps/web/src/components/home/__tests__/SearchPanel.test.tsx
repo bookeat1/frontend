@@ -166,6 +166,28 @@ describe("панель поиска", () => {
   });
 
   /**
+   * Баг владельца 2026-09-11 (скриншот): клик по «Дате»/«Времени» открывал
+   * СРАЗУ два календаря — кастомный попап и поверх него нативный
+   * date/time-picker браузера. Причина — `input[type=date|time]` сам
+   * оставался кликабельным для мыши: клик по нему открывает нативный picker
+   * как встроенное поведение браузера, независимо от `onClick`-обработчика
+   * в React (`preventDefault` в `onClick` этого не отменяет). Фикс —
+   * `pointer-events: none` на самих полях: мышь до них не долетает, попап
+   * открывает обёртка `Field`. jsdom не считает реальный hit-test по CSS, но
+   * класс — это контракт: если он однажды пропадёт, поле снова станет
+   * кликабельным для мыши и баг вернётся молча.
+   */
+  it("нативные поля даты и времени исключены из hit-теста мыши (pointer-events-none)", async () => {
+    renderScreen(<SearchPanel state={EMPTY_CATALOG_STATE} />);
+
+    const date = (await screen.findByLabelText("Дата")) as HTMLInputElement;
+    const time = screen.getByLabelText("Время") as HTMLInputElement;
+
+    expect(date.className).toContain("pointer-events-none");
+    expect(time.className).toContain("pointer-events-none");
+  });
+
+  /**
    * Гости: колесо-пикер (`WheelPicker`) заменил степпер `−`/`+` (задача
    * «виджет выбора даты/времени/гостей», узел `5178:19173`). Диапазон
    * тот же 1…8 (`GUEST_OPTIONS`), но границы теперь ЗАЦИКЛЕНЫ, а не

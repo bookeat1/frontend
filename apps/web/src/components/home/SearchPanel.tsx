@@ -55,6 +55,26 @@ import { useDismissable } from "@web/lib/use-dismissable";
  * альтернативный путь. Нативные `input[type=date|time]` ОСТАЮТСЯ под
  * капотом — значение по-прежнему можно набрать с клавиатуры, попап лишь
  * даёт способ выбрать мышью, не открывая календарь операционной системы.
+ *
+ * БАГ (найден владельцем 2026-09-11, скриншот): клик по полю «Дата» открывал
+ * СРАЗУ два календаря — кастомный попап `Calendar` (см. выше) И нативный
+ * date-picker браузера поверх него. Причина: `onClick` на самом
+ * `input[type=date]` открывает попап через состояние React, но НЕ отменяет
+ * действие браузера по умолчанию — клик по date/time-инпуту сам по себе
+ * открывает его нативный picker независимо от JS-обработчиков; `onClick`
+ * не в состоянии это предотвратить (`preventDefault` в `onClick` на такой
+ * клик не действует, входной элемент уже начал открывать picker на этапе
+ * `mousedown`). Фикс: у самого `input` теперь `pointer-events-none` — мышь
+ * до него физически не долетает, значит и открыть его нативный UI кликом
+ * нечем. Клик обрабатывает Field целиком (подпись + ячейка), `input`
+ * остаётся в таб-порядке и принимает клавиатурный ввод как раньше —
+ * `pointer-events` не влияет на фокус клавиатурой или ввод текста, только
+ * на попадание указателя мыши. Подпись переведена с `<label htmlFor>` на
+ * `aria-labelledby`: клик по `<label for>`, связанному с date/time-полем,
+ * в Chrome тоже пересылается на инпут как «настоящий» клик и снова открыл
+ * бы нативный picker в обход `pointer-events-none` — сам `<label>` не
+ * участвует в hit-тестировании указателя, это отдельный, более сильный
+ * механизм активации по спецификации HTML.
  */
 export function SearchPanel({
   state,
@@ -166,8 +186,13 @@ export function SearchPanel({
   // нет: клик по полю открывает наш попап вместо него (см. `onClick` ниже).
   // Пока поле в фокусе, показываем родное содержимое: иначе гость правил бы
   // невидимые для себя цифры.
+  // `pointer-events-none`: клик мыши до поля физически не долетает, поэтому
+  // браузеру нечем открыть свой нативный picker (см. комментарий компонента
+  // выше про баг с двойным календарём). Клавиатурный фокус и набор текста
+  // `pointer-events` не трогает — таб-порядок и `onChange` работают как
+  // раньше.
   const nativeValue =
-    "search-native-picker peer col-start-1 row-start-1 cursor-pointer text-transparent focus:text-ink";
+    "search-native-picker peer pointer-events-none col-start-1 row-start-1 text-transparent focus:text-ink";
   const shownValue =
     "pointer-events-none col-start-1 row-start-1 self-center truncate text-[16px] leading-6 peer-focus:invisible";
   const filled = "font-semibold text-ink";
@@ -198,20 +223,23 @@ export function SearchPanel({
       <Divider />
 
       <div ref={dateFieldRef} className="relative w-full lg:w-search-date">
-        <Field>
-          <label className={label} htmlFor="catalog-search-date">
+        <Field
+          className="cursor-pointer"
+          onClick={() => setOpenPopover((current) => (current === "date" ? null : "date"))}
+        >
+          <span id="catalog-search-date-label" className={label}>
             {t.web.home.hero.dateLabel}
-          </label>
+          </span>
           <div className="grid">
             <input
               id="catalog-search-date"
               type="date"
+              aria-labelledby="catalog-search-date-label"
               value={date}
               onChange={(event) => {
                 availabilityTouched.current = true;
                 setDate(event.target.value);
               }}
-              onClick={() => setOpenPopover((current) => (current === "date" ? null : "date"))}
               className={cx(input, nativeValue)}
             />
             <span aria-hidden="true" className={cx(shownValue, date ? filled : placeholder)}>
@@ -229,20 +257,23 @@ export function SearchPanel({
       <Divider />
 
       <div ref={timeFieldRef} className="relative w-full lg:w-search-time">
-        <Field>
-          <label className={label} htmlFor="catalog-search-time">
+        <Field
+          className="cursor-pointer"
+          onClick={() => setOpenPopover((current) => (current === "time" ? null : "time"))}
+        >
+          <span id="catalog-search-time-label" className={label}>
             {t.web.home.hero.timeLabel}
-          </label>
+          </span>
           <div className="grid">
             <input
               id="catalog-search-time"
               type="time"
+              aria-labelledby="catalog-search-time-label"
               value={time}
               onChange={(event) => {
                 availabilityTouched.current = true;
                 setTime(event.target.value);
               }}
-              onClick={() => setOpenPopover((current) => (current === "time" ? null : "time"))}
               className={cx(input, nativeValue)}
             />
             <span aria-hidden="true" className={cx(shownValue, time ? filled : placeholder)}>
@@ -365,9 +396,20 @@ export function SearchPanel({
 
 /** Ячейка панели: радиус 14, паддинг 8/20, просвет «подпись → значение» 2
  * (узлы 3253:37, 3253:41, 3253:45, 3253:49). */
-function Field({ className, children }: { className?: string; children: ReactNode }) {
+function Field({
+  className,
+  children,
+  onClick,
+}: {
+  className?: string;
+  children: ReactNode;
+  onClick?: () => void;
+}) {
   return (
-    <div className={cx("flex min-w-0 flex-col gap-0.5 rounded-field px-field-x py-field-y", className)}>
+    <div
+      onClick={onClick}
+      className={cx("flex min-w-0 flex-col gap-0.5 rounded-field px-field-x py-field-y", className)}
+    >
       {children}
     </div>
   );
