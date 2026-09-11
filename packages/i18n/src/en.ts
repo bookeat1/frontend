@@ -2534,7 +2534,7 @@ export const en: LocaleOverride<Dictionary> = {
       hero: {
         title: "A table at the best places",
         subtitle:
-          "Book online in 30 seconds — no calls, no waiting. Confirmation arrives right away.",
+          "Book in 30 seconds, no calls. No waiting for confirmation.",
         placeLabel: "Place or cuisine",
         placePlaceholder: "Restaurant, cuisine, or dish",
         dateLabel: "Date",
