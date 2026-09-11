@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import { Container } from "@web/components/layout/Container";
 import { BrandLogo } from "@web/components/layout/BrandLogo";
@@ -130,6 +130,36 @@ export function SiteHeader({
   const navId = useId();
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
+  // Открытое мобильное меню — это отдельный `Modal` (скрим на весь экран +
+  // `overflow: hidden` на body, см. Modal.tsx). Он скрыт по `xl:hidden`, но
+  // это только CSS-видимость: сам диалог остаётся смонтированным. Если
+  // растянуть окно браузера с <1280 до ≥1280 при открытом бургер-меню, панель
+  // спрячется, а подложка-скрим и блокировка скролла — нет, потому что для
+  // них ничего не размонтировалось (найдено ревью PR #190; при этом ДО
+  // фикса подложка ещё и оставалась видимой поверх десктопной шапки, так
+  // как `xl:hidden` в Modal.tsx висел только на панели диалога, а не на
+  // самой подложке). Правильный фикс — закрывать меню как состояние, а не
+  // прятать его кусками CSS: при пересечении границы `xl` (1280, тот же
+  // порог, что у бургера и `nav` выше) Modal размонтируется целиком, и его
+  // собственный cleanup-эффект сам снимает `overflow: hidden` с body.
+  useEffect(() => {
+    if (!menuOpen) return;
+    // jsdom (тесты) не реализует matchMedia вовсе — без проверки эффект
+    // падал бы в каждом тесте, открывающем меню, TypeError'ом вместо
+    // закрытия панели.
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(min-width: 1280px)");
+    if (query.matches) {
+      closeMenu();
+      return;
+    }
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) closeMenu();
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [menuOpen, closeMenu]);
+
   const navList = (stacked: boolean) => (
     <ul
       className={
@@ -227,7 +257,7 @@ export function SiteHeader({
         label={t.web.header.forBusiness}
         className={cx(
           "px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-          stacked && "flex h-11 w-full items-center px-0",
+          stacked ? "flex h-11 w-full items-center px-0" : "whitespace-nowrap",
         )}
       >
         {t.web.header.forBusiness}
@@ -291,7 +321,7 @@ export function SiteHeader({
   return (
     <header className={cx("w-full border-b border-line-strong bg-canvas", className)}>
       <Container className="flex min-h-header items-center justify-between gap-4 py-header-y">
-        <div className="flex items-center gap-6 lg:gap-header-brand-gap">
+        <div className="flex shrink-0 items-center gap-6 xl:gap-header-brand-gap">
           <Link
             href="/"
             aria-label={t.web.header.brand}
@@ -307,8 +337,14 @@ export function SiteHeader({
               контейнер на 1024 — «Статьи» и «Для бизнеса» переносились
               на вторую строку и ломали высоту шапки (`flex-wrap` строки
               это маскировал, а не чинил, см. заголовок компонента). На
-              1280 строка проверена скриншотом — влезает с запасом. */}
-          <nav aria-label={t.web.header.navLabel} className="hidden xl:block">
+              1280 строка проверена скриншотом — влезает с запасом.
+              Сам `<nav>` держим на `shrink-0`: без него дефолтный
+              `flex-shrink: 1` родителя сжимает список пунктов при
+              нехватке места и подписи переносятся ВНУТРИ `<li>` вместо
+              видимого переполнения строки — то же самое переносило
+              «Для бизнеса»/«Статьи» на вторую строку, только внутри
+              одного пункта, а не между ними (найдено ревью PR #190). */}
+          <nav aria-label={t.web.header.navLabel} className="hidden shrink-0 xl:block">
             {navList(false)}
           </nav>
         </div>
