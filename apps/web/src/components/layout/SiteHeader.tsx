@@ -156,8 +156,16 @@ export function SiteHeader({
     const onChange = (event: MediaQueryListEvent) => {
       if (event.matches) closeMenu();
     };
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
+    // `addEventListener`/`removeEventListener` на MediaQueryList — Safari
+    // 14+ (iOS 13 их не имеет, там только устаревшие `addListener`/
+    // `removeListener`). Без гварда апдейт на iOS 13 падал бы TypeError'ом
+    // и не закрывал бы меню при пересечении xl — деградация до "просто не
+    // подписались", а не крэш.
+    if ("addEventListener" in query) {
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    }
+    return undefined;
   }, [menuOpen, closeMenu]);
 
   const navList = (stacked: boolean) => (
@@ -270,7 +278,7 @@ export function SiteHeader({
       // чтобы шапка не дёрнулась, когда состояние станет известно.
       <span aria-hidden="true" className={cx("h-btn-header", stacked ? "w-full" : "w-[109px]")} />
     ) : account ? (
-      <div className={stacked ? "flex flex-col gap-3" : "flex items-center gap-header-right-gap"}>
+      <div className={stacked ? "flex flex-col gap-3" : "flex min-w-0 items-center gap-header-right-gap"}>
         {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
             В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
             месте, где макет главной рисует «Войти». Текстом имя
@@ -349,7 +357,16 @@ export function SiteHeader({
           </nav>
         </div>
 
-        <div className="hidden items-center gap-header-right-gap xl:flex">
+        {/* `min-w-0`: без него дефолтный `min-width: auto` этой группы
+            равен её min-content — то есть полной ширине непереносимого
+            имени гостя (`truncate` не срабатывает, пока родитель не
+            может сжаться ниже этой ширины). Левая группа теперь на
+            `shrink-0` и больше не уступает место, поэтому вся строка
+            вместе с кнопкой «Выйти» вылезала за контейнер на длинных
+            именах (найдено ревью PR #193, ru «Айгерім Нұрлыбекқызы» на
+            1280 — overflow 25px). Тот же `min-w-0` нужен и на
+            account-row внутри `accountControl`, по той же причине. */}
+        <div className="hidden min-w-0 items-center gap-header-right-gap xl:flex">
           {cityControl(false)}
           {businessLink(false)}
           {accountControl(false)}

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
@@ -8,6 +8,14 @@ import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
  * так, чтобы это было слышно, а не только видно по красному подчёркиванию.
  */
 describe("SiteHeader", () => {
+  // Ревью PR #193: `vi.unstubAllGlobals()` в конце test body не выполнялся,
+  // если assert выше по тесту падал — matchMedia-стаб с мутированным
+  // `matches: true` утекал в следующий тест файла. `afterEach` гарантирует
+  // очистку независимо от того, где именно тест упал.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("рисует все пункты меню из макета — их ШЕСТЬ", () => {
     render(<SiteHeader />);
 
@@ -196,7 +204,5 @@ describe("SiteHeader", () => {
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.body.style.overflow).toBe("");
-
-    vi.unstubAllGlobals();
   });
 });
