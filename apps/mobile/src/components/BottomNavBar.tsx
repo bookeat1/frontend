@@ -84,13 +84,19 @@ export function useNavBarSpacing(): number {
  * screen does not render the bar today, so the mapping stays right if it ever
  * does.
  *
- * ГАСТРОГИД ЖИВЁТ РОВНО ПОД ОДНИМ ПРЕФИКСОМ — `/gastroguide` (корень вкладки,
- * `/gastroguide/rubric/:slug`, `/gastroguide/collections/:slug`). Раньше их
- * было два, и `/articles` считался гастрогидом: это и есть тот баг, из-за
- * которого раздел «Статьи» открывал вкладку гастрогида. Теперь `/articles` —
- * ЧУЖОЙ раздел, вкладку он не подсвечивает вовсе (как и `/favorites`, куда
- * входят из профиля): подсветить чужую вкладку хуже, чем не подсветить
- * никакую.
+ * ГАСТРОГИД ЖИВЁТ ПОД ДВУМЯ ПРЕФИКСАМИ — каноническим `/gastroguide` (корень
+ * вкладки, `/gastroguide/rubric/:slug`, `/gastroguide/collections/:slug`) и
+ * алиасом `/guide` (см. ниже). Раньше был другой, третий кандидат —
+ * `/articles` считался гастрогидом: это и есть тот баг, из-за которого раздел
+ * «Статьи» открывал вкладку гастрогида. `/articles` остаётся ЧУЖИМ разделом,
+ * вкладку он не подсвечивает вовсе (как и `/favorites`, куда входят из
+ * профиля): подсветить чужую вкладку хуже, чем не подсветить никакую.
+ *
+ * `/guide` и `/guide/rubric/:slug` — те же экраны под вторым адресом
+ * (ADR-046, `app/guide/*` — файлы-алиасы на файлы `app/gastroguide/*`, без
+ * редиректа). Гость, попавший на мобильный веб по десктопной ссылке
+ * `book-eat.com/guide`, должен увидеть подсвеченную вкладку, а не пустую
+ * панель.
  *
  * `/favorites` больше не вкладка (вход в избранное переехал в профиль), так
  * что на этом экране не подсвечено ничего — это честнее, чем подсветить чужую
@@ -100,7 +106,7 @@ export function activeNavKey(pathname: string): NavKey | null {
   if (pathname === "/") return "overview";
   if (pathname.startsWith("/search")) return "search";
   if (pathname.startsWith("/bookings") || pathname.startsWith("/booking/")) return "bookings";
-  if (pathname.startsWith("/gastroguide")) return "gastroguide";
+  if (pathname.startsWith("/gastroguide") || pathname.startsWith("/guide")) return "gastroguide";
   if (pathname.startsWith("/profile")) return "profile";
   return null;
 }
