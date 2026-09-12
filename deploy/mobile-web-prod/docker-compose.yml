@@ -1,0 +1,64 @@
+# Mobile web (Expo web export of apps/mobile, ADR-046) in PRODUCTION — one
+# static file server behind the EXISTING Caddy of the backend stack on
+# 213.155.20.76. The edge Caddy routes mobile User-Agents on book-eat.com to
+# this container by name (web-mobile:3200); nothing is published on the host.
+#
+# Deliberately a separate compose project ("mobileprod"), not a bind-mount
+# added to the backend's caddy service: adding a volume there would force a
+# recreate of the shared Caddy (seconds of downtime for the API, the venue
+# panel and the site). This project only joins their network.
+#
+# Usage on the server:
+#   docker compose -f /opt/bookeat/mobile-web/docker-compose.yml up -d
+#   docker compose -f /opt/bookeat/mobile-web/docker-compose.yml logs -f
+#   docker compose -f /opt/bookeat/mobile-web/docker-compose.yml down   # only mobile web goes away
+
+name: mobileprod
+
+services:
+  web-mobile:
+    # Same pinned image as the edge proxy (/opt/bookeat/deploy/docker-compose.yml).
+    image: caddy:2.9-alpine
+    container_name: mobileprod-web-mobile-1
+    restart: unless-stopped
+
+    volumes:
+      # A DIRECTORY mount for the config on purpose: a single-file bind mount
+      # keeps the inode of container start, so an edit that replaces the file
+      # on the host is never seen inside (2026-08-24 and 2026-09-08 incidents).
+      - /opt/bookeat/mobile-web/caddy:/etc/caddy:ro
+      # Releases are written over SSH as `ubuntu`; the server only reads.
+      # /srv/mobile/current is a RELATIVE symlink to releases/<name>, resolved
+      # per request, so a release swap needs no restart.
+      - /opt/bookeat/mobile-web:/srv/mobile:ro
+
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3200/release.txt"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.5"
+
+    security_opt:
+      - no-new-privileges:true
+
+    networks:
+      - backend
+
+networks:
+  backend:
+    # Created by /opt/bookeat/deploy/docker-compose.yml (project "deploy").
+    name: deploy_default
+    external: true
