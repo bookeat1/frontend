@@ -16,6 +16,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppUpdateGate } from "../src/components/AppUpdateGate";
@@ -28,6 +29,7 @@ import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
 import { ScreenViewTracker } from "../src/lib/screen-view-tracker";
+import { WebPromoAttribution } from "../src/lib/web-promo-attribution";
 import { queryClient } from "../src/lib/queryClient";
 
 // Apply the persisted language to the i18n module as early as the JS bundle
@@ -131,6 +133,15 @@ export default function RootLayout() {
                     <DetourProvider> — gated the same way DetourProviderGate
                     decides whether to mount one. */}
                 {isDetourConfigured && <DetourLinkRouter />}
+                {/* Mobile-web's own path to the same tag DetourLinkRouter
+                    writes natively: DetourProvider never mounts on the web
+                    export (no install to defer-link to), so a guest opening
+                    book-eat.com/...?promo=<uuid> in a phone browser needs a
+                    direct query-param read instead — see
+                    web-promo-attribution.tsx. Gated on Platform.OS, not
+                    isDetourConfigured: native attribution stays exclusively
+                    Detour's job regardless of this env's config. */}
+                {Platform.OS === "web" && <WebPromoAttribution />}
                 <Stack
                   screenOptions={{
                     headerShown: false,

@@ -1,0 +1,395 @@
+name: Deploy mobile web (prod)
+
+# Builds the guest app's Expo web export (apps/mobile, `expo export --platform
+# web`) against the PRODUCTION backend and publishes it on the production host
+# (the one in PROD_SSH_HOST) as the mobile origin of book-eat.com.
+#
+# ADR-046: book-eat.com is ONE domain with TWO origins picked per request by
+# the edge Caddy — mobile User-Agents get this build (container
+# mobileprod-web-mobile-1, /opt/bookeat/mobile-web), everything else and every
+# crawler gets apps/web (deploy-web-prod.yml). The two deploys are independent:
+# this workflow never touches the desktop origin, the API, the venue panel or
+# the Caddy config, and it verifies all of them are still alive afterwards.
+#
+# WHY THIS FILE EXISTS. Until 2026-09-12 the mobile origin had no pipeline at
+# all: the cutover build of 2026-09-08 was uploaded by hand, and merging into
+# main deployed only apps/web. book-eat.com/guide therefore answered "Unmatched
+# Route" on a phone for four days after the alias route had landed in main —
+# the desktop site was current while the mobile half of the same domain was
+# four days behind, and nothing reported it. Structure is
+# deploy-mobile-web-test.yml's (same export, same rsync + symlink swap, same
+# automatic rollback) with deploy-web-prod.yml's gate and secrets.
+#
+# Runs on every push to `main`, and only from `main` — the same branch model as
+# the desktop site (product owner's decision, 2026-09-10): every PR lands in
+# develop, main is a plain merge of develop, and merging into main IS the
+# release decision, so it deploys by itself with no button. The manual
+# `workflow_dispatch` path is the fallback (re-release the same SHA after an
+# incident) and still asks for the typed confirmation.
+#
+# Deliberately NOT path-filtered, unlike the test workflow. A filter is exactly
+# what would let this origin drift behind main again: the export also bakes in
+# packages/**, the lockfile and build-time env, and "no apps/mobile files in
+# this merge" does not mean "the published bundle is current". A no-op deploy
+# costs ~8 minutes of runner time and one 20 MB release directory; a silently
+# stale guest site cost us the incident above.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Manual runs only: type "deploy-to-prod" to confirm a PRODUCTION release'
+        required: true
+        type: string
+
+concurrency:
+  # Never cancel a deploy that is mid-swap; queue instead. Own group so a stand
+  # deploy, or the desktop site's production deploy, never blocks this one.
+  group: deploy-mobile-web-prod
+  cancel-in-progress: false
+
+env:
+  # Not secrets: every EXPO_PUBLIC_* value ends up verbatim in the shipped
+  # JavaScript bundle. Pinned here so the artifact is reproducible from the
+  # repository alone and so production reads the PRODUCTION backend. Mirrors
+  # the `production-main` profile in apps/mobile/eas.json.
+  EXPO_PUBLIC_API_URL: https://backend.book-eat.com/api/v1
+  # Amplitude client-side WRITE key of the PRODUCTION project (public by
+  # design, same value as eas.json's production-main; it only selects the
+  # project). The test/beta key ea6dc4… must never appear in this build.
+  EXPO_PUBLIC_AMPLITUDE_API_KEY: d084c0beaf84da775fd428b3b5544b57
+  # Read at BUILD time by apps/mobile/app.config.js (MW-3) and baked into every
+  # asset/script URL. EMPTY on purpose: production serves this build from the
+  # domain root, not from a /preview prefix like the test slot. The default in
+  # app.config.js is "/preview", so an unset variable here would 404 every
+  # asset — the assertion step below refuses such a build before it is uploaded.
+  BOOKEAT_WEB_BASE_URL: ""
+  # "Almaty Marathon" promo (backend migration 0107, 10.09.2026) — not a
+  # secret, same literal value as deploy-web-prod.yml's
+  # NEXT_PUBLIC_MARATHON_PROMO_ID and every EAS profile in apps/mobile/eas.json
+  # (`EXPO_PUBLIC_MARATHON_PROMO_ID`). Was missing here: the hand-built release
+  # of 2026-09-08 predates this pipeline and shipped without it, so
+  # `KNOWN_CAMPAIGN_IDS` in campaign-attribution.ts was an empty array on the
+  # mobile web origin and any promo UUID was silently discarded (see the
+  # module's own comment — an empty list degrades attribution, it does not
+  # crash). NOTE: on the WEB export this alone does not turn attribution on —
+  # campaign-attribution.ts is only ever written to by DetourLinkRouter, and
+  # DetourProviderGate does not mount `<DetourProvider>` without
+  # EXPO_PUBLIC_DETOUR_API_KEY/EXPO_PUBLIC_DETOUR_APP_ID, which stay absent
+  # here on purpose (Detour is deferred-INSTALL attribution; there is no
+  # install event in a browser tab). This variable only keeps the constant
+  # correct and the bundle consistent with the native builds and the desktop
+  # site; wiring a `?promo=` capture path for phone browsers (mirroring
+  # apps/web/src/lib/campaign-attribution.ts) is separate, unstarted work.
+  EXPO_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
+  # Note: EXPO_PUBLIC_OTP_DELIVERY_DISABLED is absent on purpose — production
+  # delivers real codes. EXPO_PUBLIC_DETOUR_* stays absent: those keys are
+  # tied to the native app's install, not to this web export (see above).
+  EXPO_NO_TELEMETRY: "1"
+  PUBLIC_URL: https://book-eat.com
+  MW_ROOT: /opt/bookeat/mobile-web
+  EXPORT_DIR: apps/mobile/dist-web
+  # Every public check MUST send a phone User-Agent: with a default curl UA the
+  # domain answers from the DESKTOP origin, and a verification that "200 OK"
+  # would pass while the mobile half was broken or stale.
+  MOBILE_UA: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+  # Neighbours on the same host and the same Caddy; they must survive every
+  # mobile deploy.
+  BACKEND_HEALTH_URL: https://backend.book-eat.com/health
+  ADMIN_PROBE_URL: https://admin.book-eat.com/release.txt
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main (and, for a manual run, the typed confirmation)
+        env:
+          # Empty for a push: `inputs` does not exist outside workflow_dispatch.
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Refusing: production deploys only from main (got '$GITHUB_REF'). Re-run with 'Use workflow from: main'."
+            exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$CONFIRM" != "deploy-to-prod" ]; then
+            echo "::error::Refusing: on a manual run the confirm input must be exactly 'deploy-to-prod' (got '$CONFIRM')."
+            exit 1
+          fi
+          echo "Releasing $GITHUB_REF_NAME @ ${GITHUB_SHA::7} to the mobile origin of production (event: $GITHUB_EVENT_NAME, actor: $GITHUB_ACTOR)"
+
+      - name: Fail early if the deploy secrets are missing
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          missing=""
+          for name in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_SSH_HOST PROD_SSH_USER; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — the same set deploy-web-prod.yml uses."
+            exit 1
+          fi
+          # The stand's known_hosts holds the stand's key only; the production
+          # host must be in the same secret or StrictHostKeyChecking rejects it.
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > /tmp/kh
+          if ! ssh-keygen -F "$PROD_SSH_HOST" -f /tmp/kh >/dev/null; then
+            echo "::error::SSH_KNOWN_HOSTS has no entry for the production host — append 'ssh-keyscan -t ed25519 <host>' output to the secret."
+            exit 1
+          fi
+          rm -f /tmp/kh
+
+  checks:
+    needs: gate
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    # Restated from `gate` so the job is safe on its own if the gate step is
+    # ever edited.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # A GitHub Environment so a required reviewer can be attached later in
+    # Settings without touching this file — same hook as the desktop site's
+    # production deploy. Created on first run if absent.
+    environment:
+      name: production-mobile-web
+      url: https://book-eat.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Name this release
+        id: release
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Export the web build
+        # `--clear` on purpose. Metro's transform cache does not key on
+        # EXPO_PUBLIC_* values: a second export on a warm cache (seen locally,
+        # 2026-09-08) produced a bundle with NO API URL and NO Amplitude key —
+        # i.e. the guest app silently running on the in-memory mock repository.
+        run: pnpm --filter @bookeat/mobile exec expo export --platform web --output-dir dist-web --clear
+
+      - name: Assert this is a deployable PRODUCTION build
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          [ -s "$EXPORT_DIR/index.html" ] || { echo "::error::$EXPORT_DIR/index.html missing or empty"; exit 1; }
+          [ -s "$EXPORT_DIR/metadata.json" ] || { echo "::error::$EXPORT_DIR/metadata.json missing — not an expo export"; exit 1; }
+          bundles=$(find "$EXPORT_DIR/_expo/static/js/web" -maxdepth 1 -name '*.js' -size +100k 2>/dev/null | wc -l)
+          [ "$bundles" -ge 1 ] || {
+            echo "::error::No JS bundle larger than 100 KB under $EXPORT_DIR/_expo/static/js/web — the export is empty or Metro bailed out."
+            exit 1
+          }
+          # Base URL: production serves from the domain root. A build made for
+          # the test slot would 404 on every asset here.
+          grep -q '"/_expo/' "$EXPORT_DIR/index.html" || {
+            echo "::error::index.html does not reference \"/_expo/ at the root — BOOKEAT_WEB_BASE_URL was not applied as empty; every asset would 404."
+            exit 1
+          }
+          if grep -q '/preview/_expo/' "$EXPORT_DIR/index.html"; then
+            echo "::error::This is a test-slot build (base URL /preview), not a production one."
+            exit 1
+          fi
+          # Which backend the guests would talk to. Both directions checked:
+          # the production address present AND the test address absent.
+          grep -rq "$EXPO_PUBLIC_API_URL" "$EXPORT_DIR/_expo/static/js/web" || {
+            echo "::error::The production API base URL is not baked into the bundle; the app would run against the in-memory mock repository."
+            exit 1
+          }
+          if grep -rq 'test\.backend\.book-eat\.com' "$EXPORT_DIR/_expo/static/js/web"; then
+            echo "::error::The TEST backend address is present in a production bundle."
+            exit 1
+          fi
+          grep -rq "$EXPO_PUBLIC_AMPLITUDE_API_KEY" "$EXPORT_DIR/_expo/static/js/web" || {
+            echo "::error::The production Amplitude key is not in the bundle — analytics would be lost or, worse, sent to the test project."
+            exit 1
+          }
+          # Served as /release.txt so the verification below can prove the swap
+          # took effect, not merely that something is up. The mobile origin has
+          # its OWN release.txt; the desktop origin serves a different one from
+          # the same URL, which is why every check sends a phone User-Agent.
+          printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$EXPORT_DIR/release.txt"
+          du -sh "$EXPORT_DIR"
+          ls -la "$EXPORT_DIR/_expo/static/js/web"
+
+      - name: Set up the SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Preflight the production host
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20"
+          # Everything the release needs BEFORE 20 MB are uploaded: the key
+          # works, docker compose is there, the network the static server joins
+          # exists, and the release root is writable by us.
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "set -e
+            docker compose version >/dev/null
+            docker network inspect deploy_default >/dev/null 2>&1 || { echo 'network deploy_default missing — is the backend stack up?' >&2; exit 1; }
+            if [ -d '$MW_ROOT' ]; then
+              [ -w '$MW_ROOT' ] || { echo '$MW_ROOT is not writable by \$(whoami) — run: sudo chown \$(whoami) $MW_ROOT' >&2; exit 1; }
+            else
+              mkdir -p '$MW_ROOT' 2>/dev/null || { echo 'cannot create $MW_ROOT — one-time: sudo mkdir -p $MW_ROOT && sudo chown \$(whoami) $MW_ROOT' >&2; exit 1; }
+            fi
+            echo preflight ok on \$(hostname) as \$(whoami)"
+
+      - name: Upload the release next to the live one
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          incoming="$MW_ROOT/releases/.incoming-$RELEASE"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "mkdir -p '$MW_ROOT/releases' '$MW_ROOT/bin' '$MW_ROOT/caddy' && rm -rf '$incoming'"
+          rsync -az --delete -e "ssh $ssh_opts" "$EXPORT_DIR/" "$SSH_USER@$SSH_HOST:$incoming/"
+          # mobile-* names kept from the hand cutover of 2026-09-08. This root
+          # is not shared with another pipeline, but the names are what the
+          # runbook, the history file and muscle memory already use.
+          rsync -az -e "ssh $ssh_opts" deploy/mobile-web-prod/release.sh "$SSH_USER@$SSH_HOST:$MW_ROOT/bin/mobile-release.sh"
+          rsync -az -e "ssh $ssh_opts" deploy/mobile-web-prod/rollback.sh "$SSH_USER@$SSH_HOST:$MW_ROOT/bin/mobile-rollback.sh"
+          # The static server's own config. Byte-identical to what the host
+          # already runs, so this is normally a no-op; CHANGING either file in
+          # this repository makes the next deploy recreate the container —
+          # a few seconds of 502 for mobile User-Agents only, the desktop
+          # origin and the API are untouched.
+          rsync -az -e "ssh $ssh_opts" deploy/mobile-web-prod/docker-compose.yml "$SSH_USER@$SSH_HOST:$MW_ROOT/docker-compose.yml"
+          rsync -az -e "ssh $ssh_opts" deploy/mobile-web-prod/caddy/Caddyfile "$SSH_USER@$SSH_HOST:$MW_ROOT/caddy/Caddyfile"
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "chmod 755 '$MW_ROOT/bin/mobile-release.sh' '$MW_ROOT/bin/mobile-rollback.sh'"
+
+      - name: Swap the symlink
+        id: swap
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # The script re-checks the upload (base URL, no test backend, bundle
+          # size) before it moves anything, swaps `current` with one rename,
+          # then proves the container serves THIS release from the inside.
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "MW_ROOT='$MW_ROOT' DEPLOY_ACTOR='$GITHUB_ACTOR' '$MW_ROOT/bin/mobile-release.sh' '$RELEASE'"
+
+      - name: Verify through the public domain as a phone
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -uo pipefail
+          fail=0
+          ua="$MOBILE_UA"
+
+          code=""
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -A "$ua" --max-time 15 "$PUBLIC_URL/" || echo 000)
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          echo "/ (mobile UA) -> $code"
+          [ "$code" = "200" ] || { echo "::error::$PUBLIC_URL/ returned $code to a phone, expected 200"; fail=1; }
+
+          served=$(curl -s -A "$ua" --max-time 15 "$PUBLIC_URL/release.txt" | head -1 || true)
+          echo "release.txt (mobile UA) -> ${served:-<empty>} (expected $RELEASE)"
+          if [ "$served" != "$RELEASE" ]; then
+            echo "::error::The mobile origin is not serving this release. Expected $RELEASE, got '${served:-nothing}'. Either the symlink swap did not take effect, or the edge Caddy is no longer routing phones to web-mobile:3200 (deploy/web-prod/caddy-book-eat.com.snippet)."
+            fail=1
+          fi
+
+          # A 200 on index.html with a 404 on the bundle is still a white
+          # screen: fetch the script index.html points at and require a real
+          # size. No Accept-Encoding, so size_download is the raw file.
+          html=$(curl -s -A "$ua" --max-time 15 "$PUBLIC_URL/" || true)
+          script=$(printf '%s' "$html" | grep -o "/_expo/static/js/web/[^\"' ]*\.js" | head -1 || true)
+          if [ -z "$script" ]; then
+            echo "::error::index.html served to a phone does not reference /_expo/static/js/web/*.js — wrong origin or wrong base URL."
+            fail=1
+          else
+            read -r scode ssize < <(curl -s -o /dev/null -w '%{http_code} %{size_download}\n' -A "$ua" --max-time 30 "$PUBLIC_URL$script" || echo "000 0")
+            echo "$script -> $scode, $ssize bytes"
+            [ "$scode" = "200" ] && [ "$ssize" -gt 102400 ] || {
+              echo "::error::Entry bundle $script answered $scode with $ssize bytes; expected 200 and >100 KB."
+              fail=1
+            }
+          fi
+
+          # Deep links a guest can arrive on. The SPA answers 200 for any path
+          # (try_files → index.html), so this only proves routing, not the
+          # rendered screen — the screen check is `shot`, see
+          # deploy/mobile-web-prod/README.md.
+          for path in /guide /gastroguide /search /promotions; do
+            c=$(curl -s -o /dev/null -w '%{http_code}' -A "$ua" --max-time 15 "$PUBLIC_URL$path" || echo 000)
+            echo "$path (mobile UA) -> $c"
+            [ "$c" = "200" ] || { echo "::error::$path answered $c to a phone."; fail=1; }
+          done
+
+          # The OTHER half of the same domain must be untouched: a desktop UA
+          # and a crawler still have to reach apps/web, whose release.txt is a
+          # different file with a different release name.
+          desktop=$(curl -s --max-time 15 "$PUBLIC_URL/release.txt" | head -1 || true)
+          echo "release.txt (desktop UA) -> ${desktop:-<empty>}"
+          if [ -z "$desktop" ] || [ "$desktop" = "$RELEASE" ]; then
+            echo "::error::A desktop User-Agent is being served the mobile build (or nothing). The UA split is broken."
+            fail=1
+          fi
+          bot=$(curl -s -A 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' --max-time 15 "$PUBLIC_URL/release.txt" | head -1 || true)
+          echo "release.txt (Googlebot) -> ${bot:-<empty>}"
+          [ "$bot" = "$desktop" ] || { echo "::error::Googlebot is not being served the desktop app — the SPA would get indexed."; fail=1; }
+
+          # Neighbours on this host and this Caddy.
+          api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$BACKEND_HEALTH_URL" || echo 000)
+          admin=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$ADMIN_PROBE_URL" || echo 000)
+          echo "backend health -> $api ; admin -> $admin"
+          [ "$api" = "200" ] || { echo "::error::The backend stopped answering ($api)."; fail=1; }
+          [ "$admin" = "200" ] || { echo "::error::The venue panel stopped answering ($admin)."; fail=1; }
+
+          [ "$fail" = "0" ] || exit 1
+          echo "Mobile web production is up and serving $RELEASE"
+
+      - name: Roll back to the previous release
+        if: failure() && steps.swap.outcome == 'success'
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          echo '::warning::Verification failed; rolling the current symlink back to the previous release.'
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "MW_ROOT='$MW_ROOT' '$MW_ROOT/bin/mobile-rollback.sh'" || \
+            echo "::warning::Nothing to roll back to — this was the first release."
+          served=$(curl -s -A "$MOBILE_UA" --max-time 15 "$PUBLIC_URL/release.txt" | head -1 || true)
+          echo "after rollback release.txt (mobile UA) -> ${served:-<empty>}"
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

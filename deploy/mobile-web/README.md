@@ -1,5 +1,9 @@
 # Mobile web (Expo export of apps/mobile) on the test server
 
+Production lives in `deploy/mobile-web-prod/` (pipeline
+`deploy-mobile-web-prod.yml`, push to `main`, root `/opt/bookeat/mobile-web`,
+domain root instead of `/preview`). This directory is the STAND only.
+
 Pipeline: `.github/workflows/deploy-mobile-web-test.yml` — push to `develop`
 touching `apps/mobile/**`, `packages/**`, `pnpm-lock.yaml`, this directory or
 the workflow itself; or `workflow_dispatch`.
