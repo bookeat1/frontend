@@ -69,6 +69,11 @@ describe("activeNavKey", () => {
     expect(activeNavKey("/gastroguide/collections/almaty-brunch")).toBe("gastroguide");
   });
 
+  it("подсвечивает «Гастрогид» и на алиасе /guide (ADR-046, мобильный веб)", () => {
+    expect(activeNavKey("/guide")).toBe("gastroguide");
+    expect(activeNavKey("/guide/rubric/kazakh-cuisine")).toBe("gastroguide");
+  });
+
   it("не подсвечивает гастрогид на «Статьях»: это другой раздел", () => {
     expect(activeNavKey("/articles")).toBeNull();
     expect(activeNavKey("/articles/almaty-longread")).toBeNull();

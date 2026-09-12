@@ -105,6 +105,17 @@ describe("ProfileScreen — сессия", () => {
     expect(screen.getByText("Профиль доступен после входа. Перенаправляем…")).toBeTruthy();
   });
 
+  it("гостя без сессии с ?section= уводит на /login с возвратом, включая query", async () => {
+    auth = { signedIn: false, isLoading: false, user: null };
+    search = "section=favorites";
+
+    renderScreen(<ProfileScreen />);
+
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(`/login?next=${encodeURIComponent("/profile?section=favorites")}`),
+    );
+  });
+
   it("пока сессия читается — заглушка и никакого редиректа", () => {
     auth = { signedIn: false, isLoading: true, user: null };
 

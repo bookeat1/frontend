@@ -14,9 +14,20 @@ import { trackEvent } from "./analytics";
  * что относилось бы к человеку.
  *
  * Корень (пустой массив сегментов) — это `/`, главная.
+ *
+ * `/guide` — алиас гастрогида на втором адресе (ADR-046, `app/guide/*` —
+ * файлы-алиасы на `app/gastroguide/*`, без редиректа, см. `BottomNavBar`).
+ * Первый сегмент нормализуется в `gastroguide` ДО сборки шаблона: иначе
+ * `/guide` и `/guide/rubric/[slug]` уходили бы в аналитику как новые,
+ * отдельные от `/gastroguide` и `/gastroguide/rubric/[slug]` имена экранов —
+ * трафик гастрогида расщепился бы на два имени, и существующие дашборды и
+ * воронки, фильтрующие по `/gastroguide`, молча теряли бы данные с
+ * выкладки алиаса.
  */
 export function screenNameFromSegments(segments: readonly string[]): string {
-  const path = segments.filter((segment) => segment.length > 0).join("/");
+  const filtered = segments.filter((segment) => segment.length > 0);
+  const normalized = filtered[0] === "guide" ? ["gastroguide", ...filtered.slice(1)] : filtered;
+  const path = normalized.join("/");
   return path.length > 0 ? `/${path}` : "/";
 }
 
