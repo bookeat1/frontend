@@ -66,11 +66,27 @@ env:
   # app.config.js is "/preview", so an unset variable here would 404 every
   # asset — the assertion step below refuses such a build before it is uploaded.
   BOOKEAT_WEB_BASE_URL: ""
+  # "Almaty Marathon" promo (backend migration 0107, 10.09.2026) — not a
+  # secret, same literal value as deploy-web-prod.yml's
+  # NEXT_PUBLIC_MARATHON_PROMO_ID and every EAS profile in apps/mobile/eas.json
+  # (`EXPO_PUBLIC_MARATHON_PROMO_ID`). Was missing here: the hand-built release
+  # of 2026-09-08 predates this pipeline and shipped without it, so
+  # `KNOWN_CAMPAIGN_IDS` in campaign-attribution.ts was an empty array on the
+  # mobile web origin and any promo UUID was silently discarded (see the
+  # module's own comment — an empty list degrades attribution, it does not
+  # crash). NOTE: on the WEB export this alone does not turn attribution on —
+  # campaign-attribution.ts is only ever written to by DetourLinkRouter, and
+  # DetourProviderGate does not mount `<DetourProvider>` without
+  # EXPO_PUBLIC_DETOUR_API_KEY/EXPO_PUBLIC_DETOUR_APP_ID, which stay absent
+  # here on purpose (Detour is deferred-INSTALL attribution; there is no
+  # install event in a browser tab). This variable only keeps the constant
+  # correct and the bundle consistent with the native builds and the desktop
+  # site; wiring a `?promo=` capture path for phone browsers (mirroring
+  # apps/web/src/lib/campaign-attribution.ts) is separate, unstarted work.
+  EXPO_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
   # Note: EXPO_PUBLIC_OTP_DELIVERY_DISABLED is absent on purpose — production
-  # delivers real codes. EXPO_PUBLIC_DETOUR_* and EXPO_PUBLIC_MARATHON_PROMO_ID
-  # are absent because the live hand-built release of 2026-09-08 did not have
-  # them either; adding them changes guest-visible behaviour and is a product
-  # decision, not a pipeline one.
+  # delivers real codes. EXPO_PUBLIC_DETOUR_* stays absent: those keys are
+  # tied to the native app's install, not to this web export (see above).
   EXPO_NO_TELEMETRY: "1"
   PUBLIC_URL: https://book-eat.com
   MW_ROOT: /opt/bookeat/mobile-web
