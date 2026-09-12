@@ -33,14 +33,11 @@ import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/li
  * там, где для ключа есть слаг в `FOOTER_KEY_TO_PAGE_SLUG`; «блог» — единственный
  * ключ без страницы (`href="#"`), это T3.
  *
- * Колонка «Гостям»: «Заведения»/«Афиша»/«Мои брони»/«Избранное» ведут на
- * реальные роуты сайта (`FOOTER_KEY_TO_HREF`, 2026-09-12) — те же адреса, что
- * уже используют шапка (`/venues`, `EVENTS_PATH`) и меню страницы гостя
- * (`sectionHref` из `ProfileNav`, `/profile`). «Гастрогид» намеренно НЕ
- * добавлен в этот заход — по прямому указанию задачи (страница подвала для
- * него строится отдельно, за `SHOW_SECTION_LINKS`); в коде `SiteHeader` роут
- * `/guide` уже есть, так что при появлении отдельной задачи это, возможно,
- * просто одна строка в `FOOTER_KEY_TO_HREF`, не новый роут.
+ * Колонка «Гостям»: «Заведения»/«Афиша»/«Гастрогид»/«Мои брони»/«Избранное»
+ * ведут на реальные роуты сайта (`FOOTER_KEY_TO_HREF`, 2026-09-12) — те же
+ * адреса, что уже используют шапка (`/venues`, `EVENTS_PATH`, `/guide` —
+ * `SiteHeader.tsx`) и меню страницы гостя (`sectionHref` из `ProfileNav`,
+ * `/profile`).
  *
  * Сетка колонок НИЖЕ `lg` (`apps/web/docs/responsive.md`, § 5, дыра № 2):
  * `flex flex-wrap justify-between` раскладывал блок марки (`max-w-[320px]`) и
@@ -80,8 +77,7 @@ const FOOTER_KEY_TO_PAGE_SLUG = {
 /**
  * Ключи словаря `t.web.footer.guests`, у которых уже есть настоящий роут —
  * но НЕ через систему текстовых страниц платформы, поэтому отдельная карта, а
- * не запись в `FOOTER_KEY_TO_PAGE_SLUG`. «Гастрогид» сюда не входит — см.
- * комментарий у шапки файла.
+ * не запись в `FOOTER_KEY_TO_PAGE_SLUG`.
  *
  * Ключ сужен до полей колонки «Гостям» (минус `title`): голый `string` пропустил
  * бы ключ любой другой колонки, случайно подхватив чужой href молча.
@@ -89,6 +85,7 @@ const FOOTER_KEY_TO_PAGE_SLUG = {
 const FOOTER_KEY_TO_HREF: Partial<Record<Exclude<keyof Dictionary["web"]["footer"]["guests"], "title">, string>> = {
   venues: "/venues",
   afisha: EVENTS_PATH,
+  guide: "/guide",
   myBookings: sectionHref("bookings"),
   favorites: sectionHref("favorites"),
 };
