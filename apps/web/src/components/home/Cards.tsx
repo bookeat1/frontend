@@ -151,8 +151,18 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
           вся карточка (было именно так — баг «карточка акции не кликается»,
           поймано вживую: клик по фото карточки на `/` не переходил на
           `/promos/[id]`, клик по заголовку — переходил). Единственный
-          `relative` в дереве — у внешнего `article`, как у `EventCard`. */}
-      <div className="flex flex-col gap-1">
+          `relative` в дереве — у внешнего `article`.
+          `z-10` (БЕЗ `relative`) поднимает текст над затемнением `bg-promo-scrim`
+          выше: флекс-элементу собственный стек-контекст даёт один `z-index`,
+          `position` для этого не нужен (CSS Flexbox Level 1) — растянутая
+          ссылка по-прежнему считает предком внешний `article`. Без `z-10` текст
+          рисуется под `<span class="bg-promo-scrim">` и на светлых фото гаснет
+          почти до невидимости. Это НЕ тот же случай, что у `EventCard` (там нет
+          затемнения вовсе) — ближайший настоящий аналог — карточка акции на
+          странице заведения (`VenueScreen.tsx`, узел 3379:11497): там весь
+          блок сам обёрнут в `Link`, растянутая ссылка не нужна, поэтому
+          `relative` на внутреннем div там безопасен, а здесь — нет. */}
+      <div className="z-10 flex flex-col gap-1">
         <h3 className="break-words text-[22px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-brand">
           <Link
             href={promoHref(promo.id)}

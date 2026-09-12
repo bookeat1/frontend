@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Dictionary } from "@bookeat/i18n";
 
 import { EVENTS_PATH } from "@web/components/home/Cards";
 import { Container } from "@web/components/layout/Container";
@@ -81,8 +82,11 @@ const FOOTER_KEY_TO_PAGE_SLUG = {
  * но НЕ через систему текстовых страниц платформы, поэтому отдельная карта, а
  * не запись в `FOOTER_KEY_TO_PAGE_SLUG`. «Гастрогид» сюда не входит — см.
  * комментарий у шапки файла.
+ *
+ * Ключ сужен до полей колонки «Гостям» (минус `title`): голый `string` пропустил
+ * бы ключ любой другой колонки, случайно подхватив чужой href молча.
  */
-const FOOTER_KEY_TO_HREF: Partial<Record<string, string>> = {
+const FOOTER_KEY_TO_HREF: Partial<Record<Exclude<keyof Dictionary["web"]["footer"]["guests"], "title">, string>> = {
   venues: "/venues",
   afisha: EVENTS_PATH,
   myBookings: sectionHref("bookings"),
@@ -159,7 +163,8 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
                         .filter(([key]) => key !== "title")
                         .map(([key, label]) => {
                           const slug = FOOTER_KEY_TO_PAGE_SLUG[key as keyof typeof FOOTER_KEY_TO_PAGE_SLUG];
-                          const directHref = FOOTER_KEY_TO_HREF[key];
+                          const directHref =
+                            FOOTER_KEY_TO_HREF[key as keyof typeof FOOTER_KEY_TO_HREF];
                           const href = slug ? SITE_PAGE_PATHS[slug] : directHref;
                           return (
                             <li key={key}>
