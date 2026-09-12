@@ -39,6 +39,16 @@ describe("имя экрана", () => {
     // Корень — главная.
     expect(screenNameFromSegments([])).toBe("/");
   });
+
+  it("нормализует алиас /guide в каноническое имя гастрогида (ADR-046)", () => {
+    expect(screenNameFromSegments(["guide"])).toBe(screenNameFromSegments(["gastroguide"]));
+    expect(screenNameFromSegments(["guide", "rubric", "[slug]"])).toBe(
+      screenNameFromSegments(["gastroguide", "rubric", "[slug]"]),
+    );
+    expect(screenNameFromSegments(["guide", "rubric", "[slug]"])).toBe(
+      "/gastroguide/rubric/[slug]",
+    );
+  });
 });
 
 describe("событие просмотра экрана", () => {
