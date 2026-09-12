@@ -7,20 +7,36 @@
 # `{$ADMIN_SITE_ADDRESS:admin.book-eat.com}` blocks. It is kept here so the
 # frontend release is reproducible from this repository alone.
 #
-# NOT applied automatically by deploy-web-prod.yml: adding a public hostname
-# to the production proxy is the go-live step and is done by hand, once, with
-# Damir's explicit go-ahead (see deploy/web-prod/README.md, "Cutover").
+# STATE: APPLIED AND LIVE. Synced from /opt/bookeat/deploy/Caddyfile on
+# 2026-09-12 — the text below is what production actually serves, copied out of
+# the running host, not a proposal. Until that date this file still described
+# the mobile origin as "not built yet" while the host had been routing mobile
+# User-Agents to it since the cutover of 2026-09-08; anyone re-applying the
+# stale copy would have taken the mobile site off the domain.
+#
+# The host's Caddyfile is edited BY HAND and is not written by any pipeline —
+# neither deploy-web-prod.yml nor deploy-mobile-web-prod.yml touches it, and
+# bookeat1/backend's deploy/Caddyfile does not contain this block (nor the
+# admin one) at all. Whoever copies that repo's file onto the host wipes
+# book-eat.com entirely. Re-sync this snippet whenever the live file changes.
 #
 # Editing the live file: `sed -i` on the bind-mounted Caddyfile creates a new
 # inode that the container never sees (2026-08-24 incident). Write through the
 # existing inode instead:  edit a copy, then  `cat copy > /opt/bookeat/deploy/Caddyfile`,
 # then  `docker exec deploy-caddy-1 caddy validate --config /etc/caddy/Caddyfile`
 # and   `docker exec deploy-caddy-1 caddy reload --config /etc/caddy/Caddyfile`.
+# Back up first: `cp Caddyfile Caddyfile.bak.<what>-$(date -u +%Y%m%d-%H%M%S)`.
 #
-# Shape, deliberately (ADR-046): ONE domain, several origins chosen by named
-# matchers, desktop Next as the fall-through. The mobile origin is added later
-# by inserting one matcher + one `handle` — nothing below moves. `handle`
-# blocks are mutually exclusive and evaluated in the order written.
+# CSP is intentionally not set here — the desktop site inlines Next's bootstrap
+# scripts, and a CSP belongs in next.config headers() where the nonce can be
+# produced. (Kept from the pre-2026-09-12 version of this file; the live
+# Caddyfile has no such comment, so the body below stays a literal copy.)
+#
+# Shape (ADR-046): ONE domain, two origins picked per request by named
+# matchers, desktop Next as the fall-through. Both origins are separate compose
+# projects ("webprod" /opt/bookeat/web, "mobileprod" /opt/bookeat/mobile-web)
+# that only join this stack's network, so one being down costs only its share
+# of the domain. `handle` blocks are mutually exclusive, evaluated in order.
 # ---------------------------------------------------------------------------
 
 # Two site addresses; `www` only redirects. WEB_SITE_ADDRESS is an optional
@@ -33,42 +49,53 @@
 		format json
 	}
 
-	# Same posture as the other production sites; CSP is intentionally not
-	# set here — the site inlines Next's bootstrap scripts, and a CSP belongs
-	# in next.config headers() where the nonce can be produced.
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		X-Frame-Options SAMEORIGIN
 		-Server
+		# Dynamic serving: the same URL answers with a different origin by
+		# User-Agent / cookie, so every cache in between must key on both.
+		# `+` appends to whatever the upstream already sent (Next sets its
+		# own Vary for RSC), `defer` applies it after the upstream answered.
+		+Vary "User-Agent, Cookie"
+		defer
 	}
 
-	# 1. Crawlers' files ALWAYS come from the desktop app, whatever answers
-	#    the rest of the domain (ADR-046: robots/sitemap live in Next).
+	# 1. Crawlers' files ALWAYS come from the desktop app (robots/sitemap
+	#    live in Next), whatever answers the rest of the domain.
 	@crawler_files path /robots.txt /sitemap.xml
 	handle @crawler_files {
 		reverse_proxy web-prod:3100
 	}
 
-	# 2. RESERVED — mobile web (Expo web export of apps/mobile), ADR-046.
-	#    Not built yet. When its container exists on deploy_default, uncomment
-	#    and point at it; robots must NOT match (they stay on Next above).
-	#
-	# @mobile {
-	# 	not header_regexp ua_bot User-Agent (?i)(bot|crawl|spider|slurp|facebookexternalhit|preview|lighthouse)
-	# 	not header Cookie *bookeat_view=desktop*
-	# 	header_regexp ua_mobile User-Agent (?i)(android|iphone|ipod|mobile)
-	# }
-	# handle @mobile {
-	# 	header Vary User-Agent
-	# 	reverse_proxy web-mobile:3200
-	# }
+	# 2. Mobile web (Expo web export of apps/mobile). Robots never match:
+	#    the SPA is noindex and the desktop app is the indexable one.
+	@forced_mobile {
+		not header_regexp ua_bot User-Agent (?i)(bot|crawl|spider|slurp|facebookexternalhit|preview|lighthouse)
+		header Cookie *bookeat_view=mobile*
+	}
+	@mobile {
+		not header_regexp ua_bot User-Agent (?i)(bot|crawl|spider|slurp|facebookexternalhit|preview|lighthouse)
+		not header Cookie *bookeat_view=desktop*
+		header_regexp ua_mobile User-Agent (?i)(android|iphone|ipod|mobile)
+	}
+	handle @forced_mobile {
+		reverse_proxy web-mobile:3200 {
+			health_uri /release.txt
+			health_interval 15s
+			health_timeout 3s
+		}
+	}
+	handle @mobile {
+		reverse_proxy web-mobile:3200 {
+			health_uri /release.txt
+			health_interval 15s
+			health_timeout 3s
+		}
+	}
 
-	# 3. Desktop guest site (apps/web, bookeat1/frontend) — the fall-through.
-	#    Upstream is a container from a SEPARATE compose project ("webprod",
-	#    /opt/bookeat/web/docker-compose.yml) that joins this stack's network.
-	#    If it is down only this domain answers 502; the API and the panel on
-	#    the sibling hostnames are unaffected.
+	# 3. Desktop guest site (apps/web) — the fall-through.
 	handle {
 		reverse_proxy web-prod:3100 {
 			health_uri /
