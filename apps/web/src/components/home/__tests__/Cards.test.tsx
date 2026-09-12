@@ -62,6 +62,38 @@ describe("карточка акции", () => {
     const link = screen.getByRole("link", { name: "−30% на завтраки" });
     expect(link.getAttribute("href")).toBe("/promos/promo-1");
   });
+
+  /**
+   * Замечание code-review 2026-09-12: обёртка заголовка должна поднимать
+   * текст над затемнением (`bg-promo-scrim`) через `z-10` БЕЗ `relative` —
+   * `relative` на этом div снова превращает его в предка растянутой ссылки
+   * (`after:absolute after:inset-0` у `Link` внутри), и кликабельной остаётся
+   * только полоска заголовка, а не вся карточка. Без `z-10` затемнение рисуется
+   * поверх текста и на светлых фото гасит его почти до невидимости — оба
+   * симптома незаметны в обычных юнитах (клик по фото никто не проверял),
+   * этот тест — сторож именно на className, а не на поведение.
+   */
+  it("обёртка заголовка: z-10 есть, relative нет", () => {
+    const promo: HomePromo = {
+      id: "promo-1",
+      restaurantId: "r-1",
+      restaurantName: "INZHU",
+      title: "−30% на завтраки",
+      description: "",
+      startsAt: "2026-05-01T00:00:00Z",
+      endsAt: "2026-05-31T00:00:00Z",
+      coverImageUrl: null,
+      images: [],
+      discountPercent: 30,
+    };
+    renderScreen(<PromoCard promo={promo} />);
+    const heading = screen.getByRole("heading", { name: "−30% на завтраки" });
+    const wrapper = heading.parentElement;
+    expect(wrapper).not.toBeNull();
+    const classes = wrapper!.className.split(/\s+/);
+    expect(classes).toContain("z-10");
+    expect(classes).not.toContain("relative");
+  });
 });
 
 describe("карточка подборки", () => {

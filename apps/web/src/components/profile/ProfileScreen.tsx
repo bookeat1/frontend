@@ -87,6 +87,12 @@ export function ProfileScreen() {
   const leaving = useRef(false);
   const [signingOut, setSigningOut] = useState(false);
 
+  // Строка поиска (`?section=favorites`) — гость мог прийти сюда прямой
+  // ссылкой из подвала на конкретный раздел; `usePathname()` её не содержит,
+  // и без неё вход-и-возврат ронял гостя на раздел по умолчанию («Мои
+  // брони»), а не туда, куда он шёл.
+  const search = params.toString();
+
   useEffect(() => {
     if (isLoading) return;
     if (signedIn) {
@@ -94,8 +100,9 @@ export function ProfileScreen() {
       return;
     }
     if (leaving.current) return;
-    router.replace(hadSession.current ? "/" : loginHref(pathname));
-  }, [isLoading, signedIn, pathname, router]);
+    const returnTo = search ? `${pathname}?${search}` : pathname;
+    router.replace(hadSession.current ? "/" : loginHref(returnTo));
+  }, [isLoading, signedIn, pathname, search, router]);
 
   const bookings = useMyBookings();
   const favorites = useFavoriteIds();
