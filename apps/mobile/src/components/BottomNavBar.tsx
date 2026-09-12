@@ -92,6 +92,12 @@ export function useNavBarSpacing(): number {
  * входят из профиля): подсветить чужую вкладку хуже, чем не подсветить
  * никакую.
  *
+ * `/guide` и `/guide/rubric/:slug` — те же экраны под вторым адресом
+ * (ADR-046, `app/guide/*` — файлы-алиасы на файлы `app/gastroguide/*`, без
+ * редиректа). Гость, попавший на мобильный веб по десктопной ссылке
+ * `book-eat.com/guide`, должен увидеть подсвеченную вкладку, а не пустую
+ * панель.
+ *
  * `/favorites` больше не вкладка (вход в избранное переехал в профиль), так
  * что на этом экране не подсвечено ничего — это честнее, чем подсветить чужую
  * вкладку.
@@ -100,7 +106,7 @@ export function activeNavKey(pathname: string): NavKey | null {
   if (pathname === "/") return "overview";
   if (pathname.startsWith("/search")) return "search";
   if (pathname.startsWith("/bookings") || pathname.startsWith("/booking/")) return "bookings";
-  if (pathname.startsWith("/gastroguide")) return "gastroguide";
+  if (pathname.startsWith("/gastroguide") || pathname.startsWith("/guide")) return "gastroguide";
   if (pathname.startsWith("/profile")) return "profile";
   return null;
 }
