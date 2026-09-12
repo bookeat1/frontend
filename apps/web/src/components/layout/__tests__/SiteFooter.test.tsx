@@ -102,4 +102,41 @@ describe("SiteFooter", () => {
       expect(within(column).getByRole("link", { name: label }).getAttribute("href")).toBe(href);
     }
   });
+
+  /**
+   * Значки соцсетей в блоке марки (задача 2026-09-12): порядок и состав из
+   * узла Figma 3525:14318 — WhatsApp, Instagram, телефон, никакого Telegram.
+   * Instagram/WhatsApp — внешние ссылки (новая вкладка), телефон — `tel:`.
+   */
+  it("значки соцсетей: WhatsApp/Instagram/телефон, реальные адреса, не href=\"#\"", () => {
+    render(<SiteFooter />);
+
+    const social = screen.getByRole("list", { name: "Мы в соцсетях" });
+    const links = within(social).getAllByRole("link");
+    expect(links).toHaveLength(3);
+    for (const link of links) {
+      expect(link.getAttribute("href")).not.toBe("#");
+    }
+
+    const whatsapp = within(social).getByRole("link", { name: /WhatsApp, откроется в новой вкладке/ });
+    expect(whatsapp.getAttribute("href")).toBe("https://wa.me/77066911392");
+    expect(whatsapp.getAttribute("target")).toBe("_blank");
+    expect(whatsapp.getAttribute("rel")).toBe("noopener noreferrer");
+
+    const instagram = within(social).getByRole("link", { name: /Instagram, откроется в новой вкладке/ });
+    expect(instagram.getAttribute("href")).toBe("https://www.instagram.com/bookeat_app/");
+    expect(instagram.getAttribute("target")).toBe("_blank");
+    expect(instagram.getAttribute("rel")).toBe("noopener noreferrer");
+
+    const phone = within(social).getByRole("link", { name: "Телефон" });
+    expect(phone.getAttribute("href")).toBe("tel:+77066911392");
+    expect(phone.getAttribute("target")).toBeNull();
+
+    // Порядок в DOM — как в макете: WhatsApp, Instagram, телефон.
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://wa.me/77066911392",
+      "https://www.instagram.com/bookeat_app/",
+      "tel:+77066911392",
+    ]);
+  });
 });

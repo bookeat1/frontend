@@ -7,9 +7,18 @@ import { EVENTS_PATH } from "@web/components/home/Cards";
 import { Container } from "@web/components/layout/Container";
 import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { sectionHref } from "@web/components/profile/ProfileNav";
+import { InstagramIcon, PhoneIcon } from "@web/components/venue/VenueContacts";
 import { cx } from "@web/lib/cx";
 import { useT, WEB_LOCALE_LABELS, type WebLocale } from "@web/lib/locale";
-import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/lib/site-links";
+import {
+  BUSINESS_URL,
+  CABINET_URL,
+  PRICING_URL,
+  SITE_PAGE_PATHS,
+  SOCIAL_INSTAGRAM_URL,
+  SOCIAL_PHONE_NUMBER,
+  SOCIAL_WHATSAPP_URL,
+} from "@web/lib/site-links";
 
 /**
  * Подвал сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, «Web / Footer» (узел 3256:77):
@@ -38,6 +47,15 @@ import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/li
  * адреса, что уже используют шапка (`/venues`, `EVENTS_PATH`, `/guide` —
  * `SiteHeader.tsx`) и меню страницы гостя (`sectionHref` из `ProfileNav`,
  * `/profile`).
+ *
+ * Значки соцсетей в блоке марки (узел 3525:14318, 2026-09-12): порядок и
+ * набор — WhatsApp · Instagram · Телефон (никакого Telegram — старый код
+ * рисовал третий кружок под Telegram по названию переменной, но в макете
+ * его нет, это был домысел). Адреса — от владельца продукта, не из макета
+ * (сам макет несёт только иконки): Instagram/WhatsApp/телефон в
+ * `SOCIAL_*` (`@web/lib/site-links`). Иконки Instagram/Phone переиспользованы
+ * из `VenueContacts.tsx` (тот же значок, что на странице заведения); WhatsApp
+ * там не было — добавлен `WhatsappIcon` ниже в том же стиле обводки.
  *
  * Сетка колонок НИЖЕ `lg` (`apps/web/docs/responsive.md`, § 5, дыра № 2):
  * `flex flex-wrap justify-between` раскладывал блок марки (`max-w-[320px]`) и
@@ -90,6 +108,54 @@ const FOOTER_KEY_TO_HREF: Partial<Record<Exclude<keyof Dictionary["web"]["footer
   favorites: sectionHref("favorites"),
 };
 
+/**
+ * Значок WhatsApp у блока соцсетей подвала (узел 3525:14318). REST `/nodes`
+ * и `/files` по файлу `qmMsg4jO1ggmyEHNIAD2ll` в момент правки отдавали 429
+ * (лимит starter-плана), а точного вектора нигде в репозитории для веба нет
+ * (мобильный `WhatsappLogo` — из `phosphor-react-native`, чужой рендерер).
+ * Контур снят с экспорта `/v1/images` (тот же узел, PNG) — тот же приём, что
+ * уже применён к `InstagramIcon` ниже по файлу `VenueContacts.tsx`: обводка,
+ * не точный путь. Табличка-пузырь с хвостиком слева-снизу и трубка внутри —
+ * та же толщина линии (`strokeWidth 1.6`), что у соседних значков.
+ */
+function WhatsappIcon() {
+  return (
+    <svg
+      width="30"
+      height="30"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
+      <path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3Z" strokeLinejoin="round" />
+      <path
+        d="M9 9.6c.3-1 1-1.4 1.6-.7l.6.8c.3.4.3.9 0 1.3l-.5.6a4.6 4.6 0 0 0 2.2 2.2l.6-.5c.4-.3.9-.3 1.3 0l.8.6c.7.6.3 1.3-.7 1.6-1.4.4-3-.1-4.3-1.4S8.6 11 9 9.6Z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Три значка марки в подвале — порядок и состав как в узле 3525:14318:
+ * WhatsApp, Instagram, телефон. Телефон — `tel:`-ссылка, поэтому НЕ через
+ * `ExternalLink` (та же логика, что у `ContactCard` в `VenueContacts.tsx`:
+ * звонок не «уходит с сайта» в новой вкладке).
+ */
+const SOCIAL_ITEMS = [
+  { key: "whatsapp" as const, href: SOCIAL_WHATSAPP_URL, icon: WhatsappIcon, external: true },
+  { key: "instagram" as const, href: SOCIAL_INSTAGRAM_URL, icon: InstagramIcon, external: true },
+  {
+    key: "phone" as const,
+    href: `tel:${SOCIAL_PHONE_NUMBER.replace(/[^\d+]/g, "")}`,
+    icon: PhoneIcon,
+    external: false,
+  },
+];
+
 const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
   { code: "kk", label: WEB_LOCALE_LABELS.kk },
   { code: "ru", label: WEB_LOCALE_LABELS.ru },
@@ -110,22 +176,24 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
             </p>
             <p className="text-[14px] leading-[22px] text-ink-on-inverse-muted">{t.web.footer.tagline}</p>
             <ul aria-label={t.web.footer.social.title} className="flex items-center gap-2.5">
-              {[t.web.footer.social.instagram, t.web.footer.social.telegram, t.web.footer.social.whatsapp].map(
-                (name) => (
-                  <li key={name}>
-                    <a
-                      href="#"
-                      aria-label={name}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-on-inverse-surface text-[16px] leading-5 text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                    >
-                      {/* Первая буква — временная заглушка вместо значка: в
-                          макете здесь стоят символы-плейсхолдеры (◎ ☏ ▣), а
-                          настоящих иконок соцсетей в веб-ките нет. */}
-                      <span aria-hidden="true">{name.slice(0, 1)}</span>
-                    </a>
+              {SOCIAL_ITEMS.map(({ key, href, icon: Icon, external }) => {
+                const label = t.web.footer.social[key];
+                const iconButtonClassName =
+                  "flex h-10 w-10 items-center justify-center rounded-full bg-on-inverse-surface text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+                return (
+                  <li key={key}>
+                    {external ? (
+                      <ExternalLink href={href} label={label} className={iconButtonClassName}>
+                        <Icon />
+                      </ExternalLink>
+                    ) : (
+                      <a href={href} aria-label={label} className={iconButtonClassName}>
+                        <Icon />
+                      </a>
+                    )}
                   </li>
-                ),
-              )}
+                );
+              })}
             </ul>
           </div>
 

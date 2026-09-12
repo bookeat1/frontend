@@ -3550,9 +3550,9 @@ export const ru = {
       },
       social: {
         title: "Мы в соцсетях",
-        instagram: "Instagram",
-        telegram: "Telegram",
         whatsapp: "WhatsApp",
+        instagram: "Instagram",
+        phone: "Телефон",
       },
       copyright: "© 2026 BookEat · ТОО «Букит»",
       languageLabel: "Язык интерфейса",

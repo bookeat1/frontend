@@ -2467,9 +2467,9 @@ export const en: LocaleOverride<Dictionary> = {
       },
       social: {
         title: "Follow us",
-        instagram: "Instagram",
-        telegram: "Telegram",
         whatsapp: "WhatsApp",
+        instagram: "Instagram",
+        phone: "Phone",
       },
       copyright: "© 2026 BookEat · Bookit LLP",
       languageLabel: "Interface language",
