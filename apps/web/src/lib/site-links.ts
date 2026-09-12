@@ -21,6 +21,15 @@ export const PRICING_URL = "https://book-eat.app/#pricing";
 export const CABINET_URL = "https://admin.book-eat.com/";
 
 /**
+ * Значки соцсетей в блоке марки подвала (узел Figma 3525:14318, порядок
+ * WhatsApp · Instagram · Телефон). Данные — от владельца продукта
+ * (2026-09-12), не из макета: сам макет несёт только иконки, а не адреса.
+ */
+export const SOCIAL_INSTAGRAM_URL = "https://www.instagram.com/bookeat_app/";
+export const SOCIAL_PHONE_NUMBER = "+7 706 691 1392";
+export const SOCIAL_WHATSAPP_URL = "https://wa.me/77066911392";
+
+/**
  * Пути семи текстовых страниц платформы (T4) по их слагу (`GET /pages/:slug`,
  * bookeat-backend PR #115). Один роут на слаг — `app/{slug}/page.tsx` —
  * а не catch-all `app/pages/[slug]`, чтобы посторонний адрес не уходил в API

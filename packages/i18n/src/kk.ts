@@ -2473,9 +2473,9 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       social: {
         title: "Әлеуметтік желілерде",
-        instagram: "Instagram",
-        telegram: "Telegram",
         whatsapp: "WhatsApp",
+        instagram: "Instagram",
+        phone: "Телефон",
       },
       copyright: "© 2026 BookEat · «Букит» ЖШС",
       languageLabel: "Интерфейс тілі",
