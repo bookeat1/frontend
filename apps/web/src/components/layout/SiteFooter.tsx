@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 
+import { EVENTS_PATH } from "@web/components/home/Cards";
 import { Container } from "@web/components/layout/Container";
 import { ExternalLink } from "@web/components/layout/ExternalLink";
+import { sectionHref } from "@web/components/profile/ProfileNav";
 import { cx } from "@web/lib/cx";
 import { useT, WEB_LOCALE_LABELS, type WebLocale } from "@web/lib/locale";
 import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/lib/site-links";
@@ -27,9 +29,17 @@ import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/li
  * появления номера WhatsApp-бота; рисовать мёртвую ссылку не нужно.
  *
  * Колонки «Компания»/«Помощь» (T4) ведут на семь текстовых страниц платформы
- * там, где для ключа есть слаг в `FOOTER_KEY_TO_PAGE_SLUG`; ключи без слуга
- * (заведения, афиша, гастрогид, брони, избранное, блог) остаются заглушкой
- * `href="#"` — это отдельные разделы сайта, не задача T4.
+ * там, где для ключа есть слаг в `FOOTER_KEY_TO_PAGE_SLUG`; «блог» — единственный
+ * ключ без страницы (`href="#"`), это T3.
+ *
+ * Колонка «Гостям»: «Заведения»/«Афиша»/«Мои брони»/«Избранное» ведут на
+ * реальные роуты сайта (`FOOTER_KEY_TO_HREF`, 2026-09-12) — те же адреса, что
+ * уже используют шапка (`/venues`, `EVENTS_PATH`) и меню страницы гостя
+ * (`sectionHref` из `ProfileNav`, `/profile`). «Гастрогид» намеренно НЕ
+ * добавлен в этот заход — по прямому указанию задачи (страница подвала для
+ * него строится отдельно, за `SHOW_SECTION_LINKS`); в коде `SiteHeader` роут
+ * `/guide` уже есть, так что при появлении отдельной задачи это, возможно,
+ * просто одна строка в `FOOTER_KEY_TO_HREF`, не новый роут.
  *
  * Сетка колонок НИЖЕ `lg` (`apps/web/docs/responsive.md`, § 5, дыра № 2):
  * `flex flex-wrap justify-between` раскладывал блок марки (`max-w-[320px]`) и
@@ -53,10 +63,8 @@ export interface SiteFooterProps {
 
 /**
  * Ключи словаря `t.web.footer.company`/`.help`, у которых уже есть настоящая
- * страница (T4). Остальные пункты подвала (заведения, афиша, гастрогид,
- * брони, избранное, «Подключить заведение», тарифы, кабинет, поддержка,
- * блог) — это T3, отдельная задача (см. `bookeat-web-scope.md`); их ссылки
- * здесь намеренно не трогаем и оставляем как были.
+ * страница платформы (T4, `GET /pages/:slug`). «Блог» — единственный ключ
+ * этих двух колонок без слуга, остаётся `href="#"` (T3).
  */
 const FOOTER_KEY_TO_PAGE_SLUG = {
   about: "about",
@@ -67,6 +75,19 @@ const FOOTER_KEY_TO_PAGE_SLUG = {
   offer: "offer",
   privacy: "privacy",
 } as const;
+
+/**
+ * Ключи словаря `t.web.footer.guests`, у которых уже есть настоящий роут —
+ * но НЕ через систему текстовых страниц платформы, поэтому отдельная карта, а
+ * не запись в `FOOTER_KEY_TO_PAGE_SLUG`. «Гастрогид» сюда не входит — см.
+ * комментарий у шапки файла.
+ */
+const FOOTER_KEY_TO_HREF: Partial<Record<string, string>> = {
+  venues: "/venues",
+  afisha: EVENTS_PATH,
+  myBookings: sectionHref("bookings"),
+  favorites: sectionHref("favorites"),
+};
 
 const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
   { code: "kk", label: WEB_LOCALE_LABELS.kk },
@@ -138,10 +159,12 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
                         .filter(([key]) => key !== "title")
                         .map(([key, label]) => {
                           const slug = FOOTER_KEY_TO_PAGE_SLUG[key as keyof typeof FOOTER_KEY_TO_PAGE_SLUG];
+                          const directHref = FOOTER_KEY_TO_HREF[key];
+                          const href = slug ? SITE_PAGE_PATHS[slug] : directHref;
                           return (
                             <li key={key}>
-                              {slug ? (
-                                <Link href={SITE_PAGE_PATHS[slug]} className={linkClassName}>
+                              {href ? (
+                                <Link href={href} className={linkClassName}>
                                   {label}
                                 </Link>
                               ) : (

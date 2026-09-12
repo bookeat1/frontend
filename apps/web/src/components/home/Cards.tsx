@@ -152,7 +152,7 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
           поймано вживую: клик по фото карточки на `/` не переходил на
           `/promos/[id]`, клик по заголовку — переходил). Единственный
           `relative` в дереве — у внешнего `article`, как у `EventCard`. */}
-      <div className="relative flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <h3 className="break-words text-[22px] font-bold leading-[30px] tracking-[-0.3px] text-ink-on-brand">
           <Link
             href={promoHref(promo.id)}
