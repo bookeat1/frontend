@@ -57,6 +57,14 @@ env:
   # asset/script URL; it cannot be changed on the server. Must equal the
   # `handle_path` prefix in the backend Caddyfile.
   BOOKEAT_WEB_BASE_URL: /preview
+  # "Almaty Marathon" promo (backend migration 0107, 10.09.2026) — not a
+  # secret, same literal value as deploy-mobile-web-prod.yml, deploy-web-*.yml
+  # (`NEXT_PUBLIC_MARATHON_PROMO_ID`) and every EAS profile in
+  # apps/mobile/eas.json. Read at BUILD time to fill `KNOWN_CAMPAIGN_IDS` in
+  # campaign-attribution.ts: without it that list is empty on this origin and
+  # the `?promo=` capture path silently discards every UUID it is given, so the
+  # preview would build the feature and record nothing.
+  EXPO_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
   EXPO_NO_TELEMETRY: "1"
   PUBLIC_URL: https://test.backend.book-eat.com
   PREVIEW_ROOT: /opt/bookeat/preview
