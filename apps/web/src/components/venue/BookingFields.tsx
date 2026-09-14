@@ -226,17 +226,17 @@ function FieldShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+    <div
+      onClick={onClick}
+      className={cx(
+        "flex min-w-0 flex-1 flex-col gap-1.5",
+        onClick ? "cursor-pointer" : undefined,
+      )}
+    >
       <label id={labelId} className="text-booking-label text-ink-secondary" htmlFor={htmlFor}>
         {label}
       </label>
-      <div
-        onClick={onClick}
-        className={cx(
-          "flex items-center gap-2 rounded-md border border-line-control bg-canvas px-booking-field-x py-booking-field-y",
-          onClick ? "cursor-pointer" : undefined,
-        )}
-      >
+      <div className="flex items-center gap-2 rounded-md border border-line-control bg-canvas px-booking-field-x py-booking-field-y">
         {children}
         <ChevronDown />
       </div>
