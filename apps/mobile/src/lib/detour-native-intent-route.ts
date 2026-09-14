@@ -1,0 +1,112 @@
+import type { DetourNativeIntentResolvedValue } from "@swmansion/react-native-detour/expo-router";
+
+/**
+ * Custom `mapToRoute` for `app/+native-intent.tsx`.
+ *
+ * BUG (found live on iOS, 2026-09-14): tapping the Almaty Marathon promo
+ * link (`https://bookeat.godetour.link/lQ9BPpUvJc00ughb`) on an
+ * already-installed app landed on Expo Router's "Unmatched Route" instead
+ * of the promo screen. Root cause: this link's destination is configured in
+ * the Detour dashboard so that `resolve-short`'s `link` field comes back
+ * with the link's PARAMETERS (`{"promo":"<uuid>"}`) serialized as the URL's
+ * own trailing path segment, e.g.
+ * `.../lQ9BPpUvJc00ughb/%7B%22promo%22%3A%226a3736b9-...%22%7D` — confirmed
+ * by a direct call to Detour's `resolve-short` API, not guessed.
+ *
+ * The SDK's own default `mapToRoute` (`defaultMapToRoute` in
+ * `node_modules/@swmansion/react-native-detour/src/expo-router/nativeIntent.ts`,
+ * not exported from the package so it can't be reused directly) only knows
+ * how to drop the FIRST path segment (the Detour app-hash) and route to
+ * whatever's left. For an ordinary `.../<app-hash>/promotion/<id>` link
+ * that's correct; here what's left is the percent-encoded JSON itself,
+ * which matches no real screen.
+ *
+ * Fix: if the LAST path segment decodes to a JSON object with a `promo`
+ * field, route straight to the existing promo detail screen
+ * (`app/promotion/[id].tsx`) — confirmed as the intended destination by
+ * `specs/marathon-qr-promo-20260906.md` R3.1 item 4 ("destination —
+ * existing screen `/promotion/6a3736b9-…`, route `app/promotion/[id].tsx`
+ * есть"). Any other JSON fields are forwarded as a query string so a future
+ * screen change doesn't silently drop them, even though `[id].tsx` today
+ * only reads `id`.
+ *
+ * Any link whose last segment is NOT JSON falls through to the same
+ * drop-first-segment behavior the SDK's own default uses, so ordinary
+ * (non-marathon) Detour links keep working exactly as before this fix.
+ */
+
+const PROMO_ROUTE_PREFIX = "/promotion";
+
+const isWebProtocol = (url: URL) => url.protocol === "http:" || url.protocol === "https:";
+
+/**
+ * Same fallback Expo Router already used for a custom-scheme deep link
+ * (`bookeat://...`) before this file existed — copied from the SDK's own
+ * (unexported) `getRouteFromDeepLink`
+ * (`node_modules/@swmansion/react-native-detour/src/links/utils/urlHelpers.ts`)
+ * rather than importing an internal path that isn't part of the package's
+ * public `exports` map (only `.` and `./expo-router` are exported).
+ */
+const routeFromCustomScheme = (url: URL): string => {
+  const route = `${url.host}${url.pathname}${url.search}`;
+  return route.startsWith("/") ? route : `/${route}`;
+};
+
+/** Same "drop the first segment" rule as the SDK's `defaultMapToRoute`, for
+ * links whose last segment is not JSON (the general Detour link case). */
+const defaultRouteForWebUrl = (url: URL): string => {
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length <= 1) {
+    return `${url.pathname || "/"}${url.search}`;
+  }
+  return `/${segments.slice(1).join("/")}${url.search}`;
+};
+
+const tryParseJsonSegment = (segment: string): Record<string, unknown> | null => {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+  if (!decoded.trim().startsWith("{")) return null;
+  try {
+    const parsed: unknown = JSON.parse(decoded);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const isPrimitive = (value: unknown): value is string | number | boolean =>
+  typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+
+export const mapDetourResolvedUrlToRoute = ({
+  resolvedUrl,
+}: DetourNativeIntentResolvedValue): string => {
+  if (!isWebProtocol(resolvedUrl)) {
+    return routeFromCustomScheme(resolvedUrl);
+  }
+
+  const segments = resolvedUrl.pathname.split("/").filter(Boolean);
+  const lastSegment = segments[segments.length - 1];
+  const jsonPayload = lastSegment ? tryParseJsonSegment(lastSegment) : null;
+  const promoId = jsonPayload?.promo;
+
+  if (typeof promoId === "string" && promoId.length > 0) {
+    const extraParams = Object.entries(jsonPayload ?? {}).filter(
+      (entry): entry is [string, string | number | boolean] =>
+        entry[0] !== "promo" && isPrimitive(entry[1]),
+    );
+    const query = extraParams.length
+      ? `?${extraParams
+          .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+          .join("&")}`
+      : "";
+    return `${PROMO_ROUTE_PREFIX}/${encodeURIComponent(promoId)}${query}`;
+  }
+
+  return defaultRouteForWebUrl(resolvedUrl);
+};
