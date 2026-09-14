@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { Calendar } from "@web/components/ui/Calendar";
 import { Popover } from "@web/components/ui/Popover";
@@ -113,10 +113,14 @@ export function DateField({
 /**
  * Дата СТРОКОЙ ЗАГОЛОВКА — «Вторник, 25 августа» на странице бронирования
  * (узел 3525:14826). В макете это просто текст: выбрать другой день негде.
- * Здесь текст остаётся тем же 16/24 SemiBold, но под ним лежит настоящее
- * `input[type=date]` — тот же приём с прозрачным значением, что у `DateField`,
- * без рамки поля. Значок календаря справа говорит, что строка нажимается:
- * иначе она неотличима от заголовка.
+ *
+ * ДО 2026-09-14 клик по строке звал `showPicker()` — родной английский
+ * календарь браузера, тот же дефект, что чинили в `DateField` (см. его
+ * комментарий). Фикс — тот же приём: клик по строке открывает попап
+ * `Calendar`, нативный `input[type=date]` остаётся ТОЛЬКО для клавиатурного
+ * ввода и получает `pointer-events-none`. Подпись связана через
+ * `aria-labelledby` (видимого текста подписи нет — её роль играет сама дата),
+ * а не `<label htmlFor>` по той же причине, что у `DateField`.
  */
 export function InlineDateField({
   id,
@@ -136,33 +140,54 @@ export function InlineDateField({
   disabled: boolean;
   onChange: (next: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const labelId = `${id}-label`;
+
+  useDismissable(open, fieldRef, () => setOpen(false));
+
+  function pick(iso: string) {
+    onChange(iso);
+    setOpen(false);
+  }
+
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <label htmlFor={id} className="sr-only">
+    <div ref={fieldRef} className="relative min-w-0">
+      <span id={labelId} className="sr-only">
         {label}
-      </label>
-      <div className="grid min-w-0">
-        <input
-          id={id}
-          type="date"
-          value={value ?? ""}
-          min={min ?? undefined}
-          disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
-          onClick={openPicker}
-          className="search-native-picker peer col-start-1 row-start-1 w-full cursor-pointer rounded-sm bg-transparent text-flow-row-title text-transparent outline-none focus:text-ink disabled:cursor-not-allowed"
-        />
-        <span
-          aria-hidden="true"
-          className={cx(
-            "pointer-events-none col-start-1 row-start-1 self-center truncate text-flow-row-title peer-focus:invisible",
-            disabled ? "text-ink-disabled" : "text-ink",
-          )}
-        >
-          {shown ?? ""}
-        </span>
+      </span>
+      <div
+        onClick={disabled ? undefined : () => setOpen((current) => !current)}
+        className={cx("flex min-w-0 items-center gap-2", disabled ? undefined : "cursor-pointer")}
+      >
+        <div className="grid min-w-0">
+          <input
+            id={id}
+            type="date"
+            aria-labelledby={labelId}
+            value={value ?? ""}
+            min={min ?? undefined}
+            disabled={disabled}
+            onChange={(event) => onChange(event.target.value)}
+            className="search-native-picker peer pointer-events-none col-start-1 row-start-1 w-full bg-transparent text-flow-row-title text-transparent outline-none focus:text-ink disabled:cursor-not-allowed"
+          />
+          <span
+            aria-hidden="true"
+            className={cx(
+              "pointer-events-none col-start-1 row-start-1 self-center truncate text-flow-row-title peer-focus:invisible",
+              disabled ? "text-ink-disabled" : "text-ink",
+            )}
+          >
+            {shown ?? ""}
+          </span>
+        </div>
+        <ChevronDown />
       </div>
-      <ChevronDown />
+      {open ? (
+        <Popover align="start" className="p-4">
+          <Calendar value={value} min={min} today={min} onSelect={pick} />
+        </Popover>
+      ) : null}
     </div>
   );
 }
@@ -269,18 +294,4 @@ function ChevronDown() {
       />
     </svg>
   );
-}
-
-/**
- * Открыть родной календарь кликом по ЛЮБОМУ месту поля: штатно это делает
- * только кнопка справа, а её мы прячем — в макете её нет.
- */
-export function openPicker(event: MouseEvent<HTMLInputElement>) {
-  const input = event.currentTarget;
-  if (typeof input.showPicker !== "function") return;
-  try {
-    input.showPicker();
-  } catch {
-    // Браузер отказался — поле по-прежнему редактируется с клавиатуры.
-  }
 }
