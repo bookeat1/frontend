@@ -1,7 +1,7 @@
 import { eventHero } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { EventHero } from "../../src/components/afisha/EventHero";
@@ -14,6 +14,7 @@ import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../src/components/StateViews";
 import { usePromoFavorite } from "../../src/hooks/useFavorites";
 import { useRestaurant } from "../../src/hooks/useRestaurant";
+import { writeCampaignAttribution } from "../../src/lib/campaign-attribution";
 import { formatDayMonth } from "../../src/lib/format";
 
 const t = getDictionary();
@@ -53,12 +54,34 @@ const t = getDictionary();
  * rather than to an error.
  */
 export default function PromotionDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, promo: promoParamRaw } = useLocalSearchParams<{ id: string; promo?: string | string[] }>();
   const router = useRouter();
   // Кнопки шапки лежат ПОВЕРХ фотографии, а не в отдельной белой полосе, —
   // значит их отступ сверху считаем сами от безопасной зоны устройства.
   const insets = useSafeAreaInsets();
   const { promo, query } = useExplorePromotion(id);
+
+  // «Приложение уже установлено» — R3.1 п.5 (`specs/marathon-qr-promo-
+  // 20260906.md`). `+native-intent.tsx` (`detour-native-intent-route.ts`)
+  // теперь роутит Detour-ссылку марафона СРАЗУ сюда, `/promotion/<id>
+  // ?promo=<id>`, минуя `DetourLinkRouter` — тот пишет атрибуцию только на
+  // ОТЛОЖЕННОМ пути (свежая установка, `linkProcessingMode: "deferred-only"`
+  // срабатывает один раз за инсталл). Без этого эффекта у гостя, у которого
+  // приложение уже стояло, метка акции нигде не сохранялась и бронь уходила
+  // без атрибуции. Пишем ТЕМ ЖЕ `writeCampaignAttribution`, в ТО ЖЕ
+  // хранилище, что и deferred-путь (`detour-link-router.tsx`) и мобильный
+  // веб (`web-promo-attribution.tsx`) — `useCampaignAttribution()` не знает
+  // и не обязан знать, какой из трёх путей записал метку.
+  const promoParam = Array.isArray(promoParamRaw) ? promoParamRaw[0] : promoParamRaw;
+  const attributedPromoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!promoParam || attributedPromoRef.current === promoParam) return;
+    attributedPromoRef.current = promoParam;
+    void writeCampaignAttribution({
+      url: `bookeat:///promotion/${id}?promo=${promoParam}`,
+      params: { promo: promoParam },
+    });
+  }, [promoParam, id]);
 
   // Host venue — for the contacts block and the map. Disabled until the promo
   // (and thus its restaurant id) is known. Same fetch the event card does: the
