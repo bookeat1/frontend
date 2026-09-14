@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { Calendar } from "@web/components/ui/Calendar";
+import { Popover } from "@web/components/ui/Popover";
 import { WheelPicker } from "@web/components/ui/WheelPicker";
 import { DEFAULT_GUESTS, GUEST_OPTIONS } from "@web/lib/booking-options";
 import { cx } from "@web/lib/cx";
@@ -421,32 +422,7 @@ function Divider() {
   return <span aria-hidden="true" className="hidden w-px self-stretch bg-line-strong lg:block" />;
 }
 
-/**
- * Оболочка попапа: белая подложка с той же тенью, что у самой панели поиска
- * (`shadow-panel`, узел 3253:36 — переиспользован, а не придуман заново),
- * радиус 20 (`rounded-panel`, тот же токен, что у панели). Позиционирование
- * `absolute` под полем; ширина по умолчанию под календарь (280 + паддинг),
- * `className` сужает под время/гостей. `max-w-[calc(100vw-32px)]` не даёт
- * попапу вылезти за экран 360 px.
- * Паддинг НЕ задан здесь: `cx` — простая склейка без tailwind-merge (см.
- * `@web/lib/cx`), так что `p-*` в базе и переопределение в `className` могли
- * бы конфликтовать по порядку в сгенерированном CSS, а не по порядку в
- * строке класса. Поэтому паддинг явный на каждом вызове ниже.
- */
-function Popover({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <div
-      className={cx(
-        // Центр под полем, а не левый край: на 360 px левый край поля уже
-        // близко к краю экрана (паддинги контейнера + панели), и попап
-        // фиксированной ширины, прижатый левым краем к полю, вылезал бы за
-        // правую границу. Центрирование распределяет риск на обе стороны;
-        // `max-w` дополнительно не даёт попапу быть шире экрана.
-        "absolute left-1/2 top-full z-20 mt-2 max-w-[calc(100vw-32px)] -translate-x-1/2 rounded-panel border border-line-control bg-canvas shadow-panel",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
+// `Popover` (общая подложка попапа) вынесен в `@web/components/ui/Popover`
+// (задача «нативный календарь на карточке брони», 2026-09-14) — та же
+// подложка нужна `BookingFields`, второй, чуть другой попап там был бы
+// дефектом.
