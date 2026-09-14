@@ -589,6 +589,7 @@ export const en: LocaleOverride<Dictionary> = {
       colActions: "Actions",
       guestsCount: (n: number) => `${n} ${guestsWord(n)}`,
       confirm: "Confirm",
+      arrive: "Guest arrived",
       cancel: "Cancel",
       noShow: "No-show",
       actionFailed: "Couldn't update the booking",

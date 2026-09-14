@@ -593,6 +593,7 @@ export const kk: LocaleOverride<Dictionary> = {
       colActions: "Әрекеттер",
       guestsCount: (n: number) => `${n} қонақ`,
       confirm: "Растау",
+      arrive: "Қонақ келді",
       cancel: "Бас тарту",
       noShow: "Келмеді",
       actionFailed: "Бронды өзгерту мүмкін болмады",

@@ -69,6 +69,9 @@ export interface AdminBooking {
   cancelled_by: string | null;
   cancellation_reason: string | null;
   confirmed_at: string | null;
+  /** Set once staff marks the booking arrived (confirmed → arrived); null
+   * until then, same shape as confirmed_at. */
+  arrived_at: string | null;
   created_at: string;
   /** Блюда, заказанные гостем заранее. Всегда массив: у брони без предзаказа
    * он пуст, и клиенту не нужно разбирать два разных «ничего». */
