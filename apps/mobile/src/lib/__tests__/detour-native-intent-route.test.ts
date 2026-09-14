@@ -25,16 +25,16 @@ const resolvedValue = (url: string) => ({
 });
 
 describe("mapDetourResolvedUrlToRoute", () => {
-  it("routes a promo link (JSON parameters as the last path segment) to /promotion/<id>", () => {
+  it("routes a promo link (JSON parameters as the last path segment) to /promotion/<id>, keeping promo in the query", () => {
     const encoded = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
     const route = mapDetourResolvedUrlToRoute(
       resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
     );
 
-    expect(route).toBe(`/promotion/${PROMO_UUID}`);
+    expect(route).toBe(`/promotion/${PROMO_UUID}?promo=${PROMO_UUID}`);
   });
 
-  it("forwards other JSON fields as a query string, without dropping promo", () => {
+  it("forwards other JSON fields as a query string, alongside promo", () => {
     const encoded = encodeURIComponent(
       JSON.stringify({ promo: PROMO_UUID, utm_content: "stand" }),
     );
@@ -42,7 +42,16 @@ describe("mapDetourResolvedUrlToRoute", () => {
       resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
     );
 
-    expect(route).toBe(`/promotion/${PROMO_UUID}?utm_content=stand`);
+    expect(route).toBe(`/promotion/${PROMO_UUID}?promo=${PROMO_UUID}&utm_content=stand`);
+  });
+
+  it("preserves the resolved URL's own query string on the promo branch too (not just the default branch)", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}?utm_source=qr`),
+    );
+
+    expect(route).toBe(`/promotion/${PROMO_UUID}?promo=${PROMO_UUID}&utm_source=qr`);
   });
 
   it("ignores a JSON payload with no promo field and falls back to default routing", () => {
@@ -81,5 +90,96 @@ describe("mapDetourResolvedUrlToRoute", () => {
     const route = mapDetourResolvedUrlToRoute(resolvedValue("bookeat://promo/MARATHON?utm_source=qr"));
 
     expect(route).toBe("/promo/MARATHON?utm_source=qr");
+  });
+});
+
+/**
+ * Edge cases beyond the happy path. The first one is the EXACT `link` value
+ * Detour's `resolve-short` returned for the marathon short link on
+ * 2026-09-14 (verified by a direct API call): note the `:` between key and
+ * value is NOT percent-encoded, unlike what `encodeURIComponent` produces,
+ * so the tests above never exercised the real payload.
+ */
+describe("mapDetourResolvedUrlToRoute — edge cases", () => {
+  const LIVE_MARATHON_LINK =
+    "https://bookeat.godetour.link/lQ9BPpUvJc/%7B%22promo%22:%226a3736b9-d4e5-4ec6-9ed2-7233476184fd%22%7D";
+
+  it("routes the exact live resolve-short payload (unencoded ':' inside the JSON segment)", () => {
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(LIVE_MARATHON_LINK))).toBe(
+      `/promotion/${PROMO_UUID}?promo=${PROMO_UUID}`,
+    );
+  });
+
+  it("falls back to default routing on an empty JSON object", () => {
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue("https://bookeat.godetour.link/lQ9BPpUvJc/%7B%7D"),
+    );
+
+    expect(route).toBe("/%7B%7D");
+  });
+
+  it("does not throw on a malformed percent-encoding in the last segment; falls back", () => {
+    // `%E0%A4%A` is a truncated UTF-8 sequence: decodeURIComponent throws URIError.
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue("https://bookeat.godetour.link/lQ9BPpUvJc/%7B%22promo%22%3A%E0%A4%A"),
+    );
+
+    expect(route).toBe("/%7B%22promo%22%3A%E0%A4%A");
+  });
+
+  it("falls back when promo is not a non-empty string (number, empty string, array payload)", () => {
+    const numeric = encodeURIComponent(JSON.stringify({ promo: 123 }));
+    const empty = encodeURIComponent(JSON.stringify({ promo: "" }));
+    const array = encodeURIComponent(JSON.stringify([{ promo: PROMO_UUID }]));
+
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${numeric}`))).toBe(
+      `/${numeric}`,
+    );
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${empty}`))).toBe(
+      `/${empty}`,
+    );
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${array}`))).toBe(
+      `/${array}`,
+    );
+  });
+
+  it("only inspects the LAST segment: JSON in the middle is left to default routing", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc/${encoded}/extra`),
+    );
+
+    expect(route).toBe(`/${encoded}/extra`);
+  });
+
+  it("still routes to /promotion/<id> when there are several segments before the JSON one", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc/promotion/${encoded}/`),
+    );
+
+    expect(route).toBe(`/promotion/${PROMO_UUID}?promo=${PROMO_UUID}`);
+  });
+
+  it("percent-encodes non-ASCII keys/values and skips nested values when forwarding extras", () => {
+    const encoded = encodeURIComponent(
+      JSON.stringify({ promo: PROMO_UUID, место: "стенд у финиша", nested: { a: 1 }, list: [1] }),
+    );
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc/${encoded}`),
+    );
+
+    expect(route).toBe(
+      `/promotion/${PROMO_UUID}?promo=${PROMO_UUID}&${encodeURIComponent("место")}=${encodeURIComponent("стенд у финиша")}`,
+    );
+  });
+
+  it("percent-encodes a promo id that is not a plain UUID so it stays a single path segment", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ promo: "a b/c?d" }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc/${encoded}`),
+    );
+
+    expect(route).toBe("/promotion/a%20b%2Fc%3Fd?promo=a%20b%2Fc%3Fd");
   });
 });

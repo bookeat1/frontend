@@ -26,9 +26,11 @@ import type { DetourNativeIntentResolvedValue } from "@swmansion/react-native-de
  * (`app/promotion/[id].tsx`) — confirmed as the intended destination by
  * `specs/marathon-qr-promo-20260906.md` R3.1 item 4 ("destination —
  * existing screen `/promotion/6a3736b9-…`, route `app/promotion/[id].tsx`
- * есть"). Any other JSON fields are forwarded as a query string so a future
- * screen change doesn't silently drop them, even though `[id].tsx` today
- * only reads `id`.
+ * есть"). `promo` (and any other JSON field) is forwarded as a query string,
+ * not just used for the path segment — `[id].tsx` now also reads `promo`
+ * from the query to write campaign attribution for this "app already
+ * installed" path (R3.1 item 5), the same way `WebPromoAttribution` does for
+ * mobile-web and `DetourLinkRouter` does for the deferred-install path.
  *
  * Any link whose last segment is NOT JSON falls through to the same
  * drop-first-segment behavior the SDK's own default uses, so ordinary
@@ -96,16 +98,25 @@ export const mapDetourResolvedUrlToRoute = ({
   const promoId = jsonPayload?.promo;
 
   if (typeof promoId === "string" && promoId.length > 0) {
-    const extraParams = Object.entries(jsonPayload ?? {}).filter(
-      (entry): entry is [string, string | number | boolean] =>
-        entry[0] !== "promo" && isPrimitive(entry[1]),
+    // `promo` stays in the query (not just in the path) — the "app already
+    // installed" attribution mirror (`app/promotion/[id].tsx`) reads it from
+    // there via `useLocalSearchParams`, the same way `WebPromoAttribution`
+    // reads `?promo=` on mobile-web.
+    const jsonParams = Object.entries(jsonPayload ?? {}).filter(
+      (entry): entry is [string, string | number | boolean] => isPrimitive(entry[1]),
     );
-    const query = extraParams.length
-      ? `?${extraParams
-          .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-          .join("&")}`
-      : "";
-    return `${PROMO_ROUTE_PREFIX}/${encodeURIComponent(promoId)}${query}`;
+    const jsonQuery = jsonParams
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      .join("&");
+    // The resolved URL can carry its OWN query string too (e.g. a
+    // `?utm_source=` Detour redirect appends outside the JSON blob) — the
+    // default (non-promo) branch below already forwards `resolvedUrl.search`
+    // as-is; do the same here instead of silently dropping it.
+    const resolvedQuery = resolvedUrl.search.startsWith("?")
+      ? resolvedUrl.search.slice(1)
+      : resolvedUrl.search;
+    const query = [jsonQuery, resolvedQuery].filter(Boolean).join("&");
+    return `${PROMO_ROUTE_PREFIX}/${encodeURIComponent(promoId)}${query ? `?${query}` : ""}`;
   }
 
   return defaultRouteForWebUrl(resolvedUrl);
