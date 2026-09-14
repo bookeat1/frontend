@@ -12,7 +12,7 @@ import { Button } from "./ui/Button";
 import { StatusBadge } from "./ui/StatusBadge";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 
-type BookingAction = "confirm" | "cancel" | "no-show";
+type BookingAction = "confirm" | "arrive" | "cancel" | "no-show";
 
 const STATUS_OPTIONS: BookingStatus[] = [
   "pending",
@@ -32,8 +32,12 @@ function availableActions(status: BookingStatus): BookingAction[] {
     case "waitlist":
       return ["confirm", "cancel"];
     case "confirmed":
+      return ["arrive", "no-show", "cancel"];
     case "arrived":
-      return ["cancel", "no-show"];
+      // Backend transition table only allows arrived -> completed | cancelled
+      // (internal/domain/booking.go): no-show from an already-arrived guest
+      // would just 422.
+      return ["cancel"];
     default:
       return [];
   }
@@ -62,6 +66,7 @@ export function BookingsView() {
   const action = useMutation({
     mutationFn: ({ bookingId, kind }: { bookingId: string; kind: BookingAction }) => {
       if (kind === "confirm") return apiClient.confirmBooking(restaurantId, bookingId);
+      if (kind === "arrive") return apiClient.arriveBooking(restaurantId, bookingId);
       if (kind === "cancel") return apiClient.cancelBooking(restaurantId, bookingId);
       return apiClient.noShowBooking(restaurantId, bookingId);
     },
@@ -222,6 +227,17 @@ export function BookingsTable({
                         onClick={() => onAction(b.id, "confirm")}
                       >
                         {t.admin.bookings.confirm}
+                      </Button>
+                    ) : null}
+                    {actions.includes("arrive") ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        loading={pending?.bookingId === b.id && pending.kind === "arrive"}
+                        disabled={pending?.bookingId === b.id}
+                        onClick={() => onAction(b.id, "arrive")}
+                      >
+                        {t.admin.bookings.arrive}
                       </Button>
                     ) : null}
                     {actions.includes("no-show") ? (

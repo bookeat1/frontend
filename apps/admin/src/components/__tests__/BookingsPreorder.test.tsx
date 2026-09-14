@@ -34,6 +34,7 @@ function booking(overrides: Partial<AdminBooking>): AdminBooking {
     cancelled_by: null,
     cancellation_reason: null,
     confirmed_at: null,
+    arrived_at: null,
     created_at: "2026-08-24T09:00:00Z",
     preorder: [],
     ...overrides,

@@ -1406,10 +1406,17 @@ export class AdminApiClient {
     return this.bookingAction(restaurantId, bookingId, "cancel", body);
   }
 
+  /** POST …/arrive — confirmed → arrived. No reason, unlike reject/cancel/
+   * no-show: arrival is a fact ("the guest is at the door"), not a refusal
+   * that needs explaining. */
+  arriveBooking(restaurantId: string, bookingId: string): Promise<AdminBooking> {
+    return this.bookingAction(restaurantId, bookingId, "arrive");
+  }
+
   private bookingAction(
     restaurantId: string,
     bookingId: string,
-    action: "confirm" | "reject" | "cancel" | "no-show",
+    action: "confirm" | "reject" | "cancel" | "no-show" | "arrive",
     body?: BookingReasonInput | BookingCancelInput,
   ): Promise<AdminBooking> {
     return this.request<AdminBooking>(
