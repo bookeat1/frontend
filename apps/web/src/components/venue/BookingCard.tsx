@@ -147,9 +147,16 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
     // `line-strong` наших токенов: в макете переменная называется
     // `border/default`, но её значение #DADADA, а одноимённый токен сайта —
     // #E7E7E7 (см. `webVenuePage.asideCard`).
+    // `overflow-hidden` убран (2026-09-14): попап `Calendar` под полем «Дата»
+    // — `position: absolute` внутри этой секции (см. `Popover`), и на месяцах
+    // с 6 неделями (310-350 px высотой) он не помещался в остаток карточки
+    // под полем и обрезался рамкой — нижние ряды дней были физически
+    // некликабельны. Скругление угла держит `rounded-xl` сам по себе:
+    // содержимое лежит внутри паддинга `p-6` и края не задевает, обрезка
+    // ничего не защищала.
     <section
       aria-labelledby={BOOKING_TITLE_ID}
-      className="flex flex-col gap-6 overflow-hidden rounded-xl border border-line-strong bg-canvas p-6 shadow-aside"
+      className="flex flex-col gap-6 rounded-xl border border-line-strong bg-canvas p-6 shadow-aside"
     >
       <header className="flex flex-col gap-1">
         <h2

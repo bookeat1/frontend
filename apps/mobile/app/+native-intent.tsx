@@ -1,5 +1,6 @@
 import { createDetourNativeIntentHandler } from "@swmansion/react-native-detour/expo-router";
 import { detourConfig } from "../src/lib/detour";
+import { mapDetourResolvedUrlToRoute } from "../src/lib/detour-native-intent-route";
 
 /**
  * Expo Router's native-intent hook: runs BEFORE any route matches, for both
@@ -24,8 +25,15 @@ import { detourConfig } from "../src/lib/detour";
  * unlike `DetourProvider`'s automatic-events path, which does NOT have this
  * safety net, see `detour.ts`/`detour-provider-gate.tsx`), so an
  * empty/misconfigured build still degrades to a normal deep link here too.
+ *
+ * `mapToRoute` is custom (`mapDetourResolvedUrlToRoute`, see
+ * `src/lib/detour-native-intent-route.ts`): the SDK's default mapping alone
+ * sent the Almaty Marathon promo link to Expo Router's "Unmatched Route"
+ * (bug found live on iOS, 2026-09-14) — see that file for the root cause and
+ * the fix.
  */
 export const redirectSystemPath = createDetourNativeIntentHandler({
   fallbackPath: "",
   config: detourConfig,
+  mapToRoute: mapDetourResolvedUrlToRoute,
 });

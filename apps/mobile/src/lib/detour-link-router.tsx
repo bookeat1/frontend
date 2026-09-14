@@ -3,6 +3,7 @@ import { type ImperativeRouter, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { trackEvent } from "./analytics";
 import { writeCampaignAttribution } from "./campaign-attribution";
+import { resolvePromoPathSegment } from "./detour-json-segment";
 
 type AppHref = Parameters<ImperativeRouter["replace"]>[0];
 
@@ -35,6 +36,18 @@ type AppHref = Parameters<ImperativeRouter["replace"]>[0];
  * see `campaign-attribution.ts`) BEFORE `clearLink()` runs, so it survives
  * past this one navigation; `useCampaignAttribution()` is how a later screen
  * (the booking confirm step) reads it back.
+ *
+ * JSON-SEGMENT LINKS (the QR-on-a-leaflet path, this campaign's MAIN
+ * scenario): a fresh install resolves this link as a DEFERRED link, and for
+ * links whose parameters are serialized as JSON in the URL's own trailing
+ * path segment (see `detour-json-segment.ts`), `link.pathname` here is just
+ * that raw JSON segment and `link.params` is empty — the SDK has nothing
+ * else to parse it into. Code review on this branch (2026-09-14) caught that
+ * the sibling fix for `app/+native-intent.tsx` (already-installed-app tap)
+ * did NOT cover this deferred path, even though it's the one the marathon
+ * QR campaign actually relies on. `resolvePromoPathSegment` below is the
+ * same helper that fix uses, applied here too, so both entry points land on
+ * `/promotion/<id>` and both write attribution.
  */
 export function DetourLinkRouter(): null {
   const { isLinkProcessed, link, clearLink } = useDetourContext();
@@ -45,7 +58,19 @@ export function DetourLinkRouter(): null {
 
     let cancelled = false;
     void (async () => {
-      const attribution = await writeCampaignAttribution(link);
+      // `resolvePromoPathSegment` rewrites the raw-JSON-segment shape
+      // (`link.pathname` is the JSON blob itself) into `/promotion/<id>` and
+      // recovers the JSON's own fields (`promo`, and any extras) as params.
+      // `null` means an ordinary link — keep `link.pathname`/`link.params`
+      // as the SDK gave them, same as before this helper existed. Where a
+      // key exists in BOTH, the link's own real query params win — they're
+      // the more authoritative source, the JSON blob only exists as a
+      // workaround for this one Detour dashboard link shape.
+      const resolvedPromo = resolvePromoPathSegment(link.pathname);
+      const pathname = resolvedPromo?.pathname ?? link.pathname;
+      const params = resolvedPromo ? { ...resolvedPromo.params, ...link.params } : link.params;
+
+      const attribution = await writeCampaignAttribution({ url: link.url, params });
       if (cancelled) return;
       // Fires once per install (deferred-only mode resolves at most once) —
       // exactly the "first time we see this tag" moment, not on every app
@@ -60,8 +85,8 @@ export function DetourLinkRouter(): null {
       }
 
       router.replace({
-        pathname: link.pathname,
-        params: { fromDeepLink: "true", linkType: link.type, ...link.params },
+        pathname,
+        params: { fromDeepLink: "true", linkType: link.type, ...params },
       } as AppHref);
       clearLink();
     })();
