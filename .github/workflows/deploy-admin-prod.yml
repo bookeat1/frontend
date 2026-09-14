@@ -1,0 +1,306 @@
+name: Deploy admin panel (prod)
+
+# Builds apps/admin's static export against the PRODUCTION backend and publishes
+# it on admin.book-eat.com (the host in PROD_SSH_HOST — the same box that serves
+# backend.book-eat.com and book-eat.com).
+#
+# MANUAL ONLY, on purpose. Unlike deploy-web-prod.yml, this workflow has no
+# `push` trigger: the venue panel is used by restaurant staff during service, so
+# a release is a decision someone takes out loud, not a side effect of a merge
+# into main. Run it with:
+#
+#   gh workflow run deploy-admin-prod.yml --ref main -f confirm=deploy-to-prod
+#
+# Everything else mirrors deploy-web-prod.yml: the same CI gate, the same
+# rsync-then-swap release, the same automatic rollback when verification fails.
+# The release mechanics are ADR-024 (team memory): releases live INSIDE the
+# bind-mount at /opt/bookeat/admin/releases/<name> and a relative symlink
+# `current` is swapped with a single atomic rename(2). Caddy's root is
+# /srv/admin/current and is never touched by a deploy — no reload, no downtime,
+# and a request always gets one whole release, never a mix of two.
+# Runbook: deploy/admin-prod/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-to-prod" to confirm a PRODUCTION release of the venue panel'
+        required: true
+        type: string
+
+concurrency:
+  # Never cancel a deploy mid-swap; queue instead. Own group so a stand deploy
+  # never blocks or is blocked by a production one.
+  group: deploy-admin-prod
+  cancel-in-progress: false
+
+env:
+  # Not secrets: every value below ends up verbatim in the shipped JavaScript.
+  # Pinning them here means the artifact is reproducible from the repository
+  # alone instead of from whatever the person deploying happened to export.
+  NEXT_PUBLIC_API_URL: https://backend.book-eat.com/api/v1
+  # Amplitude client-side WRITE key of the PRODUCTION project (the stand uses a
+  # different one in deploy-admin-test.yml; same value as the production key in
+  # deploy-mobile-web-prod.yml).
+  NEXT_PUBLIC_AMPLITUDE_API_KEY: d084c0beaf84da775fd428b3b5544b57
+  # The panel owns its own domain, so it is served from the root: basePath must
+  # be EMPTY. Explicitly empty so a stray value in the runner environment can
+  # never bake the stand's /admin-preview prefix into production assets.
+  NEXT_PUBLIC_BASE_PATH: ""
+  PUBLIC_URL: https://admin.book-eat.com
+  ADMIN_ROOT: /opt/bookeat/admin
+  # Neighbours on the same host and the same Caddy. They must survive every
+  # panel deploy.
+  BACKEND_HEALTH_URL: https://backend.book-eat.com/health
+  WEB_PROBE_URL: https://book-eat.com/release.txt
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main and the typed confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Refusing: production deploys only from main (got '$GITHUB_REF'). Re-run with --ref main."
+            exit 1
+          fi
+          if [ "$CONFIRM" != "deploy-to-prod" ]; then
+            echo "::error::Refusing: the confirm input must be exactly 'deploy-to-prod' (got '$CONFIRM')."
+            exit 1
+          fi
+          echo "Releasing $GITHUB_REF_NAME @ ${GITHUB_SHA::7} to the production panel (actor: $GITHUB_ACTOR)"
+
+      - name: Fail early if the deploy secrets are missing
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          PROD_VAPID_PUBLIC_KEY: ${{ secrets.PROD_VAPID_PUBLIC_KEY }}
+        run: |
+          missing=""
+          for name in SSH_PRIVATE_KEY SSH_KNOWN_HOSTS PROD_SSH_HOST PROD_SSH_USER PROD_VAPID_PUBLIC_KEY; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing — see deploy/admin-prod/README.md, section 0."
+            exit 1
+          fi
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > /tmp/kh
+          if ! ssh-keygen -F "$PROD_SSH_HOST" -f /tmp/kh >/dev/null; then
+            echo "::error::SSH_KNOWN_HOSTS has no entry for the production host — append 'ssh-keyscan -t ed25519 <host>' output to the secret."
+            exit 1
+          fi
+          rm -f /tmp/kh
+
+  checks:
+    needs: gate
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    # Restated from `gate` so the job is safe on its own if the gate step is
+    # ever edited.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # A GitHub Environment so a required reviewer can be attached later in
+    # Settings without touching this file.
+    environment:
+      name: production
+      url: https://admin.book-eat.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Name this release
+        id: release
+        run: echo "name=$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the static export
+        env:
+          # Public by definition (browsers receive it), but it MUST match the
+          # production backend's PUSH_VAPID_PUBLIC_KEY or push subscriptions
+          # silently break, so it is kept out of the repository. The stand's key
+          # is a different pair: TEST_VAPID_PUBLIC_KEY.
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.PROD_VAPID_PUBLIC_KEY }}
+        run: pnpm --filter @bookeat/admin build
+
+      - name: Assert this is a deployable PRODUCTION export
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.PROD_VAPID_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          out=apps/admin/out
+          [ -d "$out" ] || {
+            echo "::error::No apps/admin/out — apps/admin/next.config.mjs lost output: \"export\"."
+            exit 1
+          }
+          for f in index.html sw.js login/index.html settings/index.html venues/index.html; do
+            [ -f "$out/$f" ] || { echo "::error::$out/$f missing from the build"; exit 1; }
+          done
+          # Every value below is compiled in and cannot be fixed on the server.
+          grep -rq "$NEXT_PUBLIC_API_URL" "$out/_next/static/chunks" || {
+            echo "::error::The production API URL is not baked into the bundle; nobody could log in."
+            exit 1
+          }
+          if grep -rq "test.backend.book-eat.com" "$out"; then
+            echo "::error::The TEST backend address is present in a production bundle."
+            exit 1
+          fi
+          # Domain root: the stand's prefix must appear nowhere except sw.js,
+          # where it is only mentioned in a comment explaining scope detection.
+          leaked=$(grep -rl "/admin-preview/" "$out" | grep -v "^$out/sw.js$" || true)
+          if [ -n "$leaked" ]; then
+            echo "::error::basePath /admin-preview leaked into production files: $leaked"
+            exit 1
+          fi
+          grep -rq "$NEXT_PUBLIC_AMPLITUDE_API_KEY" "$out/_next/static/chunks" || {
+            echo "::error::The production Amplitude key is not in the bundle."
+            exit 1
+          }
+          if grep -rq "ea6dc484a21af0092fc13af158f8c404" "$out"; then
+            echo "::error::The STAND Amplitude key is present in a production bundle."
+            exit 1
+          fi
+          grep -rq "$NEXT_PUBLIC_VAPID_PUBLIC_KEY" "$out/_next/static/chunks" || {
+            echo "::error::The production VAPID public key did not reach the bundle; push subscriptions would break."
+            exit 1
+          }
+          # Served as /release.txt so the verification steps below can prove the
+          # swap took effect, not merely that something is up.
+          printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$out/release.txt"
+          du -sh "$out"
+
+      - name: Set up the SSH client
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Preflight the production host
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20"
+          # Everything the release needs BEFORE anything is uploaded: the key
+          # works, the release root exists and is ours, and `current` is the
+          # symlink ADR-024 says it is (if somebody replaced it with a plain
+          # directory, swapping would quietly serve stale files forever).
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "set -e
+            [ -d '$ADMIN_ROOT' ] || { echo '$ADMIN_ROOT does not exist — this host does not serve the panel' >&2; exit 1; }
+            [ -w '$ADMIN_ROOT' ] || { echo '$ADMIN_ROOT is not writable by \$(whoami)' >&2; exit 1; }
+            [ -L '$ADMIN_ROOT/current' ] || { echo '$ADMIN_ROOT/current is not a symlink — see ADR-024 before deploying' >&2; exit 1; }
+            echo \"preflight ok on \$(hostname) as \$(whoami); current -> \$(readlink '$ADMIN_ROOT/current')\""
+
+      - name: Upload the release next to the live one
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          incoming="$ADMIN_ROOT/releases/.incoming-$RELEASE"
+          # Uploaded under a dot-prefixed name and renamed into place only when
+          # complete: release.sh refuses to promote a half-uploaded directory,
+          # and a dot name can never be mistaken for a release.
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "mkdir -p '$ADMIN_ROOT/releases' '$ADMIN_ROOT/bin' && rm -rf '$incoming'"
+          rsync -az --delete -e "ssh $ssh_opts" apps/admin/out/ "$SSH_USER@$SSH_HOST:$incoming/"
+          rsync -az -e "ssh $ssh_opts" deploy/admin-prod/release.sh deploy/admin-prod/rollback.sh \
+            "$SSH_USER@$SSH_HOST:$ADMIN_ROOT/bin/"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "chmod 755 '$ADMIN_ROOT/bin/release.sh' '$ADMIN_ROOT/bin/rollback.sh' && mv -T '$incoming' '$ADMIN_ROOT/releases/$RELEASE'"
+
+      - name: Swap the symlink
+        id: swap
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" \
+            "ADMIN_ROOT='$ADMIN_ROOT' DEPLOY_ACTOR='$GITHUB_ACTOR' '$ADMIN_ROOT/bin/release.sh' '$RELEASE'"
+
+      - name: Verify the panel is up and actually new
+        env:
+          RELEASE: ${{ steps.release.outputs.name }}
+        run: |
+          set -uo pipefail
+          fail=0
+          for path in / /login/ /sw.js /venues/ /settings/; do
+            code=""
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL$path" || echo 000)
+              [ "$code" = "200" ] && break
+              sleep 3
+            done
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::$PUBLIC_URL$path returned $code, expected 200"; fail=1; }
+          done
+          served=$(curl -s --max-time 20 "$PUBLIC_URL/release.txt" | head -1 || true)
+          echo "release.txt -> ${served:-<empty>} (expected $RELEASE)"
+          if [ "$served" != "$RELEASE" ]; then
+            echo "::error::The panel is not serving this release (got '${served:-nothing}') — the symlink swap did not take effect."
+            fail=1
+          fi
+          # The login page is the one screen every user hits, and it is the one
+          # that breaks when basePath or the API URL are wrong.
+          login=$(curl -s --max-time 20 "$PUBLIC_URL/login/" || true)
+          printf '%s' "$login" | grep -q '/_next/static' || { echo "::error::The login page does not reference /_next/static."; fail=1; }
+          printf '%s' "$login" | grep -q '/admin-preview/' && { echo "::error::The login page references /admin-preview/ — a stand build reached production."; fail=1; }
+          [ "$fail" = "0" ] || exit 1
+          echo "Panel is up and serving $RELEASE"
+
+      - name: Verify the neighbours on this host still answer
+        run: |
+          set -uo pipefail
+          api=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BACKEND_HEALTH_URL" || echo 000)
+          web=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$WEB_PROBE_URL" || echo 000)
+          echo "backend /health -> $api ; book-eat.com release.txt -> $web"
+          fail=0
+          [ "$api" = "200" ] || { echo "::error::The production backend stopped answering ($api)."; fail=1; }
+          [ "$web" = "200" ] || { echo "::error::The production site stopped answering ($web)."; fail=1; }
+          [ "$fail" = "0" ] || exit 1
+
+      - name: Roll back to the previous release
+        if: failure() && steps.swap.outcome == 'success'
+        env:
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh_opts="-i $HOME/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes"
+          echo "::warning::Verification failed; rolling the symlink back to the previous release."
+          # shellcheck disable=SC2029
+          ssh $ssh_opts "$SSH_USER@$SSH_HOST" "ADMIN_ROOT='$ADMIN_ROOT' '$ADMIN_ROOT/bin/rollback.sh'" || \
+            echo "::warning::Nothing to roll back to — see deploy/admin-prod/README.md."
+          echo "after rollback release.txt -> $(curl -s --max-time 20 "$PUBLIC_URL/release.txt" | head -1 || true)"
+          echo "after rollback /login/ -> $(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$PUBLIC_URL/login/" || echo 000)"
+
+      - name: Remove the SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
