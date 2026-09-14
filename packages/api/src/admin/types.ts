@@ -943,6 +943,86 @@ export interface AdminListParams {
   per_page?: number;
 }
 
+// ---- Promo codes (marathon campaign, migration 0108) -----------------------
+
+/**
+ * A promo code's lifecycle state (domain.PromoCodeStatus). Deliberately NOT
+ * the same set as PromoStatus (draft/published/hidden): a code can be active
+ * while the campaign behind it is hidden, and the cabinet needs to show both.
+ *
+ *   draft ──► active ◄──► paused
+ *     │         │           │
+ *     └─────────┴───► archived (terminal)
+ */
+export type PromoCodeStatus = "draft" | "active" | "paused" | "archived";
+
+/**
+ * One promo code as the cabinet sees it (admin.adminPromoCodeResponse):
+ * the row itself plus two numbers that live outside it — how many guests
+ * actually joined (counted from bookings, there is no counter column) and the
+ * real state of the campaign it points at.
+ */
+export interface AdminPromoCode {
+  id: string;
+  /** Stored normalized: upper case, no spaces/dashes (NormalizePromoCode). */
+  code: string;
+  promotion_id: string;
+  /** The code's OWN acceptance window — may differ from the promo's. */
+  starts_at: string;
+  expires_at: string;
+  /** How many DIFFERENT guests may join. `null` — no overall limit. */
+  max_uses_total: number | null;
+  /** How many bookings ONE guest may tag with this code. Always >= 1. */
+  max_uses_per_user: number;
+  status: PromoCodeStatus;
+  /** How many distinct guests already hold a live booking with this code —
+   * the number max_uses_total is compared against. */
+  activations: number;
+  promo_title: string;
+  promo_status: PromoStatus;
+  promo_ends_at?: string | null;
+  /** The campaign row is gone even though the DB forbids deleting it while a
+   * code points at it — should be impossible, surfaced rather than a 500. */
+  promo_missing: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** POST /admin/promo-codes body (admin.createPromoCodeRequest). */
+export interface CreatePromoCodeInput {
+  /** Any spelling — the server normalizes (spaces/dashes folded, upper case). */
+  code: string;
+  promotion_id: string;
+  starts_at: string;
+  expires_at: string;
+  /** Omit or null for "no overall limit". */
+  max_uses_total?: number | null;
+  /** Server defaults to 1 when omitted. */
+  max_uses_per_user?: number;
+  /** Server defaults to "draft" when omitted — a half-filled form cannot
+   * start accepting guests by accident. */
+  status?: PromoCodeStatus;
+}
+
+/**
+ * PATCH /admin/promo-codes/:id body — PARTIAL, omitted keys are left alone.
+ * `max_uses_total: null` is an EXPLICIT "clear the limit", distinguishable
+ * from omitting the key entirely (admin.patchPromoCodeRequest); the code
+ * itself is not patchable here — it is immutable once created.
+ */
+export interface PatchPromoCodeInput {
+  starts_at?: string;
+  expires_at?: string;
+  max_uses_total?: number | null;
+  max_uses_per_user?: number;
+  status?: PromoCodeStatus;
+}
+
+/** GET /admin/promo-codes query filter. */
+export interface PromoCodeListParams {
+  promotion_id?: string;
+}
+
 // ---- Web push subscriptions ------------------------------------------------
 
 /** The browser PushSubscription reduced to the backend's expected shape

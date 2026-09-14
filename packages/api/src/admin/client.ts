@@ -29,6 +29,10 @@ import type {
   FeedItemState,
   AcquirerAccount,
   AcquirerAccountInput,
+  AdminPromoCode,
+  CreatePromoCodeInput,
+  PatchPromoCodeInput,
+  PromoCodeListParams,
   FeedReviewInput,
   GuideCategory,
   GuideCategoryInput,
@@ -827,6 +831,39 @@ export class AdminApiClient {
 
   createPlatformPromo(input: PromoInput): Promise<AdminPromo> {
     return this.request<AdminPromo>("POST", "/admin/platform/promos", { body: input });
+  }
+
+  // ---- Promo codes (marathon campaign, migration 0108) ---------------------
+  //
+  // Platform content, not venue-scoped: a code can point at a PLATFORM promo
+  // that runs at every venue, so there is no restaurant id in any of these
+  // routes (`internal/transport/rest/promocodes/admin.go`, superadmin-only).
+  // The list route returns a PLAIN ARRAY (`response.OK(w, out)`), not the
+  // paginated `Page[T]` envelope other admin listings use — do not wrap it in
+  // ApiPage.
+
+  listPromoCodes(params: PromoCodeListParams = {}): Promise<AdminPromoCode[]> {
+    return this.request<AdminPromoCode[]>("GET", "/admin/promo-codes", {
+      params: { promotion_id: params.promotion_id },
+    });
+  }
+
+  createPromoCode(input: CreatePromoCodeInput): Promise<AdminPromoCode> {
+    return this.request<AdminPromoCode>("POST", "/admin/promo-codes", { body: input });
+  }
+
+  /** PATCH — omitted keys are left alone; see PatchPromoCodeInput. Used for
+   * both pause/resume and any other partial edit. */
+  patchPromoCode(id: string, input: PatchPromoCodeInput): Promise<AdminPromoCode> {
+    return this.request<AdminPromoCode>("PATCH", `/admin/promo-codes/${encodeURIComponent(id)}`, {
+      body: input,
+    });
+  }
+
+  /** Refused (promo_code_activated) once at least one guest has redeemed the
+   * code — archive it instead (status: "archived"). */
+  async deletePromoCode(id: string): Promise<void> {
+    await this.request<unknown>("DELETE", `/admin/promo-codes/${encodeURIComponent(id)}`);
   }
 
   // ---- Promos --------------------------------------------------------------

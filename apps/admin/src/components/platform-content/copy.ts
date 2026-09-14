@@ -1,9 +1,14 @@
-import type { ActionUrlProblem, PlatformContentFailureKind } from "@bookeat/api/admin";
-import { classifyPlatformContentFailure } from "@bookeat/api/admin";
+import type {
+  ActionUrlProblem,
+  PlatformContentFailureKind,
+  PromoCodeFailureKind,
+} from "@bookeat/api/admin";
+import { classifyPlatformContentFailure, classifyPromoCodeFailure } from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
 
 export const copy = t.admin.platformContent;
+export const promoCodesCopy = t.admin.promoCodes;
 
 /**
  * Формулировка на каждый исход отказа, исчерпывающе по типу: новый вид отказа
@@ -45,4 +50,21 @@ const ACTION_URL_TEXT: Record<ActionUrlProblem, string> = {
 
 export function actionUrlText(problem: ActionUrlProblem): string {
   return ACTION_URL_TEXT[problem];
+}
+
+/** Формулировка на каждый исход отказа записи промокода — те же два узких
+ * кода (activated/bad_transition), поверх общего набора акций платформы. */
+const PROMO_CODE_FAILURE_TEXT: Record<PromoCodeFailureKind, string> = {
+  activated: promoCodesCopy.errorActivated,
+  bad_transition: promoCodesCopy.errorBadTransition,
+  duplicate: promoCodesCopy.errorDuplicate,
+  refused: promoCodesCopy.errorRefused,
+  forbidden: promoCodesCopy.errorForbidden,
+  unauthorized: promoCodesCopy.errorUnauthorized,
+  not_found: promoCodesCopy.errorNotFound,
+  unknown: promoCodesCopy.errorUnknown,
+};
+
+export function promoCodeErrorText(error: unknown): string {
+  return PROMO_CODE_FAILURE_TEXT[classifyPromoCodeFailure(error).kind];
 }

@@ -79,6 +79,9 @@ export const NAV: NavGroup[] = [
       // он без выбранного заведения — выбирать нечего.
       { href: "/platform-promos", label: t.admin.nav.platformPromos },
       { href: "/platform-events", label: t.admin.nav.platformEvents },
+      // Промокоды кампании (марафон Алматы, миграция 0108) — код ссылается на
+      // существующую акцию платформы, поэтому раздел живёт рядом с ней.
+      { href: "/platform-promo-codes", label: t.admin.nav.platformPromoCodes },
       { href: "/feed-moderation", label: t.admin.nav.feedModeration },
       // Семь текстовых страниц футера сайта (T4). Тот же расклад, что у
       // гастрогида и «Выбрали для вас»: витрина всей платформы, у неё нет

@@ -505,6 +505,7 @@ export const kk: LocaleOverride<Dictionary> = {
       cities: "Қалалар",
       platformPromos: "Платформа акциялары",
       platformEvents: "Платформа афишасы",
+      platformPromoCodes: "Промокодтар",
       sitePages: "Сайт беттері",
       roles: "Рөлдер",
     },
@@ -1826,6 +1827,73 @@ export const kk: LocaleOverride<Dictionary> = {
         "Сақтау мүмкін болмады, қолданылғаны-қолданылмағаны белгісіз. Бетті жаңартып, тізімді қараңыз",
       deleteFailed: "Жою мүмкін болмады. Қайталап көріңіз",
       confirmDelete: "Платформа жазбасын жою керек пе? Мұны кері қайтару мүмкін болмайды",
+    },
+    promoCodes: {
+      title: "Промокодтар",
+      subtitle:
+        "Қонақ броньды растау қадамында акцияға қатысуын белгілеу үшін енгізетін кодтар. Код жеңілдік бермейді — бұл тек «қатысамын» белгісі",
+      adminOnlyTitle: "Бұл бөлім тек платформа әкімшілеріне арналған",
+      adminOnlyDescription: "Науқан промокодтарын BookEat жүргізеді, жеке орын емес.",
+      createCode: "Жаңа код",
+      createCodeTitle: "Жаңа промокод",
+      loading: "Промокодтар жүктелуде…",
+      emptyTitle: "Промокодтар әлі жоқ",
+      emptyDescription: "Біріншісін жасаңыз — мысалы, марафон коды",
+      total: (n: number) => `Барлығы: ${n}`,
+
+      columnCode: "Код",
+      columnPromo: "Акция",
+      columnStatus: "Мәртебе",
+      columnActivations: "Пайдаланған",
+      columnWindow: "Қолданылу мерзімі",
+      columnCreated: "Құрылды",
+
+      fieldCode: "Код",
+      fieldCodeHint:
+        "3–32 латын әрпі мен саны. Регистр, бос орын және сызықша маңызды емес — сервер өзі бір түрге келтіреді",
+      fieldPromo: "Акция",
+      fieldPromoPlaceholder: "Платформа акциясын таңдаңыз",
+      fieldPromoHint:
+        "Тізім сол жақ мәзірдегі «Платформа акциялары» бөлімінен. Код бар акцияға сілтеме жасайды, жаңасын жасамайды",
+      fieldStartsAt: "Басталуы",
+      fieldExpiresAt: "Аяқталуы",
+      fieldMaxUsesTotal: "Қатысушылар шегі",
+      fieldMaxUsesTotalHint: "Кодты неше ӘРТҮРЛІ қонақ пайдалана алады. Бос болса — шек жоқ",
+      fieldMaxUsesPerUser: "Бір қонаққа бронь саны",
+      fieldMaxUsesPerUserHint: "БІР қонақ осы кодпен неше бронь белгілей алады",
+      activateNow: "Дереу белсендіру",
+
+      statusDraft: "Жоба",
+      statusActive: "Белсенді",
+      statusPaused: "Тоқтатылған",
+      statusArchived: "Мұрағатта",
+
+      activate: "Белсендіру",
+      deactivate: "Тоқтату",
+      archive: "Мұрағатқа",
+
+      promoHidden: "акция жасырын",
+      promoMissing: "акция табылмады",
+      noLimit: "шексіз",
+
+      endBeforeStart: "«Аяқталуы» «Басталуынан» кеш болуы керек",
+      promoRequired: "Акцияны таңдаңыз",
+      maxUsesTotalInvalid: "Қатысушылар шегі — 1-ден кем емес бүтін сан",
+      maxUsesPerUserInvalid: "Бір қонаққа бронь саны — 1-ден кем емес бүтін сан",
+      codeShapeInvalid: "Код — 3–32 латын әрпі мен саны",
+
+      errorActivated:
+        "Кодты біреу қолданып қойды — атын өзгерту немесе жою мүмкін емес. Тоқтатыңыз немесе мұрағатқа жіберіңіз",
+      errorBadTransition: "Мұндай мәртебе ауысуы тыйым салынған",
+      errorDuplicate: "Мұндай код бұрыннан бар",
+      errorRefused: "Сервер жазбаны қабылдамады, өрістерді тексеріңіз",
+      errorForbidden: "Мұны тек платформа әкімшісі жасай алады",
+      errorUnauthorized: "Сессия аяқталды, қайта кіріңіз",
+      errorNotFound: "Код немесе акция табылмады, мүмкін оларды жойып қойған",
+      errorUnknown:
+        "Сақтау мүмкін болмады, қолданылғаны-қолданылмағаны белгісіз. Бетті жаңартып, тізімді қараңыз",
+      deleteFailed: "Жою мүмкін болмады. Қайталап көріңіз",
+      confirmDelete: "Кодты біржола жою керек пе?",
     },
   },
   booking: {
