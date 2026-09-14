@@ -19,6 +19,14 @@ import { cx } from "@web/lib/cx";
  * `@web/lib/cx`), так что `p-*` в базе и переопределение в `className` могли
  * бы конфликтовать по порядку в сгенерированном CSS, а не по порядку в
  * строке класса. Поэтому паддинг явный на каждом месте использования.
+ *
+ * `z-50` — тот же уровень, что у `Modal` (диалоги, бургер-панель): ниже `lg`
+ * страница брони держит `BottomBar` на `z-40` (фикс `pill` «Войти и
+ * забронировать»), и попап `InlineDateField` под ним резал клики по нижним
+ * рядам календаря на длинных месяцах (баг из ревью PR #210, 2026-09-14).
+ * `Modal` и попап нигде не открыты одновременно, так что общий уровень
+ * безопасен для всех трёх мест, что используют `Popover` (панель поиска,
+ * карточка брони, строка даты на странице брони).
  */
 export function Popover({
   className,
@@ -35,7 +43,7 @@ export function Popover({
   return (
     <div
       className={cx(
-        "absolute top-full z-20 mt-2 max-w-[calc(100vw-32px)] rounded-panel border border-line-control bg-canvas shadow-panel",
+        "absolute top-full z-50 mt-2 max-w-[calc(100vw-32px)] rounded-panel border border-line-control bg-canvas shadow-panel",
         align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
         className,
       )}
