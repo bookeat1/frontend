@@ -162,3 +162,112 @@ describe("DetourLinkRouter: атрибуция кампании", () => {
     expect(trackEvent).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Deferred link на СВЕЖЕЙ установке (сканирование QR с листовки — основной
+ * сценарий кампании), а не тап по ссылке на уже установленном приложении.
+ * Code review на этой ветке (2026-09-14) нашёл: `+native-intent.tsx` уже
+ * умел разбирать ссылку, у которой параметры промо сериализованы JSON'ом в
+ * ПОСЛЕДНЕМ сегменте пути (`resolve-short` отдаёт такую ссылку для
+ * «Марафона Алматы»), а `DetourLinkRouter` — нет: SDK кладёт этот же JSON в
+ * `link.pathname` как единственный сегмент, `link.params` остаётся пустым, и
+ * без разбора это была бы та же «Unmatched Route» + пустая атрибуция.
+ */
+describe("DetourLinkRouter: deferred-ссылка с JSON-сегментом промо (свежая установка через QR)", () => {
+  it("роутит на /promotion/<id> и пишет атрибуцию из JSON-сегмента", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: `/promotion/${PROMO_UUID}`,
+        params: expect.objectContaining({ promo: PROMO_UUID }),
+      }),
+    );
+
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(stored).toBeTruthy();
+    expect(JSON.parse(stored!)).toMatchObject({ campaignId: PROMO_UUID });
+
+    expect(trackEvent).toHaveBeenCalledWith("deep_link_attributed", {
+      campaign_id: PROMO_UUID,
+      link_type: "deferred",
+    });
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("сохраняет извлечённые extra-поля JSON-сегмента как params навигации", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(
+      JSON.stringify({ promo: PROMO_UUID, utm_content: "stand" }),
+    );
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: `/promotion/${PROMO_UUID}`,
+        params: expect.objectContaining({ promo: PROMO_UUID, utm_content: "stand" }),
+      }),
+    );
+  });
+
+  it("промо не из списка известных акций — навигация идёт, атрибуция не пишется", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ promo: UNKNOWN_PROMO_UUID }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: `/promotion/${UNKNOWN_PROMO_UUID}` }),
+    );
+    expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
+    expect(trackEvent).not.toHaveBeenCalled();
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("JSON-сегмент без promo — обычная (не-промо) маршрутизация, как раньше", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ utm_content: "stand" }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({ pathname: `/${encodedJson}` }));
+    expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+});

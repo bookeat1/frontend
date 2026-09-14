@@ -1,4 +1,5 @@
 import type { DetourNativeIntentResolvedValue } from "@swmansion/react-native-detour/expo-router";
+import { resolvePromoPathSegment } from "./detour-json-segment";
 
 /**
  * Custom `mapToRoute` for `app/+native-intent.tsx`.
@@ -35,9 +36,14 @@ import type { DetourNativeIntentResolvedValue } from "@swmansion/react-native-de
  * Any link whose last segment is NOT JSON falls through to the same
  * drop-first-segment behavior the SDK's own default uses, so ordinary
  * (non-marathon) Detour links keep working exactly as before this fix.
+ *
+ * The actual JSON-segment parsing lives in `detour-json-segment.ts` — the
+ * DEFERRED-link path (`detour-link-router.tsx`, a fresh install via the QR
+ * on the marathon leaflet, this campaign's MAIN scenario) hits the exact
+ * same shape and needs the exact same fix; code review on this branch
+ * caught that the original version of this fix only covered the
+ * already-installed-app tap, not deferred install (2026-09-14).
  */
-
-const PROMO_ROUTE_PREFIX = "/promotion";
 
 const isWebProtocol = (url: URL) => url.protocol === "http:" || url.protocol === "https:";
 
@@ -64,26 +70,10 @@ const defaultRouteForWebUrl = (url: URL): string => {
   return `/${segments.slice(1).join("/")}${url.search}`;
 };
 
-const tryParseJsonSegment = (segment: string): Record<string, unknown> | null => {
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(segment);
-  } catch {
-    return null;
-  }
-  if (!decoded.trim().startsWith("{")) return null;
-  try {
-    const parsed: unknown = JSON.parse(decoded);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-};
-
-const isPrimitive = (value: unknown): value is string | number | boolean =>
-  typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+const toQueryString = (params: Record<string, string>): string =>
+  Object.entries(params)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
 
 export const mapDetourResolvedUrlToRoute = ({
   resolvedUrl,
@@ -92,22 +82,13 @@ export const mapDetourResolvedUrlToRoute = ({
     return routeFromCustomScheme(resolvedUrl);
   }
 
-  const segments = resolvedUrl.pathname.split("/").filter(Boolean);
-  const lastSegment = segments[segments.length - 1];
-  const jsonPayload = lastSegment ? tryParseJsonSegment(lastSegment) : null;
-  const promoId = jsonPayload?.promo;
-
-  if (typeof promoId === "string" && promoId.length > 0) {
+  const resolved = resolvePromoPathSegment(resolvedUrl.pathname);
+  if (resolved) {
     // `promo` stays in the query (not just in the path) — the "app already
     // installed" attribution mirror (`app/promotion/[id].tsx`) reads it from
     // there via `useLocalSearchParams`, the same way `WebPromoAttribution`
     // reads `?promo=` on mobile-web.
-    const jsonParams = Object.entries(jsonPayload ?? {}).filter(
-      (entry): entry is [string, string | number | boolean] => isPrimitive(entry[1]),
-    );
-    const jsonQuery = jsonParams
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-      .join("&");
+    //
     // The resolved URL can carry its OWN query string too (e.g. a
     // `?utm_source=` Detour redirect appends outside the JSON blob) — the
     // default (non-promo) branch below already forwards `resolvedUrl.search`
@@ -115,8 +96,8 @@ export const mapDetourResolvedUrlToRoute = ({
     const resolvedQuery = resolvedUrl.search.startsWith("?")
       ? resolvedUrl.search.slice(1)
       : resolvedUrl.search;
-    const query = [jsonQuery, resolvedQuery].filter(Boolean).join("&");
-    return `${PROMO_ROUTE_PREFIX}/${encodeURIComponent(promoId)}${query ? `?${query}` : ""}`;
+    const query = [toQueryString(resolved.params), resolvedQuery].filter(Boolean).join("&");
+    return `${resolved.pathname}${query ? `?${query}` : ""}`;
   }
 
   return defaultRouteForWebUrl(resolvedUrl);
