@@ -267,6 +267,14 @@ jobs:
             echo "::error::The panel is not serving this release (got '${served:-nothing}') — the symlink swap did not take effect."
             fail=1
           fi
+          # A status code proves nothing here: Caddy answers `try_files …
+          # /index.html`, so ANY path returns 200. Negative control — a path
+          # that cannot exist must come back as the fallback body, and a real
+          # page must not look like it.
+          bogus=$(curl -s --max-time 20 "$PUBLIC_URL/__no-such-page-$GITHUB_RUN_ID/" | md5sum | cut -d' ' -f1)
+          venues=$(curl -s --max-time 20 "$PUBLIC_URL/venues/" | md5sum | cut -d' ' -f1)
+          echo "fallback body $bogus ; /venues/ body $venues"
+          [ "$bogus" != "$venues" ] || { echo "::error::/venues/ is served by the fallback, not as its own page — the export is incomplete."; fail=1; }
           # The login page is the one screen every user hits, and it is the one
           # that breaks when basePath or the API URL are wrong.
           login=$(curl -s --max-time 20 "$PUBLIC_URL/login/" || true)
