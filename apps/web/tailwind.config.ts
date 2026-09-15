@@ -688,6 +688,11 @@ const config: Config = {
         container: px(webLayout.containerWidth),
         /** Колонка страницы статьи — 760 (узел 5033:7484, паддинг 340). */
         "article-body": px(webArticles.bodyWidth),
+        /** Левая колонка карточки события/акции — 788 = `webEventDetail.leftWidth`
+         * (узел 5033:6922). Нужна как ОГРАНИЧЕНИЕ, а не только для расчёта
+         * просвета: без соседней `BookCard` (у акции без заведения) `flex-1`
+         * растягивает колонку на все 1200, а не на design-верные 788. */
+        "afisha-article": px(webEventDetail.leftWidth),
         modal: px(webLayout.modalWidth),
         /** Блок успеха и карточка-билет — оба 720 (узлы 3525:15022 и
          * 3525:15028). */
