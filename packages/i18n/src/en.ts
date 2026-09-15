@@ -2967,8 +2967,6 @@ export const en: LocaleOverride<Dictionary> = {
         guestsHint: "More than 8 guests — we will book that by phone",
         fewer: "Fewer guests",
         more: "More guests",
-        zonesUnavailable:
-          "The venue does not publish seating areas yet. Write your preference below — it travels with the booking.",
       },
       contacts: {
         title: "Contact details",
