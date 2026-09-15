@@ -270,10 +270,6 @@ export function PartyCard({
             </StepperButton>
           </div>
         </div>
-
-        {/* Место трёх карточек зон (узел 3525:14879). Данных о зонах у сервера
-            нет, и об этом сказано словами, а не пустотой. */}
-        <StateMessage text={texts.zonesUnavailable} />
       </div>
     </FormCard>
   );

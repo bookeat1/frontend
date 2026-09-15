@@ -20,10 +20,18 @@ import { usePromo, useVenue } from "@web/lib/queries";
  * заведение. Секции, мини-карточка заведения, контакты и правая карточка —
  * ОБЩИЕ компоненты с `EventScreen` (`components/events/{EventVenueBlocks,
  * BookCard}.tsx`); отличия только в данных: нет тегов, вместо даты события —
- * «до {ends_at}», бейдж «−N%», секция «Об акции» вместо «Об афише», секция
- * «Как воспользоваться» при непустом `terms` (переименована из «Условия» по
- * узлу 5224:19299 — правка владельца от 2026-09-15) и юридическая сноска под
- * ней, которая показывается всегда, независимо от `terms`/заведения.
+ * «до {ends_at}», бейдж «−N%», секция «Об акции» с `promo.description`,
+ * секция «Как воспользоваться» при непустом `terms` (переименована из
+ * «Условия» — правка владельца от 2026-09-15) и юридическая сноска под ней,
+ * которая показывается всегда, независимо от `terms`/заведения.
+ *
+ * СЕКЦИЯ «ОБ АКЦИИ»: в узле 5224:19299 («WEB / 11 · Акции заведения») её
+ * действительно нет — макет идёт сразу обложка → «Как воспользоваться»
+ * (снято и подтверждено 2026-09-15, PR #217 её по этой причине убрал).
+ * Владелец, увидев результат на тесте, ОСОЗНАННО отступил от буквального
+ * макета и попросил вернуть секцию обратно (2026-09-15): без описания
+ * непонятно, о чём вообще акция. Не убирать снова со ссылкой на узел —
+ * это уже разбиралось.
  *
  * ОБЛОЖКА — по узлу 5115:7645 («WEB / 11 · Акции заведения», Figma
  * `qmMsg4jO1ggmyEHNIAD2ll`, снят 2026-09-07): название и подпись лежат
@@ -131,10 +139,31 @@ function PromoBody({ promo }: { promo: Promo }) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-        <article className="flex min-w-0 flex-1 flex-col gap-8">
+        {/* У акции без заведения `BookCard` не рендерится ниже, и `flex-1`
+            без соседа растягивает колонку на всю ширину контейнера (1200),
+            хотя обложка/текст в макете — 788 (`webEventDetail.leftWidth`,
+            узел 5033:6922), отцентрованные по горизонтали внутри контейнера
+            (`Предложения`, узел 5224:19305, `counterAxisAlignItems: CENTER`)
+            — `max-w` без `mx-auto` просто прижимает колонку к левому краю,
+            владелец заметил это на тесте 2026-09-15. Ограничиваем и
+            центрируем только на этой ветке: когда заведение есть, колонка
+            по-прежнему делит место с `BookCard`, там центровка не нужна. */}
+        <article
+          className={
+            venue
+              ? "flex min-w-0 flex-1 flex-col gap-8"
+              : "flex min-w-0 flex-1 flex-col gap-8 lg:max-w-afisha-article lg:mx-auto"
+          }
+        >
           <div className="flex flex-col gap-4">
             <div className="relative aspect-home-cover w-full overflow-hidden rounded-2xl bg-muted lg:aspect-auto lg:h-afisha-cover">
-              <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={COVER_SIZES} priority />
+              <RemoteImage
+                src={promo.coverImageUrl}
+                alt={promo.title}
+                sizes={COVER_SIZES}
+                priority
+                fit="letterboxed"
+              />
               {/* Затемнение снизу вверх — тот же приём, что у карточки акции на
                   главной (`PromoCard`, `home/Cards.tsx`): название и подпись
                   лежат ПОВЕРХ фотографии, а не отдельным блоком под ней (узел
