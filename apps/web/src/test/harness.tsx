@@ -7,15 +7,7 @@ import type {
   Booking,
   DayAvailability,
   EventSummary,
-  GuideCategory,
   GuideCollection,
-  GuideCollectionDetail,
-  GuideCollectionVenue,
-  MenuDish,
-  MenuSection,
-  PlatformPage,
-  Preorder,
-  Promo,
   Restaurant,
   RestaurantRepository,
   RestaurantSummary,
@@ -95,21 +87,6 @@ export function venueDetail(overrides: Partial<Restaurant> = {}): Restaurant {
   } as Restaurant;
 }
 
-/** Одно блюдо полного меню (страница «Меню {заведение}»,
- * `VenueMenuScreen.tsx`) — отдельный тип от `MenuHighlight`, у карточек
- * «Популярное в меню» на странице заведения. */
-export function menuDish(overrides: Partial<MenuDish> = {}): MenuDish {
-  return {
-    id: "dish-1",
-    name: "Тартар из лосося",
-    description: "Лосось, авокадо, цитрусовая заправка",
-    priceMinor: 540000,
-    imageUrl: null,
-    isAvailable: true,
-    ...overrides,
-  };
-}
-
 /**
  * Один слот выдачи доступности. По умолчанию свободный: недоступность — это
  * то, что тест заявляет ЯВНО, вместе с причиной, потому что причин четыре и
@@ -158,28 +135,6 @@ export function booking(overrides: Partial<Booking> = {}): Booking {
   };
 }
 
-/** Предзаказ брони (`GET/PUT /bookings/:id/preorder`) — сумма ВСЕГДА
- * серверная (`totalMinor`), даже в фикстуре она не выводится из строк. */
-export function preorder(overrides: Partial<Preorder> = {}): Preorder {
-  return {
-    bookingId: "booking-1",
-    items: [
-      {
-        id: "item-1",
-        menuItemId: "dish-1",
-        name: "Стейк рибай",
-        priceMinor: 899000,
-        quantity: 2,
-        totalMinor: 1798000,
-        comment: null,
-      },
-    ],
-    totalMinor: 1798000,
-    currency: "KZT",
-    ...overrides,
-  };
-}
-
 /**
  * Репозиторий целиком из `vi.fn()`. Экран может дёрнуть любой метод — тест
  * подменяет только те, которые ему интересны, а остальные не падают с
@@ -196,18 +151,8 @@ export function repositoryStub(
     getPromotions: vi.fn(async () => []),
     listUpcomingEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 3 })),
     getGuideCollections: vi.fn(async () => []),
-    getGuideCategories: vi.fn(async () => []),
-    listArticles: vi.fn(async () => []),
-    getArticle: vi.fn(async () => articleDetail()),
-    getPage: vi.fn(async () => sitePage()),
-    // Гастропрогулки страницы `/guide` — по городу, как у приложения.
-    getGuideRoutes: vi.fn(async () => []),
     searchRestaurants: vi.fn(async (query) => ({ query, items: [], total: 0 })),
     getRestaurant: vi.fn(async () => venueDetail()),
-    // Полное меню — страница «Меню {заведение}» (`VenueMenuScreen.tsx`).
-    getMenuSections: vi.fn(async () => [] as MenuSection[]),
-    getEvent: vi.fn(async () => eventSummary()),
-    getPromo: vi.fn(async () => promoDetail()),
     getMapPreviewUrl: vi.fn(() => undefined),
     // Избранное. Стоит здесь, а не только в тестах страницы заведения: экран
     // спрашивает его сам, и тест «кнопка не ходила в сеть» должен иметь что
@@ -226,10 +171,6 @@ export function repositoryStub(
     // Страница гостя: список броней и отмена.
     listMyBookings: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 50 })),
     cancelBooking: vi.fn(async () => booking({ status: "cancelled" })),
-    // Предзаказ: `setPreorder` — второй запрос после создания брони,
-    // `getPreorder` — блок «Предзаказ» на `/bookings/[id]`.
-    setPreorder: vi.fn(async () => preorder()),
-    getPreorder: vi.fn(async () => preorder({ items: [], totalMinor: 0 })),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
 }
@@ -255,27 +196,6 @@ export function eventSummary(overrides: Partial<EventSummary> = {}): EventSummar
     restaurant: { id: "r-1", name: "INZHU Terrace", city: "almaty" },
     tags: ["Живая музыка", "Терраса", "Бранч"],
     recurrenceId: null,
-    action: null,
-    ...overrides,
-  };
-}
-
-/** Акция — узел 5033:6922 в раскладке T1b: те же секции, что у события,
- * скидка и условия вместо тегов. */
-export function promoDetail(overrides: Partial<Promo> = {}): Promo {
-  return {
-    id: "promo-1",
-    restaurantId: "r-1",
-    restaurant: { id: "r-1", name: "INZHU Terrace", city: "almaty" },
-    title: "−20% на сет для двоих",
-    description: "",
-    terms: "",
-    startsAt: "2026-05-01T00:00:00+05:00",
-    endsAt: "2026-05-31T23:59:00+05:00",
-    coverImageUrl: null,
-    images: [],
-    discountPercent: 20,
-    city: null,
     ...overrides,
   };
 }
@@ -291,61 +211,6 @@ export function guideCollection(overrides: Partial<GuideCollection> = {}): Guide
     coverImageUrl: null,
     venueCount: 5,
     categorySlugs: [],
-    ...overrides,
-  };
-}
-
-/** Рубрика справочника (`GET /gastroguide/categories`) — источник надписи
- * плитки на странице `/guide`. */
-export function guideCategory(overrides: Partial<GuideCategory> = {}): GuideCategory {
-  return {
-    slug: "food",
-    title: "Еда",
-    position: 0,
-    ...overrides,
-  };
-}
-
-/** Блок заведения внутри статьи — как узел 5033:7485: событие с двумя фото. */
-export function guideVenue(overrides: Partial<GuideCollectionVenue> = {}): GuideCollectionVenue {
-  return {
-    restaurantId: "r-mongol",
-    name: "Mongol Bar",
-    note: "",
-    address: "Курмангазы, 43",
-    cuisineType: "Бар",
-    city: "Алматы",
-    priceCategory: "₸₸",
-    imageUrl: null,
-    instagram: "@mongol.almaty",
-    highlight: {
-      kind: "event",
-      id: "e-1",
-      title: "Коктейльная среда",
-      description: "Традиция середины недели.",
-      startsAt: "",
-      coverImageUrl: null,
-      images: [],
-    },
-    ...overrides,
-  };
-}
-
-/** Одна из семи текстовых страниц платформы — `GET /pages/:slug` (T4). */
-export function sitePage(overrides: Partial<PlatformPage> = {}): PlatformPage {
-  return {
-    slug: "offer",
-    title: "Оферта",
-    body: "Текст публичной оферты.",
-    ...overrides,
-  };
-}
-
-/** Статья с одним блоком — `GET /articles/:slug`. */
-export function articleDetail(overrides: Partial<GuideCollectionDetail> = {}): GuideCollectionDetail {
-  return {
-    ...guideCollection({ slug: "week-picks", kind: "article", title: "Куда сходить на неделе", subtitle: "" }),
-    venues: [guideVenue()],
     ...overrides,
   };
 }

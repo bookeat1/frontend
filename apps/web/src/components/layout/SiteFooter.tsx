@@ -1,12 +1,8 @@
 "use client";
 
-import Link from "next/link";
-
 import { Container } from "@web/components/layout/Container";
-import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { cx } from "@web/lib/cx";
-import { useT, WEB_LOCALE_LABELS, type WebLocale } from "@web/lib/locale";
-import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/lib/site-links";
+import { useT, type WebLocale } from "@web/lib/locale";
 
 /**
  * Подвал сайта. Figma 3z0f6dgev4HMwBAHPjTjPo, «Web / Footer» (узел 3256:77):
@@ -20,23 +16,7 @@ import { BUSINESS_URL, CABINET_URL, PRICING_URL, SITE_PAGE_PATHS } from "@web/li
  * Языки — те три, что реально собраны в вебе (ru/kk/en). Остальные локали
  * `@bookeat/i18n` существуют для мобильного приложения; выдавать их здесь за
  * доступные было бы обещанием, которого веб пока не держит.
- *
- * Колонка «Ресторанам» (T3, спека `web-fixes-20260906.md`) ведёт на внешний
- * лендинг для бизнеса и боевой кабинет (`RESTAURANT_LINKS`). Пункта
- * «Поддержка» в колонке нет вовсе — владелец попросил отложить его до
- * появления номера WhatsApp-бота; рисовать мёртвую ссылку не нужно.
- *
- * Колонки «Компания»/«Помощь» (T4) ведут на семь текстовых страниц платформы
- * там, где для ключа есть слаг в `FOOTER_KEY_TO_PAGE_SLUG`; ключи без слуга
- * (заведения, афиша, гастрогид, брони, избранное, блог) остаются заглушкой
- * `href="#"` — это отдельные разделы сайта, не задача T4.
  */
-const RESTAURANT_LINKS = {
-  connect: BUSINESS_URL,
-  pricing: PRICING_URL,
-  cabinet: CABINET_URL,
-} as const;
-
 export interface SiteFooterProps {
   /** Активный язык. Меняется здесь же, в нижней строке подвала. */
   locale?: WebLocale;
@@ -44,27 +24,12 @@ export interface SiteFooterProps {
   className?: string;
 }
 
-/**
- * Ключи словаря `t.web.footer.company`/`.help`, у которых уже есть настоящая
- * страница (T4). Остальные пункты подвала (заведения, афиша, гастрогид,
- * брони, избранное, «Подключить заведение», тарифы, кабинет, поддержка,
- * блог) — это T3, отдельная задача (см. `bookeat-web-scope.md`); их ссылки
- * здесь намеренно не трогаем и оставляем как были.
- */
-const FOOTER_KEY_TO_PAGE_SLUG = {
-  about: "about",
-  jobs: "jobs",
-  contacts: "contacts",
-  how: "how-it-works",
-  cancel: "cancellation",
-  offer: "offer",
-  privacy: "privacy",
-} as const;
-
 const LOCALES: ReadonlyArray<{ code: WebLocale; label: string }> = [
-  { code: "kk", label: WEB_LOCALE_LABELS.kk },
-  { code: "ru", label: WEB_LOCALE_LABELS.ru },
-  { code: "en", label: WEB_LOCALE_LABELS.en },
+  // Собственное имя языка не переводится: «Қазақша» читается одинаково в
+  // любой локали. Поэтому подписи стоят здесь, а не в словаре.
+  { code: "kk", label: "Қазақша" },
+  { code: "ru", label: "Русский" },
+  { code: "en", label: "English" },
 ];
 
 export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFooterProps) {
@@ -100,55 +65,25 @@ export function SiteFooter({ locale = "ru", onLocaleChange, className }: SiteFoo
             </ul>
           </div>
 
-          {columns.map((column) => {
-            // «Ресторанам» — единственная колонка с внешними ссылками
-            // (см. RESTAURANT_LINKS выше); ключ "support" в словаре
-            // остаётся, но сюда сознательно не входит (T3).
-            const isRestaurants = column === t.web.footer.restaurants;
-            const restaurantEntries = isRestaurants
-              ? (Object.keys(RESTAURANT_LINKS) as Array<keyof typeof RESTAURANT_LINKS>).map((key) => ({
-                  key,
-                  label: t.web.footer.restaurants[key],
-                  href: RESTAURANT_LINKS[key],
-                }))
-              : [];
-            const linkClassName =
-              "text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
-
-            return (
-              <nav key={column.title} aria-label={column.title} className="flex flex-col gap-3">
-                <h2 className="text-[15px] font-semibold leading-[22px] text-ink-on-inverse">{column.title}</h2>
-                <ul className="flex flex-col gap-3">
-                  {isRestaurants
-                    ? restaurantEntries.map(({ key, label, href }) => (
-                        <li key={key}>
-                          <ExternalLink href={href} label={label} className={linkClassName}>
-                            {label}
-                          </ExternalLink>
-                        </li>
-                      ))
-                    : Object.entries(column)
-                        .filter(([key]) => key !== "title")
-                        .map(([key, label]) => {
-                          const slug = FOOTER_KEY_TO_PAGE_SLUG[key as keyof typeof FOOTER_KEY_TO_PAGE_SLUG];
-                          return (
-                            <li key={key}>
-                              {slug ? (
-                                <Link href={SITE_PAGE_PATHS[slug]} className={linkClassName}>
-                                  {label}
-                                </Link>
-                              ) : (
-                                <a href="#" className={linkClassName}>
-                                  {label}
-                                </a>
-                              )}
-                            </li>
-                          );
-                        })}
-                </ul>
-              </nav>
-            );
-          })}
+          {columns.map((column) => (
+            <nav key={column.title} aria-label={column.title} className="flex flex-col gap-3">
+              <h2 className="text-[15px] font-semibold leading-[22px] text-ink-on-inverse">{column.title}</h2>
+              <ul className="flex flex-col gap-3">
+                {Object.entries(column)
+                  .filter(([key]) => key !== "title")
+                  .map(([key, label]) => (
+                    <li key={key}>
+                      <a
+                        href="#"
+                        className="text-[14px] leading-[22px] text-ink-on-inverse-muted hover:text-ink-on-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      >
+                        {label}
+                      </a>
+                    </li>
+                  ))}
+              </ul>
+            </nav>
+          ))}
         </div>
 
         {/* Линия и нижняя строка — такие же дети подвала, как колонки: между

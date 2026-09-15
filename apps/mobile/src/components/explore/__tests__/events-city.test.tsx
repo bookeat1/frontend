@@ -63,7 +63,6 @@ function pageFor(city: string): EventPage {
         restaurant: { id: "r1", name: "INZHU", city },
         tags: [],
         recurrenceId: null,
-        action: null,
       },
     ],
     total: 1,
@@ -110,7 +109,7 @@ describe("«Афиша» и город гостя", () => {
     expect(listUpcomingEvents).toHaveBeenCalledWith(
       expect.objectContaining({ city: "Астана" }),
     );
-    expect(result.current.data?.items[0]?.restaurant?.city).toBe("Астана");
+    expect(result.current.data?.items[0]?.restaurant.city).toBe("Астана");
   });
 
   it("после смены города переспрашивает — прежняя страница не остаётся на экране", async () => {

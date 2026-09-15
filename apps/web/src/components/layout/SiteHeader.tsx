@@ -4,11 +4,9 @@ import Link from "next/link";
 
 import { Container } from "@web/components/layout/Container";
 import { BrandLogo } from "@web/components/layout/BrandLogo";
-import { ExternalLink } from "@web/components/layout/ExternalLink";
 import { Button } from "@web/components/ui/Button";
 import { cx } from "@web/lib/cx";
 import { useT } from "@web/lib/locale";
-import { BUSINESS_URL } from "@web/lib/site-links";
 
 /**
  * Шапка сайта — экземпляр «Web» на кадре главной, Figma
@@ -29,7 +27,7 @@ import { BUSINESS_URL } from "@web/lib/site-links";
  * шапка живёт в клиентском дереве, где язык может смениться в любой момент,
  * и заранее посчитанная подпись осталась бы на прежнем языке.
  */
-export type NavKey = "home" | "venues" | "events" | "guide" | "articles";
+export type NavKey = "home" | "venues" | "guide";
 
 export interface NavItem {
   key: NavKey;
@@ -54,23 +52,23 @@ export interface SiteHeaderProps {
 }
 
 /**
- * Пункт «Для бизнеса» (узел 3549:5740). Был скрыт 30.08.2026, пока на сайте
- * не было своей страницы `/business`, и ссылка вела в 404 Next. Решение
- * 2026-09-06 (спека `web-fixes-20260906.md`, T3): своей страницы по-прежнему
- * нет, но она и не нужна — ссылка ведёт на готовый лендинг для бизнеса
- * `book-eat.app` (`BUSINESS_URL`, `@web/lib/site-links`), внешняя, в новой
- * вкладке.
+ * ВРЕМЕННО: пункт «Для бизнеса» убран из шапки по решению владельца
+ * (30.08.2026) — страницы `/business` ещё нет, и ссылка вела в 404 Next.
+ * Возврат — ОДНА строка: поставить здесь `true`. Ни разметку, ни словарь
+ * (`t.web.header.forBusiness` во всех трёх языках) для этого трогать не надо.
+ *
+ * В макете (узел 3549:5740) ссылка ЕСТЬ — это расхождение сознательное.
  */
-export const SHOW_FOR_BUSINESS: boolean = true;
+export const SHOW_FOR_BUSINESS: boolean = false;
 
 /**
- * Имя вошедшего гостя ведёт на `/profile` (узел 3525:15153). Флаг был выключен,
- * пока роута `apps/web/app/profile/page.tsx` не существовало и клик по
- * собственному имени вёл в 404 Next; страница появилась 2026-09-05 (ветка
- * `feat/web-profile-screen`), и ссылка включена. Ветка с текстом вместо ссылки
- * оставлена: выключить обратно — одна строка.
+ * Имя вошедшего гостя ведёт на `/profile` (узел 3525:15153). Роута
+ * `apps/web/app/profile/page.tsx` ещё НЕТ — эта ветка готовит только фундамент
+ * страницы, — поэтому со включённой ссылкой каждый вошедший гость получал бы
+ * 404 Next по клику на собственное имя. Пока флаг выключен, имя остаётся
+ * обычным текстом; включить одной строкой вместе с PR самой страницы.
  */
-export const SHOW_PROFILE_LINK: boolean = true;
+export const SHOW_PROFILE_LINK: boolean = false;
 
 /**
  * Пункты ровно в порядке макета (узел 3549:5727) — их ТРИ: «Главная»,
@@ -85,11 +83,7 @@ export const SHOW_PROFILE_LINK: boolean = true;
 export const HEADER_NAV: readonly NavItem[] = [
   { key: "home", href: "/" },
   { key: "venues", href: "/venues" },
-  // «Афиша» — роут /events появился 2026-09-05 (узел 5033:6703).
-  { key: "events", href: "/events" },
   { key: "guide", href: "/guide" },
-  /** Пункт «Статьи» (узел I5034:9889;5034:8724): роут `/articles` есть. */
-  { key: "articles", href: "/articles" },
 ];
 
 export function SiteHeader({
@@ -183,13 +177,12 @@ export function SiteHeader({
             </button>
           ) : null}
           {SHOW_FOR_BUSINESS ? (
-            <ExternalLink
-              href={BUSINESS_URL}
-              label={t.web.header.forBusiness}
+            <Link
+              href="/business"
               className="px-2.5 py-2.5 text-[14px] font-medium leading-5 text-ink-secondary hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {t.web.header.forBusiness}
-            </ExternalLink>
+            </Link>
           ) : null}
           {account === undefined ? (
             // Сессия ещё читается из localStorage. Место под кнопку держим,
@@ -199,8 +192,8 @@ export function SiteHeader({
             <>
               {/* Имя — ссылка на страницу гостя (`/profile`, узел 3525:15153).
                   В макете шапки вошедшего нет вовсе, поэтому ссылка стоит на
-                  месте, где макет главной рисует «Войти». Текстом имя
-                  показывается только с выключенным SHOW_PROFILE_LINK. */}
+                  месте, где макет главной рисует «Войти». Пока роута нет,
+                  показываем имя текстом — см. SHOW_PROFILE_LINK. */}
               {SHOW_PROFILE_LINK ? (
                 <Link
                   href="/profile"

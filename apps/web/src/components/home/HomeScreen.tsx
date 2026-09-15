@@ -7,14 +7,10 @@ import { webAppSection } from "@bookeat/design-tokens";
 import { Section, SectionHeader } from "@web/components/home/SectionHeader";
 import {
   EVENTS_PATH,
-  EVENT_CARD_IMAGE,
   EventCard,
-  GUIDE_CARD_IMAGE,
   GUIDE_PATH,
   GuideCard,
-  PROMO_CARD_FRAME,
   PromoCard,
-  SHOW_EVENTS_LINK,
   SHOW_SECTION_LINKS,
   guideCollectionHref,
 } from "@web/components/home/Cards";
@@ -27,7 +23,6 @@ import { VenueCard } from "@web/components/ui/VenueCard";
 import { Button } from "@web/components/ui/Button";
 import { assetUrl } from "@web/lib/asset";
 import { useCity } from "@web/lib/city";
-import { cx } from "@web/lib/cx";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
 import { useFavoriteControl } from "@web/lib/favorites";
 import { venueMeta } from "@web/lib/format";
@@ -125,6 +120,7 @@ export function HomeScreen() {
                       meta={venueMeta(venue, t)}
                       imageUrl={venue.coverPhoto?.uri}
                       href={`/venues/${venue.id}`}
+                      tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
                       {...favoriteProps(venue.id)}
                     />
                   </li>
@@ -147,7 +143,7 @@ export function HomeScreen() {
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {PLACEHOLDERS.slice(0, 3).map((key) => (
-                  <Skeleton key={key} className={cx(PROMO_CARD_FRAME, "rounded-card")} />
+                  <Skeleton key={key} className="h-[260px] rounded-card" />
                 ))}
               </div>
             }
@@ -192,6 +188,7 @@ export function HomeScreen() {
                         meta={venueMeta(venue, t)}
                         imageUrl={venue.coverPhoto?.uri}
                         href={`/venues/${venue.id}`}
+                        tag={venue.acceptsOnlineBookings ? t.web.catalog.card.bookable : undefined}
                         {...favoriteProps(venue.id)}
                       />
                     </li>
@@ -224,7 +221,7 @@ export function HomeScreen() {
           <SectionHeader
             title={t.web.home.events.title}
             subtitle={t.web.home.events.subtitle}
-            linkHref={SHOW_EVENTS_LINK ? EVENTS_PATH : undefined}
+            linkHref={SHOW_SECTION_LINKS ? EVENTS_PATH : undefined}
             linkLabel={t.web.home.events.all}
           />
           <AsyncBlock
@@ -233,7 +230,7 @@ export function HomeScreen() {
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {PLACEHOLDERS.slice(0, 3).map((key) => (
-                  <CardSkeleton key={key} image={EVENT_CARD_IMAGE} body="h-event-body" />
+                  <Skeleton key={key} className="h-event-card rounded-card" />
                 ))}
               </div>
             }
@@ -265,7 +262,7 @@ export function HomeScreen() {
             skeleton={
               <div className="grid grid-cols-1 gap-gutter md:grid-cols-2">
                 {PLACEHOLDERS.slice(0, 2).map((key) => (
-                  <CardSkeleton key={key} image={GUIDE_CARD_IMAGE} body="h-guide-body" />
+                  <Skeleton key={key} className="h-[464px] rounded-card" />
                 ))}
               </div>
             }
@@ -301,22 +298,6 @@ const HOME_CATALOG_LIMIT = 8;
 
 /** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
 const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
-
-/**
- * Скелет карточки события и подборки: обложка + тело, собранные из ТЕХ ЖЕ
- * классов, что и настоящая карточка (`Cards.tsx`). Ниже `lg` обложка
- * держит мобильную пропорцию, и высота карточки зависит от ширины колонки —
- * одним числом её не описать, а скелет другой высоты заставил бы страницу
- * прыгать при появлении данных.
- */
-function CardSkeleton({ image, body }: { image: string; body: string }) {
-  return (
-    <div aria-hidden="true" className="flex flex-col overflow-hidden rounded-card">
-      <Skeleton className={cx("rounded-none", image)} />
-      <Skeleton className={cx("rounded-none", body)} />
-    </div>
-  );
-}
 
 function VenueGridSkeleton() {
   return (
@@ -358,10 +339,7 @@ function Hero() {
       <div aria-hidden="true" className="absolute inset-0 bg-hero-scrim" />
       <Container className="relative flex flex-col gap-hero-gap py-hero-y">
         <div className="flex max-w-[640px] flex-col gap-3">
-          {/* 48/52 из макета — только с `lg`; ниже кегль мобильной шапки
-              главной (`webHero.mobileTitleFontSize`, docs/responsive.md § 5,
-              дыра № 4): три строки по 48 съедали весь первый экран. */}
-          <h1 className="text-hero-title-mobile text-ink-on-inverse lg:text-hero-title">
+          <h1 className="text-[48px] font-bold leading-[52px] text-ink-on-inverse">
             {t.web.home.hero.title}
           </h1>
           <p className="text-[18px] leading-7 text-ink-on-inverse">{t.web.home.hero.subtitle}</p>
@@ -446,9 +424,7 @@ function AppSection() {
     <section className="relative w-full overflow-hidden bg-app-section">
       <Container className="relative flex flex-col gap-6 py-app-y">
         <div className="flex max-w-[720px] flex-col gap-2">
-          {/* 38/46 из макета — только с `lg` (дыра № 5); ниже — тот же
-              мобильный кегль, что у героя. */}
-          <h2 className="text-app-title-mobile tracking-[-0.6px] text-ink-on-inverse lg:text-app-title">
+          <h2 className="text-[38px] font-bold leading-[46px] tracking-[-0.6px] text-ink-on-inverse">
             {t.web.home.app.title}
           </h2>
           <p className="text-[17px] leading-[26px] text-on-brand-muted">{t.web.home.app.text}</p>

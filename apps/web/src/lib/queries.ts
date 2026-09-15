@@ -1,49 +1,31 @@
 "use client";
 
 import {
-  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
-  type UseInfiniteQueryResult,
-  type InfiniteData,
   type UseQueryResult,
 } from "@tanstack/react-query";
 import type {
   Amenity,
-  AuthUser,
   Booking,
   BookingPage,
   CreateBookingInput,
   RescheduleBookingInput,
   Cuisine,
   DayAvailability,
-  EventPage,
   EventSummary,
-  GuideCategory,
   GuideCollection,
-  GuideCollectionDetail,
-  GuideRoute,
-  GuideRouteDetail,
   HomePromo,
-  MenuSection,
-  PlatformPage,
-  PlatformPageSlug,
-  Preorder,
-  PreorderLineInput,
-  ProfileUpdate,
-  Promo,
   Restaurant,
   RestaurantSummary,
   SearchQuery,
   SearchResult,
 } from "@bookeat/api/client";
-import { RepositoryError } from "@bookeat/api/client";
 
-import { authRepository, isApiConfigured, repository } from "@web/lib/api";
-import { isNotFound } from "@web/lib/not-found";
+import { isApiConfigured, repository } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
-import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
+import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -111,161 +93,12 @@ export function useEvents(city: string | undefined): UseQueryResult<EventSummary
   });
 }
 
-/** Страница афиши: сетка 3×2 (узел 5033:6737), «Показать ещё» грузит следующую. */
-export const EVENTS_PAGE_SIZE = 6;
-
-/**
- * Полная афиша /events. Бесконечный запрос: страницы накапливаются, кнопка
- * «Показать ещё» дёргает `fetchNextPage`. Сервер отдаёт события по возрастанию
- * даты начала, фильтра по тегу у `GET /events` нет — чипы фильтруют на клиенте
- * то, что уже загружено (см. EventsScreen).
- */
-export function useEventsFeed(
-  city: string | undefined,
-): UseInfiniteQueryResult<InfiniteData<EventPage>> {
-  const { locale } = useLocale();
-  return useInfiniteQuery({
-    queryKey: [locale, "events-feed", city],
-    queryFn: ({ pageParam }) =>
-      repository.listUpcomingEvents({ city, page: pageParam, perPage: EVENTS_PAGE_SIZE }),
-    initialPageParam: 1,
-    getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
-    enabled: isApiConfigured && Boolean(city),
-  });
-}
-
-/**
- * Одно событие для `/events/[id]` (T1). `GET /events/:eventId` — прямая
- * ручка (`internal/transport/rest/events/handler.go:42`), листинг больше не
- * перебирается. Работает и для события платформы (нет `restaurantId`) — это
- * единственная публичная ручка, которая его вообще открывает.
- *
- * 404 не пересылается повтором — тот же приём, что у `useArticle`: отказ
- * (снято с публикации / чужой id) это честное «не найдено», а не сбой связи.
- */
-export function useEvent(id: string): UseQueryResult<EventSummary> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "event", id],
-    queryFn: () => repository.getEvent(id),
-    enabled: isApiConfigured && id.length > 0,
-    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
-  });
-}
-
-/**
- * Одна акция для `/promos/[id]` (T1b). `GET /promos/:promoId` — прямая ручка,
- * работает и для акции платформы (нет `restaurantId`). Те же правила отказа,
- * что у `useEvent`.
- */
-export function usePromo(id: string): UseQueryResult<Promo> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "promo", id],
-    queryFn: () => repository.getPromo(id),
-    enabled: isApiConfigured && id.length > 0,
-    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
-  });
-}
-
 export function useGuideCollections(): UseQueryResult<GuideCollection[]> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "guide-collections"],
     queryFn: () => repository.getGuideCollections(),
     enabled: isApiConfigured,
-  });
-}
-
-/**
- * Справочник рубрик гастрогида — `GET /gastroguide/categories`. Единственный
- * источник ЧЕЛОВЕЧЕСКОГО названия рубрики («Казахская кухня» и т. п.);
- * подборка знает только слаг (`categorySlugs`). Один запрос на страницу
- * (кэш общий у всех плиток), `staleTime` тот же, что у подборок — справочник
- * меняется не чаще редакционного контента. Локаль — в ключе: сервер переводит
- * `title` по `Accept-Language`.
- */
-export function useGuideCategories(): UseQueryResult<GuideCategory[]> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "guide-categories"],
-    queryFn: () => repository.getGuideCategories(),
-    enabled: isApiConfigured,
-    staleTime: 5 * 60_000,
-  });
-}
-
-/** Раздел «Статьи» — `GET /articles`, только `kind: "article"` (см.
- * `RestaurantRepository.listArticles`). Тот же запрос, что читает приложение. */
-export function useArticles(): UseQueryResult<GuideCollection[]> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "articles"],
-    queryFn: () => repository.listArticles(),
-    enabled: isApiConfigured,
-  });
-}
-
-/** Одна статья с блоками заведений — `GET /articles/:slug`. Слаг глобально
- * уникален, поэтому старая ссылка на подборку тоже откроется здесь. */
-export function useArticle(slug: string): UseQueryResult<GuideCollectionDetail> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "article", slug],
-    queryFn: () => repository.getArticle(slug),
-    enabled: isApiConfigured && slug.length > 0,
-    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
-  });
-}
-
-/**
- * Одна из семи редактируемых текстовых страниц платформы (T4,
- * `GET /pages/:slug`) — «Как это работает», «Отмена брони», «Оферта»,
- * «Политика данных», «Контакты», «Вакансии», «О BookEat». Неопубликованная
- * страница — 404, повтор запроса на 404 бессмысленен (ровно как у статьи).
- */
-export function useSitePage(slug: PlatformPageSlug): UseQueryResult<PlatformPage> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "site-page", slug],
-    queryFn: () => repository.getPage(slug),
-    enabled: isApiConfigured,
-    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
-  });
-}
-
-/**
- * Гастропрогулки `GET /gastroguide/routes?city=` — зеркало
- * `useGuideRoutes` из `apps/mobile/src/components/explore/use-explore-data.ts`:
- * маршруты городские, поэтому город входит в ключ, а без города запрос не
- * уходит (в приложении то же условие `enabled: city.length > 0`).
- */
-export function useGuideRoutes(city: string | undefined): UseQueryResult<GuideRoute[]> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "guide-routes", city],
-    queryFn: () => repository.getGuideRoutes(city ?? ""),
-    enabled: isApiConfigured && Boolean(city),
-  });
-}
-
-/**
- * Один маршрут с остановками для `/routes/[slug]` (T — «Маршруты», Figma
- * `qmMsg4jO1ggmyEHNIAD2ll`, узел 5078:5976). `GET /gastroguide/routes/:slug` —
- * зеркало `useGuideRoute` из
- * `apps/mobile/src/components/explore/use-explore-data.ts`. Свой ключ кэша,
- * как у статьи: список и деталка разной формы, общий ключ позволил бы
- * дешёвому списку вытеснить дорогую деталку. 404 не пересылается повтором —
- * неизвестный слаг, черновик и снятый с публикации маршрут дают одинаковый
- * ответ, это честное «не найдено», а не сбой связи.
- */
-export function useGuideRoute(slug: string): UseQueryResult<GuideRouteDetail> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "guide-route", slug],
-    queryFn: () => repository.getGuideRoute(slug),
-    enabled: isApiConfigured && slug.length > 0,
-    retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
   });
 }
 
@@ -295,24 +128,6 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
     // 404 — это ответ, а не сбой связи: повторять его бессмысленно.
     retry: (failureCount, error) =>
       failureCount < 1 && !(error instanceof Error && "status" in error && error.status === 404),
-  });
-}
-
-/**
- * Полное меню заведения (`GET /restaurants/:id/menu`) — страница «Меню
- * {заведение}» (узел 5115:7448), не шесть карточек «Популярное в меню» на
- * самой странице заведения. Тот же запрос и та же форма ответа
- * (`MenuSection[]`), что у мобильного `useMenuSections`
- * (`apps/mobile/src/hooks/useBooking.ts`) — до ~300 блюд, разделы без блюд
- * сервер не отдаёт. Локаль в ключе: названия и описания блюд переводит
- * сервер по `Accept-Language`.
- */
-export function useMenuSections(id: string): UseQueryResult<MenuSection[]> {
-  const { locale } = useLocale();
-  return useQuery({
-    queryKey: [locale, "menu-sections", id],
-    queryFn: () => repository.getMenuSections(id),
-    enabled: isApiConfigured && id.length > 0,
   });
 }
 
@@ -452,70 +267,24 @@ export interface CreateBookingVariables {
    * автоматический повтор запроса дают гостю два стола.
    */
   idempotencyKey: string;
-  /**
-   * Черновик предзаказа гостя, если он есть (A-WEB-4). Отправляется ВТОРЫМ
-   * запросом, ПОСЛЕ того как бронь создана: `PUT /bookings/:id/preorder`
-   * бронь-скоуп, его нельзя позвать раньше, чем бронь появилась, а
-   * `POST /bookings` цену строк берёт от клиента (риск R-A2 спеки
-   * `venue-menu-stepper-promo-card`) — веб этим путём не пользуется.
-   */
-  preorder: PreorderLineInput[];
-}
-
-export interface CreateBookingOutcome {
-  booking: Booking;
-  /**
-   * Бронь создана, а прикрепить предзаказ не вышло (после одного повтора).
-   * Это НЕ отказ брони — стол за гостем остался, флоу идёт на страницу брони
-   * с честным уведомлением (A10).
-   */
-  preorderFailed: boolean;
-}
-
-/** Сетевой сбой или 5xx — стоит попробовать ещё раз; 4xx детерминирован
- * (стоп-лист, минимальная сумма, `preorder_locked`) — второй `PUT` даст тот
- * же ответ, значит достаточно один раз ("A10", 🟡 раздела 6 спеки). */
-function isRetryablePreorderFailure(error: unknown): boolean {
-  if (!(error instanceof RepositoryError)) return true;
-  return error.status === undefined || error.status >= 500;
 }
 
 /**
- * Создание брони гостем (`POST /bookings`), затем — если гость набрал
- * предзаказ — `PUT /bookings/:id/preorder` вторым запросом.
+ * Создание брони гостем (`POST /bookings`).
  *
- * `POST /bookings` уходит БЕЗ `items`: в макете карточки его нет, цену строк
- * должен посчитать сервер по своему меню, а не принять от клиента (A9).
+ * Предзаказа здесь нет намеренно: в макете карточки его нет, а `PUT
+ * /bookings/:id/preorder` — отдельный шаг после того, как бронь уже есть.
  *
- * Повторов у `POST /bookings` НЕТ. TanStack Query по умолчанию повторяет
- * неудачную мутацию ноль раз, и менять это нельзя: сеть могла оборваться
- * ПОСЛЕ того, как сервер принял запрос, и слепой повтор — это второй стол на
- * то же имя. От двойного нажатия защищает ключ идемпотентности, а не ретрай.
- *
- * У `PUT /bookings/:id/preorder` повтор ЕСТЬ, и он безопасен ровно потому,
- * что это идемпотентная ЗАМЕНА (не добавление) строк — в отличие от
- * `POST /bookings`.
+ * Повторов нет тоже. TanStack Query по умолчанию повторяет неудачную мутацию
+ * ноль раз, и менять это нельзя: сеть могла оборваться ПОСЛЕ того, как сервер
+ * принял запрос, и слепой повтор — это второй стол на то же имя. От двойного
+ * нажатия защищает ключ идемпотентности, а не ретрай.
  */
 export function useCreateBooking() {
   const client = useQueryClient();
-  return useMutation<CreateBookingOutcome, unknown, CreateBookingVariables>({
-    mutationFn: async ({ input, idempotencyKey, preorder }) => {
-      const booking = await repository.createBooking(input, idempotencyKey);
-      if (preorder.length === 0) {
-        return { booking, preorderFailed: false };
-      }
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          await repository.setPreorder(booking.id, preorder);
-          return { booking, preorderFailed: false };
-        } catch (error) {
-          if (attempt === 0 && isRetryablePreorderFailure(error)) continue;
-          return { booking, preorderFailed: true };
-        }
-      }
-      return { booking, preorderFailed: true };
-    },
-    onSuccess: ({ booking }) => {
+  return useMutation<Booking, unknown, CreateBookingVariables>({
+    mutationFn: ({ input, idempotencyKey }) => repository.createBooking(input, idempotencyKey),
+    onSuccess: (booking) => {
       // Слот, который заняла эта бронь, больше не свободен — всё, что лежит в
       // кэше по доступности этого заведения, стало неправдой.
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
@@ -523,28 +292,6 @@ export function useCreateBooking() {
       // в кэше она открывается без второго запроса и без скелета.
       client.setQueryData([...BOOKING_KEY, booking.id], booking);
     },
-  });
-}
-
-/**
- * Предзаказ уже созданной брони (`GET /bookings/:id/preorder`) — страница
- * «Бронь подтверждена», блок «Предзаказ» (A13). Сумма в ответе СЕРВЕРНАЯ
- * (`total_minor`), не оценка клиентского черновика.
- *
- * Отказ этого запроса не должен рушить страницу билета (A13) — вызывающий
- * читает `isError`/`data` сам и решает не показывать блок вовсе, билет при
- * этом остаётся на месте.
- */
-export function usePreorder(bookingId: string | undefined): UseQueryResult<Preorder> {
-  const { signedIn, isLoading } = useAuth();
-  return useQuery({
-    queryKey: [...PREORDER_KEY, bookingId],
-    queryFn: () => {
-      if (!bookingId) throw new Error("Missing booking id");
-      return repository.getPreorder(bookingId);
-    },
-    enabled: isApiConfigured && Boolean(bookingId) && signedIn && !isLoading,
-    retry: 1,
   });
 }
 
@@ -665,21 +412,5 @@ export function useCancelBooking() {
       void client.invalidateQueries({ queryKey: MY_BOOKINGS_KEY });
       void client.invalidateQueries({ queryKey: ["availability", booking.restaurantId] });
     },
-  });
-}
-
-/**
- * «Настройки» → «Личные данные» (`PATCH /users/me`). Единственные поля,
- * которые сервер реально принимает, — `fullName`/`city`/`birthDate`
- * (`ProfileUpdate`, `packages/api/src/types.ts`); телефон и почта на этом
- * экране только показываются — их меняют по-другому (код на телефон,
- * мобильное приложение).
- *
- * Кэш не инвалидируется — вызывающая сторона сама кладёт свежего пользователя
- * в `useAuth().applyUser`, это и есть источник правды для карточки гостя.
- */
-export function useUpdateProfile() {
-  return useMutation<AuthUser, unknown, ProfileUpdate>({
-    mutationFn: (input) => authRepository.updateMe(input),
   });
 }

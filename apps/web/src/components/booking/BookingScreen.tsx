@@ -14,12 +14,7 @@ import {
   type ContactsValue,
   type WishKey,
 } from "@web/components/booking/BookingCards";
-import {
-  BookingSummary,
-  type PreorderSummary,
-  type SummaryAction,
-  type SummaryRow,
-} from "@web/components/booking/BookingSummary";
+import { BookingSummary, type SummaryAction, type SummaryRow } from "@web/components/booking/BookingSummary";
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
@@ -41,11 +36,8 @@ import {
 import { bookingDateLabel, slotDateIso, slotTimeLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { isComplete, kzNationalDigits, toE164 } from "@web/lib/phone";
-import { draftToPreorderInput } from "@web/lib/preorder-draft";
-import { markPreorderFailed } from "@web/lib/preorder-failed-flag";
 import { useAvailability, useCreateBooking, useRescheduleBooking, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
-import { usePreorderDraft } from "@web/lib/use-preorder-draft";
 
 /**
  * Страница бронирования — Figma **QovvuAoI9YxsLMwWkfgKN8**, узел `3525:14815`
@@ -83,9 +75,7 @@ export function BookingScreen({ id }: { id: string }) {
   return (
     <SiteChrome active="venues">
       {/* Узел 3525:14817: 32 сверху, 80 снизу. */}
-      {/* Ниже `lg` кнопка отправки прибита к низу (`BottomBar` в сводке) —
-          под неё нужен просвет, как в приложении. С `lg` — 80 по макету. */}
-      <Container className="pb-bottom-bar-clearance pt-8 lg:pb-20">
+      <Container className="pb-20 pt-8">
         <div className="flex flex-col gap-6">
           <nav aria-label={t.web.venue.breadcrumbLabel} className="text-[13px] leading-[18px] text-ink-tertiary">
             <Link
@@ -263,7 +253,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   });
   const create = useCreateBooking();
   const reschedule = useRescheduleBooking();
-  const preorderDraft = usePreorderDraft(venue.id);
   const submitting = create.isPending || reschedule.isPending;
 
   const slots = availability.data?.slots;
@@ -380,18 +369,9 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           notes: composedNotes || undefined,
         },
         idempotencyKey,
-        preorder: draftToPreorderInput(preorderDraft.draft),
       },
       {
-        // A11: черновик заведения очищен И при успехе, И при `preorderFailed`
-        // (той же мутации) — редактировать предзаказ существующей брони на
-        // сайте негде, а утечка в следующую бронь хуже потери. Он НЕ чистится
-        // при отказе самого `POST` (та ветка идёт через `onError`, не сюда).
-        onSuccess: ({ booking, preorderFailed }) => {
-          preorderDraft.clear();
-          if (preorderFailed) markPreorderFailed(booking.id);
-          onSuccess(booking.id);
-        },
+        onSuccess: (booking) => onSuccess(booking.id),
         onError: (error) => setFailure(describeBookingFailure(error, t, () => setSlot(null))),
       },
     );
@@ -411,18 +391,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
       ? []
       : [{ label: t.web.booking.summary.wishesLabel, value: composedNotes || null }]),
   ];
-
-  /** `null` в режиме переноса: правка предзаказа существующей брони на сайте
-   * не сделана (спека `venue-menu-stepper-promo-card`, «вне скоупа»). */
-  const preorderSummary: PreorderSummary | null = rescheduleId
-    ? null
-    : {
-        lines: preorderDraft.draft.lines,
-        maxQty: preorderDraft.maxQty,
-        totalMinor: preorderDraft.totalMinor,
-        onIncrement: preorderDraft.increment,
-        onDecrement: preorderDraft.decrement,
-      };
 
   let action: SummaryAction;
   if (!signedIn && !authLoading) {
@@ -488,7 +456,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           reschedule={rescheduleId !== null}
           failure={failure}
           action={action}
-          preorder={preorderSummary}
         />
       </aside>
     </div>

@@ -48,7 +48,6 @@ function event(overrides: Partial<EventSummary> = {}): EventSummary {
     restaurant: { id: "r1", name: "INZHU", city: "Алматы" },
     tags: [],
     recurrenceId: null,
-    action: null,
     ...overrides,
   };
 }

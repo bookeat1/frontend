@@ -7,8 +7,7 @@ import { eventSummary, guideCollection, pending, renderScreen, repositoryStub } 
 
 /**
  * Ссылки «Вся афиша» / «Все подборки» и ссылка с карточки подборки живут за
- * флагом `SHOW_SECTION_LINKS` (роута `/guide` ещё нет; «Вся афиша» — за
- * отдельным `SHOW_EVENTS_LINK`, который включён). Проверяем
+ * флагом `SHOW_SECTION_LINKS` (роутов `/events` и `/guide` ещё нет). Проверяем
  * обе стороны флага: с включённым — ссылки есть и ведут куда надо, с
  * выключенным — их нет, но заголовки секций на месте.
  */
@@ -81,8 +80,7 @@ describe("ссылки секций главной", () => {
 
     expect(await screen.findByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Афиша" })).toBeTruthy();
-    // «Вся афиша» живёт за своим флагом SHOW_EVENTS_LINK: роут /events есть.
-    expect(screen.getByRole("link", { name: "Вся афиша" }).getAttribute("href")).toBe("/events");
+    expect(screen.queryByRole("link", { name: "Вся афиша" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Все подборки" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Зимние террасы" })).toBeNull();
   });

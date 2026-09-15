@@ -3,24 +3,17 @@ import {
   webAppSection,
   webBookingCard,
   webBookingFlow,
-  webBottomBar,
   webBookingTicket,
   webCatalog,
   webCatalogPagination,
   webColors,
   webControls,
   webCuisineTile,
-  webEventDetail,
   webHeader,
   webHero,
   webHomeEventCard,
-  webArticles,
-  webHomeGuideCard,
-  webGuidePage,
-  webHomePromoCard,
   webLayout,
   webLoginModal,
-  webOceanBasketPage,
   webProfile,
   webRadius,
   webSearchPanel,
@@ -52,28 +45,6 @@ const fontSize: Record<string, FontSizeEntry> = {
       ],
     ]),
   ),
-  /**
-   * Герой и секция «Приложение» главной. Кегли из Figma WEB (48/52 и 38/46)
-   * живут ТОЛЬКО под `lg:`; ниже — `*-mobile`, размер мобильной шапки
-   * главной (`webHero.mobileTitleFontSize`, см. комментарий в токене и
-   * `docs/responsive.md`, § 5, дыры № 4 и 5).
-   */
-  "hero-title": [
-    px(webHero.titleFontSize),
-    { lineHeight: px(webHero.titleLineHeight), fontWeight: "700" },
-  ],
-  "hero-title-mobile": [
-    px(webHero.mobileTitleFontSize),
-    { lineHeight: px(webHero.mobileTitleLineHeight), fontWeight: "700" },
-  ],
-  "app-title": [
-    px(webAppSection.titleFontSize),
-    { lineHeight: px(webAppSection.titleLineHeight), fontWeight: "700" },
-  ],
-  "app-title-mobile": [
-    px(webAppSection.mobileTitleFontSize),
-    { lineHeight: px(webAppSection.mobileTitleLineHeight), fontWeight: "700" },
-  ],
   /**
    * Карточка брони (узел 3525:14731). Своих строк в шкале кита у этих пар
    * нет — они сняты с текстовых узлов самой карточки, поэтому утилиты собраны
@@ -262,13 +233,6 @@ const config: Config = {
       "2xl": px(webLayout.breakpoints[0]),
     },
     extend: {
-      fontFamily: {
-        // Слоган гастрогида (5039:10252) — Playfair Display Italic, подключён
-        // локальным файлом через `next/font/local` (`app/layout.tsx`,
-        // переменная `--font-playfair-display`); Georgia/serif — фолбэк на
-        // случай, если переменная почему-то не долетела до узла.
-        serif: ["var(--font-playfair-display)", "Georgia", "serif"],
-      },
       colors: {
         canvas: webColors.background.canvas,
         subtle: webColors.background.subtle,
@@ -279,30 +243,6 @@ const config: Config = {
           DEFAULT: webColors.background.brand,
           subtle: webColors.background.brandSubtle,
           text: webColors.text.brand,
-        },
-        guide: {
-          gold: webGuidePage.gold,
-          pick: webGuidePage.editorPickFill,
-          "pick-subtitle": webGuidePage.editorPickSubtitle,
-        },
-        ocean: {
-          sheet: webOceanBasketPage.sheet,
-          navy: webOceanBasketPage.navy,
-          "navy-deep": webOceanBasketPage.navyDeep,
-          gold: webOceanBasketPage.gold,
-          "gold-muted": webOceanBasketPage.goldMuted,
-          "on-navy": webOceanBasketPage.onNavy,
-          muted: webOceanBasketPage.muted,
-          "card-border": webOceanBasketPage.cardBorder,
-          "accent-surface": webOceanBasketPage.accentSurface,
-          "gold-ring": webOceanBasketPage.goldRing,
-          "gold-chevron": webOceanBasketPage.goldChevron,
-          "story-body": webOceanBasketPage.storyBody,
-          "pill-border": webOceanBasketPage.pillBorder,
-          "pill-surface": webOceanBasketPage.pillSurface,
-          "welcome-surface": webOceanBasketPage.welcomeSurface,
-          "welcome-divider": webOceanBasketPage.welcomeDivider,
-          "accent-border": webOceanBasketPage.accentBorder,
         },
         ink: {
           DEFAULT: webColors.text.primary,
@@ -345,8 +285,6 @@ const config: Config = {
         "photo-action": webVenuePage.galleryButton.background,
         /** Точка «ждём подтверждения» в ярлыке брони профиля (узел 3525:15248). */
         "warning-dot": webProfile.bookingCard.statusPill.dot.warning,
-        /** Заливка включённого переключателя в «Настройках» (узел 5115:9023). */
-        "toggle-on": webProfile.settings.toggle.onColor,
       },
       fontSize,
       borderRadius: {
@@ -368,6 +306,8 @@ const config: Config = {
         /** Широкая карточка выдачи скруглена на 18 — не как карточка кита (24)
          * и не как карточка блюда (16). Узел 3525:14495. */
         "wide-card": px(webCatalog.wideCard.radius),
+        /** Пилюля нижнего ряда широкой карточки — 10 (узел I3525:14495;3367:11047). */
+        "wide-card-pill": px(webCatalog.wideCard.pill.radius),
         /** Слот в сетке карточки брони — 10, а не 12 как у слота кита.
          * Узел 3525:14751. */
         "slot-grid": px(webBookingCard.slots.radius),
@@ -387,8 +327,6 @@ const config: Config = {
         panel: webSearchPanel.shadow,
         aside: webVenuePage.asideCard.shadow,
         "photo-action": webVenuePage.galleryButton.shadow,
-        /** Полоса с кнопкой у нижнего края экрана ниже `lg` (из приложения). */
-        "bottom-bar": webBottomBar.shadow,
       },
       backgroundImage: {
         "hero-scrim": webHero.scrim,
@@ -401,9 +339,6 @@ const config: Config = {
         gutter: px(webLayout.gutter),
         "page-gutter": px(webLayout.pageGutter),
         "btn-l-x": px(webControls.buttonL.paddingX),
-        "bottom-bar": px(webBottomBar.padding),
-        "bottom-bar-gap": px(webBottomBar.gap),
-        "bottom-bar-clearance": px(webBottomBar.clearance),
         "btn-m-x": px(webControls.buttonM.paddingX),
         "chip-x": px(webControls.chip.paddingX),
         "slot-x": px(webControls.slot.paddingX),
@@ -450,6 +385,8 @@ const config: Config = {
         "venue-tabs-label-gap": px(webVenuePage.tabs.labelGap),
         "section-y": px(webLayout.sectionPaddingY),
         "wide-card-x": px(webCatalog.wideCard.bodyPaddingX),
+        "wide-card-pill-x": px(webCatalog.wideCard.pill.paddingX),
+        "wide-card-pill-y": px(webCatalog.wideCard.pill.paddingY),
         "wide-card-y": px(webCatalog.wideCard.bodyPaddingY),
         "sort-select-l": px(webCatalog.sortSelect.paddingLeft),
         "sort-select-r": px(webCatalog.sortSelect.paddingRight),
@@ -520,10 +457,6 @@ const config: Config = {
         "fav-body-x": px(webProfile.favorites.card.paddingX),
         "fav-body-b": px(webProfile.favorites.card.paddingBottom),
         "fav-body-gap": px(webProfile.favorites.card.gap),
-        "settings-card": px(webProfile.settings.cardGap),
-        "settings-row": px(webProfile.settings.card.headingGap),
-        "settings-col": px(webProfile.settings.personalData.columnGap),
-        "settings-toggle-row": px(webProfile.settings.notifications.rowGap),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -562,27 +495,8 @@ const config: Config = {
         "wide-card": px(webCatalog.wideCard.height),
         "event-card": px(webHomeEventCard.height),
         "event-image": px(webHomeEventCard.imageHeight),
-        /** Обложка события ниже `lg` — из карточки «Афиши» приложения. */
-        "event-image-mobile": px(webHomeEventCard.mobileImageHeight),
-        /** Тела карточек событий и подборок — для скелетов лент главной:
-         * ниже `lg` высота карточки складывается из обложки и тела, и
-         * скелет должен быть собран из тех же частей. */
-        "event-body": px(webHomeEventCard.bodyHeight),
-        "promo-card": px(webHomePromoCard.height),
-        "guide-image": px(webHomeGuideCard.imageHeight),
-        /** Раздел «Статьи» (узлы 5033:7382 и 5033:7466), только под `lg:`. */
-        "article-image": px(webArticles.card.imageHeight),
-        "article-hero": px(webArticles.heroImageHeight),
-        "article-photo": px(webArticles.venuePhotoHeight),
-        "article-back": px(webArticles.backLink.height),
-        "guide-body": px(webHomeGuideCard.bodyHeight),
-        "guide-rubric": px(webGuidePage.rubric.height),
-        "guide-rubric-m": px(webGuidePage.rubric.mobileHeight),
-        "guide-pick": px(webGuidePage.editorPick.height),
-        "guide-pick-m": px(webGuidePage.editorPick.mobileHeight),
-        "guide-walk": px(webGuidePage.walk.height),
-        "guide-walk-m": px(webGuidePage.walk.mobileHeight),
         "sort-select": px(webCatalog.sortSelect.height),
+        "wide-card-pill": px(webCatalog.wideCard.pill.height),
         /** Слот сетки брони — 40 (узел 3525:14760), а не 42 как слот кита. */
         "slot-grid": px(webBookingCard.slots.height),
         "booking-field-icon": px(webBookingCard.field.iconSize),
@@ -608,14 +522,6 @@ const config: Config = {
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
         "pbook-action": px(webProfile.bookingCard.actions.height),
         "fav-image": px(webProfile.favorites.card.imageHeight),
-        /** Карточка события/акции (5033:6922, `webEventDetail`): обложка 426,
-         * мини-карточка заведения 120, её фото 88, карточка контакта 86,
-         * кнопка «Записаться» 52. Карта переиспользует `h-venue-map`. */
-        "afisha-cover": px(webEventDetail.cover.height),
-        "afisha-venue": px(webEventDetail.venueCard.height),
-        "afisha-photo": px(webEventDetail.venueCard.photoSize),
-        "afisha-contact": px(webEventDetail.contactCard.height),
-        "afisha-book": px(webEventDetail.bookButton.height),
       },
       width: {
         cuisine: px(webCuisineTile.size),
@@ -646,16 +552,10 @@ const config: Config = {
         "profile-nav-icon": px(webProfile.nav.item.iconSize),
         "pbook-image": px(webProfile.bookingCard.image.width),
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
-        "afisha-photo": px(webEventDetail.venueCard.photoSize),
-        "afisha-contact": px(webEventDetail.contactCard.width),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
         "event-card": px(webHomeEventCard.height),
-        /** Мини-карточка заведения на странице события/акции: 120 по макету,
-         * но на узких экранах ссылка «Открыть страницу заведения» переносится
-         * строкой ниже, и карточка обязана расти, а не резать содержимое. */
-        "afisha-venue": px(webEventDetail.venueCard.height),
       },
       gridTemplateColumns: {
         /** Сетка свободного времени (узел 3525:14749) — четыре равные
@@ -677,16 +577,9 @@ const config: Config = {
       aspectRatio: {
         /** Карта в контактах (3264:69): 788×280. */
         "venue-map": `${webVenuePage.map.width} / ${webVenuePage.map.height}`,
-        /** Обложки акции и подборки на главной ниже `lg` — пропорция
-         * карточки горизонтального ряда приложения (256×148). Одно значение
-         * на обе: у `webHomePromoCard` и `webHomeGuideCard` один и тот же
-         * мобильный источник. */
-        "home-cover": `${webHomePromoCard.mobileCover.width} / ${webHomePromoCard.mobileCover.height}`,
       },
       maxWidth: {
         container: px(webLayout.containerWidth),
-        /** Колонка страницы статьи — 760 (узел 5033:7484, паддинг 340). */
-        "article-body": px(webArticles.bodyWidth),
         modal: px(webLayout.modalWidth),
         /** Блок успеха и карточка-билет — оба 720 (узлы 3525:15022 и
          * 3525:15028). */

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 
-import type { HomePromo } from "@bookeat/api/client";
-
-import { EventCard, GuideCard, PromoCard } from "@web/components/home/Cards";
+import { EventCard, GuideCard } from "@web/components/home/Cards";
 import { eventSummary, guideCollection, renderScreen } from "@web/test/harness";
 
 /**
@@ -25,43 +23,6 @@ describe("карточка события", () => {
 
     expect(screen.queryByRole("list")).toBeNull();
   });
-
-  /** Критерий 10 T1: событие платформы (ADR-024) не несёт `restaurant` —
-   * карточка рендерится целиком, строка места состоит только из времени, а
-   * заголовок ведёт на `/events/:id` (у платформы нет `/venues/:id`). */
-  it("без restaurant (событие платформы) рендерится, строка места — только время", () => {
-    renderScreen(
-      <EventCard
-        event={eventSummary({ restaurantId: null, restaurant: null, startsAt: "2026-05-18T13:00:00Z" })}
-      />,
-    );
-
-    expect(screen.getByRole("heading", { name: "BBQ-бранч на террасе" })).toBeTruthy();
-    const link = screen.getByRole("link", { name: "BBQ-бранч на террасе" });
-    expect(link.getAttribute("href")).toBe("/events/evt-1");
-  });
-});
-
-/** Критерий 13 T1b (решение владельца 2026-09-06): карточка акции главной
- * ведёт на свою страницу `/promos/:id`, а не на страницу заведения. */
-describe("карточка акции", () => {
-  it("ведёт на /promos/:id", () => {
-    const promo: HomePromo = {
-      id: "promo-1",
-      restaurantId: "r-1",
-      restaurantName: "INZHU",
-      title: "−30% на завтраки",
-      description: "",
-      startsAt: "2026-05-01T00:00:00Z",
-      endsAt: "2026-05-31T00:00:00Z",
-      coverImageUrl: null,
-      images: [],
-      discountPercent: 30,
-    };
-    renderScreen(<PromoCard promo={promo} />);
-    const link = screen.getByRole("link", { name: "−30% на завтраки" });
-    expect(link.getAttribute("href")).toBe("/promos/promo-1");
-  });
 });
 
 describe("карточка подборки", () => {
@@ -77,30 +38,5 @@ describe("карточка подборки", () => {
 
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByRole("heading", { name: "Зимние террасы" })).toBeTruthy();
-  });
-});
-
-/**
- * Контракт адаптива (`docs/responsive.md`, § 5, дыра № 6): высоты обложек из
- * макета (260, 196, 300) живут ТОЛЬКО под `lg:`, ниже — размер мобильной
- * карточки. Замок против возврата голого `h-[300px]`: он не ломает 360, и
- * глазами его пропустить проще всего.
- */
-describe("обложки карточек ниже lg", () => {
-  it("событие: обложка с мобильной высотой, число макета — под lg", () => {
-    const { container } = renderScreen(<EventCard event={eventSummary()} />);
-
-    const cover = container.querySelector(".h-event-image-mobile");
-    expect(cover?.className).toContain("lg:h-event-image");
-    expect(container.querySelector(".h-event-image")).toBeNull();
-    expect(container.querySelector(".min-h-event-card")).toBeNull();
-  });
-
-  it("подборка: обложка держит мобильную пропорцию, высота макета — под lg", () => {
-    const { container } = renderScreen(<GuideCard collection={guideCollection()} />);
-
-    const cover = container.querySelector(".aspect-home-cover");
-    expect(cover?.className).toContain("lg:h-guide-image");
-    expect(container.querySelector(".h-\\[300px\\]")).toBeNull();
   });
 });

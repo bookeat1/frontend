@@ -13,7 +13,6 @@ import type {
   DayAvailability,
   EventPage,
   EventQuery,
-  EventSummary,
   FavoriteItems,
   FavoriteKind,
   GuideCategory,
@@ -25,12 +24,9 @@ import type {
   MenuSection,
   NotificationFeed,
   OtpRequest,
-  PlatformPage,
-  PlatformPageSlug,
   Preorder,
   PreorderLineInput,
   ProfileUpdate,
-  Promo,
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
@@ -119,15 +115,6 @@ export interface RestaurantRepository {
   listUpcomingEvents(query?: EventQuery): Promise<EventPage>;
 
   /**
-   * One event's own page (`GET /events/:eventId`) — `/events/[id]` (T1).
-   * Public, no session. Works for a PLATFORM event too (no `restaurantId`):
-   * that is the only public route that can open one at all. A 404
-   * (`RepositoryError.isNotFound`) means "not found / unpublished", the
-   * caller's honest "not found" state, not an error to retry.
-   */
-  getEvent(id: string): Promise<EventSummary>;
-
-  /**
    * Cross-venue promotions for the Home «Акции» strip, read from the unified
    * home feed (`GET /feed?city=…`) and filtered to `kind: "promo"` — the feed
    * also returns `event` items, which this method drops.
@@ -138,13 +125,6 @@ export interface RestaurantRepository {
    * answer, so the section hides on it rather than showing an error.
    */
   getPromotions(city: string): Promise<HomePromo[]>;
-
-  /**
-   * One promo's own page (`GET /promos/:promoId`) — `/promos/[id]` (T1b).
-   * Public, no session. Works for a PLATFORM promo too (no `restaurantId`).
-   * 404 (`RepositoryError.isNotFound`) is the honest "not found" state.
-   */
-  getPromo(id: string): Promise<Promo>;
 
   /* --- gastroguide / «Статьи» --- */
 
@@ -220,16 +200,6 @@ export interface RestaurantRepository {
    * слаг — 404 (`RepositoryError.isNotFound`).
    */
   getArticle(slug: string): Promise<GuideCollectionDetail>;
-
-  /**
-   * One editable platform text page (`GET /pages/:slug`, bookeat-backend
-   * PR #115). Публичная, без сессии.
-   *
-   * Неопубликованная страница и страница вне `PLATFORM_PAGE_SLUGS` отвечают
-   * одинаково — 404 (`RepositoryError.isNotFound`): гость не должен уметь
-   * отличить «черновик суперадмина» от «такого слага не существует».
-   */
-  getPage(slug: PlatformPageSlug): Promise<PlatformPage>;
 
   /* --- reservation flow --- */
 

@@ -8,20 +8,17 @@ import { HEADER_NAV, SiteHeader } from "@web/components/layout/SiteHeader";
  * так, чтобы это было слышно, а не только видно по красному подчёркиванию.
  */
 describe("SiteHeader", () => {
-  it("рисует все пункты меню из макета — их ПЯТЬ", () => {
+  it("рисует все пункты меню из макета — их ТРИ", () => {
     render(<SiteHeader />);
 
     const nav = screen.getByRole("navigation", { name: "Основная навигация" });
     expect(nav.querySelectorAll("a")).toHaveLength(HEADER_NAV.length);
-    // Узел 5034:9569 (шапка кадра «Афиша»): «Главная», «Заведения», «Афиша»,
-    // «Гастрогид», «Статьи». Все пять роутов существуют с 2026-09-05:
-    // «Афиша» пришла с /events (5033:6703), «Статьи» с /articles (5033:7382).
+    // Узел 3549:5727: «Главная», «Заведения», «Гастрогид». «Афиша» и «Статьи»
+    // достались от старого компонента шапки и вели в 404 Next.
     expect([...nav.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
       "Главная",
       "Заведения",
-      "Афиша",
       "Гастрогид",
-      "Статьи",
     ]);
   });
 
@@ -88,14 +85,15 @@ describe("SiteHeader", () => {
   });
 
   /**
-   * Замок обратный прежнему: страница гостя `/profile` появилась 2026-09-05,
-   * и имя вошедшего ОБЯЗАНО быть ссылкой на неё — текстом оно было только пока
-   * роута не существовало и клик вёл в 404 Next.
+   * Замок от 404 в шапке. Имя вошедшего ведёт на `/profile`, но роута ещё нет:
+   * пока `SHOW_PROFILE_LINK` выключен, имя обязано быть текстом, а не ссылкой,
+   * иначе каждый вошедший гость кликом по себе попадает на 404 Next.
    */
-  it("имя вошедшего ведёт на /profile", () => {
+  it("имя вошедшего не ссылка, пока страницы гостя нет", () => {
     render(<SiteHeader account={{ name: "Дамир" }} />);
 
-    expect(screen.getByRole("link", { name: "Дамир" }).getAttribute("href")).toBe("/profile");
+    expect(screen.getByText("Дамир").tagName).toBe("SPAN");
+    expect(screen.queryByRole("link", { name: "Дамир" })).toBeNull();
   });
 
   /** Пока сессия читается из localStorage, шапка не должна мигать «Войти»
@@ -105,19 +103,5 @@ describe("SiteHeader", () => {
 
     expect(screen.queryByRole("link", { name: "Войти" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Выйти" })).toBeNull();
-  });
-
-  /**
-   * T3 (спека `web-fixes-20260906.md`, 2026-09-06, критерий 21): «Для
-   * бизнеса» ведёт на боевой лендинг `book-eat.app`, а не на несуществующий
-   * `/business` — уходит внешне, в новой вкладке, без `window.opener`.
-   */
-  it("«Для бизнеса» ведёт на book-eat.app в новой вкладке", () => {
-    render(<SiteHeader />);
-
-    const link = screen.getByRole("link", { name: /Для бизнеса/ });
-    expect(link.getAttribute("href")).toBe("https://book-eat.app/");
-    expect(link.getAttribute("target")).toBe("_blank");
-    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
   });
 });

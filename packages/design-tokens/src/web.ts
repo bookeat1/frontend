@@ -458,16 +458,6 @@ export const webHero = {
   /** 18/28 Regular (узел 3253:35) — тоже своя ступень, между bodyL и h3. */
   subtitleFontSize: 18,
   subtitleLineHeight: 28,
-  /**
-   * Кегль заголовка НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`, § 5,
-   * дыра № 4): на телефоне 48/52 занимал три строки и весь первый экран.
-   * Число — из мобильной шапки главной: `HomeHeader.greeting` в
-   * `apps/mobile/src/components/explore/HomeHeader.tsx` набран
-   * `typography.titleXxl` (24/32 Bold, `packages/design-tokens/src/typography.ts`).
-   * Держим копией, а не импортом: сайт берёт только `web*`-экспорты.
-   */
-  mobileTitleFontSize: 24,
-  mobileTitleLineHeight: 32,
   /** Три стопа заливки узла 3253:30: rgba(13,8,8) с прозрачностью
    * 0.55 → 0.62 на 45% → 0.88. */
   scrim:
@@ -536,15 +526,6 @@ export const webAppSection = {
   titleFontSize: 38,
   titleLineHeight: 46,
   titleTracking: -0.6,
-  /**
-   * Кегль заголовка НИЖЕ `lg` (контракт `responsive.md`, § 5, дыра № 5).
-   * У секции нет мобильного аналога — приложению незачем звать скачать себя,
-   * — поэтому взята самая крупная ступень приложения `typography.titleXxl`
-   * (24/32), та же, что у героя (`webHero.mobileTitleFontSize`): два
-   * фирменных блока главной на телефоне не должны спорить кеглем.
-   */
-  mobileTitleFontSize: 24,
-  mobileTitleLineHeight: 32,
   /** 17/26 Regular, белый 85% (узел 3256:65). */
   textFontSize: 17,
   textLineHeight: 26,
@@ -848,10 +829,14 @@ export const webCatalog = {
     /** Просвет «шапка карточки → описание» и «название → подпись». */
     gap: 12,
     titleGap: 4,
-    // Пилюля нижнего ряда (узел I3525:14495;3367:11047, «Slot / 18:00») с
-    // сайта убрана решением владельца от 07.09.2026 вместе с онлайн-бронью
-    // на карточке выдачи — токен геометрии больше не нужен, слотов в ответе
-    // листинга и так не было (см. VenueWideCard).
+    /**
+     * Пилюля нижнего ряда — узел I3525:14495;3367:11047 («Slot / 18:00»):
+     * 34 высотой, паддинг 8/14, радиус 10, заливка `background/subtle`.
+     * В макете это слоты времени; на сайте в той же геометрии стоят признаки
+     * «Открыто сейчас» / «Онлайн-бронь», потому что слотов в ответе листинга
+     * нет (см. VenueWideCard).
+     */
+    pill: { height: 34, paddingX: 14, paddingY: 8, radius: 10 },
   },
   /** Колонка фильтров — узел 3525:14387. Обводки нет, тень общая карточная. */
   filtersCard: {
@@ -1201,42 +1186,6 @@ export const webProfile = {
     gap: 16,
     card: { radius: 18, imageHeight: 168, paddingTop: 16, paddingX: 18, paddingBottom: 18, gap: 16, titleFontSize: 17, titleLineHeight: 24 },
   },
-  /**
-   * Раздел «Настройки» — узел 5115:9023 файла `qmMsg4jO1ggmyEHNIAD2ll`
-   * («BookEat (Copy) (Copy)»). `GET /v1/files/:key/nodes` и `/v1/images` были
-   * 429 всю сессию 2026-09-07 (только `/meta` отвечал) — числа сняты
-   * инструментом по экспортированному PNG `.figma-refs/web-12.png` (2x,
-   * 2880×3198): край карточки, поля и просветы найдены по границам сплошной
-   * заливки (не «на глаз»), проверены на кратность шкале Tailwind (4 px).
-   * Разошедшееся с шагом 4 — округлено до ближайшего шага, отклонение
-   * не больше 2 px. Пересверить по REST, когда лимит файла откроется.
-   *
-   * Три карточки `Card` (радиус `webRadius.card`) через 24, каждая с
-   * паддингом 24: «Личные данные» (сетка полей 2×2 через 24/32, кнопка
-   * снизу через 32), «Уведомления» (строки переключателей через 24) и
-   * «Язык и город» (два поля-селекта в ряд через 24). Подзаголовок карточки
-   * — `webTypography.h3` (26/34 Bold): по высоте текста «Личные данные»
-   * (замер 47px@2x) он ближе к h3, чем к `titleL` (21/28) — заметно крупнее
-   * подписей полей, но чуть мельче заголовка раздела (28/36).
-   */
-  settings: {
-    cardGap: 24,
-    card: { padding: 24, headingGap: 32 },
-    /** Поле формы — тот же `webControls.input`, кладётся в сетку. */
-    personalData: { columnGap: 24, rowGap: 32 },
-    notifications: { rowGap: 24 },
-    languageCity: { columnGap: 24 },
-    /**
-     * Переключатель — 44×24 трек (Tailwind `w-11 h-6`, ровно то, что дал
-     * замер: 88×48 px@2x), ползунок 20 (`w-5 h-5`) с отступом 2 (`p-0.5`).
-     * Цвет «включено» — не `success500` кита (#2E7D32, он про бейдж
-     * «Подтверждено»): в свежем PNG залито заметно ярче, #18A957 по трём
-     * независимым замерам сплошной заливки трека. Цвет «выключено» —
-     * `webPalette.neutral200` (#E7E7E7), замер совпал с точностью до
-     * антиалиасинга.
-     */
-    toggle: { width: 44, height: 24, thumb: 20, inset: 2, onColor: "#18A957" },
-  },
 } as const;
 
 /**
@@ -1277,237 +1226,4 @@ export const webHomeEventCard = {
   imageHeight: 196,
   bodyHeight: 128,
   tagHeight: 28,
-  /**
-   * Высота обложки НИЖЕ `lg` (контракт `responsive.md`, § 5, дыра № 6) —
-   * из карточки списка «Афиша» приложения: `eventListCard.coverHeight` в
-   * `packages/design-tokens/src/spacing.ts` (198, узел 3452:13199). Там это
-   * нарочно ФИКСИРОВАННАЯ высота, а не пропорция, поэтому и здесь число,
-   * а не `aspect-ratio`, как у акции и подборки.
-   */
-  mobileImageHeight: 198,
-} as const;
-
-/**
- * Карточка акции на главной — «Card / Promo», 384×260 (кадр 3253:2).
- * На сайте это фото во всю карточку с текстом поверх, поэтому высота обложки
- * и есть высота карточки.
- *
- * НИЖЕ `lg` (контракт `responsive.md`, § 5, дыра № 6) фиксированные 260 в
- * колонке 328 давали почти квадрат; вместо высоты — пропорция обложки
- * мобильной карточки акции: `exploreLayout.cardWidth × cardPhotoHeight`
- * (256×148, `packages/design-tokens/src/spacing.ts`, узлы 3447:12749 и
- * соседние, `apps/mobile/src/components/explore/PromoCard.tsx`).
- */
-export const webHomePromoCard = {
-  height: 260,
-  mobileCover: { width: 256, height: 148 },
-} as const;
-
-/**
- * Карточка подборки гастрогида на главной — «Card / Article», 588×464
- * (кадр 3253:2): обложка 300, тело 164 (паддинг 24/28/28/28, надзаголовок 18
- * + просвет 8 + заголовок 32 + просвет 8 + подпись 24).
- *
- * НИЖЕ `lg` (дыра № 6) — пропорция обложки мобильной карточки статьи,
- * та же 256×148 (`apps/mobile/src/components/explore/ArticleCard.tsx`).
- */
-export const webHomeGuideCard = {
-  imageHeight: 300,
-  bodyHeight: 164,
-  mobileCover: { width: 256, height: 148 },
-} as const;
-
-/**
- * Раздел «Статьи» — Figma «BookEat (Copy) (Copy)», кадры 5033:7382 (список)
- * и 5033:7466 (страница статьи), спеки `design-specs/web/spec-articles.md`
- * и `spec-article-page.md`.
- *
- *   • карточка списка (узел 5033:7391): 384×320, обложка 384×260 радиус 20,
- *     тело — заголовок 16/24 + подпись 14/20, просвет 12 и 4;
- *   • страница: колонка содержимого 760 (паддинг кадра 340), фото героя
- *     760×440 радиус 20, фото блока заведения 374×240 радиус 16, просвет 12;
- *   • ссылка «Все статьи» (5047:10518): высота 40, паддинг 8/12, радиус 16.
- *
- * НИЖЕ `lg` (docs/responsive.md) обложки держат пропорцию мобильной карточки
- * статьи 256×148 (`aspect-home-cover`), как и карточка подборки главной.
- */
-export const webArticles = {
-  card: { width: 384, imageHeight: 260, radius: 20, gap: 12, bodyGap: 4 },
-  bodyWidth: 760,
-  heroImageHeight: 440,
-  venuePhotoHeight: 240,
-  venuePhotoRadius: 16,
-  backLink: { height: 40, radius: 16 },
-} as const;
-
-/**
- * Прибитая к низу полоса с кнопкой на узком экране (ниже `lg`). Числа НЕ из
- * Figma WEB — там нет ни одного кадра у́же 1024 — а из мобильного приложения:
- * `apps/mobile/app/restaurant/[id]/index.tsx` (`footerSafeArea` / `footer`,
- * кнопка «Забронировать стол») и `.../book/index.tsx` (`footer` с подсказкой
- * над кнопкой «Продолжить», узел 471:3967). Контракт: `apps/web/docs/responsive.md`,
- * § 5, дыры № 8 и № 10.
- */
-export const webBottomBar = {
-  /** `styles.footer.padding = spacing.md` (12) — со всех сторон. */
-  padding: 12,
-  /** Просвет «подсказка → кнопка» в футере брони: `spacing.sm`. */
-  gap: 8,
-  /** Кнопка `controlHeight.pill` — 48, то же, что `Button size="submit"`. */
-  buttonHeight: 48,
-  /** `shadowOffset 0/−8, radius 16, чёрный 8%` — `colors.overlay.footerShadow`. */
-  shadow: "0 -8px 16px rgba(0, 0, 0, 0.08)",
-  /**
-   * `DETAIL_FOOTER_CLEARANCE` = pill + padding × 2 + spacing.xxl (24): столько
-   * снизу оставляет прокрутка, чтобы последний блок не уходил под полосу.
-   */
-  clearance: 48 + 12 * 2 + 24,
-} as const;
-
-/**
- * Страница гастрогида `/guide` — Figma «WEB / 08 · Гастрогид», узел 5033:7096
- * (кадр 1440×2451). Числа — из кэшированного спека
- * `design-specs/web/spec-gastroguide-web.md`, не из живой Figma.
- *
- *   • шапка-«издание» (5033:7100): чёрный кадр 1440×324, паддинг 126 сверху,
- *     32 снизу, текст прижат к низу, просвет строк 6; надпись-рубрика 16
- *     semibold с разрядкой 8 % золотом #EDD19E, слоган Playfair Display
- *     Italic 48, подпись 20/20;
- *   • «Рубрики» (5033:7107): паддинг 32/120, заголовок 26/24 w600, просвет
- *     24, плитки 588×200 по две в ряд, радиус 24, поле 16, текст у нижнего
- *     края поверх затемнения (золотая надпись 14 semibold 8 %, название 20
- *     semibold);
- *   • «Выбор редакции» (5033:7134): просвет 16, карточка 1200×476, радиус 24,
- *     поле 24, надпись 18 semibold 8 %, заголовок 26 w700, подпись 20 #EBEBEB;
- *     заливка карточки без обложки — #0A3D6E (5040:10277);
- *   • «Гастропрогулки» (5033:7143): паддинг 32/120/96, карточки 588×354 по
- *     две в ряд, поле 20/27, заголовок 26 w700, подпись 20.
- *
- * НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`) высоты берутся из
- * мобильного экрана `apps/mobile/app/gastroguide/index.tsx`
- * (`guideLayout`): плитка 158, «выбор редакции» 214, прогулка 206.
- */
-export const webGuidePage = {
-  hero: { paddingTop: 126, paddingBottom: 32, copyGap: 6, eyebrowSize: 16, headlineSize: 48, sublineSize: 20 },
-  sectionPaddingTop: 32,
-  sectionPaddingBottom: 32,
-  lastSectionPaddingBottom: 96,
-  title: { fontSize: 26, lineHeight: 24, fontWeight: 600 },
-  rubric: { height: 200, radius: 24, padding: 16, gap: 24, headerGap: 24, mobileHeight: 158 },
-  editorPick: { height: 476, radius: 24, padding: 24, headerGap: 16, mobileHeight: 214 },
-  walk: { height: 354, radius: 24, paddingY: 20, paddingX: 27, headerGap: 16, mobileHeight: 206 },
-  gold: "#EDD19E",
-  /** Заливка карточки «Выбор редакции» без обложки — тёмно-синий макета. */
-  editorPickFill: "#0A3D6E",
-  /** Подпись под заголовком «Выбора редакции» — #EBEBEB (5040:10281). */
-  editorPickSubtitle: "#EBEBEB",
-} as const;
-
-/**
- * Карточка события/акции `/events/[id]` и `/promos/[id]` — Figma
- * `qmMsg4jO1ggmyEHNIAD2ll`, узел 5033:6922 («WEB / 07b · Карточка события»).
- * Числа взяты из спеки задачи T1 (`specs/web-fixes-20260906.md`), собранной
- * владельцем напрямую из макета — отдельного REST-похода в Figma этот файл
- * не потребовал (кэш спек экономится, MCP по-прежнему 429 на файлах кита).
- *
- * Оболочка правой карточки «Записаться» / «Забронировать столик» — это ТОТ ЖЕ
- * узел, что и `webVenuePage.asideCard` (радиус 20, паддинг 24, просвет 24,
- * обводка `webPalette.neutral300` = #DADADA): числа совпали один в один,
- * поэтому здесь не продублированы, только высота и радиус кнопки — свои.
- */
-export const webEventDetail = {
-  /** 1200×426 радиус 24 (= `webRadius.xxl`), контейнер тот же, что у страницы. */
-  cover: { width: 1200, height: 426, radius: webRadius.xxl },
-  /** Левая колонка 788, правая (карточка «Записаться») 380 = `webVenuePage.asideWidth`,
-   * просвет между ними 32 = `webVenuePage.columnsGap`, паддинг тела 32 сверху/снизу. */
-  leftWidth: 788,
-  bodyPaddingY: 32,
-  /** Просвет между секциями («Об афише» / «Место проведения» / «Контакты…») — 48;
-   * внутри title-блока (теги → название → строка меты) — 16, до первой секции — 32. */
-  sectionGap: 48,
-  titleBlock: { innerGap: 16, bottomGap: 32 },
-  /** Название события/акции — 24/32 Bold, своя ступень: ближе всего `h3` (26/34),
-   * но кегль и интерлиньяж не совпадают, а плодить `h3b` в общей шкале типографики
-   * ради одной страницы не стали — потому здесь, а не в `webTypography`. */
-  title: { fontSize: 24, lineHeight: 32, fontWeight: 700 },
-  /** Заголовок секций «Об афише» / «Место проведения» — 24/24 SemiBold. */
-  sectionTitle: { fontSize: 24, lineHeight: 24, fontWeight: 600 },
-  /** Заголовок «Контакты и как добраться» — 26/34 SemiBold (кегль как `h3`, вес другой). */
-  contactsTitle: { fontSize: 26, lineHeight: 34, fontWeight: 600 },
-  /** Чип тега — фон `webPalette.brand50`, текст `webPalette.brand600` (те же
-   * переменные, что у `brand-subtle`/`brand-text` кита), радиус 8 = `webRadius.sm`. */
-  chip: { fontSize: 12, lineHeight: 16, paddingX: 12, paddingY: 5, radius: webRadius.sm },
-  /** Мини-карточка заведения 788×120, фон `webPalette.neutral50` (= `bg-subtle`),
-   * радиус 16, паддинг 16, фото 88 радиус 12. */
-  venueCard: { height: 120, radius: webRadius.lg, padding: 16, photoSize: 88, photoRadius: 12 },
-  /** Пилюля рейтинга «★ 4.8» на мини-карточке — белая, радиус 6, паддинг 3/8. */
-  ratingPill: { radius: 6, paddingX: 8, paddingY: 3, fontSize: 10, lineHeight: 14 },
-  /** Карта 788×280 = `webVenuePage.map` (те же числа, отдельно не дублируем). */
-  map: webVenuePage.map,
-  /** Карточка контакта в ряду из трёх — 252×86, отличается высотой от
-   * `webVenuePage.contactCard` (72): та плашка одна в ряду из трёх РАЗНОЙ
-   * ширины на странице заведения, здесь — три РАВНЫЕ по 252. Иконка и радиус
-   * общие с той же плашкой (40 / `webRadius.field` = 14). */
-  contactCard: {
-    width: 252,
-    height: 86,
-    radius: webRadius.field,
-    paddingX: 18,
-    paddingY: 16,
-    iconSize: webVenuePage.contactCard.iconSize,
-  },
-  /** Кнопка «Записаться» / «Забронировать столик» — 52 высотой, радиус 14. */
-  bookButton: { height: 52, radius: webRadius.field },
-} as const;
-
-/**
- * Фирменная страница Ocean Basket на сайте `/brand/ocean-basket` — Figma
- * `qmMsg4jO1ggmyEHNIAD2ll`, кадр «WEB / 14 · Ocean Basket» (узел 5115:9771,
- * 1440 шириной).
- *
- * ЦВЕТА СНЯТЫ НЕ С ЭТОГО УЗЛА. `GET /v1/files/qmMsg4jO1ggmyEHNIAD2ll/nodes` и
- * `/v1/images` отвечали 429 весь заход (`retry-after: 6951`, план `starter`,
- * тип лимита `low`) — узел новый и в кэшированных спеках
- * `design-specs/web/*.md` его нет. Вместо угадывания на глаз взята морская
- * гамма `colors.brand2` из мобильных токенов (`packages/design-tokens/src/colors.ts`) —
- * она снята с ТОГО ЖЕ бренда на кадре Ocean Basket мобильной версии
- * (`3z0f6dgev4HMwBAHPjTjPo`, node 3424:3927) и визуально совпадает со
- * скриншотом веб-кадра (`.figma-refs/web-14-ocean-basket.png`, сверено
- * глазами — другого способа не было). Когда лимит Figma снимется, эти
- * значения нужно сверить с настоящим узлом 5115:9771 и здесь же поправить.
- */
-export const webOceanBasketPage = {
-  /** Лист страницы под шапкой — тёплый кремовый, тот же, что в приложении. */
-  sheet: "#FCF7EC",
-  /** Основной тёмно-синий — герой, названия точек, замыкающий блок. */
-  navy: "#052747",
-  /** Заливка нижнего CTA-блока, светлее `navy`. */
-  navyDeep: "#063C61",
-  /** Золото — надписи, кнопки, обводки. */
-  gold: "#D2C159",
-  /** Приглушённое золото подписей на белом (там, где чистое золото нечитаемо). */
-  goldMuted: "#AD993D",
-  /** Светлый текст поверх синего. */
-  onNavy: "#FBF8F0",
-  /** Вторичный текст на белой карточке. */
-  muted: "#546B80",
-  /** Рамка белой карточки главы истории. */
-  cardBorder: "#DBE3EB",
-  /** Подложка блока Instagram. */
-  accentSurface: "#F6EAD4",
-  /** Обводка кружка главы истории / кружка-якоря в конце страницы. */
-  goldRing: "#C9B84F",
-  /** Стрелка-шеврон главы и блока инстаграма. */
-  goldChevron: "#AF9F3D",
-  /** Текст раскрытой главы поверх фотографии. */
-  storyBody: "#FFF4C5",
-  /** Три точки градиента шапки (103.5°, средняя точка 56%). */
-  heroGradient: ["#05182D", "#052747", "#033C61"] as const,
-  /** Обводка золотой пилюли-подписи в шапке («OCEAN BASKET · АЛМАТЫ»). */
-  pillBorder: "rgba(210, 193, 89, 0.35)",
-  pillSurface: "rgba(255, 255, 255, 0.05)",
-  /** Плашка «WELCOME DRINK» в шапке. */
-  welcomeSurface: "rgba(26, 71, 110, 0.94)",
-  welcomeDivider: "rgba(210, 193, 89, 0.50)",
-  accentBorder: "rgba(210, 193, 89, 0.45)",
 } as const;

@@ -54,18 +54,6 @@ export function formatNumber(value: number): string {
 }
 
 /**
- * Деньги из тийинов — «8 990 ₸». Неразрывный пробел между разрядами и перед
- * знаком валюты, как в `apps/mobile/src/lib/format.ts formatMoneyMinor`: цена
- * предзаказа не должна переноситься на вторую строку внутри пилюли степпера
- * или строки сводки (`docs/responsive.md`).
- */
-export function formatMoneyMinor(minor: number): string {
-  const NBSP = " ";
-  const whole = Math.round(minor / 100).toString();
-  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}${NBSP}₸`;
-}
-
-/**
  * «flourdemi.kz» из `https://www.instagram.com/flourdemi.kz/` — заголовок
  * плашки соцсетей (узел 3525:14728) показывает имя аккаунта, а не адрес.
  * Ссылка без пути (или не разбираемая) отдаёт `null`, и заголовком остаётся
@@ -226,37 +214,6 @@ export function bookingDateLabel(
   return capitalize(text, locale);
 }
 
-/**
- * То же самое, что `bookingDateLabel`, но для настоящего МОМЕНТА времени
- * (`Event.startsAt` / `Promo.endsAt` — RFC3339, сервер отдаёт `...Z`), а не
- * для литеральной даты без времени.
- *
- * `bookingDateLabel`/`slotDateIso` тут не годятся: `slotDateIso` вырезает из
- * строки литеральный «YYYY-MM-DD» ДО учёта часового пояса, а сервер шлёт этот
- * момент в UTC — календарный день в самой строке ЭТО ДЕНЬ В UTC, а не в поясе
- * заведения. Смешивание такого литерала с `eventDateParts` (который берёт
- * время из `new Date`, то есть уже в поясе среды исполнения) даёт дату и
- * время из РАЗНЫХ дней при переходе через полночь по UTC (событие в Алматы
- * 12.09 00:30 → `startsAt` `2026-09-11T19:30:00Z` → литерал даёт «11
- * сентября», а `new Date` в поясе Алматы — 00:30). Поэтому здесь, как и в
- * `eventDateParts`, дата тоже считается через `new Date`: оба значения из
- * ОДНОГО инстанта и одного (пусть и неявного) часового пояса среды не
- * разъедутся между собой.
- */
-export function instantDateLabel(
-  iso: string,
-  locale: WebLocale,
-  style: BookingDateStyle = "dayMonth",
-): string | null {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const text = new Intl.DateTimeFormat(INTL_TAG[locale], DATE_STYLE_OPTIONS[style])
-    .format(date)
-    // «25 авг.» → «25 авг»: точку в макете не рисуют, а Intl её ставит.
-    .replace(/\.$/, "");
-  return capitalize(text, locale);
-}
-
 function capitalize(text: string, locale: WebLocale): string {
   if (!text) return text;
   return text[0].toLocaleUpperCase(INTL_TAG[locale]) + text.slice(1);
@@ -356,27 +313,4 @@ export function slotTimeLabel(startsAt: string): string {
 export function slotDateIso(startsAt: string): string | null {
   const match = /^(\d{4}-\d{2}-\d{2})[T ]/.exec(startsAt.trim());
   return match ? match[1] : null;
-}
-
-/**
- * «марта 2025» для строки карточки гостя «с BookEat с марта 2025» (узел
- * 3525:15162). Месяц нужен в РОДИТЕЛЬНОМ падеже, а `{ month: "long" }` сам по
- * себе даёт именительный («март»). Родительный Intl печатает только рядом с
- * числом дня, поэтому форматируем полную дату и берём из частей месяц и год.
- * Для kk и en это ничего не меняет. `null` — когда даты нет или она битая:
- * строка контактов тогда просто короче, а не «с BookEat с undefined».
- */
-export function membershipMonthYear(createdAt: string | null, locale: WebLocale): string | null {
-  if (!createdAt) return null;
-  const started = new Date(createdAt);
-  if (Number.isNaN(started.getTime())) return null;
-  const parts = new Intl.DateTimeFormat(INTL_TAG[locale], {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).formatToParts(started);
-  const month = parts.find((part) => part.type === "month")?.value;
-  const year = parts.find((part) => part.type === "year")?.value;
-  if (!month || !year) return null;
-  return `${month} ${year}`;
 }
