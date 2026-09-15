@@ -7,7 +7,7 @@ import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
-import { ForkKnife, GearSix, GlobeSimple, Heart, MapPin, SignOut, User} from "../src/components/icons";
+import { GearSix, GlobeSimple, Heart, MapPin, SignOut, User} from "../src/components/icons";
 import { ProfileIdentity } from "../src/components/profile/ProfileIdentity";
 import { ProfileLogoutSheet } from "../src/components/profile/ProfileLogoutSheet";
 import { ProfileMenuRow } from "../src/components/profile/ProfileMenuRow";
@@ -217,19 +217,6 @@ export default function ProfileScreen() {
                 icon={Heart}
                 label={t.profile.menu.favorites}
                 onPress={() => router.push("/favorites")}
-                comingSoonLabel={t.profile.comingSoon}
-              />
-              {/* ВРЕМЕННЫЙ вход в визард «Фуди-профиль» (задача 2026-09-15):
-                  на бэкенде ещё нет эндпоинта, который сохранял бы фуди-профиль,
-                  так что настоящей точки входа тоже нет — этот пункт нужен
-                  только чтобы визард можно было открыть и посмотреть вживую.
-                  Ряд уедет отсюда (или потеряет бейдж «превью»), когда
-                  сохранение подключат по-настоящему. */}
-              <ProfileMenuRow
-                icon={ForkKnife}
-                label={t.profile.menu.foodProfile}
-                value={t.profile.menu.foodProfilePreviewBadge}
-                onPress={() => router.push("/foodie-profile/cuisine")}
                 comingSoonLabel={t.profile.comingSoon}
               />
               <ProfileMenuRow

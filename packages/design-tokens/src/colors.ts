@@ -376,24 +376,6 @@ export const colors = {
     stripPositive: "#22CB87",
     stripPending: "#F3BE2D",
   },
-  /**
-   * ВИЗАРД «ФУДИ-ПРОФИЛЬ» (онбординг предпочтений, 4 шага) — Figma
-   * qmMsg4jO1ggmyEHNIAD2ll, узлы 5161:11573 / 5062:5734 / 5062:5841 /
-   * 5161:11786. Значения сняты координатором через DesignAgent bridge и
-   * переданы в задаче словами, а не прочитаны этим агентом напрямую через
-   * REST — отдельная группа, чтобы это было видно и проверяемо позже.
-   */
-  onboarding: {
-    /** Непройденная точка пагинации шагов — #EBEBEB. Совпадает по значению с
-     * `guide.cardMeta`, но роль другая (та — подпись на фотографии
-     * гастрогида), поэтому токен свой, по конвенции репозитория. */
-    stepDotInactive: "#EBEBEB",
-    /** Заливка ВЫБРАННОЙ карточки бюджета — #FFFBFB, почти белая, с обводкой
-     * `brand.primary`. */
-    budgetCardSelectedSurface: "#FFFBFB",
-    /** Заливка НЕВЫБРАННОЙ карточки бюджета — #FAFAFA, без обводки. */
-    budgetCardSurface: "#FAFAFA",
-  },
   border: {
     /** Hairline between content and bottom nav / sticky footer. */
     subtle: "#F5F5F5",
