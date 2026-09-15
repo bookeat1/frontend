@@ -1,6 +1,7 @@
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React, { useCallback, useEffect, useRef } from "react";
 import {
+  Platform,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -8,6 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ViewStyle,
 } from "react-native";
 import { hapticSelectionTick } from "../../lib/haptics";
 
@@ -34,11 +36,47 @@ import { hapticSelectionTick } from "../../lib/haptics";
  * пролистывании двадцати дат гость получил бы ровно один щелчок вместо
  * двадцати. Системный барабан щёлкает каждое проехавшее значение — за ним и
  * идём.
+ *
+ * БАГ НА book-eat.com С ТЕЛЕФОНА (владелец, скриншот 2026-09-15): прокрутка
+ * колонки «Дата»/«Гости» на попапе «Дата и гости» (`PartySheet`) замирала
+ * между строками — ни докручивалась до соседнего значения, ни возвращалась
+ * к прежнему. Причина: `snapToInterval`/`decelerationRate`/
+ * `onScrollEndDrag`/`onMomentumScrollEnd` — RN-only пропы `ScrollView`,
+ * `react-native-web` их не реализует вовсе (проверено чтением
+ * `react-native-web/dist/exports/ScrollView/index.js` — оба колбэка просто
+ * улетают в `rest` на DOM `<div>` необработанным неизвестным атрибутом,
+ * браузер их не вызывает). `settle()` ниже сам не чинит дело: он корректирует
+ * позицию через `scrollTo` только КОСВЕННО, когда меняется `value` (эффект от
+ * `index`), а если ближайшая по математике строка совпала с уже применённым
+ * значением (`picked.value === value`, обычный исход короткого/неточного
+ * движения пальцем), `onChange` не зовётся вовсе — довести scrollTop до
+ * границы строки в этом случае НЕКОМУ, и колесо остаётся ровно там, где его
+ * бросил браузерный тач-скролл, между строк. На нативе то же самое чинит сама
+ * ОС через `snapToInterval`, на вебе для этого нужен явный CSS
+ * `scroll-snap-type`/`scroll-snap-align` — см. `webSnapStyle`/`webRowSnapStyle`
+ * ниже, применяются только при `Platform.OS === "web"`, нативную сборку не
+ * трогают. Воспроизведено на дев-сервере `expo start --web` через CDP
+ * `Input.dispatchTouchEvent` (не через синтетические `TouchEvent` — те не
+ * гоняют браузерный скролл вообще): короткий свайп на 20px при высоте строки
+ * 48px оставлял `scrollTop` колонки «Дата» на 6px вместо отката к 0 или
+ * докрутки до 48.
  */
 
 export const WHEEL_ROW_HEIGHT = 48;
 /** Сколько соседних строк видно сверху и снизу от выбранной. */
 const VISIBLE_NEIGHBOURS = 1;
+
+/**
+ * CSS `scroll-snap-*` — веб-замена RN-only `snapToInterval` (см. комментарий
+ * компонента выше про баг с замирающей прокруткой). `undefined` на нативе:
+ * там снапом занимается сама ОС, а незнакомые веб-CSS-поля в объекте стиля
+ * RN просто проигнорировал бы, но лучше не передавать их вовсе, чем полагаться
+ * на это молчаливое поведение.
+ */
+const webSnapStyle: ViewStyle | undefined =
+  Platform.OS === "web" ? ({ scrollSnapType: "y mandatory" } as ViewStyle) : undefined;
+const webRowSnapStyle: ViewStyle | undefined =
+  Platform.OS === "web" ? ({ scrollSnapAlign: "center", scrollSnapStop: "always" } as ViewStyle) : undefined;
 
 export interface WheelOption {
   /** Значение, которое вернётся наверх. */
@@ -127,6 +165,7 @@ export function WheelPicker({
       />
       <ScrollView
         ref={ref}
+        style={webSnapStyle}
         showsVerticalScrollIndicator={false}
         snapToInterval={WHEEL_ROW_HEIGHT}
         decelerationRate="fast"
@@ -159,7 +198,7 @@ export function WheelPicker({
               }
               onChange(option.value);
             }}
-            style={styles.row}
+            style={[styles.row, webRowSnapStyle]}
           >
             <Text style={[styles.label, i === index && styles.labelSelected]} numberOfLines={1}>
               {option.label}
