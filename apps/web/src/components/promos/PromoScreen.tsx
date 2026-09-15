@@ -157,7 +157,13 @@ function PromoBody({ promo }: { promo: Promo }) {
         >
           <div className="flex flex-col gap-4">
             <div className="relative aspect-home-cover w-full overflow-hidden rounded-2xl bg-muted lg:aspect-auto lg:h-afisha-cover">
-              <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={COVER_SIZES} priority />
+              <RemoteImage
+                src={promo.coverImageUrl}
+                alt={promo.title}
+                sizes={COVER_SIZES}
+                priority
+                fit="letterboxed"
+              />
               {/* Затемнение снизу вверх — тот же приём, что у карточки акции на
                   главной (`PromoCard`, `home/Cards.tsx`): название и подпись
                   лежат ПОВЕРХ фотографии, а не отдельным блоком под ней (узел

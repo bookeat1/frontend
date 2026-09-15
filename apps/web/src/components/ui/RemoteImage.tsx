@@ -36,6 +36,22 @@ export interface RemoteImageProps {
    */
   fallback?: ReactNode;
   className?: string;
+  /**
+   * `"cover"` (по умолчанию) — фото обрезается по контейнеру, как раньше.
+   *
+   * `"letterboxed"` — двухслойный вид как в превью Instagram Stories: снизу
+   * та же картинка растянута на весь контейнер (`object-fit: cover`) с
+   * сильным блюром и лёгким затемнением — только чтобы не спорить по
+   * контрасту с текстом, который рисуется поверх отдельным HTML-слоем
+   * (заголовок/бейдж в `EventScreen`/`PromoScreen`); сверху — та же
+   * картинка целиком (`object-fit: contain`), без обрезки, независимо от
+   * пропорций. Нужно там, где источник — портретный сторис-постер с текстом,
+   * вплавленным в саму картинку: `object-cover` отрезает верх/низ, где
+   * обычно весь текст (живые случаи на проде, 2026-09-15). Для альбомного
+   * фото с пропорцией, близкой к контейнеру, `contain` заполняет почти всю
+   * площадь и разница с обычным `cover` почти незаметна — это ожидаемо.
+   */
+  fit?: "cover" | "letterboxed";
 }
 
 export function RemoteImage({
@@ -45,6 +61,7 @@ export function RemoteImage({
   priority = false,
   fallback,
   className,
+  fit = "cover",
 }: RemoteImageProps) {
   const [broken, setBroken] = useState(false);
   const url = src?.trim() ? src.trim() : null;
@@ -65,6 +82,35 @@ export function RemoteImage({
     return <div aria-hidden="true" className={cx("h-full w-full bg-muted", className)} />;
   }
 
+  const loadingProp = { priority, loading: priority ? undefined : ("lazy" as const) };
+
+  if (fit === "letterboxed") {
+    return (
+      <div className={cx("absolute inset-0 overflow-hidden", className)}>
+        <Image
+          src={url}
+          alt=""
+          aria-hidden="true"
+          fill
+          sizes={sizes}
+          unoptimized
+          {...loadingProp}
+          className="scale-110 object-cover blur-[28px] brightness-[0.6]"
+        />
+        <Image
+          src={url}
+          alt={alt}
+          fill
+          sizes={sizes}
+          unoptimized
+          {...loadingProp}
+          onError={() => setBroken(true)}
+          className="object-contain"
+        />
+      </div>
+    );
+  }
+
   return (
     <Image
       src={url}
@@ -76,8 +122,7 @@ export function RemoteImage({
       // Next печатает `srcSet` из шестнадцати одинаковых ссылок — около
       // килограмма разметки на каждую фотографию и ноль пользы.
       unoptimized
-      priority={priority}
-      loading={priority ? undefined : "lazy"}
+      {...loadingProp}
       onError={() => setBroken(true)}
       className={cx("object-cover", className)}
     />
