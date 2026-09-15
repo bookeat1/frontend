@@ -46,18 +46,49 @@ describe("PromoScreen", () => {
     expect(await screen.findAllByRole("link", { name: /Открыть страницу заведения/ })).not.toHaveLength(0);
   });
 
-  it("непустые terms — секция «Условия»; пустые — секции нет", async () => {
+  it("непустые terms — секция «Как воспользоваться»; пустые — секции нет", async () => {
     repository.getPromo = vi.fn(async () => promoDetail({ terms: "Только по будням." }));
     renderScreen(<PromoScreen id="promo-1" />);
-    expect(await screen.findByText("Условия")).toBeTruthy();
+    expect(await screen.findByText("Как воспользоваться")).toBeTruthy();
     expect(screen.getByText("Только по будням.")).toBeTruthy();
   });
 
-  it("пустые terms — секции «Условия» нет", async () => {
+  it("terms в формате нумерованного списка — рисуется <ol> с отдельными шагами", async () => {
+    repository.getPromo = vi.fn(async () =>
+      promoDetail({
+        terms:
+          "1. Выберите дату в будний день и время до 18:00. 2. Забронируйте столик в Flour Demi. " +
+          "3. Сообщите официанту, что хотите воспользоваться акцией.",
+      }),
+    );
+    renderScreen(<PromoScreen id="promo-1" />);
+    expect(await screen.findByText("Как воспользоваться")).toBeTruthy();
+    expect(screen.getByText("Выберите дату в будний день и время до 18:00.")).toBeTruthy();
+    expect(screen.getByText("Забронируйте столик в Flour Demi.")).toBeTruthy();
+    expect(screen.getByText("Сообщите официанту, что хотите воспользоваться акцией.")).toBeTruthy();
+  });
+
+  it("пустые terms — секции «Как воспользоваться» нет, сноска всё равно есть", async () => {
     repository.getPromo = vi.fn(async () => promoDetail({ terms: "" }));
     renderScreen(<PromoScreen id="promo-1" />);
     await screen.findByRole("heading", { level: 1 });
-    expect(screen.queryByText("Условия")).toBeNull();
+    expect(screen.queryByText("Как воспользоваться")).toBeNull();
+    expect(
+      screen.getByText(
+        "Срок действия, состав предложения и возможность сочетать его с другими скидками уточняйте у заведения.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("сноска показывается и без заведения у акции", async () => {
+    repository.getPromo = vi.fn(async () => promoDetail({ restaurantId: null, restaurant: null, terms: "" }));
+    renderScreen(<PromoScreen id="promo-1" />);
+    await screen.findByRole("heading", { level: 1 });
+    expect(
+      screen.getByText(
+        "Срок действия, состав предложения и возможность сочетать его с другими скидками уточняйте у заведения.",
+      ),
+    ).toBeTruthy();
   });
 
   it("без заведения (акция платформы) — блока заведения нет вовсе", async () => {
