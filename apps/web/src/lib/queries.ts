@@ -60,8 +60,13 @@ import type { PreorderFailedReason } from "@web/lib/preorder-failed-flag";
 
 /** Сколько карточек в блоке «Выбрали для вас» (сетка 4 колонок, узел 3253:2). */
 export const PICKS_LIMIT = 4;
-/** Афиша на главной — ряд из трёх карточек (узел 3253:2). */
-export const EVENTS_LIMIT = 3;
+/**
+ * Афиша на главной — ряд из четырёх карточек, не трёх (правка владельца
+ * 2026-09-15: карточка события стала размером с карточку заведения, сетка
+ * ушла на те же 4 колонки, что у «Выбрали для вас» и «Все заведения» — см.
+ * `webHomeEventCard` в `packages/design-tokens/src/web.ts`).
+ */
+export const EVENTS_LIMIT = 4;
 
 export function useCuisines(): UseQueryResult<Cuisine[]> {
   const { locale } = useLocale();
