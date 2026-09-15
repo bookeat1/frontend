@@ -226,7 +226,7 @@ export function HomeScreen() {
         </Container>
       </Section>
 
-      <Section tone="subtle">
+      <Section>
         <Container className="flex flex-col gap-7">
           <SectionHeader
             title={t.web.home.events.title}

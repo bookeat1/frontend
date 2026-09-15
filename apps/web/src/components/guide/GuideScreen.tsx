@@ -71,17 +71,17 @@ export function GuideScreen() {
           query={collections}
           emptyText={t.articles.emptyDescription}
           skeleton={
-            <TwoUp>
+            <FourUp>
               <RubricTileSkeleton />
               <RubricTileSkeleton />
               <RubricTileSkeleton />
               <RubricTileSkeleton />
-            </TwoUp>
+            </FourUp>
           }
         >
           {() =>
             rubrics.length > 0 ? (
-              <TwoUp>
+              <FourUp>
                 {rubrics.map((collection) => (
                   <RubricTile
                     key={collection.slug}
@@ -99,7 +99,7 @@ export function GuideScreen() {
                     }
                   />
                 ))}
-              </TwoUp>
+              </FourUp>
             ) : (
               <StateMessage text={t.articles.emptyDescription} />
             )
@@ -109,7 +109,7 @@ export function GuideScreen() {
 
       {editorPicks.length > 0 ? (
         <GuideSection title={t.articles.editorPickTitle} gap="gap-4">
-          <div className="flex flex-col gap-4 lg:gap-6">
+          <HalfUp>
             {editorPicks.map((collection) => (
               <EditorPickCard
                 key={collection.slug}
@@ -122,11 +122,13 @@ export function GuideScreen() {
                 href={collection.slug === OCEAN_BASKET_SLUG ? "/brand/ocean-basket" : undefined}
               />
             ))}
-          </div>
+          </HalfUp>
         </GuideSection>
       ) : collections.isPending ? (
         <GuideSection title={t.articles.editorPickTitle} gap="gap-4">
-          <EditorPickSkeleton />
+          <HalfUp>
+            <EditorPickSkeleton />
+          </HalfUp>
         </GuideSection>
       ) : null}
 
@@ -225,4 +227,21 @@ function GuideSection({
 /** Две карточки в ряд с `md` (планшет по контракту), одна колонка на телефоне. */
 function TwoUp({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-6">{children}</div>;
+}
+
+/** Рубрики: одна колонка на телефоне, две на планшете — как у `TwoUp`, но
+ * ЧЕТЫРЕ в ряд на `lg` (1200 = 4×282 + 3×24, узел 5033:7096, сверено
+ * 2026-09-15). Отдельная функция, а не параметр у `TwoUp` — секция
+ * «Гастропрогулки» ниже по-прежнему ровно две карточки в ряд на десктопе, и
+ * трогать её не нужно. */
+function FourUp({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">{children}</div>;
+}
+
+/** «Выбор редакции»: одна колонка на телефоне (как раньше — мобильную
+ * раскладку не трогаем), две колонки с `lg`, поле 16 (узел 5033:7096,
+ * сверено 2026-09-15). Подборка сегодня ровно одна — грид не растягивает
+ * единственный элемент на второй слот, это ожидаемо. */
+function HalfUp({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{children}</div>;
 }

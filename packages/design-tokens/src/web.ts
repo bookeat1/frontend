@@ -1435,8 +1435,15 @@ export const webGuidePage = {
   sectionPaddingBottom: 32,
   lastSectionPaddingBottom: 96,
   title: { fontSize: 26, lineHeight: 24, fontWeight: 600 },
-  rubric: { height: 200, radius: 24, padding: 16, gap: 24, headerGap: 24, mobileHeight: 158 },
-  editorPick: { height: 476, radius: 24, padding: 24, headerGap: 16, mobileHeight: 214 },
+  /** Ряд — ЧЕТЫРЕ плитки на `lg` (1200 = 4×282 + 3×24), не две (узел
+   * 5033:7096, сверено через DesignAgent bridge 2026-09-15; `width: 282` —
+   * справочно, ширина колонки на деле идёт из сетки `FourUp`
+   * (`GuideScreen.tsx`), эта константа в Tailwind не потребляется). */
+  rubric: { height: 200, width: 282, radius: 24, padding: 16, gap: 24, headerGap: 24, mobileHeight: 158 },
+  /** Высота 347 (была 476) — карточка занимает половину ширины ряда (592 из
+   * 1200, gap 16), а не всю ширину: второй слот пустует, пока подборка
+   * ровно одна (узел 5033:7096, сверено 2026-09-15). */
+  editorPick: { height: 347, radius: 24, padding: 24, headerGap: 16, mobileHeight: 214 },
   walk: { height: 354, radius: 24, paddingY: 20, paddingX: 27, headerGap: 16, mobileHeight: 206 },
   gold: "#EDD19E",
   /** Заливка карточки «Выбор редакции» без обложки — тёмно-синий макета. */

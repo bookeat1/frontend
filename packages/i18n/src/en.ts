@@ -2476,7 +2476,9 @@ export const en: LocaleOverride<Dictionary> = {
     notFoundTitle: "Deal not found",
     notFoundDescription: "It may have ended. Go back to the list of deals and pick another one.",
     card: (title: string, restaurant: string) => (restaurant ? `${title}, ${restaurant}` : title),
-    termsTitle: "Terms",
+    howToTitle: "How to use it",
+    howToFootnote:
+      "Check the offer's validity, exact terms and whether it can be combined with other discounts with the restaurant.",
   },
   /** Desktop web (apps/web) — English strings. */
   web: {

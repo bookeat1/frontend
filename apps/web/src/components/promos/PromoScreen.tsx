@@ -21,7 +21,9 @@ import { usePromo, useVenue } from "@web/lib/queries";
  * ОБЩИЕ компоненты с `EventScreen` (`components/events/{EventVenueBlocks,
  * BookCard}.tsx`); отличия только в данных: нет тегов, вместо даты события —
  * «до {ends_at}», бейдж «−N%», секция «Об акции» вместо «Об афише», секция
- * «Условия» при непустом `terms`.
+ * «Как воспользоваться» при непустом `terms` (переименована из «Условия» по
+ * узлу 5224:19299 — правка владельца от 2026-09-15) и юридическая сноска под
+ * ней, которая показывается всегда, независимо от `terms`/заведения.
  *
  * ОБЛОЖКА — по узлу 5115:7645 («WEB / 11 · Акции заведения», Figma
  * `qmMsg4jO1ggmyEHNIAD2ll`, снят 2026-09-07): название и подпись лежат
@@ -162,14 +164,12 @@ function PromoBody({ promo }: { promo: Promo }) {
             </p>
           </section>
 
-          {promo.terms.trim() ? (
-            <section className="flex flex-col gap-4">
-              <h2 className="text-[24px] font-semibold leading-[24px] text-ink">{t.promotions.termsTitle}</h2>
-              <p className="whitespace-pre-line break-words text-[14px] leading-5 text-ink-secondary">
-                {promo.terms}
-              </p>
-            </section>
-          ) : null}
+          {promo.terms.trim() ? <HowToSection terms={promo.terms} title={t.promotions.howToTitle} /> : null}
+
+          {/* Юридическая сноска — общая оговорка, не зависит от того, есть ли
+              секция «Как воспользоваться» выше, заведение у акции или бронь:
+              узел 5224:19299, «WEB / 11 · Акции заведения». */}
+          <p className="text-bodyS text-ink-tertiary">{t.promotions.howToFootnote}</p>
 
           {venue ? (
             <VenueBlock
@@ -187,4 +187,57 @@ function PromoBody({ promo }: { promo: Promo }) {
       </div>
     </div>
   );
+}
+
+/**
+ * «Как воспользоваться» (переименованная секция «Условия», узел 5224:19299):
+ * заголовок + текст `promo.terms`. Когда текст сам уже записан нумерованным
+ * списком («1. ... 2. ... 3. ...»), как в макете, — рисуем его настоящим
+ * `<ol>`, а не одним абзацем с цифрами внутри строки. Любой другой текст
+ * (например, короткая фраза без нумерации) остаётся обычным абзацем — секция
+ * не требует от заведения писать шаги в конкретном формате.
+ */
+function HowToSection({ terms, title }: { terms: string; title: string }) {
+  const steps = parseNumberedSteps(terms);
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-[24px] font-semibold leading-[24px] text-ink">{title}</h2>
+      {steps ? (
+        <ol className="flex list-decimal flex-col gap-2 pl-5 text-[14px] leading-5 text-ink-secondary">
+          {steps.map((step, index) => (
+            <li key={index} className="break-words">
+              {step}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="whitespace-pre-line break-words text-[14px] leading-5 text-ink-secondary">{terms}</p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Распознаёт текст вида «1. Шаг один. 2. Шаг два. 3. Шаг три.» — каждый
+ * маркер должен стоять на границе предложения (начало текста или после
+ * «. »/«! »/«? ») и номера должны идти подряд с 1. Любое расхождение —
+ * `null`, текст рисуется как обычный абзац: это эвристика для контента,
+ * который заведения вводят свободным текстом, а не строгий формат.
+ */
+function parseNumberedSteps(text: string): string[] | null {
+  const trimmed = text.trim();
+  const marker = /(?:^|(?<=[.!?]\s))(\d+)\.\s+/g;
+  const matches = [...trimmed.matchAll(marker)];
+  if (matches.length < 2 || matches[0].index !== 0) return null;
+
+  const steps: string[] = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    if (Number(matches[i][1]) !== i + 1) return null;
+    const start = matches[i].index! + matches[i][0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : trimmed.length;
+    const step = trimmed.slice(start, end).trim();
+    if (!step) return null;
+    steps.push(step);
+  }
+  return steps;
 }
