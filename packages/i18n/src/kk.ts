@@ -2646,7 +2646,7 @@ export const kk: LocaleOverride<Dictionary> = {
         empty: "Қазір бұл қалада акция жоқ.",
       },
       catalog: {
-        title: "Барлық орындар",
+        title: (city: string) => `${city} қаласындағы барлық орындар`,
         subtitle: (count: number) => `${count} орын`,
         more: (count: number) => `Тағы ${count} орынды көрсету`,
         empty: "Бұл қалада әзірге орын жоқ.",

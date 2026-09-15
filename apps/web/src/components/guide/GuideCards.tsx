@@ -52,6 +52,15 @@ const FULL_SIZES = "(min-width: 1280px) 1200px, 100vw";
  * вызывающий (`photo`), а не сам компонент: у гастрогида это `next/image` по
  * `assetUrl`, у маршрута — `RemoteImage` с `null`-фолбэком, и превращать это
  * в третий проп-переключатель незачем.
+ *
+ * Высота ФИКСИРОВАННАЯ 324 (`lg:h-[324px]`, кадр узла 5033:7100), а не
+ * content-hug: без явной высоты секция собиралась по высоте текста
+ * (~267 px при заголовке в одну строку) — на 57 px ниже макета, из-за чего
+ * фон (`object-cover`, `fill`) кадрировался иначе, чем в Figma (сверено
+ * REST/MCP 2026-09-15). Текст прижимаем к низу `justify-end` внутри
+ * `h-full`-контейнера, а не паддингом сверху — так поведение верно и когда
+ * заголовок переносится на две строки (контейнер всё равно 324, лишнее место
+ * уходит НАД текстом, а не растягивает секцию).
  */
 export function EditorialHero({
   photo,
@@ -69,10 +78,10 @@ export function EditorialHero({
   headlineClassName?: string;
 }) {
   return (
-    <section className="relative overflow-hidden bg-black">
+    <section className="relative overflow-hidden bg-black lg:h-[324px]">
       {photo}
       <div aria-hidden="true" className="absolute inset-0 bg-black/[0.32]" />
-      <Container className="relative z-10 flex flex-col gap-1.5 pb-8 pt-16 lg:pt-[126px]">
+      <Container className="relative z-10 flex h-full flex-col justify-end gap-1.5 pb-8 pt-16 lg:pt-[126px]">
         <p className="text-[14px] font-semibold uppercase leading-[19px] tracking-[0.08em] text-guide-gold lg:text-[16px]">
           {eyebrow}
         </p>

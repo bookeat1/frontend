@@ -2640,7 +2640,7 @@ export const en: LocaleOverride<Dictionary> = {
         empty: "There are no deals in this city right now.",
       },
       catalog: {
-        title: "All venues",
+        title: (city: string) => `All venues in ${city}`,
         subtitle: (count: number) => `${count} ${count === 1 ? "place" : "places"}`,
         more: (count: number) =>
           `Show ${count} more ${count === 1 ? "venue" : "venues"}`,
