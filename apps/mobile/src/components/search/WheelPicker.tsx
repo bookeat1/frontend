@@ -37,29 +37,15 @@ import { hapticSelectionTick } from "../../lib/haptics";
  * двадцати. Системный барабан щёлкает каждое проехавшее значение — за ним и
  * идём.
  *
- * БАГ НА book-eat.com С ТЕЛЕФОНА (владелец, скриншот 2026-09-15): прокрутка
- * колонки «Дата»/«Гости» на попапе «Дата и гости» (`PartySheet`) замирала
- * между строками — ни докручивалась до соседнего значения, ни возвращалась
- * к прежнему. Причина: `snapToInterval`/`decelerationRate`/
- * `onScrollEndDrag`/`onMomentumScrollEnd` — RN-only пропы `ScrollView`,
- * `react-native-web` их не реализует вовсе (проверено чтением
- * `react-native-web/dist/exports/ScrollView/index.js` — оба колбэка просто
- * улетают в `rest` на DOM `<div>` необработанным неизвестным атрибутом,
- * браузер их не вызывает). `settle()` ниже сам не чинит дело: он корректирует
- * позицию через `scrollTo` только КОСВЕННО, когда меняется `value` (эффект от
- * `index`), а если ближайшая по математике строка совпала с уже применённым
- * значением (`picked.value === value`, обычный исход короткого/неточного
- * движения пальцем), `onChange` не зовётся вовсе — довести scrollTop до
- * границы строки в этом случае НЕКОМУ, и колесо остаётся ровно там, где его
- * бросил браузерный тач-скролл, между строк. На нативе то же самое чинит сама
- * ОС через `snapToInterval`, на вебе для этого нужен явный CSS
- * `scroll-snap-type`/`scroll-snap-align` — см. `webSnapStyle`/`webRowSnapStyle`
- * ниже, применяются только при `Platform.OS === "web"`, нативную сборку не
- * трогают. Воспроизведено на дев-сервере `expo start --web` через CDP
- * `Input.dispatchTouchEvent` (не через синтетические `TouchEvent` — те не
- * гоняют браузерный скролл вообще): короткий свайп на 20px при высоте строки
- * 48px оставлял `scrollTop` колонки «Дата» на 6px вместо отката к 0 или
- * докрутки до 48.
+ * НА `react-native-web` `snapToInterval`/`decelerationRate`/`onScrollEndDrag`/
+ * `onMomentumScrollEnd` не реализованы вовсе (проверено чтением
+ * `react-native-web/dist/exports/ScrollView/index.js` и живым тестом в
+ * headless-браузере — колбэки не вызываются НИ РАЗУ), поэтому на вебе
+ * `settle()` ничем не запускается: колесо визуально замирало между строк, а
+ * даже когда докручивалось глазами, применённое значение оставалось старым.
+ * `webSnapStyle`/`webRowSnapStyle` (CSS `scroll-snap-*`) чинят докрутку до
+ * грида, `WEB_SCROLL_END_DEBOUNCE_MS` ниже — вызов самого `settle()` через
+ * единственное событие, которое RNW действительно шлёт (`onScroll`).
  */
 
 export const WHEEL_ROW_HEIGHT = 48;
@@ -68,15 +54,30 @@ const VISIBLE_NEIGHBOURS = 1;
 
 /**
  * CSS `scroll-snap-*` — веб-замена RN-only `snapToInterval` (см. комментарий
- * компонента выше про баг с замирающей прокруткой). `undefined` на нативе:
- * там снапом занимается сама ОС, а незнакомые веб-CSS-поля в объекте стиля
- * RN просто проигнорировал бы, но лучше не передавать их вовсе, чем полагаться
- * на это молчаливое поведение.
+ * компонента выше). `undefined` на нативе: там снапом занимается сама ОС, а
+ * незнакомые веб-CSS-поля лучше не передавать вовсе, чем полагаться на то,
+ * что RN их молча проигнорирует. Нарочно БЕЗ `scrollSnapStop: "always"`:
+ * это заставило бы браузер гасить флик на КАЖДОЙ строке, а список дат — это
+ * ~30 строк, и на нативе `decelerationRate="fast"` спокойно проезжает
+ * несколько за один флик — `"always"` тут ощутимо медленнее нативного чувства.
  */
 const webSnapStyle: ViewStyle | undefined =
   Platform.OS === "web" ? ({ scrollSnapType: "y mandatory" } as ViewStyle) : undefined;
 const webRowSnapStyle: ViewStyle | undefined =
-  Platform.OS === "web" ? ({ scrollSnapAlign: "center", scrollSnapStop: "always" } as ViewStyle) : undefined;
+  Platform.OS === "web" ? ({ scrollSnapAlign: "center" } as ViewStyle) : undefined;
+
+/**
+ * Сколько ждать тишины в потоке `onScroll`, прежде чем считать прокрутку на
+ * вебе законченной и звать `settle()` — см. комментарий компонента. RNW сам
+ * досылает ОДИН финальный `onScroll` спустя ~100мс после последнего реального
+ * события (`ScrollViewBase.js`, `handleScrollEnd`) — этот довесок тоже
+ * попадает в `tick` и переставляет наш таймер ещё раз, поэтому реальная
+ * задержка коммита от последнего касания пальцем — не `WEB_SCROLL_END_
+ * DEBOUNCE_MS`, а примерно 100мс (довесок RNW) + это число. Для черновика
+ * колеса это по-прежнему незаметно, но при проверке в тестах фальшивыми
+ * таймерами продвигать нужно на сумму обоих, не только на это число.
+ */
+const WEB_SCROLL_END_DEBOUNCE_MS = 120;
 
 export interface WheelOption {
   /** Значение, которое вернётся наверх. */
@@ -127,23 +128,6 @@ export function WheelPicker({
     [options.length],
   );
 
-  /**
-   * Щелчок — ровно тогда, когда под центром встала ДРУГАЯ строка.
-   *
-   * Здесь нарочно не вызывается `onChange`: значение по-прежнему уходит наверх
-   * только когда колесо остановилось. Иначе каждый кадр прокрутки перезапускал
-   * бы поиск (см. WheelSheet), а «черновой выбор» перестал бы быть черновым.
-   */
-  const tick = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const centred = rowUnderCentre(e.nativeEvent.contentOffset.y);
-      if (centred === tickedAt.current) return;
-      tickedAt.current = centred;
-      hapticSelectionTick();
-    },
-    [rowUnderCentre],
-  );
-
   const settle = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const next = Math.round(e.nativeEvent.contentOffset.y / WHEEL_ROW_HEIGHT);
@@ -151,6 +135,61 @@ export function WheelPicker({
       if (picked && picked.value !== value) onChange(picked.value);
     },
     [onChange, options, value],
+  );
+
+  /**
+   * На вебе `settle` выше некому вызвать через `onScrollEndDrag`/
+   * `onMomentumScrollEnd` — RNW их не шлёт (см. комментарий компонента).
+   * Тайм-аут, который сам себя постоянно откладывает на каждый `onScroll`
+   * (см. `tick` ниже), стреляет ровно тогда, когда поток событий прокрутки
+   * затих на `WEB_SCROLL_END_DEBOUNCE_MS` — это и есть «колесо остановилось»
+   * для веба.
+   *
+   * `mounted` — отдельный ref, а не просто «очистить таймер при
+   * размонтировании»: у RNW есть СВОЙ внутренний `setTimeout` на ~100мс
+   * (`ScrollViewBase.js`, довесок к `onScroll` — см. комментарий
+   * `WEB_SCROLL_END_DEBOUNCE_MS`), который живёт в замыкании самого DOM-узла
+   * и не знает о размонтировании React-дерева — он может выстрелить и
+   * заново переставить НАШ таймер уже после того, как компонент ушёл.
+   * Без проверки `mounted.current` это в итоге зовёт `onChange` шторки,
+   * которой уже нет.
+   */
+  const webScrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      if (webScrollEndTimer.current != null) clearTimeout(webScrollEndTimer.current);
+    },
+    [],
+  );
+
+  /**
+   * Щелчок — ровно тогда, когда под центром встала ДРУГАЯ строка.
+   *
+   * Здесь нарочно не вызывается `onChange`: значение по-прежнему уходит наверх
+   * только когда колесо остановилось. Иначе каждый кадр прокрутки перезапускал
+   * бы поиск (см. WheelSheet), а «черновой выбор» перестал бы быть черновым.
+   *
+   * На вебе тот же вызов ещё и переставляет debounce-таймер `settle()` выше —
+   * это единственное реально приходящее на RNW событие прокрутки, других
+   * колбэков для отметки «конец жеста» там нет.
+   */
+  const tick = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (Platform.OS === "web") {
+        if (webScrollEndTimer.current != null) clearTimeout(webScrollEndTimer.current);
+        webScrollEndTimer.current = setTimeout(() => {
+          if (mounted.current) settle(e);
+        }, WEB_SCROLL_END_DEBOUNCE_MS);
+      }
+      const centred = rowUnderCentre(e.nativeEvent.contentOffset.y);
+      if (centred === tickedAt.current) return;
+      tickedAt.current = centred;
+      hapticSelectionTick();
+    },
+    [rowUnderCentre, settle],
   );
 
   const height = WHEEL_ROW_HEIGHT * (VISIBLE_NEIGHBOURS * 2 + 1);
