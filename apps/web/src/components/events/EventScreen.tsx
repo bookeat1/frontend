@@ -132,10 +132,25 @@ function EventBody({ event }: { event: EventSummary }) {
       ? { label: event.action.label, url: event.action.url }
       : null;
 
+  // Правая колонка целиком отсутствует, когда у события нет ни заведения, ни
+  // внешней кнопки — тот же случай, что уже чинили у `PromoScreen` (правка
+  // владельца 2026-09-15, живой пример: событие 761695be-4972-4161-bb4c-
+  // e42009470fb3 «День рождения cafe Alma», сверено со страницей акции без
+  // заведения f9a14965-2814-45c2-af7a-05a0fc1b5dd8): `flex-1` без соседа
+  // растягивает колонку на всю ширину контейнера вместо 788px
+  // (`webEventDetail.leftWidth`), и колонка не центрируется.
+  const hasAside = venue !== null || externalAction !== null;
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-        <article className="flex min-w-0 flex-1 flex-col gap-8">
+        <article
+          className={
+            hasAside
+              ? "flex min-w-0 flex-1 flex-col gap-8"
+              : "flex min-w-0 flex-1 flex-col gap-8 lg:max-w-afisha-article lg:mx-auto"
+          }
+        >
           <div className="flex flex-col gap-4">
             <div className="relative aspect-home-cover w-full overflow-hidden rounded-2xl bg-muted lg:aspect-auto lg:h-afisha-cover">
               <RemoteImage
