@@ -142,13 +142,17 @@ function PromoBody({ promo }: { promo: Promo }) {
         {/* У акции без заведения `BookCard` не рендерится ниже, и `flex-1`
             без соседа растягивает колонку на всю ширину контейнера (1200),
             хотя обложка/текст в макете — 788 (`webEventDetail.leftWidth`,
-            узел 5033:6922). Ограничиваем только на этой ветке: когда
-            заведение есть, колонка по-прежнему делит место с `BookCard`. */}
+            узел 5033:6922), отцентрованные по горизонтали внутри контейнера
+            (`Предложения`, узел 5224:19305, `counterAxisAlignItems: CENTER`)
+            — `max-w` без `mx-auto` просто прижимает колонку к левому краю,
+            владелец заметил это на тесте 2026-09-15. Ограничиваем и
+            центрируем только на этой ветке: когда заведение есть, колонка
+            по-прежнему делит место с `BookCard`, там центровка не нужна. */}
         <article
           className={
             venue
               ? "flex min-w-0 flex-1 flex-col gap-8"
-              : "flex min-w-0 flex-1 flex-col gap-8 lg:max-w-afisha-article"
+              : "flex min-w-0 flex-1 flex-col gap-8 lg:max-w-afisha-article lg:mx-auto"
           }
         >
           <div className="flex flex-col gap-4">
