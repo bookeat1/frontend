@@ -12,17 +12,16 @@ import { useLocale, useT } from "@web/lib/locale";
 
 /**
  * Карточки лент главной. Все три — из кадра 3253:2:
- *   • акция  — «Card / Promo», 384×260, фото с градиентом, бейдж скидки;
- *   • событие — «Card / Event», 384×324, плашка с датой поверх фото;
- *   • подборка — «Card / Article», 588×464, надзаголовок «От редакции».
+ *   • акция  — «Card / Promo», 282×260, фото с градиентом, бейдж скидки;
+ *   • событие — «Card / Event», 282×324, плашка с датой поверх фото;
+ *   • подборка — «Card / Article», 588×464, надзаголовок «От редакции» (эту
+ *     правку не трогает).
  *
- * 2026-09-15, отменено: между этими значениями и `webVenueCard` (282×270 в
- * том же кадре) на короткое время стояла временная привязка «того же
- * размера, что карточка заведения» — правка была сделана без доступа к
- * живому Figma (REST 429 весь день) и оказалась неверной. Координатор сверил
- * живой узел `3525:14141` напрямую и подтвердил исходные 384×260/384×324,
- * три карточки в ряд — см. `webHomePromoCard`/`webHomeEventCard` в
- * `packages/design-tokens/src/web.ts`.
+ * 2026-09-15, ВТОРАЯ сверка за день — макет реально поменялся между ней и
+ * предыдущей, это не повтор той же проверки. Полный разбор всех прогонов
+ * (282×318 → 384×260/384×324 → снова 282, но с высотой 260/324, не 318, и
+ * рядом 4-в-строку вместо 3) — см. комментарий у `webHomePromoCard` и
+ * `webHomeEventCard` в `packages/design-tokens/src/web.ts`.
  *
  * Событие ведёт на свою страницу `/events/[id]` (с 2026-09-05), акция — на
  * свою `/promos/[id]` (T1b, 2026-09-06, решение владельца: отдельная страница
@@ -103,11 +102,25 @@ export const guideCardHref = (collection: GuideCollection): string | undefined =
  * (правило из `conventions/bookeat-web.md`).
  */
 export const PROMO_CARD_FRAME = "aspect-home-cover w-full lg:aspect-auto lg:h-promo-card";
+/**
+ * Картинка события во всю ширину карточки (`w-full`), а не фиксированные
+ * 384 — в макете (узел `Image` карточки «Card / Event») ширина обложки
+ * указана как 384 при родительской карточке 282, но это явно несведённый
+ * остаток старого размера: автор поменял ширину карточки в новой правке, а
+ * вложенный Image-фрейм не поправил. Переносить 384 в код не нужно —
+ * картинка и так растянута на всю карточку, `w-full` уже даёт нужный
+ * результат при любой ширине колонки.
+ */
 export const EVENT_CARD_IMAGE = "h-event-image-mobile w-full lg:h-event-image";
 export const GUIDE_CARD_IMAGE = "aspect-home-cover w-full lg:aspect-auto lg:h-guide-image";
 
-/** `sizes` для `RemoteImage`: ниже `md` карточка занимает всю колонку. */
-const THIRD_COLUMN_SIZES = "(min-width: 1280px) 384px, (min-width: 768px) 33vw, 100vw";
+/**
+ * `sizes` для `RemoteImage` карточек акции и события: колонка сетки 4-в-ряд
+ * при 1280+ (та же арифметика, что у `VenueCard`/«Выбрали для вас» — четыре
+ * карточки по 282 с гаттером 24 в контейнере 1200), 2 колонки на `md` (1024),
+ * во всю ширину ниже.
+ */
+const FOURTH_COLUMN_SIZES = "(min-width: 1280px) 282px, (min-width: 1024px) 25vw, 50vw";
 const HALF_COLUMN_SIZES = "(min-width: 1280px) 588px, (min-width: 768px) 50vw, 100vw";
 
 /**
@@ -142,7 +155,7 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
         PROMO_CARD_FRAME,
       )}
     >
-      <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={THIRD_COLUMN_SIZES} />
+      <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={FOURTH_COLUMN_SIZES} />
       {/* Затемнение снизу: белый текст поверх произвольной фотографии иначе
           читается через раз. Три стопа `bg-promo-scrim` — как в макете
           (5%/35%/85% чёрного сверху вниз), не голый двухстопный градиент. */}
@@ -203,7 +216,7 @@ export function EventCard({ event }: { event: EventSummary }) {
   return (
     <Card className="relative flex h-full w-full flex-col lg:min-h-event-card">
       <div className={cx("relative shrink-0 bg-muted", EVENT_CARD_IMAGE)}>
-        <RemoteImage src={event.coverImageUrl} alt={event.title} sizes={THIRD_COLUMN_SIZES} />
+        <RemoteImage src={event.coverImageUrl} alt={event.title} sizes={FOURTH_COLUMN_SIZES} />
         {date ? (
           <span className="absolute left-4 top-4 flex h-[60px] w-[60px] flex-col items-center justify-center rounded-field bg-canvas">
             <span className="text-[22px] font-bold leading-[26px] text-ink">{date.day}</span>
