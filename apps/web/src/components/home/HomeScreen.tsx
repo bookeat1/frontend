@@ -150,16 +150,18 @@ export function HomeScreen() {
             query={promos}
             emptyText={t.web.home.promos.empty}
             skeleton={
-              <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
-                {PLACEHOLDERS.slice(0, 3).map((key) => (
+              <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+                {PLACEHOLDERS.slice(0, HOME_PROMOS_LIMIT).map((key) => (
                   <Skeleton key={key} className={cx(PROMO_CARD_FRAME, "rounded-card")} />
                 ))}
               </div>
             }
           >
             {(items) => (
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-3">
-                {items.slice(0, 3).map((promo) => (
+              // Сетка 4 колонки — карточка акции того же токена ширины, что
+              // карточка заведения (282), см. `HOME_PROMOS_LIMIT`.
+              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+                {items.slice(0, HOME_PROMOS_LIMIT).map((promo) => (
                   <li key={promo.id}>
                     <PromoCard promo={promo} />
                   </li>
@@ -236,7 +238,7 @@ export function HomeScreen() {
             query={events}
             emptyText={t.web.home.events.empty}
             skeleton={
-              <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
                 {PLACEHOLDERS.slice(0, EVENTS_LIMIT).map((key) => (
                   <CardSkeleton key={key} image={EVENT_CARD_IMAGE} body="h-event-body" />
                 ))}
@@ -244,7 +246,7 @@ export function HomeScreen() {
             }
           >
             {(items) => (
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-3">
+              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
                 {items.map((event) => (
                   <li key={event.id}>
                     <EventCard event={event} />
@@ -307,6 +309,26 @@ export function HomeScreen() {
  * вывели ошибочные «две строки по четыре».
  */
 const HOME_CATALOG_LIMIT = 4;
+
+/**
+ * Сколько карточек в блоке «Акции недели» — ряд из четырёх (узел 3525:14228,
+ * ряд 3525:14234). `usePromotions` не ограничивает выдачу на бэкенде (в
+ * отличие от `EVENTS_LIMIT`), поэтому лимит применяется на клиенте, здесь.
+ *
+ * 2026-09-15, ВТОРАЯ сверка за день: значение то же самое (4), что и в
+ * прогоне 2 — но по другой причине. Прогон 2 поставил 4, приравняв карточку
+ * акции к `VenueCard`, без доступа к живому Figma. Прогон 3 отменил это до
+ * 3 (карточка была 384×260, три в ряд). Прогон 4 (эта правка): владелец
+ * отредактировал макет между прогонами 3 и 4, координатор сверил живой узел
+ * заново — карточка снова 282 шириной, и 1200 = 4×282 + 3×24 сходится ровно
+ * на 4. Разбор — у `webHomePromoCard` в `packages/design-tokens/src/web.ts`.
+ *
+ * В самом макете одна из 4 карточек ряда (узел 5224:19281) — точный дубль
+ * другой (тот же текст акции, тот же бейдж скидки), похоже на случайную
+ * копию слоя в Figma. Это подтверждает сетку на 4 карточки, а не образец
+ * контента 4-й карточки — на проде она всегда приходит с бэкенда.
+ */
+const HOME_PROMOS_LIMIT = 4;
 
 /** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
 const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
