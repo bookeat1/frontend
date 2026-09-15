@@ -214,15 +214,50 @@ describe("панель поиска", () => {
   });
 
   /**
-   * Время: колесо часов (0…23) и колесо минут (0…59), оба независимо
-   * зациклены (узел `5178:19076` «select_hour_desktop») — заменили список
-   * получасовых слотов первого захода. Начинаем с граничного значения
-   * "23:59", чтобы одним кликом на каждый шеврон проверить оборот в обе
-   * стороны у обеих колонок.
+   * Время: колесо часов (0…23, шаг 1) и колесо минут (0…59, ШАГ 30 — только
+   * 00 и 30), оба независимо зациклены (узел `5178:19076`
+   * «select_hour_desktop») — заменили список получасовых слотов первого
+   * захода. Шаг минут 30 совпадает с шагом слотов бронирования на бэкенде
+   * (`BOOKING_SLOT_STEP_MINUTES`) — выбрать колесом что-то ещё физически
+   * нельзя. Начинаем с "23:30" (уже на гриде), чтобы проверить оборот в обе
+   * стороны у обеих колонок без побочного округления.
    */
-  it("время: шеврон часов/минут листает значение и оборачивается на границах", async () => {
+  it("время: шеврон часов листает на 1, минут — на 30, оба оборачиваются на границах", async () => {
     renderScreen(
-      <SearchPanel state={{ ...EMPTY_CATALOG_STATE, date: "2026-09-06", time: "23:59" }} />,
+      <SearchPanel state={{ ...EMPTY_CATALOG_STATE, date: "2026-09-06", time: "23:30" }} />,
+    );
+
+    const time = (await screen.findByLabelText("Время")) as HTMLInputElement;
+    fireEvent.click(time);
+
+    const minuteUp = await screen.findByRole("button", { name: "Минуты: следующее значение" });
+    fireEvent.click(minuteUp);
+    expect(time.value).toBe("23:00"); // 30 + 30 = 60 → оборот к 0, минуя 45/15
+
+    const hourUp = screen.getByRole("button", { name: "Часы: следующее значение" });
+    fireEvent.click(hourUp);
+    expect(time.value).toBe("00:00"); // 23 + 1 → 0, минуты (уже 0) не тронуты
+
+    const minuteDown = screen.getByRole("button", { name: "Минуты: предыдущее значение" });
+    fireEvent.click(minuteDown);
+    expect(time.value).toBe("00:30"); // 0 − 30 → оборот к 30
+
+    const hourDown = screen.getByRole("button", { name: "Часы: предыдущее значение" });
+    fireEvent.click(hourDown);
+    expect(time.value).toBe("23:30"); // 0 − 1 → 23, минуты (30) не тронуты — полный цикл
+  });
+
+  /**
+   * Минута не кратная 30 в исходном состоянии (например, автозаполнение
+   * подставило РЕАЛЬНУЮ текущую минуту `nowTimeHhMm()`, а не грид-значение) —
+   * колесо не должно позволить утащить это «сырое» число дальше. Проверяем,
+   * что даже поворот ТОЛЬКО колеса часов округляет минуту до ближайшего
+   * шага 30, а не переносит её как есть (иначе получилось бы время вроде
+   * «00:47», для которого нет слота брони).
+   */
+  it("время: минута не кратная 30 округляется до ближайшего шага при повороте колеса часов", async () => {
+    renderScreen(
+      <SearchPanel state={{ ...EMPTY_CATALOG_STATE, date: "2026-09-06", time: "23:50" }} />,
     );
 
     const time = (await screen.findByLabelText("Время")) as HTMLInputElement;
@@ -230,19 +265,7 @@ describe("панель поиска", () => {
 
     const hourUp = await screen.findByRole("button", { name: "Часы: следующее значение" });
     fireEvent.click(hourUp);
-    expect(time.value).toBe("00:59"); // 23 + 1 → 0, минуты не тронуты
-
-    const minuteUp = screen.getByRole("button", { name: "Минуты: следующее значение" });
-    fireEvent.click(minuteUp);
-    expect(time.value).toBe("00:00"); // 59 + 1 → 0
-
-    const hourDown = screen.getByRole("button", { name: "Часы: предыдущее значение" });
-    fireEvent.click(hourDown);
-    expect(time.value).toBe("23:00"); // 0 − 1 → 23
-
-    const minuteDown = screen.getByRole("button", { name: "Минуты: предыдущее значение" });
-    fireEvent.click(minuteDown);
-    expect(time.value).toBe("23:59"); // 0 − 1 → 59
+    expect(time.value).toBe("00:00"); // 23 + 1 → 0 часов; 50 → ближайший грид 0, не 30
   });
 
   it("попап закрывается по Escape", async () => {

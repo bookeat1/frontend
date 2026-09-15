@@ -2482,7 +2482,9 @@ export const kk: LocaleOverride<Dictionary> = {
     notFoundDescription:
       "Мүмкін, ол аяқталып қалған. Акциялар тізіміне оралып, басқасын таңдаңыз.",
     card: (title: string, restaurant: string) => (restaurant ? `${title}, ${restaurant}` : title),
-    termsTitle: "Шарттар",
+    howToTitle: "Қалай пайдалану керек",
+    howToFootnote:
+      "Акцияның қолданылу мерзімін, ұсыныс құрамын және басқа жеңілдіктермен қоса пайдалану мүмкіндігін мекемеден нақтылаңыз.",
   },
   /** Десктоптық веб (apps/web) — қазақша нұсқасы. */
   web: {
@@ -2646,7 +2648,7 @@ export const kk: LocaleOverride<Dictionary> = {
         empty: "Қазір бұл қалада акция жоқ.",
       },
       catalog: {
-        title: "Барлық орындар",
+        title: (city: string) => `${city} қаласындағы барлық орындар`,
         subtitle: (count: number) => `${count} орын`,
         more: (count: number) => `Тағы ${count} орынды көрсету`,
         empty: "Бұл қалада әзірге орын жоқ.",

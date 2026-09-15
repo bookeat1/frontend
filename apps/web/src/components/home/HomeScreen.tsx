@@ -28,13 +28,14 @@ import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncB
 import { VenueCard } from "@web/components/ui/VenueCard";
 import { Button } from "@web/components/ui/Button";
 import { assetUrl } from "@web/lib/asset";
-import { useCity } from "@web/lib/city";
+import { DEFAULT_CITY, useCity } from "@web/lib/city";
 import { cx } from "@web/lib/cx";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
 import { useFavoriteControl } from "@web/lib/favorites";
-import { venueMeta } from "@web/lib/format";
+import { cityPrepositional, venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
 import {
+  EVENTS_LIMIT,
   useAmenities,
   useCatalog,
   useCuisines,
@@ -149,16 +150,18 @@ export function HomeScreen() {
             query={promos}
             emptyText={t.web.home.promos.empty}
             skeleton={
-              <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
-                {PLACEHOLDERS.slice(0, 3).map((key) => (
+              <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+                {PLACEHOLDERS.slice(0, HOME_PROMOS_LIMIT).map((key) => (
                   <Skeleton key={key} className={cx(PROMO_CARD_FRAME, "rounded-card")} />
                 ))}
               </div>
             }
           >
             {(items) => (
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-3">
-                {items.slice(0, 3).map((promo) => (
+              // Сетка 4 колонки — карточка акции того же токена ширины, что
+              // карточка заведения (282), см. `HOME_PROMOS_LIMIT`.
+              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+                {items.slice(0, HOME_PROMOS_LIMIT).map((promo) => (
                   <li key={promo.id}>
                     <PromoCard promo={promo} />
                   </li>
@@ -175,7 +178,7 @@ export function HomeScreen() {
               3255:27): там подпись со счётчиком, а переход вниз — кнопкой во
               всю ширину. */}
           <SectionHeader
-            title={t.web.home.catalog.title}
+            title={t.web.home.catalog.title(cityPrepositional(city ?? DEFAULT_CITY))}
             subtitle={catalog.data ? t.web.home.catalog.subtitle(catalog.data.total) : undefined}
           />
           <AsyncBlock
@@ -223,7 +226,7 @@ export function HomeScreen() {
         </Container>
       </Section>
 
-      <Section tone="subtle">
+      <Section>
         <Container className="flex flex-col gap-7">
           <SectionHeader
             title={t.web.home.events.title}
@@ -235,15 +238,15 @@ export function HomeScreen() {
             query={events}
             emptyText={t.web.home.events.empty}
             skeleton={
-              <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
-                {PLACEHOLDERS.slice(0, 3).map((key) => (
+              <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+                {PLACEHOLDERS.slice(0, EVENTS_LIMIT).map((key) => (
                   <CardSkeleton key={key} image={EVENT_CARD_IMAGE} body="h-event-body" />
                 ))}
               </div>
             }
           >
             {(items) => (
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-3">
+              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
                 {items.map((event) => (
                   <li key={event.id}>
                     <EventCard event={event} />
@@ -296,12 +299,36 @@ export function HomeScreen() {
 }
 
 /**
- * Сколько заведений показывает главная в блоке «Все заведения». Из макета:
- * подпись кнопки «Показать ещё 120 заведений» при «128 мест» в шапке секции
- * (узлы 3255:30 и 3255:220) — то есть на главной их восемь, две строки по
- * четыре.
+ * Сколько заведений показывает главная в блоке «Все заведения». ОДИН ряд из
+ * четырёх, не два (правка владельца 2026-09-15): узел `3525:14246` («Catalog
+ * grid», `design-specs/web/spec-all-venues.md`, REST 2026-09-09) рисует
+ * ровно один `Row` 1200×318 с четырьмя карточками — «Нет второго/третьего
+ * ряда карточек... остальные 120 не отрисованы». Подпись кнопки «Показать
+ * ещё 120 заведений» при «128 мест» в шапке — это счётчик МЕСТ (столиков), а
+ * не заведений, 1:1 с числом карточек он не совпадает, поэтому раньше отсюда
+ * вывели ошибочные «две строки по четыре».
  */
-const HOME_CATALOG_LIMIT = 8;
+const HOME_CATALOG_LIMIT = 4;
+
+/**
+ * Сколько карточек в блоке «Акции недели» — ряд из четырёх (узел 3525:14228,
+ * ряд 3525:14234). `usePromotions` не ограничивает выдачу на бэкенде (в
+ * отличие от `EVENTS_LIMIT`), поэтому лимит применяется на клиенте, здесь.
+ *
+ * 2026-09-15, ВТОРАЯ сверка за день: значение то же самое (4), что и в
+ * прогоне 2 — но по другой причине. Прогон 2 поставил 4, приравняв карточку
+ * акции к `VenueCard`, без доступа к живому Figma. Прогон 3 отменил это до
+ * 3 (карточка была 384×260, три в ряд). Прогон 4 (эта правка): владелец
+ * отредактировал макет между прогонами 3 и 4, координатор сверил живой узел
+ * заново — карточка снова 282 шириной, и 1200 = 4×282 + 3×24 сходится ровно
+ * на 4. Разбор — у `webHomePromoCard` в `packages/design-tokens/src/web.ts`.
+ *
+ * В самом макете одна из 4 карточек ряда (узел 5224:19281) — точный дубль
+ * другой (тот же текст акции, тот же бейдж скидки), похоже на случайную
+ * копию слоя в Figma. Это подтверждает сетку на 4 карточки, а не образец
+ * контента 4-й карточки — на проде она всегда приходит с бэкенда.
+ */
+const HOME_PROMOS_LIMIT = 4;
 
 /** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
 const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
@@ -333,12 +360,18 @@ function VenueGridSkeleton() {
 }
 
 /**
- * Герой — Figma 3253:30.
+ * Герой — Figma 3525:14143 (прежний узел 3253:30 в файле больше не
+ * существует, дизайнер перерисовал кадр — сверено REST/MCP 2026-09-15).
  *
  * Подложка это ФОТОГРАФИЯ (`scaleMode: FILL`) плюс вертикальный градиент
- * затемнения тремя стопами (`webHero.scrim`). Раньше здесь стояла фирменная
- * заливка, потому что файла снимка не было; теперь он экспортирован из
- * макета в `public/brand/hero.webp` (1440 px, webp, 107 КБ).
+ * затемнения тремя стопами (`webHero.scrim`). СНИМОК СМЕНИЛСЯ вместе с
+ * кадром: раньше в макете стоял интерьер ресторана, теперь — блюдо под
+ * клошем на бордовом бархате (`public/brand/hero.webp`, экспортирован из
+ * узла заново). В самом узле фото лежит ДВУМЯ слоями (нижний — старый
+ * интерьер, полностью перекрыт верхним) — на верстку это не переносим,
+ * виден только верхний слой. Кадрирование верхнего слоя в макете смещено к
+ * НИЗУ фотографии (не центр), поэтому `object-bottom`, а не дефолтный
+ * `object-center`.
  *
  * `priority` у картинки не украшение: это самое крупное изображение первого
  * экрана, то есть LCP страницы. `alt=""` — снимок декоративный, содержания в
@@ -365,7 +398,7 @@ function Hero() {
         priority
         // Наш загрузчик отдаёт адрес как есть — см. lib/image-loader.ts.
         unoptimized
-        className="object-cover"
+        className="object-cover object-bottom"
       />
       <div aria-hidden="true" className="absolute inset-0 bg-hero-scrim" />
       <Container className="relative flex flex-col gap-hero-gap py-hero-y">

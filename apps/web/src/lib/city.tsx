@@ -27,7 +27,7 @@ const STORAGE_KEY = "bookeat.web.city";
  * ответа `GET /cities`: значение — канонический enum бэкенда, а не догадка,
  * так что пустое состояние на время загрузки не нужно.
  */
-const DEFAULT_CITY = "Алматы";
+export const DEFAULT_CITY = "Алматы";
 
 interface CityContextValue {
   /**

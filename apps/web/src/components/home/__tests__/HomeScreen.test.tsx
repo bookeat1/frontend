@@ -74,12 +74,15 @@ describe("главная", () => {
     expect(link.getAttribute("href")).toBe("/venues/xyz");
   });
   /**
-   * Блок «Все заведения» на главной — узлы 3255:26…3255:220. Из макета: восемь
-   * карточек (две строки по четыре) и кнопка на ОСТАТОК, а не ссылка «показать
-   * все» в шапке секции. Число в кнопке настоящее — оно приходит из `total`
-   * выдачи, а не нарисовано.
+   * Блок «Все заведения» на главной — узел `3525:14246` (`Catalog grid`,
+   * `design-specs/web/spec-all-venues.md`, REST 2026-09-09): ОДИН ряд из
+   * четырёх карточек, не два (правка владельца 2026-09-15 — старый тест
+   * ожидал восемь, макет рисует только первый ряд и прячет остальное за
+   * кнопкой), и кнопка на ОСТАТОК, а не ссылка «показать все» в шапке
+   * секции. Число в кнопке настоящее — оно приходит из `total` выдачи, а не
+   * нарисовано.
    */
-  it("«Все заведения» показывает восемь карточек и кнопку на остаток", async () => {
+  it("«Все заведения» показывает четыре карточки в один ряд и кнопку на остаток", async () => {
     repository.searchRestaurants = vi.fn(async (query) => ({
       query,
       items: Array.from({ length: 20 }, (_, index) =>
@@ -91,14 +94,14 @@ describe("главная", () => {
     renderScreen(<HomeScreen />);
 
     expect(await screen.findByText("128 мест")).toBeTruthy();
-    expect(await screen.findByRole("link", { name: "Показать ещё 120 заведений" })).toBeTruthy();
-    // Девятой карточки на главной быть не должно — она уводит на /venues.
-    expect(screen.queryByRole("link", { name: "Venue 8" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Venue 7" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Показать ещё 124 заведения" })).toBeTruthy();
+    // Пятой карточки на главной быть не должно — она уводит на /venues.
+    expect(screen.queryByRole("link", { name: "Venue 4" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Venue 3" })).toBeTruthy();
   });
 
   /** Показали всё — жать в кнопке не на что, и её нет. */
-  it("когда заведений меньше восьми, кнопки «Показать ещё» нет", async () => {
+  it("когда заведений меньше четырёх, кнопки «Показать ещё» нет", async () => {
     repository.searchRestaurants = vi.fn(async (query) => ({
       query,
       items: [venueSummary({ id: "only", name: "Lou Lou" })],
