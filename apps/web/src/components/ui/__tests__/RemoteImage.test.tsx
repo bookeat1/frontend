@@ -80,4 +80,45 @@ describe("RemoteImage", () => {
     expect(container.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
     expect(container.textContent).toBe("");
   });
+
+  /**
+   * `fit="letterboxed"` — двухслойная обложка для портретных сторис-постеров
+   * (`EventScreen`/`PromoScreen`, 2026-09-15): размытая подложка `cover` на
+   * весь контейнер + то же фото целиком поверх, `contain`, без обрезки —
+   * иначе `object-cover` в широком баннере отрезает верх/низ портретного
+   * постера, где обычно весь текст.
+   */
+  describe("fit=\"letterboxed\"", () => {
+    it("рисует два слоя одной картинки: размытый фон и фото целиком поверх", () => {
+      const { container } = render(
+        <RemoteImage src={remote} alt="Афиша концерта" sizes="798px" fit="letterboxed" />,
+      );
+
+      // Фоновый слой decorative: `alt=""` даёт ему роль "presentation", не
+      // "img" — `getAllByRole` его не увидит, поэтому здесь запрос по тегу
+      // напрямую через контейнер.
+      const images = container.querySelectorAll("img");
+      expect(images).toHaveLength(2);
+
+      const [background, foreground] = Array.from(images);
+      expect(background.getAttribute("src")).toBe(remote);
+      expect(background.getAttribute("aria-hidden")).toBe("true");
+      expect(background.className).toContain("object-cover");
+      expect(background.className).toContain("blur-");
+
+      expect(foreground.getAttribute("src")).toBe(remote);
+      expect(foreground.className).toContain("object-contain");
+      expect(foreground).toBe(screen.getByRole("img", { name: "Афиша концерта" }));
+    });
+
+    it("битая ссылка убирает оба слоя, а не оставляет обрезанный огрызок", () => {
+      render(
+        <RemoteImage src={remote} alt="Афиша концерта" sizes="798px" fit="letterboxed" />,
+      );
+
+      fireEvent.error(screen.getByRole("img", { name: "Афиша концерта" }));
+
+      expect(screen.queryAllByRole("img", { hidden: true })).toHaveLength(0);
+    });
+  });
 });

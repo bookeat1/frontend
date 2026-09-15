@@ -138,7 +138,13 @@ function EventBody({ event }: { event: EventSummary }) {
         <article className="flex min-w-0 flex-1 flex-col gap-8">
           <div className="flex flex-col gap-4">
             <div className="relative aspect-home-cover w-full overflow-hidden rounded-2xl bg-muted lg:aspect-auto lg:h-afisha-cover">
-              <RemoteImage src={event.coverImageUrl} alt={event.title} sizes={COVER_SIZES} priority />
+              <RemoteImage
+                src={event.coverImageUrl}
+                alt={event.title}
+                sizes={COVER_SIZES}
+                priority
+                fit="letterboxed"
+              />
             </div>
 
             <div className="flex flex-col gap-4">
