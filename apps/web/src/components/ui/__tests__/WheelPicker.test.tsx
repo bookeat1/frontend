@@ -99,6 +99,41 @@ describe("WheelPicker", () => {
     expect(screen.getByRole("status").textContent).toBe("1");
   });
 
+  it("`step` пропускает промежуточные значения (минуты кратные 30)", () => {
+    render(
+      <ControlledColumn
+        initial={0}
+        min={0}
+        max={59}
+        step={30}
+        format={(v) => `${v}`.padStart(2, "0")}
+        label="Минуты"
+        incrementLabel="Минуты: следующее значение"
+        decrementLabel="Минуты: предыдущее значение"
+      />,
+    );
+
+    const output = screen.getByRole("status");
+    const increase = screen.getByRole("button", { name: "Минуты: следующее значение" });
+
+    fireEvent.click(increase);
+    expect(output.textContent).toBe("30"); // 0 + 30, не 1
+
+    fireEvent.click(increase);
+    expect(output.textContent).toBe("00"); // 30 + 30 = 60 → оборот к 0, минуя промежуточные
+
+    // При диапазоне 0…59 и шаге 30 на гриде ровно две точки — 00 и 30, без
+    // «15»/«45» и без дублей: все пять видимых строк колонки обязаны быть
+    // одной из этих двух.
+    const visibleValues = screen
+      .getAllByRole("button", { name: /^Минуты: \d{2}$/ })
+      .map((el) => el.textContent);
+    expect(visibleValues.length).toBeGreaterThan(0);
+    for (const value of visibleValues) {
+      expect(["00", "30"]).toContain(value);
+    }
+  });
+
   it("две колонки рендерятся независимо (часы и минуты)", () => {
     const onChangeHour = vi.fn();
     const onChangeMinute = vi.fn();
