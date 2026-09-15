@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { GuideCollection, GuideRoute, GuideRoutePoint } from "@bookeat/api/client";
 
-import { Container } from "@web/components/layout/Container";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Skeleton } from "@web/components/state/AsyncBlock";
 import { cx } from "@web/lib/cx";
@@ -52,6 +51,18 @@ const FULL_SIZES = "(min-width: 1280px) 1200px, 100vw";
  * вызывающий (`photo`), а не сам компонент: у гастрогида это `next/image` по
  * `assetUrl`, у маршрута — `RemoteImage` с `null`-фолбэком, и превращать это
  * в третий проп-переключатель незачем.
+ *
+ * РАЗМЕР И ПОЛЯ (сверено REST 2026-09-15, узел 5033:7100 — раньше кадр не
+ * имел зафиксированной высоты и жил боковым паддингом обычного `Container`
+ * (120), из-за чего фон «плавал»: короче при коротком заголовке, у́же полей,
+ * чем в макете):
+ *   • в макете кадр FIXED 1440×324, паддинг 126/126/126/32 (T/R/L/B), текст
+ *     прижат к низу (`primaryAxisAlignItems: MAX`);
+ *   • здесь — `lg:min-h-guide-editorial-hero` (324), а не жёсткая высота:
+ *     `clipsContent` в макете обрезал бы длинный русский заголовок, а
+ *     `min-h` только гарантирует НЕ МЕНЬШЕ макетной высоты;
+ *   • боковой паддинг с `lg` — свой токен `guide-editorial-x` (126), а не
+ *     контейнерный 120.
  */
 export function EditorialHero({
   photo,
@@ -69,10 +80,10 @@ export function EditorialHero({
   headlineClassName?: string;
 }) {
   return (
-    <section className="relative overflow-hidden bg-black">
+    <section className="relative overflow-hidden bg-black lg:min-h-guide-editorial-hero">
       {photo}
       <div aria-hidden="true" className="absolute inset-0 bg-black/[0.32]" />
-      <Container className="relative z-10 flex flex-col gap-1.5 pb-8 pt-16 lg:pt-[126px]">
+      <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-col gap-1.5 px-4 pb-8 pt-16 lg:px-guide-editorial-x lg:pb-guide-editorial-b lg:pt-guide-editorial-t">
         <p className="text-[14px] font-semibold uppercase leading-[19px] tracking-[0.08em] text-guide-gold lg:text-[16px]">
           {eyebrow}
         </p>
@@ -89,7 +100,7 @@ export function EditorialHero({
             {subheadline}
           </p>
         ) : null}
-      </Container>
+      </div>
     </section>
   );
 }
