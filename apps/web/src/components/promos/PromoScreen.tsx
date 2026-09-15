@@ -20,10 +20,12 @@ import { usePromo, useVenue } from "@web/lib/queries";
  * заведение. Секции, мини-карточка заведения, контакты и правая карточка —
  * ОБЩИЕ компоненты с `EventScreen` (`components/events/{EventVenueBlocks,
  * BookCard}.tsx`); отличия только в данных: нет тегов, вместо даты события —
- * «до {ends_at}», бейдж «−N%», секция «Об акции» вместо «Об афише», секция
- * «Как воспользоваться» при непустом `terms` (переименована из «Условия» по
- * узлу 5224:19299 — правка владельца от 2026-09-15) и юридическая сноска под
- * ней, которая показывается всегда, независимо от `terms`/заведения.
+ * «до {ends_at}», бейдж «−N%», нет отдельной секции «Об акции»/описания —
+ * узел 5224:19299 идёт сразу обложка → секция «Как воспользоваться» при
+ * непустом `terms` (переименована из «Условия» — правка владельца от
+ * 2026-09-15) → юридическая сноска под ней, которая показывается всегда,
+ * независимо от `terms`/заведения (правка владельца от 2026-09-15: секция
+ * «Об акции» с `promo.description` убрана целиком — в макете её нет).
  *
  * ОБЛОЖКА — по узлу 5115:7645 («WEB / 11 · Акции заведения», Figma
  * `qmMsg4jO1ggmyEHNIAD2ll`, снят 2026-09-07): название и подпись лежат
@@ -156,13 +158,6 @@ function PromoBody({ promo }: { promo: Promo }) {
               </div>
             </div>
           </div>
-
-          <section className="flex flex-col gap-4">
-            <h2 className="text-[24px] font-semibold leading-[24px] text-ink">{t.promotions.aboutTitle}</h2>
-            <p className="whitespace-pre-line break-words text-[14px] leading-5 text-ink-secondary">
-              {promo.description.trim() || t.web.events.noDescription}
-            </p>
-          </section>
 
           {promo.terms.trim() ? <HowToSection terms={promo.terms} title={t.promotions.howToTitle} /> : null}
 
