@@ -150,19 +150,16 @@ export function HomeScreen() {
             query={promos}
             emptyText={t.web.home.promos.empty}
             skeleton={
-              <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
-                {PLACEHOLDERS.slice(0, HOME_PROMOS_LIMIT).map((key) => (
+              <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
+                {PLACEHOLDERS.slice(0, 3).map((key) => (
                   <Skeleton key={key} className={cx(PROMO_CARD_FRAME, "rounded-card")} />
                 ))}
               </div>
             }
           >
             {(items) => (
-              // Сетка и лимит те же, что у «Выбрали для вас» и «Все заведения»
-              // (правка владельца 2026-09-15: карточка акции — размера
-              // карточки заведения, см. `HOME_PROMOS_LIMIT`).
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
-                {items.slice(0, HOME_PROMOS_LIMIT).map((promo) => (
+              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-3">
+                {items.slice(0, 3).map((promo) => (
                   <li key={promo.id}>
                     <PromoCard promo={promo} />
                   </li>
@@ -239,7 +236,7 @@ export function HomeScreen() {
             query={events}
             emptyText={t.web.home.events.empty}
             skeleton={
-              <div className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {PLACEHOLDERS.slice(0, EVENTS_LIMIT).map((key) => (
                   <CardSkeleton key={key} image={EVENT_CARD_IMAGE} body="h-event-body" />
                 ))}
@@ -247,11 +244,7 @@ export function HomeScreen() {
             }
           >
             {(items) => (
-              // Сетка та же, что у «Выбрали для вас» и «Все заведения» (правка
-              // владельца 2026-09-15: карточка события — размера карточки
-              // заведения); число карточек ограничивает сам запрос
-              // (`EVENTS_LIMIT` в `lib/queries.ts`), здесь срезать нечего.
-              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
+              <ul className="grid grid-cols-1 gap-gutter md:grid-cols-3">
                 {items.map((event) => (
                   <li key={event.id}>
                     <EventCard event={event} />
@@ -314,15 +307,6 @@ export function HomeScreen() {
  * вывели ошибочные «две строки по четыре».
  */
 const HOME_CATALOG_LIMIT = 4;
-
-/**
- * Сколько карточек акций показывает главная. Запрос (`usePromotions`) не
- * ограничен сервером, в отличие от афиши (`EVENTS_LIMIT`), поэтому режем на
- * клиенте — той же четвёркой, что у соседних секций (правка владельца
- * 2026-09-15: карточка акции стала размером с карточку заведения, сетка
- * ушла с 3 на 4 в ряд).
- */
-const HOME_PROMOS_LIMIT = 4;
 
 /** Ключи для скелетов: индекс массива в `key` линтер справедливо не любит. */
 const PLACEHOLDERS = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];

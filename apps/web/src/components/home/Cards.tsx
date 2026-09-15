@@ -12,13 +12,17 @@ import { useLocale, useT } from "@web/lib/locale";
 
 /**
  * Карточки лент главной. Все три — из кадра 3253:2:
- *   • акция  — «Card / Promo», 282×318 (правка владельца 2026-09-15, было
- *     384×260 — того же размера, что карточка заведения), фото с градиентом,
- *     бейдж скидки;
- *   • событие — «Card / Event», 282×318 (та же правка, было 384×324), плашка
- *     с датой поверх фото;
- *   • подборка — «Card / Article», 588×464, надзаголовок «От редакции» (эту
- *     правка не трогает).
+ *   • акция  — «Card / Promo», 384×260, фото с градиентом, бейдж скидки;
+ *   • событие — «Card / Event», 384×324, плашка с датой поверх фото;
+ *   • подборка — «Card / Article», 588×464, надзаголовок «От редакции».
+ *
+ * 2026-09-15, отменено: между этими значениями и `webVenueCard` (282×270 в
+ * том же кадре) на короткое время стояла временная привязка «того же
+ * размера, что карточка заведения» — правка была сделана без доступа к
+ * живому Figma (REST 429 весь день) и оказалась неверной. Координатор сверил
+ * живой узел `3525:14141` напрямую и подтвердил исходные 384×260/384×324,
+ * три карточки в ряд — см. `webHomePromoCard`/`webHomeEventCard` в
+ * `packages/design-tokens/src/web.ts`.
  *
  * Событие ведёт на свою страницу `/events/[id]` (с 2026-09-05), акция — на
  * свою `/promos/[id]` (T1b, 2026-09-06, решение владельца: отдельная страница
@@ -87,16 +91,11 @@ export const guideCardHref = (collection: GuideCollection): string | undefined =
 };
 
 /**
- * Размеры обложек трёх карточек. Числа макета (318, 318, 300) живут только
+ * Размеры обложек трёх карточек. Числа макета (260, 196/324, 300) живут только
  * под `lg:` — ниже структуру задаёт приложение (`docs/responsive.md`, § 5,
  * дыра № 6): у акции и подборки обложка держит пропорцию мобильной карточки
  * ряда (`aspect-home-cover`, 256×148), у события — фиксированную высоту
  * карточки «Афиши» приложения (`h-event-image-mobile`, 198).
- *
- * У акции и события `lg:h-*` — правка владельца 2026-09-15: карточка того же
- * РАЗМЕРА, что карточка заведения (`webVenueCard`, 282×318) — см. комментарий
- * у `webHomePromoCard`/`webHomeEventCard` в `packages/design-tokens/src/web.ts`
- * про сетку 3→4 в ряд и несверенный в сессии узел.
  *
  * Константы экспортируются, чтобы скелеты лент в `HomeScreen` были собраны из
  * ТЕХ ЖЕ классов, что и карточки: высота скелета обязана совпадать с высотой
@@ -107,12 +106,8 @@ export const PROMO_CARD_FRAME = "aspect-home-cover w-full lg:aspect-auto lg:h-pr
 export const EVENT_CARD_IMAGE = "h-event-image-mobile w-full lg:h-event-image";
 export const GUIDE_CARD_IMAGE = "aspect-home-cover w-full lg:aspect-auto lg:h-guide-image";
 
-/**
- * `sizes` для `RemoteImage` карточек акции и события: колонка сетки та же,
- * что у карточки заведения (`VenueCard.tsx`, 282 при 1280+, четыре в ряд) —
- * правка владельца 2026-09-15, см. комментарий у `PROMO_CARD_FRAME`.
- */
-const FOURTH_COLUMN_SIZES = "(min-width: 1280px) 282px, (min-width: 1024px) 25vw, 50vw";
+/** `sizes` для `RemoteImage`: ниже `md` карточка занимает всю колонку. */
+const THIRD_COLUMN_SIZES = "(min-width: 1280px) 384px, (min-width: 768px) 33vw, 100vw";
 const HALF_COLUMN_SIZES = "(min-width: 1280px) 588px, (min-width: 768px) 50vw, 100vw";
 
 /**
@@ -141,14 +136,13 @@ export function PromoCard({ promo }: { promo: PromoCardData }) {
         // Радиус, паддинг и затемнение — те же токены, что у карточки акции
         // на странице заведения (`webVenuePage.promoCard`, узел 3379:11497):
         // ЭТО ОДИН И ТОТ ЖЕ КОМПОНЕНТ МАКЕТА в двух местах сайта, только
-        // здесь высота фиксированная (318, `webHomePromoCard.height` — того
-        // же размера, что карточка заведения), а там — минимум (у карточки
-        // заведения бывает длиннее подпись).
+        // здесь высота фиксированная (узел 3525:14236, 260), а там — минимум
+        // (у карточки заведения бывает длиннее подпись).
         "relative flex flex-col justify-end overflow-hidden rounded-promo bg-muted p-venue-promo-p",
         PROMO_CARD_FRAME,
       )}
     >
-      <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={FOURTH_COLUMN_SIZES} />
+      <RemoteImage src={promo.coverImageUrl} alt={promo.title} sizes={THIRD_COLUMN_SIZES} />
       {/* Затемнение снизу: белый текст поверх произвольной фотографии иначе
           читается через раз. Три стопа `bg-promo-scrim` — как в макете
           (5%/35%/85% чёрного сверху вниз), не голый двухстопный градиент. */}
@@ -209,7 +203,7 @@ export function EventCard({ event }: { event: EventSummary }) {
   return (
     <Card className="relative flex h-full w-full flex-col lg:min-h-event-card">
       <div className={cx("relative shrink-0 bg-muted", EVENT_CARD_IMAGE)}>
-        <RemoteImage src={event.coverImageUrl} alt={event.title} sizes={FOURTH_COLUMN_SIZES} />
+        <RemoteImage src={event.coverImageUrl} alt={event.title} sizes={THIRD_COLUMN_SIZES} />
         {date ? (
           <span className="absolute left-4 top-4 flex h-[60px] w-[60px] flex-col items-center justify-center rounded-field bg-canvas">
             <span className="text-[22px] font-bold leading-[26px] text-ink">{date.day}</span>
