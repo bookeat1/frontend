@@ -28,6 +28,17 @@ export function AnalyticsProvider({
 }) {
   const { isLoading, signedIn, user } = useAuth();
 
+  // `reset()` rotates Amplitude's device id (a fresh `AMP_*` cookie value).
+  // That must happen on a REAL sign-out (signed-in → signed-out), never on an
+  // anonymous guest's ordinary page load — every anonymous load starts with
+  // `signedIn === false`, so resetting there would mint a new device id on
+  // every visit and break the very funnel stitching this feature exists for
+  // (an anonymous `?promo=` landing would never reconnect to the `login`/
+  // `booking_confirm` events a later page load sends). `wasSignedIn` starts
+  // `null` (unknown, pre-hydration) precisely so the very first resolved
+  // render — signed in OR signed out — is never treated as a transition.
+  const wasSignedIn = useRef<boolean | null>(null);
+
   useEffect(() => {
     // Idempotent — safe to call on every dependency change.
     initAnalytics();
@@ -37,12 +48,13 @@ export function AnalyticsProvider({
     if (isLoading) return;
     if (user) {
       identifyUser(user);
-    } else if (!signedIn) {
+    } else if (!signedIn && wasSignedIn.current === true) {
       resetAnalytics();
     }
     // `signedIn && !user`: session tokens are there, profile hasn't come
     // back yet — nothing to do, the next render with `user` set will
     // identify.
+    wasSignedIn.current = signedIn;
   }, [isLoading, signedIn, user]);
 
   /**

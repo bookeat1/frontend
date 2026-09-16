@@ -83,10 +83,14 @@ export function captureCampaignFromUrl(
   const promo = extractPromoFromSearch(search, knownIds);
   if (!promo) return null;
   if (readCampaignAttribution() === promo) return null;
+  const s = storage();
+  if (!s) return null;
   try {
-    storage()?.setItem(STORAGE_KEY, promo);
+    s.setItem(STORAGE_KEY, promo);
   } catch {
-    // Хранилище недоступно — сессия просто идёт без атрибуции.
+    // Хранилище недоступно (квота/приватный режим) — сессия просто идёт без
+    // атрибуции. `deep_link_attributed` не должен уйти, если метка не легла:
+    // событие означает «метка принята», а не «в URL что-то было».
     return null;
   }
   return promo;

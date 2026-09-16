@@ -9,6 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * `auth-login-analytics.test.tsx`); `signOut` зовёт `reset()` ровно один раз,
  * и не зовёт его вовсе, пока `isLoading === true` (иначе первая отрисовка
  * сбрасывала бы сессию, которая вот-вот станет вошедшей).
+ *
+ * РЕГРЕССИЯ (код-ревью 2026-09-16): reset() рвёт `device_id` в Amplitude —
+ * ровно ту склейку анонимного захода по `?promo=` с последующим `login`,
+ * ради которой существует вся воронка марафона. Первая версия звала reset
+ * на КАЖДОЙ анонимной загрузке страницы (не только на реальном выходе),
+ * потому что гейт был `!signedIn`, а не переход `signedIn → !signedIn`.
+ * Обычный анонимный холодный старт не должен звать reset вовсе.
  */
 
 const identifyUser = vi.fn();
@@ -94,11 +101,15 @@ describe("AnalyticsProvider — гидратация", () => {
     expect(trackEvent).not.toHaveBeenCalledWith("signup");
   });
 
-  it("нет сессии — не зовёт reset, пока isLoading, и зовёт его после гидратации ровно один раз", async () => {
+  it("нет сессии — обычный анонимный холодный старт НЕ зовёт reset вовсе", async () => {
     renderTree();
 
-    // Сразу после монтирования это ещё "isLoading" — резет откладывается.
-    await waitFor(() => expect(resetAnalytics).toHaveBeenCalledTimes(1));
+    // Даём эффектам отработать (init должен точно случиться), но reset —
+    // не должен: это первая загрузка анонима, не переход из вошедшего
+    // состояния. Регрессия 2026-09-16: раньше звался здесь и ротировал
+    // device_id на КАЖДОМ анонимном заходе, обрывая склейку воронки.
+    await waitFor(() => expect(initAnalytics).toHaveBeenCalled());
+    expect(resetAnalytics).not.toHaveBeenCalled();
   });
 });
 
