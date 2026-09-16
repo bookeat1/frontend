@@ -13,6 +13,12 @@ import { CheckboxRow, Field, TextArea, TextInput } from "./ui/FormControls";
 import { Modal } from "./ui/Modal";
 import { ErrorState, LoadingState } from "./StateViews";
 
+/** Display order for the week list — Monday first, Sunday last — while the
+ * underlying `day_of_week` stays the backend's Sunday..Saturday (0..6)
+ * convention untouched (`normalizeWeek`, `patchDay`, the save payload). Only
+ * the render order changes. */
+const DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+
 /** Build a full Sunday..Saturday (0..6) working-hours array from whatever the
  * backend returned, so every day has an editable row. */
 function normalizeWeek(rows: WorkingHours[]): WorkingHours[] {
@@ -115,7 +121,7 @@ function WorkingHoursCard({
       <p className="mt-xs text-[13px] text-text-muted">{t.admin.schedule.workingHoursHint}</p>
 
       <ul className="mt-lg flex flex-col divide-y divide-hairline">
-        {week.map((d) => (
+        {DISPLAY_ORDER.map((day) => week.find((d) => d.day_of_week === day)!).map((d) => (
           <li
             key={d.day_of_week}
             className="flex flex-col gap-sm py-md sm:flex-row sm:items-center sm:gap-lg"

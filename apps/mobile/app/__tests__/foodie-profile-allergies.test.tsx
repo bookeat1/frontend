@@ -63,13 +63,22 @@ describe("шаг «Аллергии»", () => {
     expect(screen.getByRole("checkbox", { name: "Моллюски" }).getAttribute("aria-checked")).toBe("true");
   });
 
-  it("переходит на шаг бюджета только после выбора хотя бы одного пункта", async () => {
+  it("«Далее» активна и без выбора — пустой список аллергий валиден сам по себе", async () => {
     const user = userEvent.setup();
     renderScreen();
 
     const next = () => screen.getByRole("button", { name: t.onboarding.foodieProfile.next });
-    expect(next().getAttribute("aria-disabled")).toBe("true");
+    expect(next().getAttribute("aria-disabled")).not.toBe("true");
 
+    await user.click(next());
+    expect(push).toHaveBeenCalledWith("/foodie-profile/budget");
+  });
+
+  it("переходит на шаг бюджета и с выбранными пунктами", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    const next = () => screen.getByRole("button", { name: t.onboarding.foodieProfile.next });
     await user.click(screen.getByText("Соя"));
     await user.click(next());
     expect(push).toHaveBeenCalledWith("/foodie-profile/budget");
