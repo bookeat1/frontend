@@ -155,6 +155,7 @@ const PRIVATE_QUERY_KEYS = [
   ["booking"],
   ["preorder"],
   ["booking-payment"],
+  ["foodie-profile"],
 ] as const;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

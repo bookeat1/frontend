@@ -2329,6 +2329,7 @@ export const kk: LocaleOverride<Dictionary> = {
       next: "Келесі",
       done: "Дайын",
       saveFailed: "Фуди-профильді сақтау мүмкін болмады. Қайталап көріңіз",
+      loadFailed: "Сақталған қалауларды жүктеу мүмкін болмады",
       cuisine: {
         title: "Сүйікті ас мәзірі",
         subtitle: "5 асқа дейін таңдаңыз",

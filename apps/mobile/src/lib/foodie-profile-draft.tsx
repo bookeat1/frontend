@@ -85,19 +85,37 @@ interface FoodieProfileDraftValue {
   toggleDiet(id: string): void;
   toggleAllergy(id: string): void;
   setBudget(tier: BudgetTier): void;
-  /** Идёт первоначальная загрузка сохранённого профиля (`GET`). Экраны не
-   * обязаны с ней считаться — пустой черновик всегда валидное начало, — но
-   * могут показать лёгкий индикатор, если решат. */
+  /** Идёт первоначальная загрузка сохранённого профиля (`GET`). Последний шаг
+   * визарда ОБЯЗАН с ней считаться — пока не пришёл первый успешный ответ,
+   * `save()` может стереть ранее сохранённые категории, отправив на бэкенд
+   * пустой/неполный черновик вместо того, что гость выбрал раньше (`PUT`
+   * заменяет, а не мержит). */
   isLoadingProfile: boolean;
+  /** `GET /users/me/foodie-profile` завершился ошибкой и ещё ни разу не
+   * приходил успешно в этой сессии визарда. Пока это true, `save()`
+   * отклоняется без запроса — см. комментарий у `save` ниже. */
+  profileLoadFailed: boolean;
+  /** Повторяет `GET /users/me/foodie-profile` — вызывается кнопкой
+   * «Повторить» рядом с сообщением о `profileLoadFailed`. */
+  retryLoadProfile(): void;
   /** Идёт сохранение (`PUT`) — последний шаг должен блокировать повторный тап
    * «Готово», пока это true. */
   isSaving: boolean;
   /** Последний вызов `save()` завершился ошибкой. Сбрасывается следующим
    * вызовом `save()`. */
   saveFailed: boolean;
-  /** Отправляет весь черновик на `PUT /users/me/foodie-profile`. Возвращает
+  /**
+   * Отправляет весь черновик на `PUT /users/me/foodie-profile`. Возвращает
    * `true` при успехе — вызывающий экран должен уходить дальше только тогда,
-   * иначе оставлять гостя на экране с `saveFailed`. */
+   * иначе оставлять гостя на экране с `saveFailed`.
+   *
+   * ОТКАЗЫВАЕТ (возвращает `false` без сетевого запроса), пока исходный
+   * `GET` ещё не завершился успешно хотя бы раз (`isLoadingProfile` или
+   * `profileLoadFailed`) — иначе на плохой сети гость может протапать визард
+   * поверх непрогруженного черновика и `PUT`-ом (replace-семантика) стереть
+   * то, что сохранил раньше. Экран должен блокировать саму кнопку через эти
+   * же флаги, это — защита второго уровня, не основной UX.
+   */
   save(): Promise<boolean>;
 }
 
@@ -167,14 +185,24 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
     },
   });
 
+  const { mutateAsync: replaceFoodieProfile } = saveMutation;
   const save = useCallback(async (): Promise<boolean> => {
+    // Second-layer guard (see the doc comment on `save` in the interface
+    // above) — the screen is expected to keep "Готово" disabled for the same
+    // reason, but `save()` itself must never trust that alone.
+    if (profileQuery.isLoading || profileQuery.isError) return false;
     try {
-      await saveMutation.mutateAsync(toWireProfile(draft));
+      await replaceFoodieProfile(toWireProfile(draft));
       return true;
     } catch {
       return false;
     }
-  }, [draft, saveMutation]);
+  }, [draft, replaceFoodieProfile, profileQuery.isLoading, profileQuery.isError]);
+
+  const { refetch: refetchProfile } = profileQuery;
+  const retryLoadProfile = useCallback(() => {
+    void refetchProfile();
+  }, [refetchProfile]);
 
   const value = useMemo<FoodieProfileDraftValue>(
     () => ({
@@ -184,6 +212,8 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
       toggleAllergy,
       setBudget,
       isLoadingProfile: profileQuery.isLoading,
+      profileLoadFailed: profileQuery.isError,
+      retryLoadProfile,
       isSaving: saveMutation.isPending,
       saveFailed: saveMutation.isError,
       save,
@@ -195,6 +225,8 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
       toggleAllergy,
       setBudget,
       profileQuery.isLoading,
+      profileQuery.isError,
+      retryLoadProfile,
       saveMutation.isPending,
       saveMutation.isError,
       save,

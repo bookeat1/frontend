@@ -35,6 +35,10 @@ const PRIVATE_ENTRIES: Array<[readonly unknown[], unknown]> = [
   [["booking", "b-1"], { id: "b-1", phone: "+77010000000" }],
   [["preorder", "b-1"], { lines: [] }],
   [["booking-payment", "b-1"], { amountMinor: 500_000 }],
+  // Фуди-профиль (кухни/диета/аллергии/бюджет) — без этого ключа гость Б, войдя
+  // на том же телефоне в течение gcTime, синхронно увидел бы и мог невольно
+  // сохранить себе предпочтения гостя А (see foodie-profile-draft.tsx).
+  [["foodie-profile"], { cuisines: ["kazakh"], diets: [], allergies: ["nuts"], budget: "mid" }],
 ];
 
 /** Public catalog data, which has no business being purged. */

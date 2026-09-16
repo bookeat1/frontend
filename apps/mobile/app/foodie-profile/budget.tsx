@@ -2,7 +2,7 @@ import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BudgetOptionCard } from "../../src/components/foodie-profile/BudgetOptionCard";
 import { FoodieProfileHeader } from "../../src/components/foodie-profile/FoodieProfileHeader";
@@ -27,10 +27,25 @@ const t = getDictionary();
  * (`FoodieProfileDraftProvider.save`) и уходит на `/profile` только при
  * успехе — при отказе черновик остаётся на экране вместе с текстом ошибки,
  * «Готово» можно нажать ещё раз.
+ *
+ * ЗАЩИТА ОТ ТИХОЙ ПОТЕРИ ДАННЫХ. `PUT` заменяет весь профиль целиком, а не
+ * мержит. Пока стартовый `GET` (см. `foodie-profile-draft.tsx`) ещё грузится
+ * или упал — «Готово» заблокирована: иначе на плохой сети гость может
+ * протапать шаги поверх непрогруженного черновика и стереть ранее
+ * сохранённые категории пустым/неполным `PUT`.
  */
 export default function FoodieProfileBudgetScreen() {
   const router = useRouter();
-  const { draft, setBudget, isSaving, saveFailed, save } = useFoodieProfileDraft();
+  const {
+    draft,
+    setBudget,
+    isSaving,
+    saveFailed,
+    isLoadingProfile,
+    profileLoadFailed,
+    retryLoadProfile,
+    save,
+  } = useFoodieProfileDraft();
 
   const finish = useCallback(() => {
     void (async () => {
@@ -39,15 +54,20 @@ export default function FoodieProfileBudgetScreen() {
     })();
   }, [save, router]);
 
+  const goBack = useCallback(() => {
+    if (isSaving) return;
+    router.back();
+  }, [isSaving, router]);
+
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <FoodieProfileHeader
           step={4}
-          onBack={() => router.back()}
-          nextLabel={isSaving ? t.common.loading : t.onboarding.foodieProfile.done}
-          nextEnabled={!isSaving}
+          onBack={goBack}
+          nextLabel={isSaving || isLoadingProfile ? t.common.loading : t.onboarding.foodieProfile.done}
+          nextEnabled={!isSaving && !isLoadingProfile && !profileLoadFailed}
           onNext={finish}
         />
       </SafeAreaView>
@@ -73,6 +93,17 @@ export default function FoodieProfileBudgetScreen() {
             );
           })}
         </View>
+
+        {profileLoadFailed ? (
+          <View style={styles.loadErrorBox}>
+            <Text style={styles.saveError} accessibilityRole="alert">
+              {t.onboarding.foodieProfile.loadFailed}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={retryLoadProfile}>
+              <Text style={styles.retryLabel}>{t.common.retry}</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {saveFailed ? (
           <Text style={styles.saveError} accessibilityRole="alert">
@@ -113,5 +144,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.brand.primary,
     marginTop: spacing.md,
+  },
+  loadErrorBox: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  retryLabel: {
+    ...typography.labelSemiBold,
+    color: colors.brand.primary,
   },
 });

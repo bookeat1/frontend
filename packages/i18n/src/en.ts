@@ -2324,6 +2324,7 @@ export const en: LocaleOverride<Dictionary> = {
       next: "Next",
       done: "Done",
       saveFailed: "Could not save the foodie profile. Please try again",
+      loadFailed: "Couldn't load your saved preferences",
       cuisine: {
         title: "Favourite cuisine",
         subtitle: "Choose up to 5 cuisines",

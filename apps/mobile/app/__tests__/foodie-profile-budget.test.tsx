@@ -18,6 +18,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * /users/me/foodie-profile`, `FoodieProfileDraftProvider.save`): уходит на
  * «Профиль» только при успехе, и остаётся на экране с текстом ошибки при
  * отказе бэкенда, не теряя выбор гостя.
+ *
+ * И — регрессия на тихую потерю данных: пока стартовый `GET` ещё грузится
+ * или упал, «Готово» заблокирована, потому что `PUT` заменяет весь профиль
+ * целиком и мог бы стереть ранее сохранённые категории пустым черновиком.
  */
 
 const t = getDictionary("ru");
@@ -43,11 +47,32 @@ const replaceFoodieProfile = vi.fn(async (input: unknown) => {
   return input;
 });
 
+/**
+ * Стартовый `GET /users/me/foodie-profile` — управляемый вручную промис, а не
+ * `async () => ...`: тестам на `isLoadingProfile`/`profileLoadFailed` нужно
+ * держать запрос "в полёте" произвольно долго, а не полагаться на то, что он
+ * успеет разрешиться раньше следующего `expect`.
+ */
+let settleGetProfile: (profile: {
+  cuisines: string[];
+  diets: string[];
+  allergies: string[];
+  budget: string | null;
+}) => void;
+let failGetProfile: (error: Error) => void;
+const getFoodieProfile = vi.fn(
+  () =>
+    new Promise((resolve, reject) => {
+      settleGetProfile = resolve;
+      failGetProfile = reject;
+    }),
+);
+
 vi.mock("../../src/lib/auth", () => ({
   useAuth: () => ({
     status: "signed-in",
     repository: {
-      getFoodieProfile: vi.fn(async () => ({ cuisines: [], diets: [], allergies: [], budget: null })),
+      getFoodieProfile,
       replaceFoodieProfile,
     },
   }),
@@ -67,9 +92,24 @@ function renderScreen() {
   );
 }
 
+/** Рендерит экран и сразу отвечает на стартовый `GET` пустым профилем, как
+ * большинство тестов ниже, которым важно поведение `save()`, а не самой
+ * загрузки — дожидается, пока «Готово» перестанет быть задизейблена. */
+async function renderLoadedScreen() {
+  const utils = renderScreen();
+  settleGetProfile({ cuisines: [], diets: [], allergies: [], budget: null });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: t.onboarding.foodieProfile.done }).getAttribute("aria-disabled"),
+    ).not.toBe("true"),
+  );
+  return utils;
+}
+
 beforeEach(() => {
   replace.mockClear();
   replaceFoodieProfile.mockClear();
+  getFoodieProfile.mockClear();
   replaceOutcome = "success";
 });
 
@@ -83,9 +123,9 @@ describe("шаг «Ваш бюджет»", () => {
     }
   });
 
-  it("«Готово» доступна без выбора, сохраняет черновик и уходит в «Профиль»", async () => {
+  it("«Готово» доступна без выбора после загрузки, сохраняет черновик и уходит в «Профиль»", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderLoadedScreen();
 
     const done = screen.getByRole("button", { name: t.onboarding.foodieProfile.done });
     expect(done.getAttribute("aria-disabled")).not.toBe("true");
@@ -100,10 +140,56 @@ describe("шаг «Ваш бюджет»", () => {
     });
   });
 
+  it("пока стартовый GET грузится — «Готово» заблокирована (подписана «Загрузка») и включается после ответа", async () => {
+    renderScreen();
+
+    // Пока GET не ответил, ссылка в шапке показывает t.common.loading, а не
+    // t.onboarding.foodieProfile.done, — тем же приёмом, что и во время PUT.
+    const loading = screen.getByRole("button", { name: t.common.loading });
+    expect(loading.getAttribute("aria-disabled")).toBe("true");
+
+    settleGetProfile({ cuisines: ["kazakh"], diets: [], allergies: [], budget: null });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: t.onboarding.foodieProfile.done }).getAttribute("aria-disabled"),
+      ).not.toBe("true"),
+    );
+  });
+
+  it("сбой стартового GET блокирует «Готово», не даёт стереть сохранённое и снимается повтором", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    const done = () => screen.getByRole("button", { name: t.onboarding.foodieProfile.done });
+    failGetProfile(new Error("simulated GET /users/me/foodie-profile failure"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toBe(t.onboarding.foodieProfile.loadFailed),
+    );
+    expect(done().getAttribute("aria-disabled")).toBe("true");
+    expect(replaceFoodieProfile).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: t.common.retry }));
+    settleGetProfile({ cuisines: ["kazakh"], diets: [], allergies: [], budget: null });
+    await waitFor(() => expect(done().getAttribute("aria-disabled")).not.toBe("true"));
+
+    await user.click(done());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+    // Ранее сохранённая кухня из GET дошла до PUT нетронутой, а не пустым
+    // черновиком — собственно то, от чего защищает эта блокировка.
+    expect(replaceFoodieProfile).toHaveBeenCalledWith({
+      cuisines: ["kazakh"],
+      diets: [],
+      allergies: [],
+      budget: null,
+    });
+  });
+
   it("сбой сохранения оставляет черновик на экране и показывает ошибку с возможностью повторить", async () => {
     replaceOutcome = "failure";
     const user = userEvent.setup();
-    renderScreen();
+    await renderLoadedScreen();
 
     const done = () => screen.getByRole("button", { name: t.onboarding.foodieProfile.done });
     await user.click(done());
