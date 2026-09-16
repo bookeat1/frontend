@@ -609,7 +609,16 @@ function MenuPageBody({
                 hasIntent={hasIntent}
               />
             ) : null}
-            <BookingCard venue={venue} />
+            {/* Та же карточка «Забронировать столик» — своя кнопка «Забронировать
+                на HH:MM» обязана вести на ТЕ ЖЕ дату/гостей/время, что и
+                «Вернуться к бронированию» выше, пока предзаказ непуст: без
+                `hasIntent` `intent` — это одни умолчания (сегодня/2 гостя),
+                накатывать их поверх сохранённого черновика карточки без
+                причины незачем. */}
+            <BookingCard
+              venue={venue}
+              preorderIntent={preorder.draft.lines.length > 0 && hasIntent ? intent : null}
+            />
           </div>
         </aside>
       </div>
