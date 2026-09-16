@@ -349,6 +349,8 @@ export interface MyRestaurant {
   name: string;
   /** "owner" | "manager" | "hostess", or "admin" for a superadmin. */
   role: string;
+  /** false when the venue is hidden/inactive (still manageable by staff). */
+  is_active: boolean;
 }
 
 /** Envelope of GET /admin/my-restaurants (data is `{restaurants: [...]}`). */

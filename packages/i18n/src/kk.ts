@@ -557,6 +557,7 @@ export const kk: LocaleOverride<Dictionary> = {
       roleManager: "Менеджер",
       roleHostess: "Хостес",
       roleAdmin: "Әкімші",
+      hiddenBadge: "Жасырын",
       searchPlaceholder: "Атауы бойынша іздеу",
       searchEmpty: "Ештеңе табылмады",
       recent: "Жуықтағы",
