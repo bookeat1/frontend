@@ -187,7 +187,7 @@ describe("страница бронирования — состояния", () 
 });
 
 describe("страница бронирования — имя и телефон", () => {
-  it("имя, телефон и почта подставляются из профиля, но остаются полями ввода", async () => {
+  it("имя и телефон подставляются из профиля, но остаются полями ввода; почты в форме нет", async () => {
     signIn();
     renderBooking();
     await slotsShown();
@@ -195,9 +195,7 @@ describe("страница бронирования — имя и телефон
     expect(nameField().value).toBe("Дамир");
     expect(nameField().disabled).toBe(false);
     expect(phoneField().value).toBe("701 000-00-00");
-    expect((screen.getByRole("textbox", { name: "E-mail (необязательно)" }) as HTMLInputElement).value).toBe(
-      "damir@example.kz",
-    );
+    expect(screen.queryByRole("textbox", { name: /E-mail/i })).toBeNull();
   });
 
   it("ИНОСТРАННЫЙ НОМЕР В ПРОФИЛЕ — поле пустое и с ошибкой, а не фальшивый «+7…» на сервер", async () => {
@@ -266,7 +264,7 @@ describe("страница бронирования — имя и телефон
 });
 
 describe("страница бронирования — отправка", () => {
-  it("отправляет строку слота ДОСЛОВНО, почту и пожелания (чипы, потом текст), затем уходит на страницу брони", async () => {
+  it("отправляет строку слота ДОСЛОВНО и пожелания (чипы, потом текст), без почты, затем уходит на страницу брони", async () => {
     signIn();
     renderBooking();
     await chooseSlot();
@@ -284,7 +282,6 @@ describe("страница бронирования — отправка", () =>
       guests: 2,
       name: "Дамир",
       phone: "+77010000000",
-      email: "damir@example.kz",
       notes: "Столик у окна. Отмечаем юбилей",
     });
     expect(key.length).toBeGreaterThan(0);

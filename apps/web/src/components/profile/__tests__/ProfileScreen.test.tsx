@@ -13,8 +13,11 @@ import { booking, pending, renderScreen, repositoryStub, venueSummary } from "@w
  *   • карточка показывает то, что есть у профиля, и не выдумывает «0», пока
  *     статистика едет или упала;
  *   • меню помечает активный раздел, «Выйти» — кнопка, а не ссылка;
- *   • «Выйти» в ШАПКЕ (не знает о странице) тоже ведёт на главную: сессия
- *     была и кончилась — это выход, а не гость без входа;
+ *   • клик по «Выйти» в меню сначала спрашивает подтверждение и НЕ выходит
+ *     сам по себе; отмена ничего не меняет, подтверждение выходит один раз;
+ *   • «Выйти» в ШАПКЕ (не знает о странице) тоже сначала спрашивает то же
+ *     подтверждение и только после него ведёт на главную: сессия была и
+ *     кончилась — это выход, а не гость без входа;
  *   • строка «с BookEat с …» — месяц в родительном падеже.
  */
 
@@ -125,7 +128,7 @@ describe("ProfileScreen — сессия", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("«Выйти» — кнопка: завершает сессию и ведёт на главную, а не на /login", async () => {
+  it("«Выйти» в меню сначала спрашивает подтверждение, само по себе не выходит", async () => {
     renderScreen(<ProfileScreen />);
 
     // В шапке своя кнопка «Выйти» — нужна та, что в меню разделов.
@@ -133,17 +136,55 @@ describe("ProfileScreen — сессия", () => {
     const button = within(nav).getByRole("button", { name: "Выйти" });
     fireEvent.click(button);
 
-    expect(signOut).toHaveBeenCalledTimes(1);
-    expect(replace).toHaveBeenCalledWith("/");
-    expect(button.hasAttribute("disabled")).toBe(true);
+    const dialog = await screen.findByRole("dialog", { name: "Выйти из аккаунта?" });
+    expect(within(dialog).getByText("Вы уверены, что хотите выйти из аккаунта?")).toBeTruthy();
+    expect(signOut).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 
-  it("«Выйти» в шапке: сессия кончилась — на главную, а не на /login с возвратом", async () => {
+  it("«Отмена» в диалоге закрывает его и не выходит", async () => {
+    renderScreen(<ProfileScreen />);
+
+    const nav = await screen.findByRole("navigation", { name: "Разделы профиля" });
+    fireEvent.click(within(nav).getByRole("button", { name: "Выйти" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Выйти из аккаунта?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Вернуться назад" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(signOut).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("Подтверждение в диалоге завершает сессию и ведёт на главную, а не на /login", async () => {
+    renderScreen(<ProfileScreen />);
+
+    const nav = await screen.findByRole("navigation", { name: "Разделы профиля" });
+    const navButton = within(nav).getByRole("button", { name: "Выйти" });
+    fireEvent.click(navButton);
+
+    const dialog = await screen.findByRole("dialog", { name: "Выйти из аккаунта?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Выйти" }));
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/");
+    expect(navButton.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("«Выйти» в шапке тоже сначала спрашивает подтверждение, потом — на главную", async () => {
     renderScreen(<ProfileScreen />);
     await screen.findByRole("heading", { level: 1, name: "Камила Ахметова" });
 
     const header = screen.getByRole("banner");
     fireEvent.click(within(header).getByRole("button", { name: "Выйти" }));
+
+    // Клик по кнопке в шапке САМ по себе не выходит — как и в меню разделов,
+    // случайное нажатие не должно ронять сессию (SiteChrome.tsx).
+    const dialog = await screen.findByRole("dialog", { name: "Выйти из аккаунта?" });
+    expect(signOut).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Выйти" }));
     expect(signOut).toHaveBeenCalledTimes(1);
     // Шапка про страницу не знает — сама она никуда не ведёт.
     expect(replace).not.toHaveBeenCalled();

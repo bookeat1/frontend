@@ -4298,8 +4298,6 @@ export const ru = {
         namePlaceholder: "Как к вам обращаться",
         phoneLabel: "Телефон",
         phonePlaceholder: "777 123-45-67",
-        emailLabel: "E-mail (необязательно)",
-        emailPlaceholder: "kamila@mail.kz",
         /** Оферта (узел 3525:14922). В макете флажок нарисован ОТМЕЧЕННЫМ,
          * поэтому он отмечен и здесь; снять его можно, и тогда кнопка
          * отказывается бронировать. */
@@ -4307,7 +4305,6 @@ export const ru = {
         errors: {
           name: "Без имени заведение не поймёт, кого ждать.",
           phone: "Нужен казахстанский номер из 10 цифр — по нему подтвердят бронь.",
-          email: "Похоже, в адресе опечатка. Или оставьте поле пустым.",
           offer: "Без согласия с условиями забронировать нельзя.",
         },
       },
@@ -4521,6 +4518,17 @@ export const ru = {
         settings: "Настройки",
         signOut: "Выйти",
       },
+      /** Подтверждение выхода (Figma `qmMsg4jO1ggmyEHNIAD2ll`, узел 5265:21449) —
+       * тот же узор диалога, что `cancelDialog` ниже и `removeConfirm` у
+       * предзаказа: `Modal` + два `Button` (outline/primary, порядок
+       * инвертирован — см. `SignOutDialog` в `ProfileScreen.tsx`), а не
+       * `window.confirm`. Текст — дословно из макета. */
+      signOutDialog: {
+        title: "Выйти из аккаунта?",
+        text: "Вы уверены, что хотите выйти из аккаунта?",
+        confirm: "Выйти",
+        cancel: "Вернуться назад",
+      },
       bookings: {
         title: "Мои брони",
         segmentsLabel: "Фильтр броней",
@@ -4586,9 +4594,6 @@ export const ru = {
            * (`requestPhoneChangeOtp`/`confirmPhoneChange`), не этой формой. */
           phone: "Телефон",
           phoneReadOnly: "Номер меняется через подтверждение кодом в приложении.",
-          /** `PATCH /users/me` почту не принимает — поле только показывается. */
-          email: "E-mail",
-          emailReadOnly: "Почту пока можно изменить только в мобильном приложении.",
           notSet: "не указано",
           save: "Сохранить изменения",
           saved: "Изменения сохранены",

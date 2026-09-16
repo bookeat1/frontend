@@ -11,6 +11,7 @@ import { Badge } from "@web/components/ui/Badge";
 import { Modal } from "@web/components/ui/Modal";
 import { Button } from "@web/components/ui/Button";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
+import { SignOutDialog } from "@web/components/ui/SignOutDialog";
 import { VenueCard } from "@web/components/ui/VenueCard";
 import { ProfileCard, type ProfileStat } from "@web/components/profile/ProfileCard";
 import { ProfileSkeleton } from "@web/components/profile/ProfileFallback";
@@ -65,6 +66,13 @@ import { loginHref } from "@web/lib/return-to";
  * true→false у `signedIn` (сессия БЫЛА и кончилась) сторож трактует как выход
  * и сам ведёт на главную; на `/login` уходит только тот, у кого сессии не было.
  *
+ * Пункт меню «Выйти» сначала открывает подтверждение (`SignOutDialog`,
+ * `@web/components/ui/SignOutDialog`, Figma `qmMsg4jO1ggmyEHNIAD2ll`, узел
+ * 5265:21449) — случайный клик не должен ронять сессию сразу, тот же приём,
+ * что `CancelBookingDialog` ниже. Сам выход выполняется только из `onConfirm`
+ * диалога. Тот же `SignOutDialog` (общий компонент, не копия) держит и
+ * кнопка «Выйти» в шапке — её состояние живёт в `SiteChrome.tsx`.
+ *
  * НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`): структура «Профиля»
  * приложения — карточка, под ней меню на всю ширину, под ним раздел; числа из
  * Figma WEB стоят только под `lg:`. Просветы узкого экрана — шкала Tailwind, как
@@ -86,6 +94,7 @@ export function ProfileScreen() {
   // не должен перебивать переход вторым `replace`.
   const leaving = useRef(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
 
   // Строка поиска (`?section=favorites`) — гость мог прийти сюда прямой
   // ссылкой из подвала на конкретный раздел; `usePathname()` её не содержит,
@@ -118,8 +127,15 @@ export function ProfileScreen() {
     },
   ];
 
-  const handleSignOut = () => {
+  /** Открывает подтверждение — сам выход ждёт клика по «Выйти» в диалоге. */
+  const requestSignOut = () => {
     if (signingOut) return;
+    setSignOutDialogOpen(true);
+  };
+
+  const confirmSignOut = () => {
+    if (signingOut) return;
+    setSignOutDialogOpen(false);
     leaving.current = true;
     setSigningOut(true);
     signOut();
@@ -139,7 +155,7 @@ export function ProfileScreen() {
       <>
         <ProfileCard user={user} fallbackName={t.web.header.account} stats={stats} />
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-profile-content-gap">
-          <ProfileNav active={section} onSignOut={handleSignOut} signingOut={signingOut} />
+          <ProfileNav active={section} onSignOut={requestSignOut} signingOut={signingOut} />
           <div className="min-w-0 flex-1">
             {section === "bookings" ? (
               <BookingsSection
@@ -153,6 +169,9 @@ export function ProfileScreen() {
             )}
           </div>
         </div>
+        {signOutDialogOpen ? (
+          <SignOutDialog onConfirm={confirmSignOut} onClose={() => setSignOutDialogOpen(false)} />
+        ) : null}
       </>
     );
   }

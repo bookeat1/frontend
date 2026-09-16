@@ -248,6 +248,23 @@ const fontSize: Record<string, FontSizeEntry> = {
       fontWeight: String(webCatalogPagination.label.currentWeight),
     },
   ],
+  /** Диалог подтверждения выхода (`Modal.centerIcon`, узел 5265:21449) —
+   * СВОЙ кегль, не `h3`/`bodyM` обычной модалки (см. комментарий у
+   * `webProfile.signOutDialog`). */
+  "signout-title": [
+    px(webProfile.signOutDialog.title.fontSize),
+    {
+      lineHeight: px(webProfile.signOutDialog.title.lineHeight),
+      fontWeight: String(webProfile.signOutDialog.title.fontWeight),
+    },
+  ],
+  "signout-text": [
+    px(webProfile.signOutDialog.text.fontSize),
+    {
+      lineHeight: px(webProfile.signOutDialog.text.lineHeight),
+      fontWeight: String(webProfile.signOutDialog.text.fontWeight),
+    },
+  ],
 };
 
 const config: Config = {
@@ -280,6 +297,13 @@ const config: Config = {
           subtle: webColors.background.brandSubtle,
           text: webColors.text.brand,
         },
+        /** Подложка иконки диалога выхода (узел 5265:21449) — светлее
+         * `brand.subtle`, отдельный токен, см. `webProfile.signOutDialog`. */
+        "signout-icon-bg": webProfile.signOutDialog.icon.background,
+        /** Цвет заголовка/подписи того же диалога — свои хексы, не
+         * `ink`/`ink-secondary` (см. комментарий у `webProfile.signOutDialog`). */
+        "signout-title-ink": webProfile.signOutDialog.title.color,
+        "signout-text-ink": webProfile.signOutDialog.text.color,
         guide: {
           gold: webGuidePage.gold,
           pick: webGuidePage.editorPickFill,
@@ -609,6 +633,7 @@ const config: Config = {
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
         "pbook-action": px(webProfile.bookingCard.actions.height),
         "fav-image": px(webProfile.favorites.card.imageHeight),
+        "signout-icon-badge": px(webProfile.signOutDialog.icon.badgeSize),
         /** Карточка события/акции (5033:6922, `webEventDetail`): обложка 426,
          * мини-карточка заведения 120, её фото 88, карточка контакта 86,
          * кнопка «Записаться» 52. Карта переиспользует `h-venue-map`. */
@@ -649,6 +674,7 @@ const config: Config = {
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
         "afisha-photo": px(webEventDetail.venueCard.photoSize),
         "afisha-contact": px(webEventDetail.contactCard.width),
+        "signout-icon-badge": px(webProfile.signOutDialog.icon.badgeSize),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
@@ -694,6 +720,9 @@ const config: Config = {
          * растягивает колонку на все 1200, а не на design-верные 788. */
         "afisha-article": px(webEventDetail.leftWidth),
         modal: px(webLayout.modalWidth),
+        /** Центрированный узкий вариант `Modal.centerIcon` (диалог выхода,
+         * узел 5265:21449) — 384, не 380 у обычной модалки. */
+        "modal-confirm": px(webProfile.signOutDialog.width),
         /** Блок успеха и карточка-билет — оба 720 (узлы 3525:15022 и
          * 3525:15028). */
         ticket: px(webBookingTicket.card.width),

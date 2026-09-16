@@ -109,6 +109,63 @@ describe("Modal", () => {
     expect(document.activeElement).toBe(close);
   });
 
+  it("centerIcon: иконка над заголовком по центру, без крестика-закрытия", () => {
+    render(
+      <Modal
+        title="Выйти из аккаунта?"
+        description="Вы уверены?"
+        onClose={vi.fn()}
+        centerIcon={<span data-testid="badge">значок</span>}
+      >
+        <button type="button">Выйти</button>
+      </Modal>,
+    );
+
+    expect(screen.getByTestId("badge")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Закрыть" })).toBeNull();
+    // Закрытие всё равно доступно — Esc и клик по затемнению (проверены выше).
+  });
+
+  it("centerIcon: заголовок и подпись в своих утилитах кегля, не h3/bodyM обычной модалки", () => {
+    render(
+      <Modal
+        title="Выйти из аккаунта?"
+        description="Вы уверены?"
+        onClose={vi.fn()}
+        centerIcon={<span data-testid="badge">значок</span>}
+      >
+        <button type="button">Выйти</button>
+      </Modal>,
+    );
+
+    const heading = screen.getByRole("heading", { name: "Выйти из аккаунта?" });
+    expect(heading.className).toContain("text-signout-title");
+    expect(heading.className).toContain("text-signout-title-ink");
+    expect(heading.className).not.toContain("text-h3");
+
+    const description = screen.getByText("Вы уверены?");
+    expect(description.className).toContain("text-signout-text");
+    expect(description.className).toContain("text-signout-text-ink");
+    expect(description.className).not.toContain("text-bodyM");
+  });
+
+  it("centerIcon: фокус при открытии остаётся на диалоге, а не на первой (разрушительной) кнопке", () => {
+    render(
+      <Modal
+        title="Выйти из аккаунта?"
+        description="Вы уверены?"
+        onClose={vi.fn()}
+        centerIcon={<span data-testid="badge">значок</span>}
+      >
+        <button type="button">Выйти</button>
+        <button type="button">Вернуться назад</button>
+      </Modal>,
+    );
+
+    expect(document.activeElement).toBe(screen.getByRole("dialog"));
+    expect(document.activeElement).not.toBe(screen.getByRole("button", { name: "Выйти" }));
+  });
+
   it("страница под окном не прокручивается, пока оно открыто", () => {
     const { unmount } = render(
       <Modal title="Вход" onClose={vi.fn()}>
