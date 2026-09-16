@@ -4520,7 +4520,8 @@ export const ru = {
       },
       /** Подтверждение выхода (Figma `qmMsg4jO1ggmyEHNIAD2ll`, узел 5265:21449) —
        * тот же узор диалога, что `cancelDialog` ниже и `removeConfirm` у
-       * предзаказа: `Modal` + два `Button` (secondary/primary), а не
+       * предзаказа: `Modal` + два `Button` (outline/primary, порядок
+       * инвертирован — см. `SignOutDialog` в `ProfileScreen.tsx`), а не
        * `window.confirm`. Текст — дословно из макета. */
       signOutDialog: {
         title: "Выйти из аккаунта?",

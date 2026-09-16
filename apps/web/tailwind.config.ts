@@ -248,6 +248,23 @@ const fontSize: Record<string, FontSizeEntry> = {
       fontWeight: String(webCatalogPagination.label.currentWeight),
     },
   ],
+  /** Диалог подтверждения выхода (`Modal.centerIcon`, узел 5265:21449) —
+   * СВОЙ кегль, не `h3`/`bodyM` обычной модалки (см. комментарий у
+   * `webProfile.signOutDialog`). */
+  "signout-title": [
+    px(webProfile.signOutDialog.title.fontSize),
+    {
+      lineHeight: px(webProfile.signOutDialog.title.lineHeight),
+      fontWeight: String(webProfile.signOutDialog.title.fontWeight),
+    },
+  ],
+  "signout-text": [
+    px(webProfile.signOutDialog.text.fontSize),
+    {
+      lineHeight: px(webProfile.signOutDialog.text.lineHeight),
+      fontWeight: String(webProfile.signOutDialog.text.fontWeight),
+    },
+  ],
 };
 
 const config: Config = {
@@ -283,6 +300,10 @@ const config: Config = {
         /** Подложка иконки диалога выхода (узел 5265:21449) — светлее
          * `brand.subtle`, отдельный токен, см. `webProfile.signOutDialog`. */
         "signout-icon-bg": webProfile.signOutDialog.icon.background,
+        /** Цвет заголовка/подписи того же диалога — свои хексы, не
+         * `ink`/`ink-secondary` (см. комментарий у `webProfile.signOutDialog`). */
+        "signout-title-ink": webProfile.signOutDialog.title.color,
+        "signout-text-ink": webProfile.signOutDialog.text.color,
         guide: {
           gold: webGuidePage.gold,
           pick: webGuidePage.editorPickFill,
@@ -654,7 +675,6 @@ const config: Config = {
         "afisha-photo": px(webEventDetail.venueCard.photoSize),
         "afisha-contact": px(webEventDetail.contactCard.width),
         "signout-icon-badge": px(webProfile.signOutDialog.icon.badgeSize),
-        "signout-actions": px(webProfile.signOutDialog.actions.width),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),

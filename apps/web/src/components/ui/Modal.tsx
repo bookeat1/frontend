@@ -81,12 +81,17 @@ export function Modal({
     () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []),
     [],
   );
+  const hasCenterIcon = Boolean(centerIcon);
 
   useEffect(() => {
     const restoreTo = document.activeElement as HTMLElement | null;
     // Первым делом фокус на само окно: если внутри есть поле, гость сразу
     // начнёт печатать; если полей нет — Tab всё равно останется внутри.
-    (focusable()[0] ?? dialogRef.current)?.focus();
+    // `centerIcon` — исключение: первая кнопка в `children` там обычно и есть
+    // разрушительное действие (`SignOutDialog` — «Выйти» слева), сажать на
+    // неё фокус по умолчанию не советует WAI-ARIA. Для этой раскладки фокус
+    // остаётся на самом диалоге (`tabIndex={-1}`), Tab уводит его дальше сам.
+    (hasCenterIcon ? dialogRef.current : (focusable()[0] ?? dialogRef.current))?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -120,7 +125,7 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       restoreTo?.focus();
     };
-  }, [focusable, onClose]);
+  }, [focusable, hasCenterIcon, onClose]);
 
   return (
     <div
@@ -160,11 +165,11 @@ export function Modal({
           <>
             {centerIcon}
             <div className="flex flex-col items-center gap-2">
-              <h2 id={titleId} className="text-h3 tracking-[-0.4px] text-ink">
+              <h2 id={titleId} className="text-signout-title text-signout-title-ink">
                 {title}
               </h2>
               {description ? (
-                <p id={descriptionId} className="text-bodyM text-ink-secondary">
+                <p id={descriptionId} className="text-signout-text text-signout-text-ink">
                   {description}
                 </p>
               ) : null}
