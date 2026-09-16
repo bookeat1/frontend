@@ -13,6 +13,7 @@ import {
   mapBooking,
   mapEventSummary,
   mapFavoriteItems,
+  mapFoodieProfile,
   mapGuideCategories,
   mapGuideCollections,
   mapGuideRoutes,
@@ -23,6 +24,7 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
+  mapPicksMode,
   mapPlatformPage,
   mapPreorder,
   mapPromo,
@@ -38,6 +40,7 @@ import {
   type ApiEventListItem,
   type ApiFavoriteItems,
   type ApiFeedItem,
+  type ApiFoodieProfile,
   type ApiGuideCategory,
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
@@ -81,6 +84,7 @@ import type {
   EventSummary,
   FavoriteItems,
   FavoriteKind,
+  FoodieProfile,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -103,6 +107,7 @@ import type {
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
+  RestaurantsPicksResult,
   SearchQuery,
   SearchResult,
 } from "./types";
@@ -282,16 +287,33 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    *
    * Пустой `city` не отправляется вовсе (см. HttpClient): для сервера это то
    * же самое, что и запрос без города, — список «для всех городов».
+   *
+   * С 2026-09-16 конверт несёт ещё `mode` — какой заголовок показать секции
+   * (спека `foodie-personalization-v1-20260916.md` §5.6). Поле — расширение
+   * ОБЫЧНОЙ страницы каталога, не отдельная форма ответа, поэтому тип здесь
+   * локальный (`ApiPage<ApiRestaurant> & { mode?: string }`), а не правка
+   * общего `ApiPage`, который используют листинг/поиск/избранное и другие
+   * ручки, где поля `mode` нет и не будет. Бэкенд старше PR #138 (или
+   * ручной/популярный список без личного профиля) поле не присылает вовсе —
+   * такой ответ трактуется как `"popular"`: заголовок не переключается,
+   * поведение побайтно как до этой задачи (критерий 5).
    */
   async getRecommendedRestaurants(
     city?: string,
     limit = POPULAR_PAGE_SIZE,
-  ): Promise<RestaurantSummary[]> {
-    const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/picks", {
-      city: city?.trim() || undefined,
-      limit,
-    });
-    return (page.items ?? []).map(mapRestaurantSummary);
+  ): Promise<RestaurantsPicksResult> {
+    const page = await this.client.get<ApiPage<ApiRestaurant> & { mode?: string }>(
+      "/restaurants/picks",
+      { city: city?.trim() || undefined, limit },
+      // OptionalAuth (spec §5.4): without this, a signed-in guest's request
+      // went out with no bearer token at all, so the backend could never
+      // tell them apart from an anonymous one — `mode` stuck on
+      // "editorial"/"popular" forever, no matter what the taste profile said
+      // (found live 2026-09-16: filled profile, picks rail never changed).
+      { optionalAuth: true },
+    );
+    const mode = mapPicksMode(page.mode);
+    return { items: (page.items ?? []).map(mapRestaurantSummary), mode };
   }
 
   /**
@@ -482,7 +504,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       to: query?.to,
       page: query?.page ?? 1,
       per_page: perPage,
-    });
+      // `sort=for_you` — только «Афиша» на главной (спека
+      // foodie-personalization-v1-20260916.md §5.6/§19). Безопасно слать
+      // всегда: без токена сервер отвечает сегодняшним порядком по дате.
+      // Без параметра он не уходит вовсе, а не `undefined`-строкой —
+      // HttpClient уже отбрасывает `undefined`-значения из query.
+      sort: query?.sort,
+      // OptionalAuth (spec §5.4) — same bug as `getRecommendedRestaurants`:
+      // without this, `sort=for_you` had no bearer token to personalize
+      // with, so it silently behaved like plain `starts_at ASC` for a
+      // signed-in guest too.
+    }, { optionalAuth: true });
     return {
       items: (page.items ?? []).map(mapEventSummary),
       total: typeof page.total === "number" ? page.total : 0,
@@ -514,7 +546,14 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    * wire safely.
    */
   async getPromotions(city: string): Promise<HomePromo[]> {
-    const feed = await this.client.get<{ items?: ApiFeedItem[] }>("/feed", { city });
+    // OptionalAuth (spec §5.4) — same bug as `getRecommendedRestaurants`:
+    // without this, the "Акции" row's taste-match ranking never saw who was
+    // asking and always scored every guest as anonymous.
+    const feed = await this.client.get<{ items?: ApiFeedItem[] }>(
+      "/feed",
+      { city },
+      { optionalAuth: true },
+    );
     return mapHomePromos(feed.items);
   }
 
@@ -1304,6 +1343,37 @@ export class HttpAuthRepository implements AuthRepository {
    */
   async deleteAccount(): Promise<void> {
     await this.client.delete<unknown>("/users/me", { auth: true });
+  }
+
+  /**
+   * `GET /users/me/foodie-profile` — never a 404 (see FoodieProfile), so the
+   * caller can always drop the answer straight into the wizard's draft.
+   */
+  async getFoodieProfile(): Promise<FoodieProfile> {
+    const api = await this.client.get<ApiFoodieProfile>(
+      "/users/me/foodie-profile",
+      undefined,
+      { auth: true },
+    );
+    return mapFoodieProfile(api);
+  }
+
+  /**
+   * `PUT /users/me/foodie-profile` — replace, not merge: every field goes on
+   * the wire every time, matching the wizard's single final save.
+   */
+  async replaceFoodieProfile(input: FoodieProfile): Promise<FoodieProfile> {
+    const api = await this.client.put<ApiFoodieProfile>(
+      "/users/me/foodie-profile",
+      {
+        cuisines: input.cuisines,
+        diets: input.diets,
+        allergies: input.allergies,
+        budget: input.budget,
+      },
+      { auth: true },
+    );
+    return mapFoodieProfile(api);
   }
 }
 

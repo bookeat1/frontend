@@ -18,8 +18,13 @@ const t = getDictionary();
  * «Афиша» — the full events list screen (GET /events), reached from the Home
  * «Афиша» section chevron. A vertical stack of full-width cards.
  *
- * Reuses `useExploreEvents` (the SAME query the Home section reads), so getting
- * here is a cache hit and the two can never disagree. All four async states are
+ * Reuses `useExploreEvents` (the SAME query root the Home section reads), so
+ * getting here is usually a cache hit. ONE deliberate difference since
+ * personalization v1 (критерий 25, `specs/foodie-personalization-v1-20260916.md`
+ * 5.6): this screen does NOT ask for `sort=for_you` (default `forYou: false`)
+ * — the full list stays strictly date-ordered while the Home strip
+ * (`EventsListSection`) sorts taste-first, so their query keys now differ by
+ * that flag and each keeps its own cache entry. All four async states are
  * the Home section's: an empty answer is the normal "nothing scheduled", never
  * an error — so it gets a calm empty state without a reload button that would
  * only re-fetch the same empty page.
@@ -36,7 +41,7 @@ export default function EventsScreen() {
 
   const openEvent = useCallback(
     (id: string) => {
-      trackEvent("event_tap", { id });
+      trackEvent("event_tap", { id, source: "events" });
       router.push(`/event/${id}`);
     },
     [router],

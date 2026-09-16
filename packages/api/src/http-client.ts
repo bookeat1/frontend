@@ -97,6 +97,17 @@ interface RequestOptions {
   headers?: Record<string, string>;
   /** Send the bearer token. Off by default so public reads stay public. */
   auth?: boolean;
+  /**
+   * OptionalAuth endpoint (spec foodie-personalization-v1-20260916.md):
+   * `/restaurants/picks`, `/feed`, `/events?sort=for_you` all answer BOTH an
+   * anonymous and a signed-in caller, personalizing only for the latter.
+   * Unlike `auth`, a missing/dead token is never an error here — it just
+   * means the request goes out anonymous, same as `auth` unset. The one
+   * thing it changes over leaving both flags off: when a token IS present,
+   * it gets attached (and refreshed-on-401 same as `auth`), so the backend
+   * can actually see who's asking.
+   */
+  optionalAuth?: boolean;
 }
 
 /**
@@ -202,12 +213,17 @@ export class HttpClient {
     body: unknown,
     options?: RequestOptions,
   ): Promise<T> {
-    if (!options?.auth) {
+    if (!options?.auth && !options?.optionalAuth) {
       return this.sendOnce<T>(method, url, path, body, options, undefined);
     }
 
     const token = await this.getToken?.();
     if (!token) {
+      if (options.optionalAuth) {
+        // No session — that is a normal caller of an OptionalAuth endpoint,
+        // not an error. Goes out anonymous, same as `auth` unset entirely.
+        return this.sendOnce<T>(method, url, path, body, options, undefined);
+      }
       // Fail before the round trip: a request that needs a session but has
       // none is a caller bug (or a session that expired between screens),
       // and the UI's answer to both is the same — send the guest to sign in.
@@ -225,10 +241,17 @@ export class HttpClient {
         throw error;
       }
       const refreshed = await this.onUnauthorized(token);
-      // No new token (refresh rejected → the handler has signed the guest out)
-      // or the same one back: the 401 is the truth, report it as such. Never
-      // dressed up as a network failure.
-      if (!refreshed || refreshed === token) throw error;
+      if (!refreshed || refreshed === token) {
+        if (options.optionalAuth) {
+          // The session is dead (the handler has already signed the guest
+          // out). An OptionalAuth read must still answer — anonymously,
+          // not with the 401 a `auth: true` caller would need to see.
+          return this.sendOnce<T>(method, url, path, body, options, undefined);
+        }
+        // No new token or the same one back: the 401 is the truth, report it
+        // as such. Never dressed up as a network failure.
+        throw error;
+      }
       return this.sendOnce<T>(method, url, path, body, options, refreshed);
     }
   }

@@ -1,7 +1,8 @@
 import { colors, exploreLayout, radius, spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
+import { trackEvent } from "../../lib/analytics";
 import { DataErrorState } from "../DataErrorState";
 import { ForkKnife } from "../icons";
 import { EmptyState } from "../StateViews";
@@ -24,13 +25,43 @@ export function RecommendedSection({
   onOpenRestaurant,
 }: {
   onSeeAll: () => void;
-  onOpenRestaurant: (id: string) => void;
+  /** Второй параметр — метка «откуда» для `restaurant_open`
+   * (персонализация v1, критерий 23): `"for_you"` в персональном режиме,
+   * `"picks"` в любом фолбэке (ручной список/популярное). */
+  onOpenRestaurant: (id: string, source: "for_you" | "picks") => void;
 }) {
   const query = useRecommendedRestaurants();
+  const items = query.data?.items ?? [];
+  const mode = query.data?.mode;
+  // Заголовок ряда переключается ПОЛЕМ ОТВЕТА, не локальным знанием, пуст ли
+  // профиль гостя (критерий 20 явно требует именно так: сервер может отдать
+  // фолбэк даже заполненному профилю — 5.4, «ни одно заведение не набрало
+  // очков»). До первого ответа (`mode === undefined`) — прежний заголовок:
+  // экран не должен мигать «Для вас» на пустом состоянии загрузки.
+  const title = mode === "for_you" ? t.explore.forYouTitle : t.explore.recommendedTitle;
+  const openRestaurantSource: "for_you" | "picks" = mode === "for_you" ? "for_you" : "picks";
+
+  // `for_you_shown` — один раз за монтирование, когда ряд реально появился
+  // на экране (критерий 23, 🟡6.9): без него CTR «Для вас» против «Выбрали
+  // для вас» не с чем сравнить. Считаем «появился» как «запрос ответил
+  // успешно», независимо от режима — базовая линия нужна для ВСЕХ трёх
+  // режимов, не только персонального.
+  const shownFired = useRef(false);
+  useEffect(() => {
+    if (shownFired.current) return;
+    if (!query.isSuccess || !query.data) return;
+    shownFired.current = true;
+    const matchedCount = query.data.items.filter((r) => (r.match?.score ?? 0) > 0).length;
+    trackEvent("for_you_shown", {
+      mode: query.data.mode,
+      items_count: query.data.items.length,
+      matched_count: matchedCount,
+    });
+  }, [query.isSuccess, query.data]);
 
   return (
     <SectionCard>
-      <SectionHeader title={t.explore.recommendedTitle} onSeeAll={onSeeAll} />
+      <SectionHeader title={title} onSeeAll={onSeeAll} />
 
       {query.isLoading ? (
         <SkeletonStrip />
@@ -38,7 +69,7 @@ export function RecommendedSection({
         <View style={styles.state}>
           <DataErrorState compact error={query.error} onRetry={() => void query.refetch()} />
         </View>
-      ) : (query.data?.length ?? 0) === 0 ? (
+      ) : items.length === 0 ? (
         <View style={styles.state}>
           <EmptyState
             compact
@@ -50,11 +81,14 @@ export function RecommendedSection({
         </View>
       ) : (
         <CardStrip
-          data={query.data ?? []}
+          data={items}
           keyExtractor={(restaurant) => restaurant.id}
-          accessibilityLabel={t.explore.recommendedTitle}
+          accessibilityLabel={title}
           renderItem={({ item }) => (
-            <RecommendedRestaurantCard restaurant={item} onOpenRestaurant={onOpenRestaurant} />
+            <RecommendedRestaurantCard
+              restaurant={item}
+              onOpenRestaurant={(id) => onOpenRestaurant(id, openRestaurantSource)}
+            />
           )}
         />
       )}

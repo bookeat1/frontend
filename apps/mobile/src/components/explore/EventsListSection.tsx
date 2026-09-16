@@ -29,8 +29,12 @@ const HOME_EVENTS_PREVIEW = 3;
  * badly. The list is capped at ~12 events upstream, so mapping is fine.
  *
  * The header chevron now navigates to the dedicated «Афиша» list screen
- * (`onSeeAll` → `/events`), which reads the SAME query — so it is a real
- * control, not decoration.
+ * (`onSeeAll` → `/events`), which used to read the SAME query — personalization
+ * v1 (критерий 25) now splits them: this strip asks for `sort=for_you`
+ * (`useExploreEvents({ forYou: true })`), the full list does not, so the two
+ * can legitimately show a different order for a signed-in guest with taste
+ * signals. Both still share city/limit and are a cache hit against each
+ * other when personalization has nothing to reorder (anon guest, no match).
  */
 export function EventsListSection({
   onOpenEvent,
@@ -39,7 +43,7 @@ export function EventsListSection({
   onOpenEvent: (eventId: string) => void;
   onSeeAll?: () => void;
 }) {
-  const query = useExploreEvents();
+  const query = useExploreEvents({ forYou: true });
   // The Home «Афиша» block is a teaser — at most 3 events; «смотреть все» opens
   // the full list (/events), which reads the same query.
   const events = (query.data?.items ?? []).slice(0, HOME_EVENTS_PREVIEW);

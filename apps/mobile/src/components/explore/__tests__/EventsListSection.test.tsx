@@ -23,8 +23,9 @@ const query: {
   refetch: () => void;
 } = { data: undefined, isLoading: false, isError: false, error: null, refetch: vi.fn() };
 
+const useExploreEvents = vi.fn((_options?: { forYou?: boolean }) => query);
 vi.mock("../use-explore-data", () => ({
-  useExploreEvents: () => query,
+  useExploreEvents: (options?: { forYou?: boolean }) => useExploreEvents(options),
 }));
 
 const { EventsListSection } = await import("../EventsListSection");
@@ -62,6 +63,15 @@ beforeEach(() => {
   query.isLoading = false;
   query.isError = false;
   query.error = null;
+  useExploreEvents.mockClear();
+});
+
+describe("персонализация v1 (критерий 25) — полоса на главной просит sort=for_you", () => {
+  it("вызывает useExploreEvents({ forYou: true })", () => {
+    query.data = page([event()]);
+    render(<EventsListSection onOpenEvent={vi.fn()} />);
+    expect(useExploreEvents).toHaveBeenCalledWith({ forYou: true });
+  });
 });
 
 describe("«Афиша» на главной", () => {

@@ -138,9 +138,18 @@ export default function SearchScreen() {
   // быстрого поиска видны сразу, а не по тапу в поле (макет 918:12539).
   const dismissKeyboard = useCallback(() => Keyboard.dismiss(), []);
 
+  // `source` — персонализация v1 (критерий 23): «cuisine», когда открыли,
+  // пока выдача сужена по кухне (чип с главной или из шторки фильтров),
+  // иначе «search» — обычный поиск/каталог. Смотрим на АКТИВНЫЕ фильтры в
+  // момент тапа, а не на то, с чем экран открылся: гость мог снять или
+  // добавить фильтр кухни уже здесь.
   const openRestaurant = useCallback(
-    (id: string) => router.push(`/restaurant/${id}`),
-    [router],
+    (id: string) =>
+      router.push({
+        pathname: `/restaurant/${id}`,
+        params: { source: filters.cuisineIds.length > 0 ? "cuisine" : "search" },
+      }),
+    [router, filters.cuisineIds],
   );
 
   const items = searchQueryResult.data?.items ?? [];

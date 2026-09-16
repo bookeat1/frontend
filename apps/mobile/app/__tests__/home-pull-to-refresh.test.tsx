@@ -4,6 +4,7 @@ import type {
   GuideCollection,
   GuideRoute,
   HomePromo,
+  RestaurantsPicksResult,
   RestaurantSummary,
 } from "@bookeat/api";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * пальцем проверяется на устройстве.
  */
 
-const getRecommendedRestaurants = vi.fn<() => Promise<RestaurantSummary[]>>();
+const getRecommendedRestaurants = vi.fn<() => Promise<RestaurantsPicksResult>>();
 const getCatalogPreview = vi.fn<() => Promise<RestaurantSummary[]>>();
 const getCuisines = vi.fn<() => Promise<Cuisine[]>>();
 const listUpcomingEvents = vi.fn<() => Promise<EventPage>>();
@@ -163,7 +164,7 @@ async function pull() {
 }
 
 beforeEach(() => {
-  getRecommendedRestaurants.mockReset().mockResolvedValue([]);
+  getRecommendedRestaurants.mockReset().mockResolvedValue({ items: [], mode: "popular" });
   getCatalogPreview.mockReset().mockResolvedValue([]);
   getCuisines.mockReset().mockResolvedValue([]);
   listUpcomingEvents.mockReset().mockResolvedValue(emptyPage());
