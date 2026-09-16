@@ -123,19 +123,23 @@ function PersonalDataCard({ user, onSaved }: { user: AuthUser; onSaved: (user: A
 }
 
 /**
- * У `PATCH /users/me` нет полей под эти переключатели (`ProfileUpdate` в
+ * У `PATCH /users/me` нет полей под этот переключатель (`ProfileUpdate` в
  * `packages/api/src/types.ts` знает только `fullName`/`city`/`birthDate`), и
  * отдельной ручки настроек уведомлений в бэкенде тоже нет — есть только лента
  * `GET /notifications`, это другая сущность. Состояние живёт в компоненте и
  * НЕ переживает перезагрузку страницы: обещать сохранение того, чего сервер
  * не хранит, было бы враньём гостю. Нужна ручка бэкенда, прежде чем это можно
  * будет отправлять по-настоящему.
+ *
+ * Пункт «Акции и новые заведения» убран по просьбе Дамира (16.09.2026):
+ * оставлен только «Напоминания о бронировании». `notifications.promo` в
+ * i18n больше не используется этим экраном — не удалён из словаря, т.к. это
+ * не единственный источник правды по такой функции в продукте.
  */
 function NotificationsCard() {
   const { t } = useLocale();
   const texts = t.web.profile.settings.notifications;
   const [reminders, setReminders] = useState(true);
-  const [promo, setPromo] = useState(false);
 
   return (
     <Card className="flex flex-col gap-settings-row p-settings-card">
@@ -144,10 +148,6 @@ function NotificationsCard() {
         <div className="flex items-center justify-between gap-4">
           <span className="text-[15px] leading-[22px] text-ink">{texts.bookingReminders}</span>
           <Switch checked={reminders} onChange={setReminders} label={texts.bookingReminders} />
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-[15px] leading-[22px] text-ink">{texts.promo}</span>
-          <Switch checked={promo} onChange={setPromo} label={texts.promo} />
         </div>
       </div>
     </Card>
