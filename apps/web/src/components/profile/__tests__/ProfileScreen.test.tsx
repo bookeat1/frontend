@@ -15,8 +15,9 @@ import { booking, pending, renderScreen, repositoryStub, venueSummary } from "@w
  *   • меню помечает активный раздел, «Выйти» — кнопка, а не ссылка;
  *   • клик по «Выйти» в меню сначала спрашивает подтверждение и НЕ выходит
  *     сам по себе; отмена ничего не меняет, подтверждение выходит один раз;
- *   • «Выйти» в ШАПКЕ (не знает о странице) тоже ведёт на главную: сессия
- *     была и кончилась — это выход, а не гость без входа;
+ *   • «Выйти» в ШАПКЕ (не знает о странице) тоже сначала спрашивает то же
+ *     подтверждение и только после него ведёт на главную: сессия была и
+ *     кончилась — это выход, а не гость без входа;
  *   • строка «с BookEat с …» — месяц в родительном падеже.
  */
 
@@ -170,12 +171,20 @@ describe("ProfileScreen — сессия", () => {
     expect(navButton.hasAttribute("disabled")).toBe(true);
   });
 
-  it("«Выйти» в шапке: сессия кончилась — на главную, а не на /login с возвратом", async () => {
+  it("«Выйти» в шапке тоже сначала спрашивает подтверждение, потом — на главную", async () => {
     renderScreen(<ProfileScreen />);
     await screen.findByRole("heading", { level: 1, name: "Камила Ахметова" });
 
     const header = screen.getByRole("banner");
     fireEvent.click(within(header).getByRole("button", { name: "Выйти" }));
+
+    // Клик по кнопке в шапке САМ по себе не выходит — как и в меню разделов,
+    // случайное нажатие не должно ронять сессию (SiteChrome.tsx).
+    const dialog = await screen.findByRole("dialog", { name: "Выйти из аккаунта?" });
+    expect(signOut).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Выйти" }));
     expect(signOut).toHaveBeenCalledTimes(1);
     // Шапка про страницу не знает — сама она никуда не ведёт.
     expect(replace).not.toHaveBeenCalled();
