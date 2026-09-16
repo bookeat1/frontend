@@ -214,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshInFlight = useRef<Promise<string | null> | null>(null);
 
   const applySession = useCallback(
-    async (session: AuthSession | null) => {
+    async (session: AuthSession | null, opts?: { forceIdentityChanged?: boolean }) => {
       // Смена ЛИЧНОСТИ (вход/выход/гидратация), а не просто обновление
       // токена того же гостя (`refreshNow` зовёт `applySession(refreshed)`
       // на том же аккаунте каждые ~15 минут) — второй раунд ревью PR #232:
@@ -222,7 +222,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // запросы picks/feed/events, которые сами же вызвали refresh (жест
       // pull-to-refresh на главной после долгого простоя), лишним раундом
       // сети и миганием скелетона. Вычисляется ДО перезаписи `sessionRef`.
-      const identityChanged = (sessionRef.current === null) !== (session === null);
+      //
+      // `sessionRef` в одиночку не ловит один случай: гидратация холодного
+      // старта, когда персистнутая сессия ЕСТЬ, но истёкшая, и её refresh
+      // падает (`:323` ниже) — `sessionRef.current` на этот момент ещё `null`
+      // (его выставляют только тут), поэтому голое сравнение `null !== null`
+      // дало бы `false`, хотя это РЕАЛЬНЫЙ выход (третий раунд ревью PR #232,
+      // 2026-09-16: 30-дневный снуз-флаг гостя А не сбрасывался бы при
+      // естественном истечении refresh-токена, только при выходе из
+      // приложения руками). `forceIdentityChanged` — сигнал от вызывающего
+      // места, что оно само знает про отброшенную личность.
+      const identityChanged =
+        opts?.forceIdentityChanged ?? (sessionRef.current === null) !== (session === null);
       sessionRef.current = session;
       setAccessToken(session?.accessToken);
       setStatus(session ? "signed-in" : "signed-out");
@@ -320,7 +331,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void loadUser();
       } catch {
         if (cancelled) return;
-        await applySession(null);
+        // Персистнутая сессия БЫЛА (`stored` не пуст) — её refresh истёк или
+        // отозван. Это реальный выход, а не «нечего было гасить»: `sessionRef`
+        // ещё `null` в этой точке (см. комментарий в applySession), поэтому
+        // форсируем identityChanged, иначе снуз-флаг гостя А переживёт этот
+        // выход (третий раунд ревью PR #232).
+        await applySession(null, { forceIdentityChanged: true });
       }
     })();
     return () => {
