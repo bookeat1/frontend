@@ -1,6 +1,6 @@
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,7 +79,9 @@ vi.mock("../../src/lib/auth", () => ({
 }));
 
 const { default: FoodieProfileBudgetScreen } = await import("../foodie-profile/budget");
-const { FoodieProfileDraftProvider } = await import("../../src/lib/foodie-profile-draft");
+const { FoodieProfileDraftProvider, useFoodieProfileDraft } = await import(
+  "../../src/lib/foodie-profile-draft"
+);
 
 function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -218,5 +220,57 @@ describe("шаг «Ваш бюджет»", () => {
 
     await user.click(midCard);
     expect(midCard.getAttribute("aria-checked")).toBe("false");
+  });
+});
+
+describe("гонка гидрации GET: тап на ОДНОМ шаге не блокирует гидрацию остальных трёх", () => {
+  it("кухня, тронутая гостем до ответа GET, не мешает диете/аллергиям/бюджету подхватить сервер — регрессия ревью PR #225, раунд 2", async () => {
+    // Регрессия обнаружена ревьюером `hydration-race.test.tsx`: раньше
+    // `userEdited` был ОДНИМ общим флагом на все 4 категории — тап по
+    // ЛЮБОЙ плитке на ЛЮБОМ шаге до ответа GET блокировал гидрацию
+    // остальных трёх насовсем, и «Готово» отправляло PUT, стирающий их
+    // ранее сохранённые значения.
+    const user = userEvent.setup();
+    let draftApi: ReturnType<typeof useFoodieProfileDraft>;
+    function Spy() {
+      draftApi = useFoodieProfileDraft();
+      return null;
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FoodieProfileDraftProvider>
+          <Spy />
+          <FoodieProfileBudgetScreen />
+        </FoodieProfileDraftProvider>
+      </QueryClientProvider>,
+    );
+
+    // Гость тапает кухню на шаге 1 (`cuisine.tsx`) ДО того, как стартовый
+    // GET успел ответить — здесь это моделируется через контекст черновика
+    // напрямую, а не рендером всех 4 экранов визарда.
+    act(() => {
+      draftApi.toggleCuisine("italian");
+    });
+
+    // На сервере уже было полное сохранение по всем 4 категориям.
+    settleGetProfile({ cuisines: ["kazakh"], diets: ["vegan"], allergies: ["nuts"], budget: "mid" });
+
+    const done = () => screen.getByRole("button", { name: t.onboarding.foodieProfile.done });
+    await waitFor(() => expect(done().getAttribute("aria-disabled")).not.toBe("true"));
+
+    // Гость доходит до «Готово», ничего больше не трогая на диете/
+    // аллергиях/бюджете — считая, что там уже стоит его прежний выбор.
+    await user.click(done());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+
+    // Тронутая категория (кухня) — выбор гостя; три нетронутые — то, что
+    // реально лежало на сервере, а не пустой/неполный черновик.
+    expect(replaceFoodieProfile).toHaveBeenCalledWith({
+      cuisines: ["italian"],
+      diets: ["vegan"],
+      allergies: ["nuts"],
+      budget: "mid",
+    });
   });
 });

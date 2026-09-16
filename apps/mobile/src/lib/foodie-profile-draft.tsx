@@ -45,8 +45,12 @@ import {
  *   1. при монтировании читает сохранённый профиль (`GET`) и заполняет им
  *      черновик — если гость открывает визард повторно, он видит свой
  *      прежний выбор, а не пустые экраны. Если гость успел тапнуть по
- *      плитке раньше, чем ответ GET пришёл, прилетевший ответ НЕ
- *      перетирает его — см. `userEdited`;
+ *      плитке раньше, чем ответ GET пришёл, прилетевший ответ НЕ перетирает
+ *      именно ту категорию, которую он тронул — остальные три всё равно
+ *      гидрируются из ответа. Отслеживается ПОКАТЕГОРИЙНО (`cuisinesTouched`
+ *      / `dietsTouched` / `allergiesTouched` / `budgetTouched`), не одним
+ *      общим флагом — иначе тап по одной плитке молча блокирует гидрацию
+ *      всех остальных трёх категорий (регрессия ревью PR #225, раунд 2);
  *   2. на последнем шаге (`budget.tsx`) отдаёт `save()`, которая шлёт весь
  *      черновик одним `PUT` (replace, не merge) и возвращает `true`/`false`,
  *      чтобы экран уходил на `/profile` только при успехе.
@@ -110,11 +114,16 @@ interface FoodieProfileDraftValue {
    * иначе оставлять гостя на экране с `saveFailed`.
    *
    * ОТКАЗЫВАЕТ (возвращает `false` без сетевого запроса), пока исходный
-   * `GET` ещё не завершился успешно хотя бы раз (`isLoadingProfile` или
-   * `profileLoadFailed`) — иначе на плохой сети гость может протапать визард
-   * поверх непрогруженного черновика и `PUT`-ом (replace-семантика) стереть
-   * то, что сохранил раньше. Экран должен блокировать саму кнопку через эти
-   * же флаги, это — защита второго уровня, не основной UX.
+   * `GET` ещё не завершился успешно хотя бы раз в этой сессии визарда
+   * (`profileQuery.isSuccess === false` — НЕ `isLoadingProfile ||
+   * profileLoadFailed`: в TanStack Query v5 у выключенного/неактивного
+   * запроса `isLoading` тоже `false`, так что пара `isLoading || isError`
+   * пропустила бы сохранение, например если сессия оборвалась посреди
+   * визарда) — иначе на плохой сети гость может протапать визард поверх
+   * непрогруженного черновика и `PUT`-ом (replace-семантика) стереть то, что
+   * сохранил раньше. Экран должен блокировать саму кнопку через
+   * `isLoadingProfile`/`profileLoadFailed`, это — защита второго уровня, не
+   * основной UX.
    */
   save(): Promise<boolean>;
 }
@@ -126,10 +135,15 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
   const queryClient = useQueryClient();
 
   const [draft, setDraft] = useState<FoodieProfileDraft>(EMPTY_DRAFT);
-  // Once true, the GET response must never overwrite the draft again — the
-  // guest has already started making their own choices.
-  const userEdited = useRef(false);
-  const hydrated = useRef(false);
+  // Per-category "the guest already touched this" flags — NOT one shared
+  // flag. A tap on step 1 (cuisines) must only stop hydration of `cuisines`;
+  // the other three categories still need to pick up the GET response when
+  // it lands, or an untouched category gets silently wiped by the later PUT
+  // (replace semantics). See the doc comment above for the full scenario.
+  const cuisinesTouched = useRef(false);
+  const dietsTouched = useRef(false);
+  const allergiesTouched = useRef(false);
+  const budgetTouched = useRef(false);
 
   const profileQuery = useQuery<FoodieProfile>({
     queryKey: ["foodie-profile"],
@@ -140,20 +154,21 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
   });
 
   useEffect(() => {
-    if (hydrated.current || userEdited.current) return;
     if (!profileQuery.data) return;
-    hydrated.current = true;
+    // Runs on every GET response, not just the first — an untouched
+    // category still picks up the latest server value if the query data
+    // changes again (e.g. a refetch after a failed retry).
     const saved = profileQuery.data;
-    setDraft({
-      cuisines: saved.cuisines,
-      diets: saved.diets,
-      allergies: saved.allergies,
-      budget: asBudgetTier(saved.budget),
-    });
+    setDraft((prev) => ({
+      cuisines: cuisinesTouched.current ? prev.cuisines : saved.cuisines,
+      diets: dietsTouched.current ? prev.diets : saved.diets,
+      allergies: allergiesTouched.current ? prev.allergies : saved.allergies,
+      budget: budgetTouched.current ? prev.budget : asBudgetTier(saved.budget),
+    }));
   }, [profileQuery.data]);
 
   const toggleCuisine = useCallback((id: string) => {
-    userEdited.current = true;
+    cuisinesTouched.current = true;
     let blockedByLimit = false;
     setDraft((prev) => {
       const result = toggleCuisineSelection(prev.cuisines, id);
@@ -164,17 +179,17 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
   }, []);
 
   const toggleDiet = useCallback((id: string) => {
-    userEdited.current = true;
+    dietsTouched.current = true;
     setDraft((prev) => ({ ...prev, diets: toggleDietSelection(prev.diets, id) }));
   }, []);
 
   const toggleAllergy = useCallback((id: string) => {
-    userEdited.current = true;
+    allergiesTouched.current = true;
     setDraft((prev) => ({ ...prev, allergies: toggleAllergySelection(prev.allergies, id) }));
   }, []);
 
   const setBudget = useCallback((tier: BudgetTier) => {
-    userEdited.current = true;
+    budgetTouched.current = true;
     setDraft((prev) => ({ ...prev, budget: toggleBudgetSelection(prev.budget, tier) }));
   }, []);
 
@@ -190,14 +205,21 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
     // Second-layer guard (see the doc comment on `save` in the interface
     // above) — the screen is expected to keep "Готово" disabled for the same
     // reason, but `save()` itself must never trust that alone.
-    if (profileQuery.isLoading || profileQuery.isError) return false;
+    //
+    // Gate on `!isSuccess`, not `isLoading || isError`: TanStack Query v5
+    // reports `isLoading: false` for a disabled/inactive query too (e.g. the
+    // session drops mid-wizard and `enabled` flips to false) — that combo
+    // would slip past an `isLoading || isError` guard and PUT over an
+    // untouched draft. `isSuccess` only becomes true once the GET has
+    // actually resolved at least once in this session.
+    if (!profileQuery.isSuccess) return false;
     try {
       await replaceFoodieProfile(toWireProfile(draft));
       return true;
     } catch {
       return false;
     }
-  }, [draft, replaceFoodieProfile, profileQuery.isLoading, profileQuery.isError]);
+  }, [draft, replaceFoodieProfile, profileQuery.isSuccess]);
 
   const { refetch: refetchProfile } = profileQuery;
   const retryLoadProfile = useCallback(() => {
