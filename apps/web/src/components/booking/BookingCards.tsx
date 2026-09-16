@@ -311,14 +311,12 @@ export interface ContactsValue {
   name: string;
   /** Национальные цифры, см. `lib/phone.ts`. */
   phoneDigits: string;
-  email: string;
   offer: boolean;
 }
 
 export interface ContactsErrors {
   name?: string;
   phone?: string;
-  email?: string;
   offer?: string;
 }
 
@@ -335,7 +333,7 @@ export function ContactsCard({
   disabled: boolean;
   onChange: (patch: Partial<ContactsValue>) => void;
   /** Поле потеряло фокус — с этого момента его ошибка показывается. */
-  onBlur: (field: "name" | "phone" | "email") => void;
+  onBlur: (field: "name" | "phone") => void;
 }) {
   const { t } = useLocale();
   const texts = t.web.booking.contacts;
@@ -372,18 +370,6 @@ export function ContactsCard({
               onBlur={() => onBlur("phone")}
             />
           </div>
-          <TextField
-            label={texts.emailLabel}
-            placeholder={texts.emailPlaceholder}
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            value={value.email}
-            error={errors.email}
-            disabled={disabled}
-            onChange={(event) => onChange({ email: event.target.value })}
-            onBlur={() => onBlur("email")}
-          />
         </div>
 
         {/* Чекбокс оферты 3525:14918: квадрат 20 радиуса 4, до текста 12.

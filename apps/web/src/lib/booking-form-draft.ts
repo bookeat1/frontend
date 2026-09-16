@@ -1,6 +1,6 @@
 /**
- * Черновик КОНТАКТНОЙ части формы бронирования: имя, телефон, e-mail,
- * пожелания и выбранные чипы.
+ * Черновик КОНТАКТНОЙ части формы бронирования: имя, телефон, пожелания и
+ * выбранные чипы.
  *
  * ЗАЧЕМ. Гость заполняет страницу сверху вниз и только у кнопки узнаёт, что
  * бронь на сайте именная и нужен вход. Он уходит на `/login`, вводит код,
@@ -25,7 +25,6 @@ export interface BookingFormDraft {
   /** Национальные цифры номера, как их держит поле (см. `lib/phone.ts`), —
    * не E.164: в поле гость видит и правит именно их. */
   phoneDigits: string;
-  email: string;
   notes: string;
   /** Идентификаторы нажатых чипов быстрых пожеланий. */
   wishes: string[];
@@ -67,13 +66,12 @@ export function readBookingFormDraft(venueId: string): BookingFormDraft | null {
   }
   if (typeof parsed !== "object" || parsed === null) return null;
 
-  const { name, phoneDigits, email, notes, wishes } = parsed as Record<string, unknown>;
+  const { name, phoneDigits, notes, wishes } = parsed as Record<string, unknown>;
   return {
     name: text(name),
     // Только цифры: в поле всё равно попадут они, а буквы из чужой записи
     // сломали бы маску.
     phoneDigits: text(phoneDigits).replace(/\D/g, ""),
-    email: text(email),
     notes: text(notes),
     wishes: Array.isArray(wishes)
       ? wishes.filter((item): item is string => typeof item === "string").slice(0, 20)

@@ -34,7 +34,6 @@ import { bookingHref, bookingResultPath, menuHref, readBookingIntent, type Booki
 import {
   describeBookingFailure,
   isNotFoundError,
-  looksLikeEmail,
   newIdempotencyKey,
   type SubmitFailure,
 } from "@web/lib/booking-submit";
@@ -143,7 +142,7 @@ function PageSkeleton() {
   );
 }
 
-const EMPTY_CONTACTS: ContactsValue = { name: "", phoneDigits: "", email: "", offer: true };
+const EMPTY_CONTACTS: ContactsValue = { name: "", phoneDigits: "", offer: true };
 
 function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingIntent }) {
   const { t, locale } = useLocale();
@@ -165,7 +164,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   const [notes, setNotes] = useState("");
   const [wishes, setWishes] = useState<ReadonlySet<WishKey>>(() => new Set());
   /** Поля, ошибку которых пора показывать: тронутые и все — после попытки. */
-  const [touched, setTouched] = useState<Set<"name" | "phone" | "email">>(() => new Set());
+  const [touched, setTouched] = useState<Set<"name" | "phone">>(() => new Set());
   const [attempted, setAttempted] = useState(false);
   /** Номер неудачной попытки отправки: по нему фокус уходит в первое поле с
    * ошибкой (см. эффект ниже). Счётчик, а не флаг: вторая попытка с той же
@@ -188,7 +187,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
         ...current,
         name: draft.name,
         phoneDigits: draft.phoneDigits,
-        email: draft.email,
       }));
       setNotes(draft.notes);
       setWishes(new Set(draft.wishes.filter(isWishKey)));
@@ -215,7 +213,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
       ...current,
       name: current.name || profileName,
       phoneDigits: current.phoneDigits || profileDigits,
-      email: current.email || user.email.trim(),
     }));
   }, [user]);
 
@@ -237,7 +234,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
     writeBookingFormDraft(venue.id, {
       name: contacts.name,
       phoneDigits: contacts.phoneDigits,
-      email: contacts.email,
       notes,
       wishes: Array.from(wishes),
     });
@@ -325,17 +321,12 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   const errors: ContactsErrors = {
     name: contacts.name.trim() ? undefined : t.web.booking.contacts.errors.name,
     phone: isComplete(contacts.phoneDigits) ? undefined : t.web.booking.contacts.errors.phone,
-    email:
-      contacts.email.trim() && !looksLikeEmail(contacts.email)
-        ? t.web.booking.contacts.errors.email
-        : undefined,
     offer: contacts.offer ? undefined : t.web.booking.contacts.errors.offer,
   };
-  const formValid = !errors.name && !errors.phone && !errors.email && !errors.offer;
+  const formValid = !errors.name && !errors.phone && !errors.offer;
   const visibleErrors: ContactsErrors = {
     name: attempted || touched.has("name") ? errors.name : undefined,
     phone: attempted || touched.has("phone") ? errors.phone : undefined,
-    email: attempted || touched.has("email") ? errors.email : undefined,
     offer: attempted ? errors.offer : undefined,
   };
 
@@ -382,7 +373,6 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           guests,
           name: contacts.name.trim(),
           phone: toE164(contacts.phoneDigits),
-          email: contacts.email.trim() || undefined,
           notes: composedNotes || undefined,
           // «Марафон Алматы» и следующие QR-акции: та же метка, что осела в
           // sessionStorage при заходе по `?promo=` (см. `campaign-attribution.ts`

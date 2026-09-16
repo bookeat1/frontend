@@ -90,10 +90,3 @@ export function isNotFoundError(error: unknown): boolean {
     (error as { status?: number }).status === 404
   );
 }
-
-/** Адрес почты — грубая проверка формы: «что-то@что-то.что-то». Строгая
- * грамматика RFC здесь навредила бы: сервер всё равно проверит сам, а поле
- * необязательное — ошибка нужна только против явной опечатки. */
-export function looksLikeEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}

@@ -2976,13 +2976,10 @@ export const en: LocaleOverride<Dictionary> = {
         namePlaceholder: "What should we call you",
         phoneLabel: "Phone",
         phonePlaceholder: "777 123-45-67",
-        emailLabel: "E-mail (optional)",
-        emailPlaceholder: "kamila@mail.kz",
         offer: "I agree to the booking terms and to the processing of personal data",
         errors: {
           name: "Without a name the venue will not know who to expect.",
           phone: "A 10-digit Kazakh number is required — the booking is confirmed on it.",
-          email: "That address looks like a typo. Or leave the field empty.",
           offer: "Booking is not possible without agreeing to the terms.",
         },
       },
