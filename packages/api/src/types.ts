@@ -353,6 +353,58 @@ export interface RestaurantSummary {
    * Листинг, избранное и деталка его не отдают, поэтому поле необязательное.
    */
   matchedDish?: MatchedDish;
+  /**
+   * Почему заведение попало в персональный ряд «Для вас» — `domain.ScoreTasteMatch`,
+   * спека `foodie-personalization-v1-20260916.md` §5.6. Приходит ТОЛЬКО от
+   * `GET /restaurants/picks` и только когда `data.mode === "for_you"`; любой
+   * другой листинг (каталог, поиск, избранное) поле не отдаёт вовсе.
+   */
+  match?: TasteMatch;
+}
+
+/**
+ * Одна строка объяснения совпадения вкуса — `reasons[]` из ответа сервера.
+ * `points === 0` — легитимный, «гость не задал бюджет» тоже причина, просто
+ * без веса; чип на карточке фильтрует такие сам (см. `apps/web` `match-chip`,
+ * `apps/mobile` `match-reason-label`). `detail` — английская отладочная
+ * строка для владельца заведения, сервер отдаёт её всегда (см. пример ответа
+ * в спеке §5.6), UI её не показывает.
+ */
+export interface MatchReason {
+  code: string;
+  points: number;
+  /** Коды справочника кухонь, по которым сошлось совпадение (`cuisine_match`
+   * / `cuisine_match_implicit`) — сопоставляются с `RestaurantSummary.cuisines[].id`
+   * тем же кодом, чтобы получить готовое переведённое название. */
+  params?: { cuisineCodes?: string[] };
+  detail: string;
+}
+
+/** `match` заведения/акции/события в персональном режиме. */
+export interface TasteMatch {
+  score: number;
+  reasons: MatchReason[];
+}
+
+/**
+ * Режим ряда — приходит В ОТВЕТЕ, никогда не выводится на клиенте из локального
+ * состояния (правило спеки §5.7/§5.8: заголовок переключается по данным
+ * запроса). `for_you` — активный профиль и ≥ 1 совпадение; `editorial` — есть
+ * ручной список; `popular` — фолбэк по популярности.
+ */
+export type PicksMode = "for_you" | "editorial" | "popular";
+
+/** Ответ `GET /restaurants/picks` целиком: список плюс режим, который решает
+ * заголовок секции. Не переиспользует голый `RestaurantSummary[]`, потому что
+ * без `mode` заголовок пришлось бы угадывать на клиенте — а это ровно то,
+ * что спека запрещает. Единственная форма ответа этой ручки — и веб, и
+ * мобилка читают её через один и тот же `getRecommendedRestaurants` (сведено
+ * 16.09.2026: `getHomePicks`/`RestaurantPicks`/`TasteMatchReason` мобильной
+ * ветки были параллельным дублем, заведённым до того, как обе задачи увидели
+ * друг друга — не поддерживаем два имени одного контракта). */
+export interface RestaurantsPicksResult {
+  items: RestaurantSummary[];
+  mode: PicksMode;
 }
 
 /** Блюдо из меню, по которому сработал поиск: ровно то, что отдаёт сервер в
@@ -925,6 +977,34 @@ export interface ProfileUpdate {
 }
 
 /**
+ * The "Фуди-профиль" onboarding wizard's whole state (mobile PR #222:
+ * `apps/mobile/app/foodie-profile/{cuisine,diet,allergies,budget}.tsx`),
+ * as `GET/PUT /users/me/foodie-profile` sends and accepts it
+ * (bookeat-backend feat/foodie-profile-backend,
+ * internal/transport/rest/users/{request,response}.go).
+ *
+ * `cuisines`/`diets`/`allergies` are option ids from the SAME static list
+ * the wizard renders (`apps/mobile/src/components/foodie-profile/
+ * foodie-profile-options.ts`) — the backend validates against exactly those
+ * ids (at most 5 cuisines, `no_diet` exclusive of every other diet), so this
+ * app never invents an id that isn't in that list.
+ *
+ * PUT is REPLACE, not merge: every field is sent every time, and an empty
+ * array means "cleared", not "leave alone" — there is no partial-save mode
+ * here, unlike `ProfileUpdate`'s pointer-field semantics. A guest who never
+ * opened the wizard reads back `{cuisines: [], diets: [], allergies: [],
+ * budget: null}`, never a 404.
+ */
+export interface FoodieProfile {
+  cuisines: string[];
+  diets: string[];
+  allergies: string[];
+  /** One of "budget"/"mid"/"premium", or null — the step is optional and
+   * stays unset until the guest actually picks a tier. */
+  budget: string | null;
+}
+
+/**
  * One upcoming event of the public cross-venue listing (`GET /events`).
  *
  * The guest-facing listing only ever returns PUBLISHED, not-yet-finished
@@ -1026,6 +1106,13 @@ export interface EventQuery {
   page?: number;
   /** Server default 20, hard cap 100. */
   perPage?: number;
+  /**
+   * `for_you` — вкус заведения ↓, затем `starts_at ↑` (спека
+   * foodie-personalization-v1-20260916.md §5.6/§19). Только полоса «Афиша» на
+   * ГЛАВНОЙ отправляет его; полный список `/events` — по дате, без параметра.
+   * Безопасно слать всегда: без токена сервер отвечает сегодняшним порядком.
+   */
+  sort?: "for_you";
 }
 
 /** One page of the public events listing, sorted by start time ascending

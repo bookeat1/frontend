@@ -37,6 +37,7 @@ import type {
   PromoPage,
   Restaurant,
   RestaurantSummary,
+  RestaurantsPicksResult,
   SearchQuery,
   SearchResult,
 } from "@bookeat/api/client";
@@ -98,7 +99,13 @@ export function useAmenities(): UseQueryResult<Amenity[]> {
   });
 }
 
-export function usePicks(city: string | undefined): UseQueryResult<RestaurantSummary[]> {
+/**
+ * Ответ несёт `mode` — по нему секция переключает заголовок между «Для вас»
+ * (профиль активен, гость вошёл) и «Выбрали для вас» (аноним/пустой профиль/
+ * ручной список), спека `foodie-personalization-v1-20260916.md` §5.6/§26.
+ * Заголовок ЧИТАЕТ поле ответа, а не решает сам по локальному состоянию.
+ */
+export function usePicks(city: string | undefined): UseQueryResult<RestaurantsPicksResult> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "picks", city],
@@ -117,13 +124,20 @@ export function usePromotions(city: string | undefined): UseQueryResult<HomeProm
   });
 }
 
+/**
+ * Полоса «Афиша» на ГЛАВНОЙ — единственное место, которое просит
+ * `sort=for_you` (спека `foodie-personalization-v1-20260916.md` §5.6/§19):
+ * подходящие вкусам события первыми, дальше по дате. Полный список `/events`
+ * идёт через `useEventsFeed`, у которого этого параметра нет и не будет —
+ * там порядок всегда строго по дате.
+ */
 export function useEvents(city: string | undefined): UseQueryResult<EventSummary[]> {
   const { locale } = useLocale();
   return useQuery({
-    queryKey: [locale, "events", city],
+    queryKey: [locale, "events", city, "for_you"],
     queryFn: () =>
       repository
-        .listUpcomingEvents({ city, perPage: EVENTS_LIMIT })
+        .listUpcomingEvents({ city, perPage: EVENTS_LIMIT, sort: "for_you" })
         .then((page) => page.items),
     enabled: isApiConfigured && Boolean(city),
   });

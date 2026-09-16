@@ -9,6 +9,7 @@ import type {
   GuideRouteDetail,
   GuideCollectionDetail,
   HomePromo,
+  RestaurantsPicksResult,
   RestaurantSummary,
 } from "@bookeat/api";
 import {
@@ -73,11 +74,19 @@ const ARTICLES_LIMIT = 6;
  * подборка предыдущего) и гейт `isResolving` (иначе на холодном старте в
  * Астане мелькнёт подборка откатного города). Любая одна часть без остальных
  * чинит городской запрос наполовину.
+ *
+ * ПЕРСОНАЛИЗАЦИЯ v1 (`specs/foodie-personalization-v1-20260916.md`, 5.6/5.7,
+ * FE-M1): `getRecommendedRestaurants` теперь несёт оболочку персонализации
+ * прямо в своей форме ответа — `data.mode` (заголовок ряда переключается ИМ,
+ * не локальным знанием, пуст ли профиль гостя — критерий 20) и, при
+ * `mode === "for_you"`, `match` на каждой карточке. Один метод, один контракт
+ * на веб и мобилку — сведено 16.09.2026 (`getHomePicks` был параллельным
+ * дублем, заведённым до того, как обе задачи увидели друг друга).
  */
 export function useRecommendedRestaurants() {
   const repository = useRepository();
   const { city, isResolving } = useGuestCity();
-  return useQuery<RestaurantSummary[]>({
+  return useQuery<RestaurantsPicksResult>({
     queryKey: ["home-picks", city, RECOMMENDED_LIMIT],
     queryFn: () => repository.getRecommendedRestaurants(city, RECOMMENDED_LIMIT),
     enabled: !isResolving,
@@ -216,13 +225,29 @@ export function useGuestCity(): { city: string; isResolving: boolean } {
  *
  * An empty page is a legitimate answer (nothing is scheduled), so the section
  * renders its empty state rather than treating it as a failure.
+ *
+ * ПЕРСОНАЛИЗАЦИЯ v1 (5.6/5.7, критерий 25): `forYou` — единственная разница
+ * между полосой «Афиша» НА ГЛАВНОЙ (`EventsListSection`, `forYou: true`) и
+ * ПОЛНЫМ экраном `/events` (`events.tsx`, без опции — по дате, как решил
+ * владелец в 0.4). Раньше обе полки шарили ОДИН ключ кэша — они и сейчас
+ * делят город/лимит, но `forYou` теперь тоже часть ключа, иначе выбор сорта
+ * одной полки молча перекрашивал бы другую. `useEvent` (деталка одного
+ * события) намеренно продолжает читать `forYou: false` вариант — `sort`
+ * меняет только ПОРЯДОК страницы, не её состав, так что подстановка по id
+ * работает одинаково для обеих карточек, откуда бы гость ни открыл событие.
  */
-export function useExploreEvents() {
+export function useExploreEvents(options?: { forYou?: boolean }) {
   const repository = useRepository();
   const { city, isResolving } = useGuestCity();
+  const forYou = options?.forYou ?? false;
   return useQuery<EventPage>({
-    queryKey: ["explore-events", EXPLORE_EVENTS_LIMIT, city],
-    queryFn: () => repository.listUpcomingEvents({ perPage: EXPLORE_EVENTS_LIMIT, city }),
+    queryKey: ["explore-events", EXPLORE_EVENTS_LIMIT, city, forYou],
+    queryFn: () =>
+      repository.listUpcomingEvents({
+        perPage: EXPLORE_EVENTS_LIMIT,
+        city,
+        sort: forYou ? "for_you" : undefined,
+      }),
     enabled: !isResolving,
     // Events are announced days ahead, not minute by minute.
     staleTime: 5 * 60_000,

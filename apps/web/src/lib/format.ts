@@ -1,5 +1,11 @@
 import type { Dictionary } from "@bookeat/i18n";
-import type { PriceLevel, PriceRange, RestaurantSummary } from "@bookeat/api/client";
+import type {
+  MatchReason,
+  PriceLevel,
+  PriceRange,
+  RestaurantSummary,
+  TasteMatch,
+} from "@bookeat/api/client";
 
 import type { WebLocale } from "@web/lib/locale";
 
@@ -52,6 +58,70 @@ export function venueMeta(
   if (price) parts.push(price);
   if (options.withAddress !== false && venue.address.trim()) parts.push(venue.address.trim());
   return parts.join(t.web.format.metaSeparator);
+}
+
+/**
+ * Чип совпадения вкуса рядом с `venueMeta` в секции «Для вас» (спека
+ * `foodie-personalization-v1-20260916.md` §5.6/§21/§26 — тот же принцип, что
+ * на мобилке у `RecommendedRestaurantCard`). Максимум ДВЕ причины с
+ * `points > 0`, в порядке ответа; `fallback_popular` и нулевые причины не
+ * показываются вовсе (это объяснение «почему добрали», а не совпадение).
+ *
+ * `undefined`, когда рисовать нечего: анонимный/фолбэковый ряд без `match`,
+ * пустой `reasons`, или причины есть, но ни одна не превратилась в текст —
+ * например `cuisine_match` с кодом кухни, которого нет среди `venue.cuisines`
+ * (данные разошлись — молчим, а не рисуем дыру или чужую кухню).
+ */
+export function matchChipLabel(
+  match: TasteMatch | undefined,
+  venue: Pick<RestaurantSummary, "cuisines" | "priceLevel">,
+  t: Dictionary,
+): string | undefined {
+  if (!match) return undefined;
+  const labels: string[] = [];
+  for (const reason of match.reasons) {
+    if (labels.length >= 2) break;
+    if (reason.points <= 0 || reason.code === "fallback_popular") continue;
+    const label = matchReasonLabel(reason, venue, t);
+    if (label) labels.push(label);
+  }
+  return labels.length > 0 ? labels.join(t.web.format.metaSeparator) : undefined;
+}
+
+/** Кухня и бюджет читают текст из самих данных заведения (имя кухни, знак
+ * яруса) — словарь их не хранит второй раз. Остальные коды — короткие
+ * фиксированные подписи; неизвестный код (будущее расширение таблицы 5.3)
+ * молча пропускается, а не падает и не показывает код разработчика. */
+function matchReasonLabel(
+  reason: MatchReason,
+  venue: Pick<RestaurantSummary, "cuisines" | "priceLevel">,
+  t: Dictionary,
+): string | undefined {
+  switch (reason.code) {
+    case "cuisine_match":
+    case "cuisine_match_implicit": {
+      const codes = reason.params?.cuisineCodes ?? [];
+      const names = venue.cuisines
+        .filter((cuisine) => codes.includes(cuisine.id))
+        .map((cuisine) => cuisine.name)
+        .filter(Boolean);
+      return names.length > 0 ? names.join(", ") : undefined;
+    }
+    case "budget_match":
+      return venue.priceLevel || undefined;
+    case "diet_match":
+      return t.web.home.picks.matchReasons.dietMatch;
+    case "booked_similar":
+      return t.web.home.picks.matchReasons.bookedSimilar;
+    case "editorial_pick":
+      return t.web.home.picks.matchReasons.editorialPick;
+    case "venue_rating":
+      return t.web.home.picks.matchReasons.venueRating;
+    case "popular":
+      return t.web.home.picks.matchReasons.popular;
+    default:
+      return undefined;
+  }
 }
 
 /**

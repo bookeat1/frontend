@@ -1,11 +1,15 @@
 import type { RestaurantSummary } from "@bookeat/api";
 import { colors, exploreLayout, radius, spacing, typography } from "@bookeat/design-tokens";
+import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRestaurantFavorite } from "../../hooks/useFavorites";
 import { cuisineLine } from "../../lib/cuisine-display";
 import { PhotoView } from "../PhotoView";
 import { FavoriteButton } from "./FavoriteButton";
+import { matchChipText } from "./match-reason-label";
+
+const t = getDictionary();
 
 /**
  * «Выбрали для вас» card — REAL DATA (GET /restaurants?is_popular=true).
@@ -30,11 +34,19 @@ export function RecommendedRestaurantCard({
   // по ширине. Полный набор виден в списке поиска и на карточке заведения.
   const cuisineLabel = cuisineLine(restaurant.cuisines);
   const favorite = useRestaurantFavorite(restaurant.id);
+  // Чип причин «Для вас» (персонализация v1, критерий 21) — пусто на любой
+  // карточке без `match` (режим не for_you) или когда все причины ушли в
+  // фильтр (нули/fallback_popular), см. match-reason-label.ts.
+  const matchLabel = matchChipText(restaurant.match?.reasons, restaurant, t);
+
+  const accessibilityLabel = [restaurant.name, cuisineLabel, matchLabel]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={cuisineLabel ? `${restaurant.name}, ${cuisineLabel}` : restaurant.name}
+      accessibilityLabel={accessibilityLabel}
       onPress={() => onOpenRestaurant(restaurant.id)}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
@@ -63,6 +75,11 @@ export function RecommendedRestaurantCard({
         {cuisineLabel ? (
           <Text style={styles.cuisine} numberOfLines={1} ellipsizeMode="tail">
             {cuisineLabel}
+          </Text>
+        ) : null}
+        {matchLabel ? (
+          <Text style={styles.matchChip} numberOfLines={1} ellipsizeMode="tail">
+            {matchLabel}
           </Text>
         ) : null}
       </View>
@@ -94,5 +111,13 @@ const styles = StyleSheet.create({
   cuisine: {
     ...typography.body,
     color: colors.text.muted,
+  },
+  // Персонализация v1 (5.6/5.7) — чип причин «Для вас». `colors.text.brand`
+  // (#96272C) — тот же токен, что уже используется для подписи чипа-метки
+  // внутри карточки в этом дизайн-языке (см. design-tokens/colors.ts); своего
+  // узла в Figma под этот НОВЫЙ бэкенд-элемент пока нет.
+  matchChip: {
+    ...typography.caption,
+    color: colors.text.brand,
   },
 });

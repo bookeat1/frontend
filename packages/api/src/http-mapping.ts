@@ -28,6 +28,7 @@ import type {
   DayAvailability,
   EventAction,
   EventSummary,
+  FoodieProfile,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -38,6 +39,7 @@ import type {
   GuideCollectionVenue,
   GuideHighlight,
   MatchedDish,
+  MatchReason,
   MenuHighlight,
   MenuSection,
   AppNotification,
@@ -51,12 +53,14 @@ import type {
   PlatformPageSlug,
   Preorder,
   PriceLevel,
+  PicksMode,
   PriceRange,
   Promo,
   PromoBanner,
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
+  TasteMatch,
   ScheduleDay,
   SlotUnavailableReason,
   DayOfWeek,
@@ -171,6 +175,26 @@ export interface ApiRestaurant {
    * прийти null.
    */
   matched_dish?: { id?: string; name?: string } | null;
+  /**
+   * Совпадение вкуса — только `GET /restaurants/picks` в персональном режиме
+   * (спека `foodie-personalization-v1-20260916.md` §5.6). Отсутствует у
+   * листинга/поиска/избранного и у самого `/restaurants/picks`, когда
+   * `mode !== "for_you"`.
+   */
+  match?: ApiMatch | null;
+}
+
+/** `match` заведения в ответе `restaurantResponse` — см. `TasteMatch`. */
+export interface ApiMatch {
+  score?: number;
+  reasons?: ApiMatchReason[] | null;
+}
+
+export interface ApiMatchReason {
+  code?: string;
+  points?: number;
+  params?: { cuisine_codes?: string[] | null } | null;
+  detail?: string;
 }
 
 /** menuItemResponse — GET /restaurants/:id/menu returns a bare array of these
@@ -823,6 +847,35 @@ export function mapUser(api: ApiUser): AuthUser {
 }
 
 /**
+ * `GET/PUT /users/me/foodie-profile` wire shape
+ * (internal/transport/rest/users/response.go foodieProfileResponse,
+ * bookeat-backend feat/foodie-profile-backend). Arrays are contractually
+ * always present, never null, but mapped defensively the same way as every
+ * other list field here (an absent/non-array value folds to `[]` rather than
+ * throwing).
+ */
+export interface ApiFoodieProfile {
+  cuisines: string[];
+  diets: string[];
+  allergies: string[];
+  budget: string | null;
+}
+
+function stringIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((id) => text(typeof id === "string" ? id : "")).filter((id) => id.length > 0);
+}
+
+export function mapFoodieProfile(api: ApiFoodieProfile): FoodieProfile {
+  return {
+    cuisines: stringIdList(api.cuisines),
+    diets: stringIdList(api.diets),
+    allergies: stringIdList(api.allergies),
+    budget: text(api.budget) || null,
+  };
+}
+
+/**
  * One item of `GET /notifications`. `booking_id` / `restaurant_id` are carried
  * on the wire but not mapped into AppNotification — no row deep-links yet (see
  * AppNotification). Every field is read defensively: a missing key degrades one
@@ -1038,7 +1091,40 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     schedule: mapSchedule(api.schedule),
     acceptsOnlineBookings: api.accepts_online_bookings === true,
     matchedDish: mapMatchedDish(api.matched_dish),
+    match: mapMatch(api.match),
   };
+}
+
+/**
+ * `match` заведения → `TasteMatch` для карточки. `undefined` и на отсутствии
+ * поля, и на пустом списке причин — карточка с «нулевым» совпадением рисует
+ * обычный `venueMeta`, а не пустой чип рядом с ним.
+ */
+function mapMatch(raw: ApiRestaurant["match"]): TasteMatch | undefined {
+  if (!raw || !raw.reasons?.length) return undefined;
+  const reasons: MatchReason[] = raw.reasons.map((reason) => {
+    const cuisineCodes = (reason.params?.cuisine_codes ?? []).filter(
+      (code): code is string => typeof code === "string" && code.trim() !== "",
+    );
+    return {
+      code: text(reason.code),
+      points: typeof reason.points === "number" ? reason.points : 0,
+      ...(cuisineCodes.length > 0 ? { params: { cuisineCodes } } : {}),
+      detail: text(reason.detail),
+    };
+  });
+  return { score: typeof raw.score === "number" ? raw.score : 0, reasons };
+}
+
+/**
+ * `data.mode` персонализации v1 (5.6). Неизвестное/отсутствующее значение —
+ * `"popular"`, а не ошибка: тот же принцип, что у бэкендового «неизвестный
+ * код справочника даёт 0 очков, не 500» (критерий 3), перенесённый на клиент
+ * — старая сборка сервера без этого поля не должна ломать ряд «Выбрали для
+ * вас» вовсе.
+ */
+export function mapPicksMode(raw: unknown): PicksMode {
+  return raw === "for_you" || raw === "editorial" || raw === "popular" ? raw : "popular";
 }
 
 /**

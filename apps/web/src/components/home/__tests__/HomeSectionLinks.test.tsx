@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 
-import type { RestaurantSummary } from "@bookeat/api/client";
+import type { RestaurantsPicksResult } from "@bookeat/api/client";
 
 import { eventSummary, guideCollection, pending, renderScreen, repositoryStub } from "@web/test/harness";
 
@@ -47,7 +47,7 @@ vi.mock("@web/lib/api", () => ({
 const { HomeScreen } = await import("@web/components/home/HomeScreen");
 
 function stubSections() {
-  repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantSummary[]>());
+  repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantsPicksResult>());
   repository.listUpcomingEvents = vi.fn(async () => ({
     items: [eventSummary()],
     total: 1,
@@ -99,7 +99,7 @@ describe("ссылки секций главной", () => {
   });
 
   it("при выключенном флаге и без categorySlugs у карточки подборки ссылки нет", async () => {
-    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantSummary[]>());
+    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantsPicksResult>());
     repository.listUpcomingEvents = vi.fn(async () => ({
       items: [eventSummary()],
       total: 1,
@@ -119,7 +119,7 @@ describe("ссылки секций главной", () => {
    * страница `/brand/ocean-basket`, поэтому карточка на главной кликабельна
    * даже при выключенном флаге (2026-09-09, п.1 постмёрдж-фиксов). */
   it("карточка Ocean Basket кликабельна даже при выключенном флаге", async () => {
-    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantSummary[]>());
+    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantsPicksResult>());
     repository.listUpcomingEvents = vi.fn(async () => ({
       items: [eventSummary()],
       total: 1,

@@ -1,4 +1,4 @@
-import type { RestaurantSummary } from "@bookeat/api";
+import type { RestaurantsPicksResult } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
@@ -31,8 +31,7 @@ import { PREFERRED_CITY_QUERY_KEY } from "../../src/lib/preferred-city";
 const PREFERRED_CITY_KEY = "bookeat.city.v1";
 const t = getDictionary("ru");
 
-const getRecommendedRestaurants =
-  vi.fn<(city?: string, limit?: number) => Promise<RestaurantSummary[]>>();
+const getRecommendedRestaurants = vi.fn<(city?: string, limit?: number) => Promise<RestaurantsPicksResult>>();
 const getMe = vi.fn();
 const authStatus = { value: "signed-out" as "loading" | "signed-out" | "signed-in" };
 
@@ -71,7 +70,7 @@ function renderProbe() {
 
 beforeEach(async () => {
   authStatus.value = "signed-out";
-  getRecommendedRestaurants.mockReset().mockResolvedValue([]);
+  getRecommendedRestaurants.mockReset().mockResolvedValue({ items: [], mode: "popular" });
   getMe.mockReset();
   await SecureStore.deleteItemAsync(PREFERRED_CITY_KEY);
 });

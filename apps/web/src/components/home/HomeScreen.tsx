@@ -32,7 +32,7 @@ import { DEFAULT_CITY, useCity } from "@web/lib/city";
 import { cx } from "@web/lib/cx";
 import { EMPTY_CATALOG_STATE, buildSearchQuery } from "@web/lib/catalog-params";
 import { useFavoriteControl } from "@web/lib/favorites";
-import { cityPrepositional, venueMeta } from "@web/lib/format";
+import { cityPrepositional, matchChipLabel, venueMeta } from "@web/lib/format";
 import { useT } from "@web/lib/locale";
 import {
   EVENTS_LIMIT,
@@ -105,8 +105,16 @@ export function HomeScreen() {
 
       <Section>
         <Container className="flex flex-col gap-7">
+          {/* Заголовок читает `mode` из ОТВЕТА — «Для вас» только при активном
+              фуди-профиле (спека foodie-personalization-v1-20260916.md
+              §5.6/§26). Никогда не решается локальным состоянием: аноним и
+              пустой профиль видят прежний заголовок побайтно. До ответа (или
+              на ошибке/не настроенном API) — прежний заголовок, чтобы секция
+              не прыгала между «Для вас» и «Выбрали для вас» при перезагрузке. */}
           <SectionHeader
-            title={t.web.home.picks.title}
+            title={
+              picks.data?.mode === "for_you" ? t.web.home.picks.forYouTitle : t.web.home.picks.title
+            }
             subtitle={t.web.home.picks.subtitle}
             linkHref="/venues"
             linkLabel={t.web.home.picks.all}
@@ -114,18 +122,20 @@ export function HomeScreen() {
           <AsyncBlock
             query={picks}
             emptyText={t.web.home.picks.empty}
+            isEmpty={(result) => result.items.length === 0}
             skeleton={<VenueGridSkeleton />}
           >
-            {(items) => (
+            {(result) => (
               // `h-full` на ячейке — половина решения: сама ячейка сетки и так
               // растянута, но карточка внутри неё блочная и до низа не доходит.
               // Вторая половина — `h-full` внутри самой карточки.
               <ul className="grid grid-cols-1 gap-gutter md:grid-cols-2 xl:grid-cols-4">
-                {items.map((venue) => (
+                {result.items.map((venue) => (
                   <li key={venue.id} className="h-full">
                     <VenueCard
                       name={venue.name}
                       meta={venueMeta(venue, t)}
+                      matchLabel={matchChipLabel(venue.match, venue, t)}
                       imageUrl={venue.coverPhoto?.uri}
                       href={`/venues/${venue.id}`}
                       {...favoriteProps(venue.id)}
