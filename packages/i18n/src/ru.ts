@@ -4586,9 +4586,6 @@ export const ru = {
            * (`requestPhoneChangeOtp`/`confirmPhoneChange`), не этой формой. */
           phone: "Телефон",
           phoneReadOnly: "Номер меняется через подтверждение кодом в приложении.",
-          /** `PATCH /users/me` почту не принимает — поле только показывается. */
-          email: "E-mail",
-          emailReadOnly: "Почту пока можно изменить только в мобильном приложении.",
           notSet: "не указано",
           save: "Сохранить изменения",
           saved: "Изменения сохранены",

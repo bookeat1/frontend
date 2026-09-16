@@ -3181,8 +3181,6 @@ export const kk: LocaleOverride<Dictionary> = {
           lastNamePlaceholder: "Міндетті емес",
           phone: "Телефон",
           phoneReadOnly: "Нөмір қолданбада кодпен растау арқылы өзгертіледі.",
-          email: "E-mail",
-          emailReadOnly: "Поштаны әзірге тек мобильді қолданбада өзгертуге болады.",
           notSet: "көрсетілмеген",
           save: "Өзгерістерді сақтау",
           saved: "Өзгерістер сақталды",
