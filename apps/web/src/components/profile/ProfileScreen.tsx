@@ -11,6 +11,7 @@ import { Badge } from "@web/components/ui/Badge";
 import { Modal } from "@web/components/ui/Modal";
 import { Button } from "@web/components/ui/Button";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
+import { SignOutIcon } from "@web/components/ui/SignOutIcon";
 import { VenueCard } from "@web/components/ui/VenueCard";
 import { ProfileCard, type ProfileStat } from "@web/components/profile/ProfileCard";
 import { ProfileSkeleton } from "@web/components/profile/ProfileFallback";
@@ -435,26 +436,41 @@ function CancelBookingDialog({ booking, onClose }: { booking: Booking; onClose: 
 
 /**
  * Подтверждение выхода (Figma `qmMsg4jO1ggmyEHNIAD2ll`, узел 5265:21449,
- * `signOutDialog`) — тот же узор, что `CancelBookingDialog` выше и
- * `RemovePreorderDialog` у предзаказа: общий `Modal` + два `Button`, а не
- * `window.confirm`. Текст диалога — дословно из макета; сам ряд кнопок и
- * центрированная иконка над заголовком в макете нарисованы иначе, чем в этих
- * двух уже существующих диалогах — здесь взят их общий узор (кнопка отмены
- * слева `secondary`, подтверждения справа `primary`, без иконки), а не
- * нарисован третий вариант компонента ради одной иконки.
+ * `signOutDialog`) — узор `CancelBookingDialog`/`RemovePreorderDialog` (общий
+ * `Modal` + два `Button`, не `window.confirm`), но по раскладке самого узла:
+ * круглый розовый бейдж с иконкой двери над заголовком (`Modal.centerIcon`),
+ * всё по центру, ряд из двух кнопок РАВНОЙ ширины на всю карточку.
+ *
+ * Порядок и стили кнопок — как в макете, а не как в двух готовых диалогах
+ * выше (там отмена слева `secondary`, подтверждение справа `primary`):
+ * здесь подтверждение выхода — ЛЕВАЯ кнопка, обводочная (`outline`), а
+ * отмена — ПРАВАЯ, залитая фирменным красным (`primary`) и потому визуально
+ * заметнее. Это осознанный дизайн (мягкий нудж не выходить), не опечатка.
  */
 function SignOutDialog({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
   const { t } = useLocale();
   const texts = t.web.profile.signOutDialog;
 
   return (
-    <Modal title={texts.title} description={texts.text} onClose={onClose}>
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button variant="secondary" size="m" onClick={onClose}>
-          {texts.cancel}
-        </Button>
-        <Button variant="primary" size="m" onClick={onConfirm}>
+    <Modal
+      title={texts.title}
+      description={texts.text}
+      onClose={onClose}
+      centerIcon={
+        <span
+          aria-hidden="true"
+          className="flex h-signout-icon-badge w-signout-icon-badge shrink-0 items-center justify-center rounded-full bg-signout-icon-bg text-brand"
+        >
+          <SignOutIcon />
+        </span>
+      }
+    >
+      <div className="flex w-full gap-3">
+        <Button variant="outline" size="profile" className="flex-1" onClick={onConfirm}>
           {texts.confirm}
+        </Button>
+        <Button variant="primary" size="profile" className="flex-1" onClick={onClose}>
+          {texts.cancel}
         </Button>
       </div>
     </Modal>
