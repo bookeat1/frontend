@@ -187,8 +187,13 @@ function PromoBody({ promo }: { promo: Promo }) {
           </div>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-[24px] font-semibold leading-[24px] text-ink">{t.promotions.aboutTitle}</h2>
-            <p className="whitespace-pre-line break-words text-[14px] leading-5 text-ink-secondary">
+            {/* 26/38 Bold, трекинг −0.4 и 20/30 Regular — узел 5115:7679
+                («Об акции»/«Как воспользоваться»), не путать с h3-токеном
+                (26/34, без трекинга) — здесь свой lineHeight и letterSpacing. */}
+            <h2 className="text-[26px] font-bold leading-[38px] tracking-[-0.4px] text-ink">
+              {t.promotions.aboutTitle}
+            </h2>
+            <p className="whitespace-pre-line break-words text-[20px] leading-[30px] text-ink">
               {promo.description.trim() || t.web.events.noDescription}
             </p>
           </section>
@@ -230,9 +235,9 @@ function HowToSection({ terms, title }: { terms: string; title: string }) {
   const steps = parseNumberedSteps(terms);
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[24px] font-semibold leading-[24px] text-ink">{title}</h2>
+      <h2 className="text-[26px] font-bold leading-[38px] tracking-[-0.4px] text-ink">{title}</h2>
       {steps ? (
-        <ol className="flex list-decimal flex-col gap-2 pl-5 text-[14px] leading-5 text-ink-secondary">
+        <ol className="flex list-decimal flex-col gap-2 pl-5 text-[20px] leading-[30px] text-ink">
           {steps.map((step, index) => (
             <li key={index} className="break-words">
               {step}
@@ -240,7 +245,7 @@ function HowToSection({ terms, title }: { terms: string; title: string }) {
           ))}
         </ol>
       ) : (
-        <p className="whitespace-pre-line break-words text-[14px] leading-5 text-ink-secondary">{terms}</p>
+        <p className="whitespace-pre-line break-words text-[20px] leading-[30px] text-ink">{terms}</p>
       )}
     </section>
   );
