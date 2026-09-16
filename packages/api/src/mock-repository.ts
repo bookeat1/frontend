@@ -63,6 +63,7 @@ import type {
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
+  RestaurantsPicksResult,
   SearchQuery,
   SearchResult,
 } from "./types";
@@ -226,13 +227,23 @@ export class MockRestaurantRepository implements RestaurantRepository {
    * тем же на любой город, и «блок показывает чужой город» нельзя было бы
    * увидеть до боевого сервера.
    */
-  async getRecommendedRestaurants(city?: string, limit = 20): Promise<RestaurantSummary[]> {
+  /**
+   * `mode` — здесь всегда `"popular"`: мок не считает фуди-профиль и не
+   * симулирует личный ряд (это доменная логика бэкенда, спека
+   * foodie-personalization-v1-20260916.md §5.6), только воспроизводит
+   * автоматическую ветку ручки без `match` на карточках.
+   */
+  async getRecommendedRestaurants(
+    city?: string,
+    limit = 20,
+  ): Promise<RestaurantsPicksResult> {
     await this.simulateNetwork();
     const wanted = city?.trim().toLowerCase();
-    return restaurants
+    const items = restaurants
       .filter((r) => (wanted ? r.city.trim().toLowerCase() === wanted : true))
       .slice(0, limit)
       .map(toSummary);
+    return { items, mode: "popular" };
   }
 
   async searchRestaurants(query: SearchQuery): Promise<SearchResult> {

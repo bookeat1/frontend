@@ -2719,9 +2719,17 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       picks: {
         title: "Сізге таңдадық",
+        forYouTitle: "Сізге",
         subtitle: "Осы қалада қазір нені ұсынамыз",
         all: "Барлығын көру",
         empty: "Бұл қалаға таңдау әлі жиналмаған.",
+        matchReasons: {
+          dietMatch: "Диетаңызға сай келеді",
+          bookedSimilar: "Броньдарыңызға ұқсас",
+          editorialPick: "Редакция таңдауы",
+          venueRating: "Жоғары рейтинг",
+          popular: "Танымал",
+        },
       },
       promos: {
         title: "Апта акциялары",

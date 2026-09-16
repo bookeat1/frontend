@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 
-import type { RestaurantSummary } from "@bookeat/api/client";
+import type { RestaurantsPicksResult } from "@bookeat/api/client";
 
 import { pending, renderScreen, repositoryStub, venueSummary } from "@web/test/harness";
 
@@ -30,7 +30,7 @@ const { HomeScreen } = await import("@web/components/home/HomeScreen");
 
 describe("главная", () => {
   it("пока подборка едет, на её месте загрузка", async () => {
-    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantSummary[]>());
+    repository.getRecommendedRestaurants = vi.fn(() => pending<RestaurantsPicksResult>());
 
     renderScreen(<HomeScreen />);
 
@@ -38,7 +38,7 @@ describe("главная", () => {
   });
 
   it("пустые ленты объясняются словами, а не пустым местом", async () => {
-    repository.getRecommendedRestaurants = vi.fn(async () => []);
+    repository.getRecommendedRestaurants = vi.fn(async () => ({ items: [], mode: "popular" as const }));
     repository.getPromotions = vi.fn(async () => []);
 
     renderScreen(<HomeScreen />);
@@ -64,14 +64,74 @@ describe("главная", () => {
   });
 
   it("карточка заведения ведёт на его страницу", async () => {
-    repository.getRecommendedRestaurants = vi.fn(async () => [
-      venueSummary({ id: "xyz", name: "Chaihana Palau" }),
-    ]);
+    repository.getRecommendedRestaurants = vi.fn(async () => ({
+      items: [venueSummary({ id: "xyz", name: "Chaihana Palau" })],
+      mode: "popular" as const,
+    }));
 
     renderScreen(<HomeScreen />);
 
     const link = await screen.findByRole("link", { name: "Chaihana Palau" });
     expect(link.getAttribute("href")).toBe("/venues/xyz");
+  });
+
+  /**
+   * Заголовок ряда «Для вас»/«Выбрали для вас» — спека
+   * `foodie-personalization-v1-20260916.md` §5.6/§26 (критерий 20 на
+   * мобилке, тот же принцип на вебе): переключается по `data.mode` ответа,
+   * не по локальному состоянию. Обе ветки.
+   */
+  describe("заголовок секции «Для вас»/«Выбрали для вас» — по mode ответа", () => {
+    it("mode: for_you — заголовок «Для вас»", async () => {
+      repository.getRecommendedRestaurants = vi.fn(async () => ({
+        items: [venueSummary({ id: "xyz", name: "Chaihana Palau" })],
+        mode: "for_you" as const,
+      }));
+
+      renderScreen(<HomeScreen />);
+
+      expect(await screen.findByRole("heading", { name: "Для вас" })).toBeTruthy();
+      expect(screen.queryByRole("heading", { name: "Выбрали для вас" })).toBeNull();
+    });
+
+    it("mode: popular — прежний заголовок «Выбрали для вас»", async () => {
+      repository.getRecommendedRestaurants = vi.fn(async () => ({
+        items: [venueSummary({ id: "xyz", name: "Chaihana Palau" })],
+        mode: "popular" as const,
+      }));
+
+      renderScreen(<HomeScreen />);
+
+      expect(await screen.findByRole("heading", { name: "Выбрали для вас" })).toBeTruthy();
+      expect(screen.queryByRole("heading", { name: "Для вас" })).toBeNull();
+    });
+
+    it("mode: editorial — тоже прежний заголовок (ручной список — не персональный ряд)", async () => {
+      repository.getRecommendedRestaurants = vi.fn(async () => ({
+        items: [venueSummary({ id: "xyz", name: "Chaihana Palau" })],
+        mode: "editorial" as const,
+      }));
+
+      renderScreen(<HomeScreen />);
+
+      expect(await screen.findByRole("heading", { name: "Выбрали для вас" })).toBeTruthy();
+    });
+  });
+
+  /**
+   * Афиша на главной запрашивает `sort=for_you` (спека
+   * `foodie-personalization-v1-20260916.md` §5.6/§19/§26); полный список
+   * `/events` его не отправляет — проверено `useEventsFeed`
+   * отдельно/неявно тем, что он вообще не читает `sort` из `EventQuery`
+   * этого хука.
+   */
+  it("афиша на главной запрашивает /events с sort=for_you", async () => {
+    renderScreen(<HomeScreen />);
+
+    await screen.findByRole("heading", { name: "Афиша" });
+    expect(repository.listUpcomingEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "for_you" }),
+    );
   });
   /**
    * Блок «Все заведения» на главной — узел `3525:14246` (`Catalog grid`,

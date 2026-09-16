@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { getDictionary } from "@bookeat/i18n";
 
+import type { RestaurantSummary, TasteMatch } from "@bookeat/api/client";
+
 import {
   bookingDateLabel,
+  matchChipLabel,
   nowTimeHhMm,
   searchDateLabel,
   slotDateIso,
@@ -142,5 +145,74 @@ describe("nowTimeHhMm", () => {
 
   it("после 23:30 переносит на полночь следующих суток", () => {
     expect(nowTimeHhMm(new Date(2026, 8, 16, 23, 45))).toBe("00:00");
+  });
+});
+
+/**
+ * Чип причины совпадения вкуса рядом с `venueMeta` — спека
+ * `foodie-personalization-v1-20260916.md` §5.6/§21/§26 (тот же принцип, что
+ * на мобилке): максимум ДВЕ причины с `points > 0`, `fallback_popular` и
+ * нули никогда не показываются.
+ */
+describe("matchChipLabel", () => {
+  const ru = getDictionary("ru");
+  const venue: Pick<RestaurantSummary, "cuisines" | "priceLevel"> = {
+    cuisines: [{ id: "italian", name: "Итальянская" }],
+    priceLevel: "₸₸",
+  };
+
+  it("без match — undefined (аноним/фолбэковый ряд, чипа нет)", () => {
+    expect(matchChipLabel(undefined, venue, ru)).toBeUndefined();
+  });
+
+  it("кухня и бюджет — «Итальянская · ₸₸», как в примере спеки", () => {
+    const match: TasteMatch = {
+      score: 600,
+      reasons: [
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } },
+        { code: "budget_match", points: 200 },
+      ],
+    };
+    expect(matchChipLabel(match, venue, ru)).toBe("Итальянская · ₸₸");
+  });
+
+  it("нулевые причины и fallback_popular не показываются", () => {
+    const match: TasteMatch = {
+      score: 400,
+      reasons: [
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } },
+        { code: "diet_match", points: 0, detail: "no diet data for venue" },
+        { code: "budget_match", points: 0 },
+        { code: "fallback_popular", points: 50 },
+      ],
+    };
+    expect(matchChipLabel(match, venue, ru)).toBe("Итальянская");
+  });
+
+  it("не больше двух причин, даже если положительных больше", () => {
+    const match: TasteMatch = {
+      score: 750,
+      reasons: [
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } },
+        { code: "budget_match", points: 200 },
+        { code: "popular", points: 50 },
+      ],
+    };
+    expect(matchChipLabel(match, venue, ru)).toBe("Итальянская · ₸₸");
+  });
+
+  it("код кухни без совпадения в venue.cuisines — причину молча пропускает", () => {
+    const match: TasteMatch = {
+      score: 200,
+      reasons: [
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["korean"] } },
+        { code: "budget_match", points: 200 },
+      ],
+    };
+    expect(matchChipLabel(match, venue, ru)).toBe("₸₸");
+  });
+
+  it("пустой список причин — undefined", () => {
+    expect(matchChipLabel({ score: 0, reasons: [] }, venue, ru)).toBeUndefined();
   });
 });

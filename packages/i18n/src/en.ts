@@ -2713,9 +2713,17 @@ export const en: LocaleOverride<Dictionary> = {
       },
       picks: {
         title: "Picked for you",
+        forYouTitle: "For you",
         subtitle: "What we recommend in this city right now",
         all: "See all",
         empty: "No selection has been made for this city yet.",
+        matchReasons: {
+          dietMatch: "Fits your diet",
+          bookedSimilar: "Similar to your bookings",
+          editorialPick: "Editor's pick",
+          venueRating: "Highly rated",
+          popular: "Popular",
+        },
       },
       promos: {
         title: "Deals of the week",

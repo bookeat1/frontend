@@ -39,6 +39,7 @@ import type {
   GuideCollectionVenue,
   GuideHighlight,
   MatchedDish,
+  MatchReason,
   MenuHighlight,
   MenuSection,
   AppNotification,
@@ -58,6 +59,7 @@ import type {
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
+  TasteMatch,
   ScheduleDay,
   SlotUnavailableReason,
   DayOfWeek,
@@ -172,6 +174,26 @@ export interface ApiRestaurant {
    * прийти null.
    */
   matched_dish?: { id?: string; name?: string } | null;
+  /**
+   * Совпадение вкуса — только `GET /restaurants/picks` в персональном режиме
+   * (спека `foodie-personalization-v1-20260916.md` §5.6). Отсутствует у
+   * листинга/поиска/избранного и у самого `/restaurants/picks`, когда
+   * `mode !== "for_you"`.
+   */
+  match?: ApiMatch | null;
+}
+
+/** `match` заведения в ответе `restaurantResponse` — см. `TasteMatch`. */
+export interface ApiMatch {
+  score?: number;
+  reasons?: ApiMatchReason[] | null;
+}
+
+export interface ApiMatchReason {
+  code?: string;
+  points?: number;
+  params?: { cuisine_codes?: string[] | null } | null;
+  detail?: string;
 }
 
 /** menuItemResponse — GET /restaurants/:id/menu returns a bare array of these
@@ -1068,7 +1090,29 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     schedule: mapSchedule(api.schedule),
     acceptsOnlineBookings: api.accepts_online_bookings === true,
     matchedDish: mapMatchedDish(api.matched_dish),
+    match: mapMatch(api.match),
   };
+}
+
+/**
+ * `match` заведения → `TasteMatch` для карточки. `undefined` и на отсутствии
+ * поля, и на пустом списке причин — карточка с «нулевым» совпадением рисует
+ * обычный `venueMeta`, а не пустой чип рядом с ним.
+ */
+function mapMatch(raw: ApiRestaurant["match"]): TasteMatch | undefined {
+  if (!raw || !raw.reasons?.length) return undefined;
+  const reasons: MatchReason[] = raw.reasons.map((reason) => {
+    const cuisineCodes = (reason.params?.cuisine_codes ?? []).filter(
+      (code): code is string => typeof code === "string" && code.trim() !== "",
+    );
+    return {
+      code: text(reason.code),
+      points: typeof reason.points === "number" ? reason.points : 0,
+      ...(cuisineCodes.length > 0 ? { params: { cuisineCodes } } : {}),
+      ...(reason.detail ? { detail: text(reason.detail) } : {}),
+    };
+  });
+  return { score: typeof raw.score === "number" ? raw.score : 0, reasons };
 }
 
 /**
