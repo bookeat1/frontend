@@ -102,6 +102,18 @@ export const kk: LocaleOverride<Dictionary> = {
     partySubmit: "Мекемелерді көрсету",
 
     recommendedTitle: "Сізге таңдадық",
+    forYouTitle: "Сізге",
+
+    foodieInviteTitle: "Не ұнататыныңызды айтыңыз",
+    foodieInviteSubtitle: "Жарты минут — және таңдау сіздікі болады",
+    foodieInviteDismiss: "Шақыруды жасыру",
+    matchReasonCuisineFallback: "Сізге ұнайтын асхана",
+    matchReasonDiet: "Диетаңызға сай",
+    matchReasonBookedSimilar: "Осыған ұқсасты брондаған едіңіз",
+    matchReasonEditorial: "Редакция таңдауы",
+    matchReasonRating: "Рейтингі жоғары",
+    matchReasonPopular: "Танымал",
+    matchReasonGeneric: "Дәміңізге сай",
 
     cuisineTitle: "Асханы таңдаңыз",
     cuisineLoading: "Асханаларды жүктеп жатырмыз…",

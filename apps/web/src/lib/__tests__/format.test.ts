@@ -169,8 +169,8 @@ describe("matchChipLabel", () => {
     const match: TasteMatch = {
       score: 600,
       reasons: [
-        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } },
-        { code: "budget_match", points: 200 },
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } , detail: "test" },
+        { code: "budget_match", points: 200 , detail: "test" },
       ],
     };
     expect(matchChipLabel(match, venue, ru)).toBe("Итальянская · ₸₸");
@@ -180,10 +180,10 @@ describe("matchChipLabel", () => {
     const match: TasteMatch = {
       score: 400,
       reasons: [
-        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } },
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } , detail: "test" },
         { code: "diet_match", points: 0, detail: "no diet data for venue" },
-        { code: "budget_match", points: 0 },
-        { code: "fallback_popular", points: 50 },
+        { code: "budget_match", points: 0 , detail: "test" },
+        { code: "fallback_popular", points: 50, detail: "test" },
       ],
     };
     expect(matchChipLabel(match, venue, ru)).toBe("Итальянская");
@@ -193,9 +193,9 @@ describe("matchChipLabel", () => {
     const match: TasteMatch = {
       score: 750,
       reasons: [
-        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } },
-        { code: "budget_match", points: 200 },
-        { code: "popular", points: 50 },
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] } , detail: "test" },
+        { code: "budget_match", points: 200 , detail: "test" },
+        { code: "popular", points: 50 , detail: "test" },
       ],
     };
     expect(matchChipLabel(match, venue, ru)).toBe("Итальянская · ₸₸");
@@ -205,8 +205,8 @@ describe("matchChipLabel", () => {
     const match: TasteMatch = {
       score: 200,
       reasons: [
-        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["korean"] } },
-        { code: "budget_match", points: 200 },
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["korean"] } , detail: "test" },
+        { code: "budget_match", points: 200 , detail: "test" },
       ],
     };
     expect(matchChipLabel(match, venue, ru)).toBe("₸₸");

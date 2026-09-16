@@ -365,8 +365,10 @@ export interface RestaurantSummary {
 /**
  * Одна строка объяснения совпадения вкуса — `reasons[]` из ответа сервера.
  * `points === 0` — легитимный, «гость не задал бюджет» тоже причина, просто
- * без веса; чип на карточке фильтрует такие сам (см. `apps/web` `match-chip`).
- * `detail` — английская отладочная строка для владельца, UI её не показывает.
+ * без веса; чип на карточке фильтрует такие сам (см. `apps/web` `match-chip`,
+ * `apps/mobile` `match-reason-label`). `detail` — английская отладочная
+ * строка для владельца заведения, сервер отдаёт её всегда (см. пример ответа
+ * в спеке §5.6), UI её не показывает.
  */
 export interface MatchReason {
   code: string;
@@ -375,7 +377,7 @@ export interface MatchReason {
    * / `cuisine_match_implicit`) — сопоставляются с `RestaurantSummary.cuisines[].id`
    * тем же кодом, чтобы получить готовое переведённое название. */
   params?: { cuisineCodes?: string[] };
-  detail?: string;
+  detail: string;
 }
 
 /** `match` заведения/акции/события в персональном режиме. */
@@ -395,7 +397,11 @@ export type PicksMode = "for_you" | "editorial" | "popular";
 /** Ответ `GET /restaurants/picks` целиком: список плюс режим, который решает
  * заголовок секции. Не переиспользует голый `RestaurantSummary[]`, потому что
  * без `mode` заголовок пришлось бы угадывать на клиенте — а это ровно то,
- * что спека запрещает. */
+ * что спека запрещает. Единственная форма ответа этой ручки — и веб, и
+ * мобилка читают её через один и тот же `getRecommendedRestaurants` (сведено
+ * 16.09.2026: `getHomePicks`/`RestaurantPicks`/`TasteMatchReason` мобильной
+ * ветки были параллельным дублем, заведённым до того, как обе задачи увидели
+ * друг друга — не поддерживаем два имени одного контракта). */
 export interface RestaurantsPicksResult {
   items: RestaurantSummary[];
   mode: PicksMode;

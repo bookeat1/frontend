@@ -99,6 +99,18 @@ export const en: LocaleOverride<Dictionary> = {
     partySubmit: "Show places",
 
     recommendedTitle: "Picked for you",
+    forYouTitle: "For you",
+
+    foodieInviteTitle: "Tell us what you like",
+    foodieInviteSubtitle: "Half a minute — and the picks become yours",
+    foodieInviteDismiss: "Hide the invitation",
+    matchReasonCuisineFallback: "A cuisine you like",
+    matchReasonDiet: "Fits your diet",
+    matchReasonBookedSimilar: "You've booked something similar",
+    matchReasonEditorial: "Editor's pick",
+    matchReasonRating: "Highly rated",
+    matchReasonPopular: "Popular",
+    matchReasonGeneric: "Matches your taste",
 
     cuisineTitle: "Choose a cuisine",
     cuisineLoading: "Loading cuisines…",

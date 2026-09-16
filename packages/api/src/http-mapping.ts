@@ -53,6 +53,7 @@ import type {
   PlatformPageSlug,
   Preorder,
   PriceLevel,
+  PicksMode,
   PriceRange,
   Promo,
   PromoBanner,
@@ -1109,10 +1110,21 @@ function mapMatch(raw: ApiRestaurant["match"]): TasteMatch | undefined {
       code: text(reason.code),
       points: typeof reason.points === "number" ? reason.points : 0,
       ...(cuisineCodes.length > 0 ? { params: { cuisineCodes } } : {}),
-      ...(reason.detail ? { detail: text(reason.detail) } : {}),
+      detail: text(reason.detail),
     };
   });
   return { score: typeof raw.score === "number" ? raw.score : 0, reasons };
+}
+
+/**
+ * `data.mode` персонализации v1 (5.6). Неизвестное/отсутствующее значение —
+ * `"popular"`, а не ошибка: тот же принцип, что у бэкендового «неизвестный
+ * код справочника даёт 0 очков, не 500» (критерий 3), перенесённый на клиент
+ * — старая сборка сервера без этого поля не должна ломать ряд «Выбрали для
+ * вас» вовсе.
+ */
+export function mapPicksMode(raw: unknown): PicksMode {
+  return raw === "for_you" || raw === "editorial" || raw === "popular" ? raw : "popular";
 }
 
 /**

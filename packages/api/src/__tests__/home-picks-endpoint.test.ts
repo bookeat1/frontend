@@ -137,7 +137,7 @@ describe("гость: GET /restaurants/picks", () => {
     expect(out.items[0]?.match).toEqual({
       score: 600,
       reasons: [
-        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] }, detail: undefined },
+        { code: "cuisine_match", points: 400, params: { cuisineCodes: ["italian"] }, detail: "" },
         { code: "budget_match", points: 200, detail: "same tier" },
       ],
     });

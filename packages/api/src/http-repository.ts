@@ -24,6 +24,7 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
+  mapPicksMode,
   mapPlatformPage,
   mapPreorder,
   mapPromo,
@@ -500,6 +501,8 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       // `sort=for_you` — только «Афиша» на главной (спека
       // foodie-personalization-v1-20260916.md §5.6/§19). Безопасно слать
       // всегда: без токена сервер отвечает сегодняшним порядком по дате.
+      // Без параметра он не уходит вовсе, а не `undefined`-строкой —
+      // HttpClient уже отбрасывает `undefined`-значения из query.
       sort: query?.sort,
     });
     return {
