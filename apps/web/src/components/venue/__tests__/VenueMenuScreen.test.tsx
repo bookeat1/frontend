@@ -382,6 +382,80 @@ describe("карточка «Предзаказ» в правой колонке
   });
 });
 
+/**
+ * `web-booking-card-preorder-intent-sync` (2026-09-16): раньше `BookingCard`
+ * рядом с непустой карточкой «Предзаказ» жила своим независимым состоянием
+ * (сегодня/2 гостя по умолчанию или собственный `sessionStorage`-черновик) —
+ * её кнопка «Забронировать на HH:MM» вела на ДРУГИЕ дату/гостей/время, чем
+ * «Вернуться к бронированию» рядом. Регрессия на баг: обе кнопки обязаны
+ * вести на одно и то же.
+ */
+describe("BookingCard синхронизируется с intent предзаказа", () => {
+  afterEach(() => {
+    window.sessionStorage.clear();
+    search = new URLSearchParams("");
+  });
+
+  it("непустой предзаказ + intent из адреса — обе кнопки ведут на один и тот же bookingHref", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    search = new URLSearchParams("date=2026-08-25&guests=4&slot=2026-08-25T19%3A30%3A00%2B05%3A00");
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Добавить Карпаччо из говядины" }));
+    const backLink = await screen.findByRole("link", { name: "Вернуться к бронированию" });
+
+    // Карточка брони подтянула ту же дату и число гостей сама, без участия
+    // гостя — иначе сетка слотов уехала бы на других гостей/день.
+    expect((screen.getByLabelText("Дата") as HTMLInputElement).value).toBe("2026-08-25");
+    expect((screen.getByLabelText("Гости") as HTMLSelectElement).value).toBe("4");
+
+    const bookLink = await screen.findByRole("link", { name: /Забронировать на 19:30/ });
+    const expectedHref = bookingHref("venue-1", {
+      date: "2026-08-25",
+      guests: 4,
+      slot: "2026-08-25T19:30:00+05:00",
+    });
+    expect(bookLink.getAttribute("href")).toBe(expectedHref);
+    expect(bookLink.getAttribute("href")).toBe(backLink.getAttribute("href"));
+  });
+
+  it("сохранённый в intent слот недоступен в текущей выдаче — «Выберите время», а не молчаливая подмена", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    // Сервер на этот день отдаёт только 19:30 — интент несёт слот, которого в
+    // сетке нет вовсе (заведение перестало его отдавать/забронировали).
+    search = new URLSearchParams("date=2026-08-25&guests=4&slot=2026-08-25T21%3A00%3A00%2B05%3A00");
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Добавить Карпаччо из говядины" }));
+    await screen.findByRole("link", { name: "Вернуться к бронированию" });
+    await screen.findByRole("group", { name: "Свободное время" });
+
+    // Дата и гости всё равно подтянулись из intent — не откатились на «сегодня».
+    expect((screen.getByLabelText("Дата") as HTMLInputElement).value).toBe("2026-08-25");
+    // Рендер не падает, кнопка честно просит перевыбрать время, а не тащит
+    // гостя на несуществующий/занятый слот.
+    expect(screen.getByRole("button", { name: "Выберите время" })).toHaveProperty("disabled", true);
+    expect(screen.queryByRole("link", { name: /Забронировать на/ })).toBeNull();
+  });
+
+  it("пустой предзаказ — BookingCard остаётся на своём независимом состоянии («сегодня»), intent не навязан", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+    repository.getMenuSections = vi.fn(async () => SECTIONS);
+    search = new URLSearchParams("date=2026-08-25&guests=4&slot=2026-08-25T19%3A30%3A00%2B05%3A00");
+
+    renderScreen(<VenueMenuScreen id="venue-1" />);
+    await screen.findByText("Тартар из лосося");
+    await screen.findByRole("group", { name: "Свободное время" });
+
+    // Предзаказ пуст — карточки «Предзаказ» нет, а карточка брони живёт своим
+    // умолчанием («сегодня»), а не чужим intent'ом со страницы бронирования.
+    expect(screen.queryByRole("heading", { name: "Предзаказ" })).toBeNull();
+    expect((screen.getByLabelText("Гости") as HTMLSelectElement).value).toBe("2");
+  });
+});
+
 describe("полоса ниже lg на странице меню (A7, A9)", () => {
   afterEach(() => {
     window.sessionStorage.clear();

@@ -8,7 +8,7 @@ import { Button } from "@web/components/ui/Button";
 import { TimeSlot } from "@web/components/ui/TimeSlot";
 import { DateField, GuestsField } from "@web/components/venue/BookingFields";
 import { readBookingDraft, writeBookingDraft } from "@web/lib/booking-draft";
-import { bookingHref } from "@web/lib/booking-link";
+import { bookingHref, type BookingIntent } from "@web/lib/booking-link";
 import { DEFAULT_GUESTS } from "@web/lib/booking-options";
 import { emptyKind, slotAriaLabel } from "@web/lib/booking-slots";
 import { bookingDateLabel, slotDateIso, slotTimeLabel, todayIso } from "@web/lib/format";
@@ -51,8 +51,29 @@ import { useAvailability } from "@web/lib/queries";
  * `freeTables` для этого не годится — у заведения без заведённых столиков он
  * равен нулю у каждого слота (проверено на тесте 2026-07-25, см.
  * `bugs/bookeat-frontend-slot-freetables-not-a-signal`).
+ *
+ * `preorderIntent` (страница меню, `web-booking-card-preorder-intent-sync`,
+ * 2026-09-16): пока рядом стоит непустая карточка «Предзаказ» со своей
+ * кнопкой «Вернуться к бронированию», у ЭТОЙ карточки было своё независимое
+ * состояние — «Забронировать на HH:MM» вело на другие дату/гостей/время, чем
+ * те, под которые гость собирал предзаказ. `VenueMenuScreen.tsx` передаёт
+ * сюда тот же интент (`date/guests/slot` из адреса), что и в
+ * `MenuPreorderCard`, когда черновик непуст — тогда карточка сеется ИМ, а не
+ * сохранённым черновиком или «сегодня». Гость всё ещё может дальше поменять
+ * поля вручную (виджет остаётся живым, не «заморожен под интент») — синхронизация
+ * только про НАЧАЛЬНОЕ значение и про повторную сверку, когда интент
+ * появляется/меняется уже после монтирования (первое блюдо в корзину гость
+ * может добавить до того, как тронул эту карточку). Пустая карточка
+ * «Предзаказ» — обычная страница заведения (`VenueScreen.tsx`) или ситуация
+ * без интента в адресе — работает как раньше, полностью своим стейтом.
  */
-export function BookingCard({ venue }: { venue: Restaurant }) {
+export function BookingCard({
+  venue,
+  preorderIntent = null,
+}: {
+  venue: Restaurant;
+  preorderIntent?: BookingIntent | null;
+}) {
   const { t, locale } = useLocale();
 
   /**
@@ -71,6 +92,15 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
   useEffect(() => {
     const iso = todayIso();
     setToday(iso);
+    if (preorderIntent) {
+      // Непустой предзаказ уже собирается под конкретные дату/гостей/время —
+      // они приоритетнее сохранённого черновика этой карточки (иначе ровно
+      // тот случай, который здесь чинится: разные значения в двух карточках).
+      setDate(preorderIntent.date ?? iso);
+      setGuests(preorderIntent.guests);
+      setSlot(preorderIntent.slot);
+      return;
+    }
     // Гость мог уйти и вернуться посреди выбора: черновик этого заведения
     // возвращает субботу, четверых и 20:00 — а не пустую карточку.
     const draft = readBookingDraft(venue.id, iso);
@@ -81,7 +111,21 @@ export function BookingCard({ venue }: { venue: Restaurant }) {
       return;
     }
     setDate((current) => current ?? iso);
+    // `preorderIntent` реагирует отдельным эффектом ниже — здесь только
+    // первичная гидратация (venue.id меняется только при смене страницы).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venue.id]);
+
+  useEffect(() => {
+    // Предзаказ мог стать непустым УЖЕ ПОСЛЕ того, как эта карточка
+    // смонтировалась и засеялась черновиком/«сегодня» (гость добавил первое
+    // блюдо, ни разу не тронув карточку брони) — досверить её с интентом
+    // сразу, а не только на первом рендере.
+    if (!preorderIntent || today === null) return;
+    setDate(preorderIntent.date ?? today);
+    setGuests(preorderIntent.guests);
+    setSlot(preorderIntent.slot);
+  }, [preorderIntent, today]);
 
   useEffect(() => {
     // До гидратации сохранять нечего: значения ещё не гостя.
