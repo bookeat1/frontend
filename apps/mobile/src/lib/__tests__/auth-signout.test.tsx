@@ -47,6 +47,22 @@ const PUBLIC_ENTRIES: Array<[readonly unknown[], unknown]> = [
   [["menu-sections", "r-1"], []],
 ];
 
+/**
+ * Персонализация v1 — ключи, которые отвечают ПО-РАЗНОМУ для анонима и для
+ * вошедшего гостя ПОД ОДНИМ И ТЕМ ЖЕ ключом (§3.9), в отличие от
+ * `PRIVATE_ENTRIES`, которые для анонима просто не существуют. PR #232
+ * review: ряд «Для вас» и чипы вкуса гостя А переживали выход из аккаунта —
+ * следующий гость на телефоне видел чужую персонализацию.
+ */
+const SESSION_SENSITIVE_ENTRIES: Array<[readonly unknown[], unknown]> = [
+  [
+    ["home-picks", "Алматы", 8],
+    { items: [{ id: "r-1", match: { score: 600, reasons: [] } }], mode: "for_you" },
+  ],
+  [["home-feed", "promos", "Алматы"], { items: [] }],
+  [["explore-events", 12, "Алматы", true], { items: [] }],
+];
+
 function tokenPair(accessToken: string) {
   return {
     access_token: accessToken,
@@ -81,7 +97,7 @@ async function signedInSession() {
   });
   await waitFor(() => expect(rendered.result.current.status).toBe("signed-in"));
 
-  for (const [key, value] of [...PRIVATE_ENTRIES, ...PUBLIC_ENTRIES]) {
+  for (const [key, value] of [...PRIVATE_ENTRIES, ...PUBLIC_ENTRIES, ...SESSION_SENSITIVE_ENTRIES]) {
     queryClient.setQueryData(key, value);
   }
   return { queryClient, ...rendered };
@@ -115,6 +131,21 @@ describe("signing out purges private cached data", () => {
     });
 
     for (const [key] of PRIVATE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `after sign-out ${JSON.stringify(key)}`).toBeUndefined();
+    }
+  });
+
+  it("removes the session-sensitive home rows too (they are personal, not just private)", async () => {
+    const { queryClient, result } = await signedInSession();
+    for (const [key] of SESSION_SENSITIVE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `seeded ${JSON.stringify(key)}`).toBeDefined();
+    }
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    for (const [key] of SESSION_SENSITIVE_ENTRIES) {
       expect(queryClient.getQueryData(key), `after sign-out ${JSON.stringify(key)}`).toBeUndefined();
     }
   });
@@ -197,6 +228,39 @@ describe("signing out purges private cached data", () => {
     expect(next.result.current.user).toBeNull();
     for (const [key] of PRIVATE_ENTRIES) {
       expect(queryClient.getQueryData(key), `still cached: ${JSON.stringify(key)}`).toBeUndefined();
+    }
+  });
+});
+
+describe("signing IN also drops the session-sensitive home rows", () => {
+  it("an anon-flavoured home row seeded before sign-in does not survive it", async () => {
+    // The reverse leak: an anon guest (or nobody at all) browsed the home
+    // screen, caching `mode: "popular"` under the SAME key a signed-in guest
+    // with a taste profile would use. Signing in must not let that stale
+    // anon-flavoured entry sit there until whatever refetch happens to land.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const rendered = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-out"));
+
+    for (const [key, value] of SESSION_SENSITIVE_ENTRIES) {
+      queryClient.setQueryData(key, value);
+    }
+
+    await act(async () => {
+      await rendered.result.current.signInWithCode({ phone: "+77010000000", code: "123456" });
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-in"));
+
+    for (const [key] of SESSION_SENSITIVE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `still cached after sign-in: ${JSON.stringify(key)}`).toBeUndefined();
     }
   });
 });

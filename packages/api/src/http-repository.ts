@@ -306,7 +306,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       "/restaurants/picks",
       { city: city?.trim() || undefined, limit },
     );
-    const mode = page.mode === "for_you" || page.mode === "editorial" ? page.mode : "popular";
+    const mode = mapPicksMode(page.mode);
     return { items: (page.items ?? []).map(mapRestaurantSummary), mode };
   }
 

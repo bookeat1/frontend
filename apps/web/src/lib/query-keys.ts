@@ -47,6 +47,25 @@ const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
 ];
 
 /**
+ * Персонализация v1 (спека `foodie-personalization-v1-20260916.md`, §3.9) —
+ * `usePicks`/`useEvents`(на главной)/`usePromotions` в `queries.ts` ключуются
+ * как `[locale, "picks", city]`/`[locale, "events", city, "for_you"]`/
+ * `[locale, "promos-feed", city]`: `locale` — переменный первый элемент, а не
+ * фиксированный корень, поэтому префиксное совпадение из
+ * `SESSION_SCOPED_KEYS` их не поймает — нужен предикат по ВТОРОМУ элементу.
+ * Эти ключи, в отличие от избранного/брони, существуют и для анонима (там
+ * просто нет `mode`/`match`/сортировки по вкусу) — чистить их нужно на КАЖДЫЙ
+ * переход сессии, не только на выход (PR #232 review, 2026-09-16: иначе
+ * анонимный/чужой ряд «Выбрали для вас» и его сортировка доживают до входа
+ * следующего гостя в пределах `staleTime`, пока не подоспеет перезапрос).
+ */
+const SESSION_SENSITIVE_SECOND_SEGMENTS: ReadonlySet<string> = new Set([
+  "picks",
+  "events",
+  "promos-feed",
+]);
+
+/**
  * Выбросить данные прежней сессии.
  *
  * Именно `removeQueries`, а не `invalidateQueries`: пометка «устарело» не
@@ -54,9 +73,19 @@ const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
  * чужие закрашенные сердца. А после выхода перезапроса не будет вовсе —
  * `useFavoriteIds` выключен без сессии, — и «устаревшие» данные остались бы на
  * экране навсегда.
+ *
+ * Вызывается на КАЖДЫЙ переход сессии (вход и выход) — см. doc-комментарий у
+ * `SESSION_SENSITIVE_SECOND_SEGMENTS` про то, почему одной чистки на выход
+ * здесь недостаточно, в отличие от избранного/брони выше.
  */
 export function forgetSessionScopedQueries(client: QueryClient): void {
   for (const queryKey of SESSION_SCOPED_KEYS) {
     client.removeQueries({ queryKey });
   }
+  client.removeQueries({
+    predicate: (query) => {
+      const second = query.queryKey[1];
+      return typeof second === "string" && SESSION_SENSITIVE_SECOND_SEGMENTS.has(second);
+    },
+  });
 }

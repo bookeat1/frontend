@@ -10,6 +10,7 @@ import { getCurrentLocale } from "@bookeat/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { identifyUser, trackEvent } from "./analytics";
+import { FOODIE_INVITE_SNOOZE_KEY } from "./foodie-invite-snooze";
 import { runPushSignOutHook } from "./push-signout";
 import * as SecureStore from "./secure-store";
 import { SESSION_KEY } from "./session-key";
@@ -158,6 +159,21 @@ const PRIVATE_QUERY_KEYS = [
   ["foodie-profile"],
 ] as const;
 
+/**
+ * Unlike `PRIVATE_QUERY_KEYS` above, these keys are shared between anon and
+ * signed-in guests (personalization v1, spec foodie-personalization-v1-
+ * 20260916.md §3.9): `["home-picks", city, limit]` etc. answer differently
+ * for the same key depending on WHO asks, not just whether someone is signed
+ * in. Removing them only on sign-out (like the private keys) is not enough —
+ * a guest with a taste profile signing in within `staleTime` of an anon
+ * visit would still see the anon-flavoured «Выбрали для вас» row until the
+ * next refetch, and the reverse (PR #232 review, 2026-09-16): the previous
+ * account's «Для вас» row and taste-match chips survived sign-out because
+ * nothing ever dropped this cache entry. Cleared on EVERY session
+ * transition, not just sign-out.
+ */
+const SESSION_SENSITIVE_QUERY_KEYS = [["home-picks"], ["home-feed"], ["explore-events"]] as const;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const repository = useMemo(
@@ -210,6 +226,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         for (const key of PRIVATE_QUERY_KEYS) {
           queryClient.removeQueries({ queryKey: key });
         }
+        // Флаг «профиль гостя больше не пуст» (карточка-приглашение фуди-
+        // профиля, foodie-invite-snooze.ts) живёт в SecureStore, не в
+        // react-query — по одному фиксированному ключу на всё устройство, а
+        // не по сессии. Без сброса на выходе гость Б с ПУСТЫМ профилем на
+        // том же телефоне никогда не увидел бы приглашение — его молча погасил
+        // бы навсегда факт, что у гостя А профиль был заполнен (PR #232
+        // review, 2026-09-16).
+        void SecureStore.deleteItemAsync(FOODIE_INVITE_SNOOZE_KEY);
+      }
+      // На КАЖДЫЙ переход, не только на выход: эти ключи одни и те же и для
+      // анонима, и для вошедшего — «Для вас» же гостя A не должно дожить ни
+      // до выхода гостя A (уже покрыто выше — тут дубль ничего не портит), ни
+      // до входа гостя B на том же ключе (см. doc-комментарий у
+      // SESSION_SENSITIVE_QUERY_KEYS).
+      for (const key of SESSION_SENSITIVE_QUERY_KEYS) {
+        queryClient.removeQueries({ queryKey: key });
       }
       await persist(session);
     },
