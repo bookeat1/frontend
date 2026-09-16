@@ -664,9 +664,14 @@ function MenuBrowser({
       {sections.length > 1 ? (
         <ul
           aria-label={t.web.venue.menuPage.categoriesLabel}
-          className="flex flex-wrap gap-2"
+          // Одна строка с горизонтальной прокруткой (узел 5115:7508,
+          // «Категории меню») — новая категория не переносится вниз, а
+          // уезжает вбок. Тот же паттерн, что `EventsScreen`/`CuisineRow`
+          // (`row-scrollbar` + `flex-nowrap` + `overflow-x-auto`), без их
+          // `lg:flex-wrap`: в макете строка одна на любой ширине.
+          className="row-scrollbar -m-1 flex flex-nowrap gap-2.5 overflow-x-auto overscroll-x-contain p-1"
         >
-          <li>
+          <li className="shrink-0">
             <Chip
               state={activeCategory === null ? "selected" : "default"}
               onClick={() => setActiveCategory(null)}
@@ -675,7 +680,7 @@ function MenuBrowser({
             </Chip>
           </li>
           {sections.map((section) => (
-            <li key={section.title}>
+            <li key={section.title} className="shrink-0">
               <Chip
                 state={activeCategory === section.title ? "selected" : "default"}
                 onClick={() =>
