@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Badge } from "@web/components/ui/Badge";
 import { Card } from "@web/components/ui/Card";
 import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
@@ -32,6 +33,14 @@ export interface VenueCardProps {
   name: string;
   /** Готовая строка «кухня · цена · расстояние» — её собирает словарь. */
   meta: string;
+  /**
+   * Чип причины совпадения вкуса рядом с `meta` — только в персональном ряду
+   * «Для вас» (`matchChipLabel`, спека `foodie-personalization-v1-20260916.md`
+   * §5.6/§26). Готовая строка, как и `meta`: карточка не знает формулу
+   * скоринга, только рисует то, что ей передали. `undefined` — чипа нет,
+   * место под meta не занято.
+   */
+  matchLabel?: string;
   imageUrl?: string | null;
   /** Плашка поверх фотографии, например «Столики сегодня». */
   tag?: string;
@@ -50,6 +59,7 @@ export interface VenueCardProps {
 export function VenueCard({
   name,
   meta,
+  matchLabel,
   imageUrl,
   tag,
   href,
@@ -128,6 +138,16 @@ export function VenueCard({
             )}
           </h3>
           <p className="break-words text-[14px] leading-5 text-ink-secondary">{meta}</p>
+          {/* Чип причины «Для вас» — только персональный ряд передаёт
+              `matchLabel` (спека foodie-personalization-v1-20260916.md §5.6/
+              §26). Нет узла Figma под этот чип (решение продукта — экрана не
+              заводили), поэтому переиспользуем существующий `Badge`, а не
+              рисуем новый компонент под одно место. */}
+          {matchLabel ? (
+            <Badge tone="brand" className="w-fit break-words">
+              {matchLabel}
+            </Badge>
+          ) : null}
         </div>
 
         {action ? <div className="relative z-10 mt-auto">{action}</div> : null}

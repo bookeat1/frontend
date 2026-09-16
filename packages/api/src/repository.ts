@@ -40,6 +40,7 @@ import type {
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
+  RestaurantsPicksResult,
   SearchQuery,
   SearchResult,
 } from "./types";
@@ -89,8 +90,16 @@ export interface RestaurantRepository {
    * `city` необязателен: без него сервер отвечает списком «для всех городов».
    * Но главная его ВСЕГДА присылает — иначе гость в Астане увидит подборку,
    * собранную для другого города.
+   *
+   * С 2026-09-16 (спека `foodie-personalization-v1-20260916.md` §5.6) у
+   * вошедшего гостя с активным фуди-профилем эта же ручка отвечает
+   * персональным рядом «Для вас»: `mode` в ответе — `"for_you"`, и у каждой
+   * карточки есть `match`. Клиент читает `mode`, ЧТОБЫ ПЕРЕКЛЮЧИТЬ ЗАГОЛОВОК
+   * — заголовок никогда не решается локальным состоянием (аноним/пустой
+   * профиль так и получают `"editorial"`/`"popular"` без `match`, побайтно
+   * как раньше).
    */
-  getRecommendedRestaurants(city?: string, limit?: number): Promise<RestaurantSummary[]>;
+  getRecommendedRestaurants(city?: string, limit?: number): Promise<RestaurantsPicksResult>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   /** Короткая выборка каталога ради фотографий (см. http-repository). */
   getCatalogPreview(perPage?: number): Promise<RestaurantSummary[]>;

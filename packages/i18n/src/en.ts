@@ -99,6 +99,18 @@ export const en: LocaleOverride<Dictionary> = {
     partySubmit: "Show places",
 
     recommendedTitle: "Picked for you",
+    forYouTitle: "For you",
+
+    foodieInviteTitle: "Tell us what you like",
+    foodieInviteSubtitle: "Half a minute — and the picks become yours",
+    foodieInviteDismiss: "Hide the invitation",
+    matchReasonCuisineFallback: "A cuisine you like",
+    matchReasonDiet: "Fits your diet",
+    matchReasonBookedSimilar: "You've booked something similar",
+    matchReasonEditorial: "Editor's pick",
+    matchReasonRating: "Highly rated",
+    matchReasonPopular: "Popular",
+    matchReasonGeneric: "Matches your taste",
 
     cuisineTitle: "Choose a cuisine",
     cuisineLoading: "Loading cuisines…",
@@ -2713,9 +2725,17 @@ export const en: LocaleOverride<Dictionary> = {
       },
       picks: {
         title: "Picked for you",
+        forYouTitle: "For you",
         subtitle: "What we recommend in this city right now",
         all: "See all",
         empty: "No selection has been made for this city yet.",
+        matchReasons: {
+          dietMatch: "Fits your diet",
+          bookedSimilar: "Similar to your bookings",
+          editorialPick: "Editor's pick",
+          venueRating: "Highly rated",
+          popular: "Popular",
+        },
       },
       promos: {
         title: "Deals of the week",

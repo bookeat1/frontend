@@ -25,7 +25,13 @@ import { highlightsWithPhoto } from "../../../src/lib/menu-highlights";
 const t = getDictionary();
 
 export default function RestaurantDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `source` — необязательный маркер того, ОТКУДА открыли карточку (риск 6
+  // спеки персонализации v1: без него `restaurant_open` не позволял
+  // сравнить CTR ряда «Для вас» с прежним «Выбрали для вас», критерий 23).
+  // Ставится ТОЛЬКО перечисленными в спеке точками входа (главная, поиск);
+  // остальные пути (избранное, гастрогид, брони, статьи) параметр не шлют —
+  // событие для них по-прежнему уходит, просто без `source`.
+  const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const router = useRouter();
   const { data: restaurant, isLoading, isError, refetch } = useRestaurant(id);
   // То же самое сердечко, что на карточках Explore: один запрос ["favorites"]
@@ -49,7 +55,11 @@ export default function RestaurantDetailScreen() {
   // fetched payload, so it fires as soon as the screen has an id (a re-render
   // from favorite/query state does not re-count the same open).
   useEffect(() => {
-    if (id) trackEvent("restaurant_open", { restaurant_id: id });
+    if (id) trackEvent("restaurant_open", { restaurant_id: id, source });
+    // `source` намеренно не в зависимостях: он не должен переоткрывать
+    // счётчик при собственном изменении, считаем ОДИН раз, ровно как раньше,
+    // и просто прикладываем последний известный источник к тому же событию.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   /**

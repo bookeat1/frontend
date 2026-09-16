@@ -36,7 +36,7 @@ export default function PromotionsScreen() {
 
   const openPromotion = useCallback(
     (id: string) => {
-      trackEvent("promotion_tap", { id });
+      trackEvent("promotion_tap", { id, source: "promos" });
       router.push(`/promotion/${id}`);
     },
     [router],

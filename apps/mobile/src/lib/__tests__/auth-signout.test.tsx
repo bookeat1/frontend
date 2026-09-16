@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../auth";
+import { FOODIE_INVITE_SNOOZE_KEY } from "../foodie-invite-snooze";
 import { getAccessToken } from "../token-store";
 
 /**
@@ -47,6 +48,22 @@ const PUBLIC_ENTRIES: Array<[readonly unknown[], unknown]> = [
   [["menu-sections", "r-1"], []],
 ];
 
+/**
+ * Персонализация v1 — ключи, которые отвечают ПО-РАЗНОМУ для анонима и для
+ * вошедшего гостя ПОД ОДНИМ И ТЕМ ЖЕ ключом (§3.9), в отличие от
+ * `PRIVATE_ENTRIES`, которые для анонима просто не существуют. PR #232
+ * review: ряд «Для вас» и чипы вкуса гостя А переживали выход из аккаунта —
+ * следующий гость на телефоне видел чужую персонализацию.
+ */
+const SESSION_SENSITIVE_ENTRIES: Array<[readonly unknown[], unknown]> = [
+  [
+    ["home-picks", "Алматы", 8],
+    { items: [{ id: "r-1", match: { score: 600, reasons: [] } }], mode: "for_you" },
+  ],
+  [["home-feed", "promos", "Алматы"], { items: [] }],
+  [["explore-events", 12, "Алматы", true], { items: [] }],
+];
+
 function tokenPair(accessToken: string) {
   return {
     access_token: accessToken,
@@ -81,7 +98,7 @@ async function signedInSession() {
   });
   await waitFor(() => expect(rendered.result.current.status).toBe("signed-in"));
 
-  for (const [key, value] of [...PRIVATE_ENTRIES, ...PUBLIC_ENTRIES]) {
+  for (const [key, value] of [...PRIVATE_ENTRIES, ...PUBLIC_ENTRIES, ...SESSION_SENSITIVE_ENTRIES]) {
     queryClient.setQueryData(key, value);
   }
   return { queryClient, ...rendered };
@@ -115,6 +132,36 @@ describe("signing out purges private cached data", () => {
     });
 
     for (const [key] of PRIVATE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `after sign-out ${JSON.stringify(key)}`).toBeUndefined();
+    }
+  });
+
+  it("выход сбрасывает device-wide флаг «профиль не пуст» — гость Б должен снова увидеть приглашение", async () => {
+    await SecureStore.setItemAsync(
+      FOODIE_INVITE_SNOOZE_KEY,
+      JSON.stringify({ dismissals: 0, snoozedUntil: null, hiddenForever: true }),
+    );
+    const { result } = await signedInSession();
+    expect(await SecureStore.getItemAsync(FOODIE_INVITE_SNOOZE_KEY)).not.toBeNull();
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(await SecureStore.getItemAsync(FOODIE_INVITE_SNOOZE_KEY)).toBeNull();
+  });
+
+  it("removes the session-sensitive home rows too (they are personal, not just private)", async () => {
+    const { queryClient, result } = await signedInSession();
+    for (const [key] of SESSION_SENSITIVE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `seeded ${JSON.stringify(key)}`).toBeDefined();
+    }
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    for (const [key] of SESSION_SENSITIVE_ENTRIES) {
       expect(queryClient.getQueryData(key), `after sign-out ${JSON.stringify(key)}`).toBeUndefined();
     }
   });
@@ -197,6 +244,175 @@ describe("signing out purges private cached data", () => {
     expect(next.result.current.user).toBeNull();
     for (const [key] of PRIVATE_ENTRIES) {
       expect(queryClient.getQueryData(key), `still cached: ${JSON.stringify(key)}`).toBeUndefined();
+    }
+  });
+});
+
+describe("identityChanged does not misfire on hydration (third review round, PR #232)", () => {
+  it("cold start with nothing persisted leaves the foodie-invite snooze flag alone", async () => {
+    // No stored session at all — the ordinary first launch, not a logout.
+    // `sessionRef.current` is already `null` going in, so a naive
+    // `(prev===null)!==(next===null)` reads `false→false` here too; that is
+    // the CORRECT case to leave the flag untouched, unlike the expired-
+    // refresh case below where it must be wiped.
+    await SecureStore.setItemAsync(
+      FOODIE_INVITE_SNOOZE_KEY,
+      JSON.stringify({ dismissals: 0, snoozedUntil: null, hiddenForever: true }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const rendered = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-out"));
+
+    expect(await SecureStore.getItemAsync(FOODIE_INVITE_SNOOZE_KEY)).not.toBeNull();
+  });
+
+  it("a persisted session whose refresh has expired IS a real sign-out — the snooze flag must go", async () => {
+    // The scenario the third review round caught: guest A's refresh token
+    // died naturally (>30 days idle, or revoked) between launches.
+    // `sessionRef.current` is still `null` at the point `applySession(null)`
+    // runs here too (it is only ever set inside `applySession` itself), so
+    // this path needs `forceIdentityChanged` — without it, guest B on the
+    // same phone would never see the invite card again.
+    await SecureStore.setItemAsync(
+      FOODIE_INVITE_SNOOZE_KEY,
+      JSON.stringify({ dismissals: 0, snoozedUntil: null, hiddenForever: true }),
+    );
+    await SecureStore.setItemAsync(
+      SESSION_KEY,
+      JSON.stringify({
+        accessToken: "stale-access",
+        refreshToken: "stale-refresh",
+        expiresAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: unknown) => {
+        const url = String(input);
+        if (url.endsWith("/auth/refresh")) {
+          return jsonResponse({ code: "unauthorized", message: "refresh token expired" }, 401);
+        }
+        throw new Error(`Unexpected request in test: ${url}`);
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const rendered = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-out"));
+
+    expect(await SecureStore.getItemAsync(FOODIE_INVITE_SNOOZE_KEY)).toBeNull();
+  });
+});
+
+describe("a same-account token refresh is not a session transition", () => {
+  it("refreshNow keeps the session-sensitive home rows cached — no identity change, no clear", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: unknown) => {
+        const url = String(input);
+        if (url.endsWith("/auth/otp/verify")) {
+          // Expires inside REFRESH_SKEW_MS so the very next ensureFreshToken()
+          // call goes through the refresh path instead of short-circuiting.
+          return jsonResponse({
+            access_token: "access-1",
+            refresh_token: "refresh-access-1",
+            expires_at: new Date(Date.now() + 30_000).toISOString(),
+          });
+        }
+        if (url.endsWith("/auth/refresh")) {
+          return jsonResponse(tokenPair("access-2"));
+        }
+        if (url.endsWith("/users/me")) {
+          return jsonResponse({ id: "u-1", name: "Дамир", phone: "+77010000000" });
+        }
+        throw new Error(`Unexpected request in test: ${url}`);
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const rendered = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-out"));
+    await act(async () => {
+      await rendered.result.current.signInWithCode({ phone: "+77010000000", code: "123456" });
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-in"));
+
+    for (const [key, value] of SESSION_SENSITIVE_ENTRIES) {
+      queryClient.setQueryData(key, value);
+    }
+
+    await act(async () => {
+      const token = await rendered.result.current.ensureFreshToken();
+      expect(token).toBe("access-2");
+    });
+
+    for (const [key, value] of SESSION_SENSITIVE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `refresh must not clear ${JSON.stringify(key)}`).toEqual(value);
+    }
+
+    // Leaves a persisted session in SecureStore behind otherwise — the mock
+    // store is not reset between tests in this file, and a later test that
+    // expects a cold "signed-out" start would silently hydrate signed-in.
+    await act(async () => {
+      await rendered.result.current.signOut();
+    });
+  });
+});
+
+describe("signing IN also drops the session-sensitive home rows", () => {
+  it("an anon-flavoured home row seeded before sign-in does not survive it", async () => {
+    // The reverse leak: an anon guest (or nobody at all) browsed the home
+    // screen, caching `mode: "popular"` under the SAME key a signed-in guest
+    // with a taste profile would use. Signing in must not let that stale
+    // anon-flavoured entry sit there until whatever refetch happens to land.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    const rendered = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-out"));
+
+    for (const [key, value] of SESSION_SENSITIVE_ENTRIES) {
+      queryClient.setQueryData(key, value);
+    }
+
+    await act(async () => {
+      await rendered.result.current.signInWithCode({ phone: "+77010000000", code: "123456" });
+    });
+    await waitFor(() => expect(rendered.result.current.status).toBe("signed-in"));
+
+    for (const [key] of SESSION_SENSITIVE_ENTRIES) {
+      expect(queryClient.getQueryData(key), `still cached after sign-in: ${JSON.stringify(key)}`).toBeUndefined();
     }
   });
 });

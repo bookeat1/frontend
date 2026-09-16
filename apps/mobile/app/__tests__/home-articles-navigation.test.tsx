@@ -3,6 +3,7 @@ import type {
   EventPage,
   GuideCollection,
   HomePromo,
+  RestaurantsPicksResult,
   RestaurantSummary,
 } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
@@ -70,7 +71,10 @@ const getGuideCollections = vi.fn<() => Promise<GuideCollection[]>>();
 
 vi.mock("../../src/lib/repository", () => ({
   useRepository: () => ({
-    getRecommendedRestaurants: vi.fn<() => Promise<RestaurantSummary[]>>(async () => []),
+    getRecommendedRestaurants: vi.fn<() => Promise<RestaurantsPicksResult>>(async () => ({
+      items: [],
+      mode: "popular",
+    })),
     getCatalogPreview: vi.fn<() => Promise<RestaurantSummary[]>>(async () => []),
     getCuisines: vi.fn<() => Promise<Cuisine[]>>(async () => []),
     listUpcomingEvents: vi.fn<() => Promise<EventPage>>(async () => ({

@@ -195,7 +195,7 @@ export function repositoryStub(
     getCities: vi.fn(async () => ["Алматы"]),
     getCuisines: vi.fn(async () => []),
     getAmenities: vi.fn(async () => []),
-    getRecommendedRestaurants: vi.fn(async () => []),
+    getRecommendedRestaurants: vi.fn(async () => ({ items: [], mode: "popular" as const })),
     getPromotions: vi.fn(async () => []),
     listUpcomingEvents: vi.fn(async () => ({ items: [], total: 0, page: 1, pages: 0, perPage: 3 })),
     getGuideCollections: vi.fn(async () => []),

@@ -353,6 +353,58 @@ export interface RestaurantSummary {
    * Листинг, избранное и деталка его не отдают, поэтому поле необязательное.
    */
   matchedDish?: MatchedDish;
+  /**
+   * Почему заведение попало в персональный ряд «Для вас» — `domain.ScoreTasteMatch`,
+   * спека `foodie-personalization-v1-20260916.md` §5.6. Приходит ТОЛЬКО от
+   * `GET /restaurants/picks` и только когда `data.mode === "for_you"`; любой
+   * другой листинг (каталог, поиск, избранное) поле не отдаёт вовсе.
+   */
+  match?: TasteMatch;
+}
+
+/**
+ * Одна строка объяснения совпадения вкуса — `reasons[]` из ответа сервера.
+ * `points === 0` — легитимный, «гость не задал бюджет» тоже причина, просто
+ * без веса; чип на карточке фильтрует такие сам (см. `apps/web` `match-chip`,
+ * `apps/mobile` `match-reason-label`). `detail` — английская отладочная
+ * строка для владельца заведения, сервер отдаёт её всегда (см. пример ответа
+ * в спеке §5.6), UI её не показывает.
+ */
+export interface MatchReason {
+  code: string;
+  points: number;
+  /** Коды справочника кухонь, по которым сошлось совпадение (`cuisine_match`
+   * / `cuisine_match_implicit`) — сопоставляются с `RestaurantSummary.cuisines[].id`
+   * тем же кодом, чтобы получить готовое переведённое название. */
+  params?: { cuisineCodes?: string[] };
+  detail: string;
+}
+
+/** `match` заведения/акции/события в персональном режиме. */
+export interface TasteMatch {
+  score: number;
+  reasons: MatchReason[];
+}
+
+/**
+ * Режим ряда — приходит В ОТВЕТЕ, никогда не выводится на клиенте из локального
+ * состояния (правило спеки §5.7/§5.8: заголовок переключается по данным
+ * запроса). `for_you` — активный профиль и ≥ 1 совпадение; `editorial` — есть
+ * ручной список; `popular` — фолбэк по популярности.
+ */
+export type PicksMode = "for_you" | "editorial" | "popular";
+
+/** Ответ `GET /restaurants/picks` целиком: список плюс режим, который решает
+ * заголовок секции. Не переиспользует голый `RestaurantSummary[]`, потому что
+ * без `mode` заголовок пришлось бы угадывать на клиенте — а это ровно то,
+ * что спека запрещает. Единственная форма ответа этой ручки — и веб, и
+ * мобилка читают её через один и тот же `getRecommendedRestaurants` (сведено
+ * 16.09.2026: `getHomePicks`/`RestaurantPicks`/`TasteMatchReason` мобильной
+ * ветки были параллельным дублем, заведённым до того, как обе задачи увидели
+ * друг друга — не поддерживаем два имени одного контракта). */
+export interface RestaurantsPicksResult {
+  items: RestaurantSummary[];
+  mode: PicksMode;
 }
 
 /** Блюдо из меню, по которому сработал поиск: ровно то, что отдаёт сервер в
@@ -1054,6 +1106,13 @@ export interface EventQuery {
   page?: number;
   /** Server default 20, hard cap 100. */
   perPage?: number;
+  /**
+   * `for_you` — вкус заведения ↓, затем `starts_at ↑` (спека
+   * foodie-personalization-v1-20260916.md §5.6/§19). Только полоса «Афиша» на
+   * ГЛАВНОЙ отправляет его; полный список `/events` — по дате, без параметра.
+   * Безопасно слать всегда: без токена сервер отвечает сегодняшним порядком.
+   */
+  sort?: "for_you";
 }
 
 /** One page of the public events listing, sorted by start time ascending

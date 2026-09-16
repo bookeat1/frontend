@@ -24,6 +24,7 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
+  mapPicksMode,
   mapPlatformPage,
   mapPreorder,
   mapPromo,
@@ -106,6 +107,7 @@ import type {
   Restaurant,
   RestaurantStory,
   RestaurantSummary,
+  RestaurantsPicksResult,
   SearchQuery,
   SearchResult,
 } from "./types";
@@ -285,16 +287,27 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    *
    * Пустой `city` не отправляется вовсе (см. HttpClient): для сервера это то
    * же самое, что и запрос без города, — список «для всех городов».
+   *
+   * С 2026-09-16 конверт несёт ещё `mode` — какой заголовок показать секции
+   * (спека `foodie-personalization-v1-20260916.md` §5.6). Поле — расширение
+   * ОБЫЧНОЙ страницы каталога, не отдельная форма ответа, поэтому тип здесь
+   * локальный (`ApiPage<ApiRestaurant> & { mode?: string }`), а не правка
+   * общего `ApiPage`, который используют листинг/поиск/избранное и другие
+   * ручки, где поля `mode` нет и не будет. Бэкенд старше PR #138 (или
+   * ручной/популярный список без личного профиля) поле не присылает вовсе —
+   * такой ответ трактуется как `"popular"`: заголовок не переключается,
+   * поведение побайтно как до этой задачи (критерий 5).
    */
   async getRecommendedRestaurants(
     city?: string,
     limit = POPULAR_PAGE_SIZE,
-  ): Promise<RestaurantSummary[]> {
-    const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/picks", {
-      city: city?.trim() || undefined,
-      limit,
-    });
-    return (page.items ?? []).map(mapRestaurantSummary);
+  ): Promise<RestaurantsPicksResult> {
+    const page = await this.client.get<ApiPage<ApiRestaurant> & { mode?: string }>(
+      "/restaurants/picks",
+      { city: city?.trim() || undefined, limit },
+    );
+    const mode = mapPicksMode(page.mode);
+    return { items: (page.items ?? []).map(mapRestaurantSummary), mode };
   }
 
   /**
@@ -485,6 +498,12 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       to: query?.to,
       page: query?.page ?? 1,
       per_page: perPage,
+      // `sort=for_you` — только «Афиша» на главной (спека
+      // foodie-personalization-v1-20260916.md §5.6/§19). Безопасно слать
+      // всегда: без токена сервер отвечает сегодняшним порядком по дате.
+      // Без параметра он не уходит вовсе, а не `undefined`-строкой —
+      // HttpClient уже отбрасывает `undefined`-значения из query.
+      sort: query?.sort,
     });
     return {
       items: (page.items ?? []).map(mapEventSummary),
