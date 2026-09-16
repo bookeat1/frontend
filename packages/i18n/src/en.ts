@@ -3256,8 +3256,6 @@ export const en: LocaleOverride<Dictionary> = {
           lastNamePlaceholder: "Optional",
           phone: "Phone",
           phoneReadOnly: "The number is changed with a code confirmation in the app.",
-          email: "Email",
-          emailReadOnly: "Email can currently be changed only in the mobile app.",
           notSet: "not set",
           save: "Save changes",
           saved: "Changes saved",

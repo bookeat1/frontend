@@ -100,7 +100,6 @@ function PersonalDataCard({ user, onSaved }: { user: AuthUser; onSaved: (user: A
             onChange={(event) => edit({ lastName: event.target.value })}
           />
           <TextField label={texts.phone} value={user.phone ?? texts.notSet} disabled hint={texts.phoneReadOnly} />
-          <TextField label={texts.email} value={user.email} disabled hint={texts.emailReadOnly} />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" variant="primary" size="m" loading={mutation.isPending}>
