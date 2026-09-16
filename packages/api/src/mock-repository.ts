@@ -61,15 +61,105 @@ import type {
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
+  RestaurantPicks,
   RestaurantStory,
   RestaurantSummary,
   SearchQuery,
   SearchResult,
+  TasteMatch,
+  TasteMatchReason,
 } from "./types";
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Фуди-профиль мок-гостя — MODULE-LEVEL, не приватное поле класса.
+ *
+ * `MockAuthRepository` (владеет `getFoodieProfile`/`replaceFoodieProfile`) и
+ * `MockRestaurantRepository` (владеет `getHomePicks`, персонализация v1
+ * ниже) — раздельные объекты, но в живом приложении на весь срок его жизни
+ * существует РОВНО один экземпляр каждого (`createAuthRepository`/
+ * `createRestaurantRepository` в `create-repository.ts` вызываются один раз
+ * на холодный старт). Раздельные приватные поля означали бы, что сохранение
+ * профиля в визарде никогда не красит ряд «Для вас» в режиме мока — то есть
+ * контракт 5.6 нельзя было бы увидеть локально без бэкенда вовсе.
+ */
+let mockFoodieProfile: FoodieProfile = {
+  cuisines: [],
+  diets: [],
+  allergies: [],
+  budget: null,
+};
+
+/**
+ * Урезанная копия `FoodieCuisineDictionaryCodes` (5.2) — только плитки и
+ * коды, которые реально существуют в фикстурах мока (`mock-data.ts` кухни:
+ * georgian/italian/japanese/kazakh/european/asian). Полная таблица бэкенда
+ * знает про `pan_asian/indian/french/mediterranean/greek` и т.д. — этого
+ * инвентаря у мока нет, дублировать таблицу целиком ради недостижимых кодов
+ * незачем.
+ */
+const MOCK_CUISINE_DICTIONARY: Readonly<Record<string, readonly string[]>> = {
+  kazakh: ["kazakh"],
+  european: ["european"],
+  japanese: ["japanese"],
+  italian: ["italian"],
+  asian: ["asian"],
+};
+
+/** Плитки визарда гостя → коды справочника мока, пересечение (5.2). */
+function mockMappedCuisineCodes(tiles: readonly string[]): string[] {
+  return Array.from(new Set(tiles.flatMap((tile) => MOCK_CUISINE_DICTIONARY[tile] ?? [])));
+}
+
+/** Порядок ступеней чека, для правила «сосед даёт 80» (5.3). */
+const MOCK_PRICE_ORDER: readonly string[] = ["₸", "₸₸", "₸₸₸", "₸₸₸₸"];
+
+function mockBudgetPoints(venuePriceLevel: string, guestBudget: string | null): number {
+  if (!guestBudget) return 0;
+  const guestTier = ({ budget: "₸", mid: "₸₸", premium: "₸₸₸" } as Record<string, string>)[
+    guestBudget
+  ];
+  if (!guestTier) return 0;
+  const venueIndex = MOCK_PRICE_ORDER.indexOf(venuePriceLevel);
+  const guestIndex = MOCK_PRICE_ORDER.indexOf(guestTier);
+  if (venueIndex < 0 || guestIndex < 0) return 0;
+  const distance = Math.abs(venueIndex - guestIndex);
+  if (distance === 0) return 200;
+  if (distance === 1) return 80;
+  return 0;
+}
+
+/** Очки и причины ОДНОГО заведения — приближение `ScoreTasteMatch` (5.3),
+ * см. doc-комментарий у `MockRestaurantRepository.getHomePicks`. */
+function mockTasteMatch(
+  restaurant: Restaurant,
+  mappedGuestCuisines: readonly string[],
+  guestBudget: string | null,
+): TasteMatch {
+  const venueCuisineCodes = restaurant.cuisines.map((c) => c.id);
+  const overlap = venueCuisineCodes.filter((id) => mappedGuestCuisines.includes(id));
+  const budgetPoints = mockBudgetPoints(restaurant.priceLevel, guestBudget);
+
+  const reasons: TasteMatchReason[] = [
+    overlap.length > 0
+      ? {
+          code: "cuisine_match",
+          points: 400,
+          params: { cuisine_codes: overlap },
+          detail: "cuisine overlap",
+        }
+      : { code: "cuisine_match", points: 0, detail: "no cuisine overlap" },
+    guestBudget
+      ? { code: "budget_match", points: budgetPoints, detail: "price tier distance" }
+      : { code: "budget_match", points: 0, detail: "guest has no budget" },
+  ];
+  const score = reasons.reduce((sum, r) => sum + r.points, 0);
+  return { score, reasons };
+}
+
 
 /**
  * Fixture text for the seven platform pages, `Record` keyed by
@@ -233,6 +323,55 @@ export class MockRestaurantRepository implements RestaurantRepository {
       .filter((r) => (wanted ? r.city.trim().toLowerCase() === wanted : true))
       .slice(0, limit)
       .map(toSummary);
+  }
+
+  /**
+   * Та же выборка, но с оболочкой персонализации v1
+   * (`specs/foodie-personalization-v1-20260916.md`, 5.6) — `data.mode` и,
+   * при активном профиле, `match` на карточках.
+   *
+   * ПРИБЛИЖЕНИЕ, НЕ `ScoreTasteMatch`. Настоящая функция живёт на бэкенде
+   * (`bookeat-backend` PR #138) и здесь не переиспользуется — это
+   * иллюстративный мок для локальной разработки без бэкенда, урезанный до
+   * того, что фикстуры `mock-data.ts` реально могут посчитать честно:
+   * `cuisine_match` (400, таблица `MOCK_CUISINE_DICTIONARY` — подмножество
+   * 5.2, только коды, которые есть у мок-кухонь) и `budget_match` (200
+   * точный ярус / 80 соседний, 5.3). `diet_match`/`booked_similar` не
+   * посчитаны: у фикстур нет ни фич заведения (halal/vegan_menu/
+   * gluten_free_menu), ни истории броней по кухням — честно давать 0 везде
+   * хуже, чем не заводить сигнал вовсе.
+   */
+  async getHomePicks(city?: string, limit = 20): Promise<RestaurantPicks> {
+    await this.simulateNetwork();
+    const wanted = city?.trim().toLowerCase();
+    const candidates = restaurants.filter((r) =>
+      wanted ? r.city.trim().toLowerCase() === wanted : true,
+    );
+
+    const mappedCuisines = mockMappedCuisineCodes(mockFoodieProfile.cuisines);
+    const active = mappedCuisines.length > 0 || mockFoodieProfile.budget !== null;
+    if (!active) {
+      return { items: candidates.slice(0, limit).map(toSummary), mode: "popular" };
+    }
+
+    const scored = candidates.map((restaurant) => ({
+      restaurant,
+      match: mockTasteMatch(restaurant, mappedCuisines, mockFoodieProfile.budget),
+    }));
+    const withScore = scored.filter((s) => s.match.score > 0);
+    if (withScore.length === 0) {
+      return { items: candidates.slice(0, limit).map(toSummary), mode: "popular" };
+    }
+    withScore.sort((a, b) => b.match.score - a.match.score);
+    const tail = scored
+      .filter((s) => s.match.score === 0)
+      .slice(0, Math.max(0, limit - withScore.length));
+    const chosen = [...withScore, ...tail].slice(0, limit);
+
+    return {
+      items: chosen.map(({ restaurant, match }) => ({ ...toSummary(restaurant), match })),
+      mode: "for_you",
+    };
   }
 
   async searchRestaurants(query: SearchQuery): Promise<SearchResult> {
@@ -1244,21 +1383,15 @@ export class MockAuthRepository implements AuthRepository {
   /**
    * In-memory "Фуди-профиль" state, mirroring the real endpoint's own
    * default: a guest who never saved one reads back empty arrays and a null
-   * budget, never a 404.
+   * budget, never a 404. Живёт МОДУЛЕМ (`mockFoodieProfile` выше), не полем
+   * этого класса — см. комментарий там.
    */
-  private foodieProfile: FoodieProfile = {
-    cuisines: [],
-    diets: [],
-    allergies: [],
-    budget: null,
-  };
-
   async getFoodieProfile(): Promise<FoodieProfile> {
     await this.simulateNetwork();
     if (!this.user) {
       throw new RepositoryError("Not authenticated", undefined, 401);
     }
-    return this.foodieProfile;
+    return mockFoodieProfile;
   }
 
   /**
@@ -1279,12 +1412,12 @@ export class MockAuthRepository implements AuthRepository {
     if (input.diets.includes("no_diet") && input.diets.length > 1) {
       throw new RepositoryError("validation: no_diet cannot combine with other diets", undefined, 422);
     }
-    this.foodieProfile = {
+    mockFoodieProfile = {
       cuisines: [...input.cuisines],
       diets: [...input.diets],
       allergies: [...input.allergies],
       budget: input.budget,
     };
-    return this.foodieProfile;
+    return mockFoodieProfile;
   }
 }

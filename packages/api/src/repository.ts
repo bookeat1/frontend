@@ -38,6 +38,7 @@ import type {
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
+  RestaurantPicks,
   RestaurantStory,
   RestaurantSummary,
   SearchQuery,
@@ -91,6 +92,19 @@ export interface RestaurantRepository {
    * собранную для другого города.
    */
   getRecommendedRestaurants(city?: string, limit?: number): Promise<RestaurantSummary[]>;
+  /**
+   * САМАЯ ЖЕ РУЧКА (`GET /restaurants/picks`), но с оболочкой персонализации
+   * v1 (`specs/foodie-personalization-v1-20260916.md`, раздел 5.6): ответ
+   * несёт `data.mode` («для вас»/«выбрали для вас»/«популярное») и, при
+   * `mode === "for_you"`, блок `match` на каждой карточке.
+   *
+   * ОТДЕЛЬНЫЙ метод, а не смена сигнатуры `getRecommendedRestaurants` —
+   * `apps/web` (`queries.ts`, задача FE-W1) читает ту же ручку СЕЙЧАС, и
+   * менять форму ответа существующего метода здесь означало бы ломать сборку
+   * параллельной задачи ради типа, который сам скоро туда придёт. Мобилка
+   * (`use-explore-data.ts`) — единственный текущий вызывающий.
+   */
+  getHomePicks(city?: string, limit?: number): Promise<RestaurantPicks>;
   searchRestaurants(query: SearchQuery): Promise<SearchResult>;
   /** Короткая выборка каталога ради фотографий (см. http-repository). */
   getCatalogPreview(perPage?: number): Promise<RestaurantSummary[]>;

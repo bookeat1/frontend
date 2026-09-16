@@ -24,6 +24,7 @@ import {
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
   mapPayment,
+  mapPicksMode,
   mapPlatformPage,
   mapPreorder,
   mapPromo,
@@ -104,6 +105,7 @@ import type {
   RegisterPushTokenInput,
   RescheduleBookingInput,
   Restaurant,
+  RestaurantPicks,
   RestaurantStory,
   RestaurantSummary,
   SearchQuery,
@@ -298,6 +300,23 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   }
 
   /**
+   * Та же ручка (`GET /restaurants/picks`), но с оболочкой персонализации v1
+   * (5.6) — `data.mode` и `match` на карточках. См. doc-комментарий у
+   * `RestaurantRepository.getHomePicks` про то, почему это отдельный метод, а
+   * не смена формы `getRecommendedRestaurants`.
+   */
+  async getHomePicks(city?: string, limit = POPULAR_PAGE_SIZE): Promise<RestaurantPicks> {
+    const page = await this.client.get<ApiPage<ApiRestaurant> & { mode?: unknown }>(
+      "/restaurants/picks",
+      { city: city?.trim() || undefined, limit },
+    );
+    return {
+      items: (page.items ?? []).map(mapRestaurantSummary),
+      mode: mapPicksMode(page.mode),
+    };
+  }
+
+  /**
    * Runs on GET /restaurants/search, the dedicated catalog-search route
    * (internal/transport/rest/restaurants/handler.go: search), not on the
    * frozen listing route. Verified server-side query surface:
@@ -485,6 +504,10 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       to: query?.to,
       page: query?.page ?? 1,
       per_page: perPage,
+      // Персонализация v1 (BE-4, 5.6) — только когда явно попросили (см.
+      // EventQuery.sort). Без него параметр не уходит вовсе, а не `undefined`
+      // строкой: HttpClient уже отбрасывает `undefined`-значения из query.
+      sort: query?.sort,
     });
     return {
       items: (page.items ?? []).map(mapEventSummary),

@@ -52,6 +52,7 @@ import type {
   PlatformPageSlug,
   Preorder,
   PriceLevel,
+  PicksMode,
   PriceRange,
   Promo,
   PromoBanner,
@@ -67,6 +68,7 @@ import type {
   FavoriteItem,
   FavoriteItems,
   FavoritePromo,
+  TasteMatch,
 } from "./types";
 import type { VenueCuisine } from "./admin/cuisines";
 import { stubTables } from "./unknown-data";
@@ -172,6 +174,26 @@ export interface ApiRestaurant {
    * прийти null.
    */
   matched_dish?: { id?: string; name?: string } | null;
+  /**
+   * Персонализация v1 (`specs/foodie-personalization-v1-20260916.md`, 5.6) —
+   * присылается ТОЛЬКО карточками `GET /restaurants/picks` в режиме
+   * `for_you`, буквально пример из спеки: `{score, reasons:[{code, points,
+   * params?, detail}]}`.
+   */
+  match?: ApiTasteMatch | null;
+}
+
+/** Одна причина `match.reasons[]` — см. `ApiRestaurant.match`. */
+export interface ApiTasteMatchReason {
+  code: string;
+  points: number;
+  params?: Record<string, unknown> | null;
+  detail: string;
+}
+
+export interface ApiTasteMatch {
+  score: number;
+  reasons: ApiTasteMatchReason[];
 }
 
 /** menuItemResponse — GET /restaurants/:id/menu returns a bare array of these
@@ -1068,7 +1090,38 @@ export function mapRestaurantSummary(api: ApiRestaurant): RestaurantSummary {
     schedule: mapSchedule(api.schedule),
     acceptsOnlineBookings: api.accepts_online_bookings === true,
     matchedDish: mapMatchedDish(api.matched_dish),
+    match: mapTasteMatch(api.match),
   };
+}
+
+/**
+ * Персонализация v1 (5.6) — `null`/absent сворачивается в `undefined` (та же
+ * конвенция, что у `matchedDish` выше): «сервер не прислал блок» и «прислал
+ * пустой» должны отличаться для карточки, у которой чипа причин может не
+ * быть вовсе.
+ */
+function mapTasteMatch(raw: ApiRestaurant["match"]): TasteMatch | undefined {
+  if (!raw) return undefined;
+  return {
+    score: typeof raw.score === "number" ? raw.score : 0,
+    reasons: (raw.reasons ?? []).map((reason) => ({
+      code: text(reason.code),
+      points: typeof reason.points === "number" ? reason.points : 0,
+      params: reason.params ?? undefined,
+      detail: text(reason.detail),
+    })),
+  };
+}
+
+/**
+ * `data.mode` персонализации v1 (5.6). Неизвестное/отсутствующее значение —
+ * `"popular"`, а не ошибка: тот же принцип, что у бэкендового «неизвестный
+ * код справочника даёт 0 очков, не 500» (критерий 3), перенесённый на клиент
+ * — старая сборка сервера без этого поля не должна ломать ряд «Выбрали для
+ * вас» вовсе.
+ */
+export function mapPicksMode(raw: unknown): PicksMode {
+  return raw === "for_you" || raw === "editorial" || raw === "popular" ? raw : "popular";
 }
 
 /**

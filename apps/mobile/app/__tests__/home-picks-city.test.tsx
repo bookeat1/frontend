@@ -1,4 +1,4 @@
-import type { RestaurantSummary } from "@bookeat/api";
+import type { RestaurantPicks } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, waitFor } from "@testing-library/react";
@@ -31,13 +31,12 @@ import { PREFERRED_CITY_QUERY_KEY } from "../../src/lib/preferred-city";
 const PREFERRED_CITY_KEY = "bookeat.city.v1";
 const t = getDictionary("ru");
 
-const getRecommendedRestaurants =
-  vi.fn<(city?: string, limit?: number) => Promise<RestaurantSummary[]>>();
+const getHomePicks = vi.fn<(city?: string, limit?: number) => Promise<RestaurantPicks>>();
 const getMe = vi.fn();
 const authStatus = { value: "signed-out" as "loading" | "signed-out" | "signed-in" };
 
 vi.mock("../../src/lib/repository", () => ({
-  useRepository: () => ({ getRecommendedRestaurants }),
+  useRepository: () => ({ getHomePicks }),
 }));
 
 vi.mock("../../src/lib/auth", () => ({
@@ -71,7 +70,7 @@ function renderProbe() {
 
 beforeEach(async () => {
   authStatus.value = "signed-out";
-  getRecommendedRestaurants.mockReset().mockResolvedValue([]);
+  getHomePicks.mockReset().mockResolvedValue({ items: [], mode: "popular" });
   getMe.mockReset();
   await SecureStore.deleteItemAsync(PREFERRED_CITY_KEY);
 });
@@ -82,8 +81,8 @@ describe("«Выбрали для вас»", () => {
 
     renderProbe();
 
-    await waitFor(() => expect(getRecommendedRestaurants).toHaveBeenCalled());
-    const [city, limit] = getRecommendedRestaurants.mock.calls[0];
+    await waitFor(() => expect(getHomePicks).toHaveBeenCalled());
+    const [city, limit] = getHomePicks.mock.calls[0];
     expect(city).toBe("Астана");
     // Ограничение уходит НА СЕРВЕР: обрезка на клиенте молча съела бы хвост
     // ручного списка владельца.
@@ -94,8 +93,8 @@ describe("«Выбрали для вас»", () => {
   it("без выбранного города спрашивает город по умолчанию, а не «все города»", async () => {
     renderProbe();
 
-    await waitFor(() => expect(getRecommendedRestaurants).toHaveBeenCalled());
-    expect(getRecommendedRestaurants.mock.calls[0][0]).toBe(t.explore.cityFallback);
+    await waitFor(() => expect(getHomePicks).toHaveBeenCalled());
+    expect(getHomePicks.mock.calls[0][0]).toBe(t.explore.cityFallback);
   });
 
   it("пока город неизвестен, запроса нет вообще", async () => {
@@ -106,7 +105,7 @@ describe("«Выбрали для вас»", () => {
     renderProbe();
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(getRecommendedRestaurants).not.toHaveBeenCalled();
+    expect(getHomePicks).not.toHaveBeenCalled();
   });
 
   it("после смены города спрашивает заново — город лежит в ключе кэша", async () => {
@@ -118,7 +117,7 @@ describe("«Выбрали для вас»", () => {
       </QueryClientProvider>,
     );
     await waitFor(() =>
-      expect(getRecommendedRestaurants).toHaveBeenLastCalledWith("Астана", expect.any(Number)),
+      expect(getHomePicks).toHaveBeenLastCalledWith("Астана", expect.any(Number)),
     );
 
     // Ровно то, что делает пикер города: пишет выбор в общий кэш устройства.
@@ -129,7 +128,7 @@ describe("«Выбрали для вас»", () => {
     });
 
     await waitFor(() =>
-      expect(getRecommendedRestaurants).toHaveBeenLastCalledWith("Алматы", expect.any(Number)),
+      expect(getHomePicks).toHaveBeenLastCalledWith("Алматы", expect.any(Number)),
     );
   });
 });

@@ -197,6 +197,17 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
     mutationFn: (input: FoodieProfile) => repository.replaceFoodieProfile(input),
     onSuccess: (saved) => {
       queryClient.setQueryData(["foodie-profile"], saved);
+      // Персонализация v1 (`specs/foodie-personalization-v1-20260916.md`,
+      // сценарий 3.8, критерий 24) — три ряда, которые читают вкус гостя,
+      // должны переспросить сервер СРАЗУ после сохранения, а не досидеть на
+      // стухшем `staleTime` до следующего похода на главную. `invalidateQueries`
+      // (не `refetchQueries`): экраны этих рядов могут быть немонтированы
+      // прямо сейчас (визард — отдельный маршрут), и им незачем платить сетью
+      // за данные, которые никто не смотрит, — они перезапросят сами, когда
+      // гость вернётся на главную.
+      void queryClient.invalidateQueries({ queryKey: ["home-picks"] });
+      void queryClient.invalidateQueries({ queryKey: ["home-feed"] });
+      void queryClient.invalidateQueries({ queryKey: ["explore-events"] });
     },
   });
 

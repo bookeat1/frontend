@@ -315,6 +315,54 @@ export interface Restaurant {
   amenities?: Amenity[];
 }
 
+/**
+ * Персонализация v1 (`specs/foodie-personalization-v1-20260916.md`, раздел
+ * 5.6) — режим ряда «для вас/выбрали для вас/популярное». Решает заголовок
+ * ряда КЛИЕНТ по этому полю ответа, а не по своему знанию, пуст ли профиль
+ * (критерий 20): сервер может отдать фолбэк даже при заполненном профиле —
+ * например, если в городе ни одно заведение не набрало очков вкуса (5.4).
+ */
+export type PicksMode = "for_you" | "editorial" | "popular";
+
+/**
+ * Одна причина, по которой заведение попало в персональную выдачу —
+ * `match.reasons[]` того же контракта. `detail` — английская отладочная
+ * строка для панели/логов, UI её не показывает (5.6: «локализуется code +
+ * params»). `points` бывает и нулевым («у гостя нет бюджета») — карточка
+ * обязана отфильтровать такие причины сама (критерий 21), сервер их не
+ * прячет по договорённости («всегда возвращает причины с нулём»).
+ */
+export interface TasteMatchReason {
+  code: string;
+  points: number;
+  /** Например `{cuisine_codes: ["italian"]}` у `cuisine_match` — коды из
+   * справочника кухонь, пересечение с явными кухнями гостя. Форма зависит от
+   * `code`, поэтому объект, не строгий тип. */
+  params?: Record<string, unknown>;
+  detail: string;
+}
+
+/** Блок `match` на карточке заведения/акции/события — присутствует ТОЛЬКО
+ * когда ответ идёт в персональном режиме (у заведений — `mode === "for_you"`,
+ * у акций/событий — свои условия, см. 5.6). */
+export interface TasteMatch {
+  score: number;
+  reasons: TasteMatchReason[];
+}
+
+/**
+ * `GET /restaurants/picks` целиком, включая оболочку персонализации — 5.6.
+ * Отдельно от `RestaurantSummary[]`, который отдаёт старый
+ * `getRecommendedRestaurants` (apps/web, FE-W1): тот эндпоинт тот же, но
+ * форма ответа теперь несёт ещё и `mode`, а трогать сигнатуру метода,
+ * которым уже пользуется параллельная задача веба, здесь не стали — см.
+ * `RestaurantRepository.getHomePicks`.
+ */
+export interface RestaurantPicks {
+  items: RestaurantSummary[];
+  mode: PicksMode;
+}
+
 export interface RestaurantSummary {
   id: string;
   name: string;
@@ -353,6 +401,10 @@ export interface RestaurantSummary {
    * Листинг, избранное и деталка его не отдают, поэтому поле необязательное.
    */
   matchedDish?: MatchedDish;
+  /** Персонализация v1 (5.6) — почему это заведение попало в ряд «Для вас».
+   * Только на карточках `GET /restaurants/picks` в режиме `for_you`; каталог,
+   * поиск и избранное его никогда не присылают, отсюда необязательность. */
+  match?: TasteMatch;
 }
 
 /** Блюдо из меню, по которому сработал поиск: ровно то, что отдаёт сервер в
@@ -1054,6 +1106,16 @@ export interface EventQuery {
   page?: number;
   /** Server default 20, hard cap 100. */
   perPage?: number;
+  /**
+   * `sort=for_you` (BE-4, персонализация v1
+   * `specs/foodie-personalization-v1-20260916.md` 5.6) — очки вкуса
+   * заведения ↓, затем дата. ТОЛЬКО для полосы «Афиша» на главной (критерий
+   * 25): полный экран `/events` его не передаёт вовсе, чтобы остаться
+   * строго по дате (ответ владельца 0.4). Без токена сервер тихо игнорирует
+   * параметр — тот же сегодняшний порядок, посылать его в этом случае не
+   * вредно.
+   */
+  sort?: "for_you";
 }
 
 /** One page of the public events listing, sorted by start time ascending

@@ -4,6 +4,7 @@ import type {
   GuideCollection,
   GuideRoute,
   HomePromo,
+  RestaurantPicks,
   RestaurantSummary,
 } from "@bookeat/api";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * пальцем проверяется на устройстве.
  */
 
-const getRecommendedRestaurants = vi.fn<() => Promise<RestaurantSummary[]>>();
+const getHomePicks = vi.fn<() => Promise<RestaurantPicks>>();
 const getCatalogPreview = vi.fn<() => Promise<RestaurantSummary[]>>();
 const getCuisines = vi.fn<() => Promise<Cuisine[]>>();
 const listUpcomingEvents = vi.fn<() => Promise<EventPage>>();
@@ -109,7 +110,7 @@ vi.mock("../../src/lib/auth", () => ({
 
 vi.mock("../../src/lib/repository", () => ({
   useRepository: () => ({
-    getRecommendedRestaurants,
+    getHomePicks,
     getCatalogPreview,
     getCuisines,
     listUpcomingEvents,
@@ -163,7 +164,7 @@ async function pull() {
 }
 
 beforeEach(() => {
-  getRecommendedRestaurants.mockReset().mockResolvedValue([]);
+  getHomePicks.mockReset().mockResolvedValue({ items: [], mode: "popular" });
   getCatalogPreview.mockReset().mockResolvedValue([]);
   getCuisines.mockReset().mockResolvedValue([]);
   listUpcomingEvents.mockReset().mockResolvedValue(emptyPage());
@@ -179,7 +180,7 @@ describe("главная: потянуть вниз, чтобы обновить
 
     // Первая загрузка: по одному запросу на блок.
     await waitFor(() => {
-      expect(getRecommendedRestaurants).toHaveBeenCalledTimes(1);
+      expect(getHomePicks).toHaveBeenCalledTimes(1);
       expect(getCatalogPreview).toHaveBeenCalledTimes(1);
       expect(getCuisines).toHaveBeenCalledTimes(1);
       expect(listUpcomingEvents).toHaveBeenCalledTimes(1);
@@ -192,7 +193,7 @@ describe("главная: потянуть вниз, чтобы обновить
     await pull();
 
     await waitFor(() => {
-      expect(getRecommendedRestaurants).toHaveBeenCalledTimes(2);
+      expect(getHomePicks).toHaveBeenCalledTimes(2);
       expect(getCatalogPreview).toHaveBeenCalledTimes(2);
       expect(getCuisines).toHaveBeenCalledTimes(2);
       expect(listUpcomingEvents).toHaveBeenCalledTimes(2);

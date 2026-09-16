@@ -9,6 +9,7 @@ import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
 import { ArticlesSection } from "../src/components/explore/ArticlesSection";
 import { CuisineSection } from "../src/components/explore/CuisineSection";
 import { EventsListSection } from "../src/components/explore/EventsListSection";
+import { FoodieProfileInviteCard } from "../src/components/explore/FoodieProfileInviteCard";
 import { HomeHeader } from "../src/components/explore/HomeHeader";
 import { PromotionsSection } from "../src/components/explore/PromotionsSection";
 import { RecommendedSection } from "../src/components/explore/RecommendedSection";
@@ -155,7 +156,10 @@ export default function HomeScreen() {
   // dedicated list), instead of jumping to the host restaurant.
   const openEvent = useCallback(
     (id: string) => {
-      trackEvent("event_tap", { id });
+      // `source: "events"` — та же метка персонализации v1 (критерий 23),
+      // что у остальных «открытий» с главной; полоса тут ВСЕГДА персональная
+      // (sort=for_you, см. EventsListSection), в отличие от полного списка.
+      trackEvent("event_tap", { id, source: "events" });
       router.push(`/event/${id}`);
     },
     [router],
@@ -166,14 +170,19 @@ export default function HomeScreen() {
   const openPromotions = useCallback(() => router.push("/promotions"), [router]);
   const openPromotion = useCallback(
     (id: string) => {
-      trackEvent("promotion_tap", { id });
+      trackEvent("promotion_tap", { id, source: "promos" });
       router.push(`/promotion/${id}`);
     },
     [router],
   );
 
+  // `source` — амплитудная метка «откуда открыли» (персонализация v1,
+  // критерий 23): RecommendedSection знает `mode` ответа и передаёт
+  // `"for_you"`/`"picks"`, экран заведения читает её обратно параметром
+  // маршрута и кладёт в `restaurant_open`.
   const openRestaurant = useCallback(
-    (id: string) => router.push(`/restaurant/${id}`),
+    (id: string, source?: string) =>
+      router.push(source ? { pathname: `/restaurant/${id}`, params: { source } } : `/restaurant/${id}`),
     [router],
   );
 
@@ -184,6 +193,14 @@ export default function HomeScreen() {
   const pickCuisine = useCallback(
     (cuisine: Cuisine) =>
       router.push({ pathname: "/search", params: { cuisine: cuisine.id } }),
+    [router],
+  );
+
+  // Карточка-приглашение «Расскажите, что любите» (персонализация v1,
+  // критерий 22) ведёт на первый шаг визарда, тем же маршрутом, что кнопка
+  // «Заполнить фуди-профиль» на экране «Профиль».
+  const openFoodieProfileInvite = useCallback(
+    () => router.push("/foodie-profile/cuisine"),
     [router],
   );
 
@@ -240,6 +257,10 @@ export default function HomeScreen() {
 
         <View style={styles.sheet}>
           <RecommendedSection onSeeAll={openSearch} onOpenRestaurant={openRestaurant} />
+          {/* Персонализация v1 (5.7) — только при пустом профиле у вошедшего
+              гостя, самостоятельно решает свою видимость (см.
+              FoodieProfileInviteCard). */}
+          <FoodieProfileInviteCard onPress={openFoodieProfileInvite} />
           <CuisineSection onPickCuisine={pickCuisine} />
           <PromotionsSection onSeeAll={openPromotions} onOpenPromotion={openPromotion} />
           <EventsListSection onOpenEvent={openEvent} onSeeAll={openEvents} />
