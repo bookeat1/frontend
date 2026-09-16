@@ -280,6 +280,9 @@ const config: Config = {
           subtle: webColors.background.brandSubtle,
           text: webColors.text.brand,
         },
+        /** Подложка иконки диалога выхода (узел 5265:21449) — светлее
+         * `brand.subtle`, отдельный токен, см. `webProfile.signOutDialog`. */
+        "signout-icon-bg": webProfile.signOutDialog.icon.background,
         guide: {
           gold: webGuidePage.gold,
           pick: webGuidePage.editorPickFill,
@@ -609,6 +612,7 @@ const config: Config = {
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
         "pbook-action": px(webProfile.bookingCard.actions.height),
         "fav-image": px(webProfile.favorites.card.imageHeight),
+        "signout-icon-badge": px(webProfile.signOutDialog.icon.badgeSize),
         /** Карточка события/акции (5033:6922, `webEventDetail`): обложка 426,
          * мини-карточка заведения 120, её фото 88, карточка контакта 86,
          * кнопка «Записаться» 52. Карта переиспользует `h-venue-map`. */
@@ -649,6 +653,8 @@ const config: Config = {
         "pill-dot": px(webProfile.bookingCard.statusPill.dotSize),
         "afisha-photo": px(webEventDetail.venueCard.photoSize),
         "afisha-contact": px(webEventDetail.contactCard.width),
+        "signout-icon-badge": px(webProfile.signOutDialog.icon.badgeSize),
+        "signout-actions": px(webProfile.signOutDialog.actions.width),
       },
       minHeight: {
         "venue-promo": px(webVenuePage.promoCard.minHeight),
@@ -694,6 +700,9 @@ const config: Config = {
          * растягивает колонку на все 1200, а не на design-верные 788. */
         "afisha-article": px(webEventDetail.leftWidth),
         modal: px(webLayout.modalWidth),
+        /** Центрированный узкий вариант `Modal.centerIcon` (диалог выхода,
+         * узел 5265:21449) — 384, не 380 у обычной модалки. */
+        "modal-confirm": px(webProfile.signOutDialog.width),
         /** Блок успеха и карточка-билет — оба 720 (узлы 3525:15022 и
          * 3525:15028). */
         ticket: px(webBookingTicket.card.width),

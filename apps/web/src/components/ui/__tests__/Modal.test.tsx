@@ -109,6 +109,23 @@ describe("Modal", () => {
     expect(document.activeElement).toBe(close);
   });
 
+  it("centerIcon: иконка над заголовком по центру, без крестика-закрытия", () => {
+    render(
+      <Modal
+        title="Выйти из аккаунта?"
+        description="Вы уверены?"
+        onClose={vi.fn()}
+        centerIcon={<span data-testid="badge">значок</span>}
+      >
+        <button type="button">Выйти</button>
+      </Modal>,
+    );
+
+    expect(screen.getByTestId("badge")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Закрыть" })).toBeNull();
+    // Закрытие всё равно доступно — Esc и клик по затемнению (проверены выше).
+  });
+
   it("страница под окном не прокручивается, пока оно открыто", () => {
     const { unmount } = render(
       <Modal title="Вход" onClose={vi.fn()}>

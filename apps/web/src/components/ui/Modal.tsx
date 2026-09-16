@@ -41,6 +41,17 @@ export interface ModalProps {
    * иконкой бокала). Заголовок остаётся одним доступным именем, значок
    * `aria-hidden` через своё содержимое. */
   titleIcon?: ReactNode;
+  /**
+   * Иконка НАД заголовком, всё содержимое (иконка, заголовок, подпись)
+   * центрировано — раскладка диалога подтверждения выхода (Figma
+   * `qmMsg4jO1ggmyEHNIAD2ll`, узел 5265:21449): круглый бейдж, под ним
+   * заголовок и подпись, всё по центру, крестика-закрытия в макете нет
+   * (закрытие — Esc, клик по затемнению и кнопки-действия из `children`).
+   * Каллер сам оборачивает иконку в кружок нужного цвета — `Modal` его не
+   * красит, как и `titleIcon`. Несовместимо с `titleIcon`/`eyebrow`: та
+   * раскладка — заголовок слева и крестик справа, эта — без крестика.
+   */
+  centerIcon?: ReactNode;
   onClose: () => void;
   children: ReactNode;
   className?: string;
@@ -54,6 +65,7 @@ export function Modal({
   description,
   eyebrow,
   titleIcon,
+  centerIcon,
   onClose,
   children,
   className,
@@ -138,39 +150,57 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
         className={cx(
-          "my-auto flex w-full max-w-none flex-col gap-5 rounded-2xl bg-canvas p-5 shadow-modal outline-none lg:max-w-modal lg:p-8",
+          centerIcon
+            ? "my-auto flex w-full max-w-none flex-col items-center gap-6 rounded-2xl bg-canvas p-6 text-center shadow-modal outline-none lg:max-w-modal-confirm"
+            : "my-auto flex w-full max-w-none flex-col gap-5 rounded-2xl bg-canvas p-5 shadow-modal outline-none lg:max-w-modal lg:p-8",
           className,
         )}
       >
-        <header className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            {eyebrow}
-            <h2 id={titleId} className="flex items-center gap-2 text-h3 tracking-[-0.4px] text-ink">
-              {titleIcon}
-              {title}
-            </h2>
-            {description ? (
-              <p id={descriptionId} className="text-bodyM text-ink-secondary">
-                {description}
-              </p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t.web.ui.close}
-            className="-mr-2 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-tertiary hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path
-                d="M3 3l10 10M13 3L3 13"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </header>
+        {centerIcon ? (
+          <>
+            {centerIcon}
+            <div className="flex flex-col items-center gap-2">
+              <h2 id={titleId} className="text-h3 tracking-[-0.4px] text-ink">
+                {title}
+              </h2>
+              {description ? (
+                <p id={descriptionId} className="text-bodyM text-ink-secondary">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <header className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              {eyebrow}
+              <h2 id={titleId} className="flex items-center gap-2 text-h3 tracking-[-0.4px] text-ink">
+                {titleIcon}
+                {title}
+              </h2>
+              {description ? (
+                <p id={descriptionId} className="text-bodyM text-ink-secondary">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t.web.ui.close}
+              className="-mr-2 -mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-tertiary hover:bg-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path
+                  d="M3 3l10 10M13 3L3 13"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </header>
+        )}
         {children}
       </div>
     </div>
