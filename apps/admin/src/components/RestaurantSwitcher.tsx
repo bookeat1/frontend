@@ -197,8 +197,22 @@ function VenueRow({
         }`}
       >
         <span className="min-w-0 break-words">{venue.name}</span>
-        <span className="shrink-0 rounded-pill bg-chip-active px-sm py-xxs text-[11px] text-white">
-          {roleLabel(venue.role)}
+        <span className="flex shrink-0 items-center gap-xxs">
+          {/* Скрытое/неактивное заведение остаётся кликабельным (суперадмин
+              им всё ещё управляет) — этот значок только предупреждает, что
+              сейчас его не видят гости. Приглушённый янтарный, а не цвет
+              значка роли: это предупреждение, а не ещё одна роль.
+              `=== false`, не `!venue.is_active`: пока бэкенд не отдаёт поле
+              (например смердж дошёл раньше, чем бэкенд задеплоился), значение
+              будет `undefined` — не должно читаться как "скрыто". */}
+          {venue.is_active === false ? (
+            <span className="rounded-pill bg-amber-100 px-sm py-xxs text-[11px] font-medium text-amber-800">
+              {t.admin.restaurant.hiddenBadge}
+            </span>
+          ) : null}
+          <span className="rounded-pill bg-chip-active px-sm py-xxs text-[11px] text-white">
+            {roleLabel(venue.role)}
+          </span>
         </span>
       </button>
     </li>

@@ -553,6 +553,7 @@ export const en: LocaleOverride<Dictionary> = {
       roleManager: "Manager",
       roleHostess: "Host",
       roleAdmin: "Administrator",
+      hiddenBadge: "Hidden",
       searchPlaceholder: "Search by name",
       searchEmpty: "Nothing found",
       recent: "Recent",

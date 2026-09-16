@@ -11,7 +11,12 @@ import { isVenueScopedKey, isVenueUnavailableError, venueAccess } from "../venue
  * недоступно» от «плохая связь».
  */
 
-const venue = (id: string, name: string): MyRestaurant => ({ id, name, role: "owner" });
+const venue = (id: string, name: string): MyRestaurant => ({
+  id,
+  name,
+  role: "owner",
+  is_active: true,
+});
 
 describe("venueAccess", () => {
   it("ждёт список, пока он не пришёл", () => {
