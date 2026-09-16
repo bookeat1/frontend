@@ -7,6 +7,11 @@ import { bookingHref, menuHref } from "@web/lib/booking-link";
 import { todayIso } from "@web/lib/format";
 import { loginHref } from "@web/lib/return-to";
 
+const trackEvent = vi.fn();
+vi.mock("@web/lib/analytics", () => ({
+  trackEvent: (name: string, props?: Record<string, unknown>) => trackEvent(name, props),
+}));
+
 /**
  * Страница бронирования (Figma QovvuAoI9YxsLMwWkfgKN8, узел 3525:14815).
  *
@@ -89,6 +94,7 @@ const submitButton = () => screen.getByRole("button", { name: "Забронир�
 beforeEach(() => {
   auth = { signedIn: false, isLoading: false, user: null };
   search = new URLSearchParams("");
+  trackEvent.mockClear();
   repository.getRestaurant = vi.fn(async () => venueDetail());
   repository.getAvailability = vi.fn(async () => ({
     restaurantId: "venue-1",
@@ -624,6 +630,114 @@ describe("вход на полное меню из блока «Предзака
     expect(link.getAttribute("href")).toBe(
       menuHref("venue-1", { date: todayIso(), guests: 4, slot: SLOT }),
     );
+  });
+});
+
+/**
+ * События брони (T5/T8 спеки `web-amplitude-analytics-20260916.md`,
+ * критерии 11-15).
+ */
+describe("аналитика брони", () => {
+  it("booking_start уходит один раз при открытии формы создания", async () => {
+    renderBooking();
+    await slotsShown();
+
+    expect(trackEvent).toHaveBeenCalledWith("booking_start", { restaurant_id: "venue-1" });
+    expect(trackEvent.mock.calls.filter((call) => call[0] === "booking_start")).toHaveLength(1);
+  });
+
+  it("booking_start НЕ уходит в режиме переноса (?change=)", async () => {
+    search = new URLSearchParams(`change=${CHANGE_ID}`);
+    signIn();
+    renderBooking();
+    await slotsShown();
+
+    expect(trackEvent).not.toHaveBeenCalledWith("booking_start", expect.anything());
+  });
+
+  it("booking_confirm уходит в onSuccess с campaign_id: null, когда метки нет", async () => {
+    signIn();
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
+    expect(trackEvent).toHaveBeenCalledWith("booking_confirm", {
+      restaurant_id: "venue-1",
+      campaign_id: null,
+    });
+  });
+
+  it("booking_confirm несёт ту же метку кампании, что ушла в promotionId запроса", async () => {
+    window.sessionStorage.setItem(
+      "bookeat.web.campaignAttribution.v1",
+      "5c9c6b6e-6b60-4a9a-8f1e-1a2b3c4d5e6f",
+    );
+    signIn();
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
+    expect(trackEvent).toHaveBeenCalledWith("booking_confirm", {
+      restaurant_id: "venue-1",
+      campaign_id: "5c9c6b6e-6b60-4a9a-8f1e-1a2b3c4d5e6f",
+    });
+  });
+
+  it("booking_confirm_error уходит в onError с причиной из словаря, без текста сервера", async () => {
+    signIn();
+    repository.createBooking = vi.fn(async () => {
+      throw new RepositoryError("conflict", undefined, 409, undefined, "slot_taken");
+    });
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(submitButton());
+
+    await screen.findByText("Это время только что заняли");
+    expect(trackEvent).toHaveBeenCalledWith("booking_confirm_error", {
+      restaurant_id: "venue-1",
+      reason: "conflict",
+      status: 409,
+      code: "slot_taken",
+    });
+  });
+
+  it("перенос брони (reschedule) не порождает ни booking_start, ни booking_confirm", async () => {
+    signIn();
+    search = new URLSearchParams(`change=${CHANGE_ID}`);
+    renderBooking();
+    await chooseSlot();
+    fireEvent.click(screen.getByRole("button", { name: "Перенести бронь" }));
+
+    await waitFor(() => expect(repository.rescheduleBooking).toHaveBeenCalledTimes(1));
+    expect(trackEvent).not.toHaveBeenCalledWith("booking_start", expect.anything());
+    expect(trackEvent).not.toHaveBeenCalledWith("booking_confirm", expect.anything());
+    expect(trackEvent).not.toHaveBeenCalledWith("booking_confirm_error", expect.anything());
+  });
+
+  /** Критерий 14: общая страховка — ни у одного вызова `trackEvent` в этом
+   * файле нет ключей с персональными данными гостя. */
+  it("ни один вызов trackEvent не содержит имени, телефона или пожеланий", async () => {
+    signIn();
+    repository.createBooking = vi.fn(async () => {
+      throw new RepositoryError("conflict", undefined, 409, undefined, "slot_taken");
+    });
+    renderBooking();
+    await chooseSlot();
+    fireEvent.change(nameField(), { target: { value: "Камила Тестова" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Пожелания к брони" }), {
+      target: { value: "Мой телефон +77010000000" },
+    });
+    fireEvent.click(submitButton());
+    await screen.findByText("Это время только что заняли");
+
+    const json = JSON.stringify(trackEvent.mock.calls);
+    for (const key of ["name", "phone", "notes", "full_name", "fullName", "message"]) {
+      expect(json).not.toContain(`"${key}"`);
+    }
+    expect(json).not.toContain("Камила");
+    expect(json).not.toContain("77010000000");
   });
 });
 

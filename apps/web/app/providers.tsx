@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { AnalyticsProvider } from "@web/components/AnalyticsProvider";
 import { AuthProvider } from "@web/lib/auth";
 import { captureCampaignFromUrl } from "@web/lib/campaign-attribution";
 import { CityProvider } from "@web/lib/city";
@@ -16,10 +17,20 @@ import { LocaleProvider } from "@web/lib/locale";
  * `<Suspense>` вокруг любого клиентского компонента, который его читает
  * (иначе падает `next build` — см. PR #168), а здесь достаточно значения на
  * момент первой загрузки документа.
+ *
+ * `onCaptured` уходит наверх, в `Providers`, а не бьёт по аналитике прямо
+ * здесь: этот компонент — сосед `AuthProvider`, его эффект по порядку
+ * монтирования срабатывает РАНЬШЕ, чем эффект `AnalyticsProvider` (тот стоит
+ * внутри `AuthProvider`), а значит раньше, чем `initAnalytics()` успевает
+ * включить `isEnabled()`. Вызов `trackEvent` отсюда напрямую тихо терял бы
+ * событие при самом первом заходе на сайт — ровно тот риск, что описан в
+ * спеке Amplitude (`web-amplitude-analytics-20260916.md`, критерий 9).
  */
-function CampaignAttributionCapture() {
+function CampaignAttributionCapture({ onCaptured }: { onCaptured: (id: string) => void }) {
   useEffect(() => {
-    captureCampaignFromUrl(window.location.search);
+    const captured = captureCampaignFromUrl(window.location.search);
+    if (captured) onCaptured(captured);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return null;
 }
@@ -49,16 +60,23 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }),
   );
+  /** Метка кампании, только что захваченная из адреса — см. комментарий у
+   * `CampaignAttributionCapture`. `AnalyticsProvider` шлёт по ней
+   * `deep_link_attributed` один раз, когда сам будет готов. */
+  const [capturedCampaignId, setCapturedCampaignId] = useState<string | null>(null);
+  const onCampaignCaptured = useCallback((id: string) => setCapturedCampaignId(id), []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CampaignAttributionCapture />
+      <CampaignAttributionCapture onCaptured={onCampaignCaptured} />
       {/* Язык ВЫШЕ города: город приходит запросом, а у запроса заголовок
           `Accept-Language` берётся из выбранного языка. */}
       <AuthProvider>
-        <LocaleProvider>
-          <CityProvider>{children}</CityProvider>
-        </LocaleProvider>
+        <AnalyticsProvider campaignId={capturedCampaignId}>
+          <LocaleProvider>
+            <CityProvider>{children}</CityProvider>
+          </LocaleProvider>
+        </AnalyticsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
