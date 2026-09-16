@@ -19,8 +19,12 @@ import { useAmenities, useCuisines } from "@web/lib/queries";
 
 /**
  * Колонка фильтров — Figma QovvuAoI9YxsLMwWkfgKN8, узел «Filters rail (sticky)»
- * 3525:14386: белая карточка 288 шириной, радиус 16, паддинг 20, просвет 24
- * между группами, галочки 20×20 с радиусом 4.
+ * 3525:14386: белая карточка 288 шириной, радиус 16, паддинг 20, галочки 20×20
+ * с радиусом 4.
+ *
+ * ПРОСВЕТ МЕЖДУ ГРУППАМИ (Кухня/Средний чек/Особенности/Ещё) — 12px, не 24
+ * как в самом фрейме макета: явная правка владельца 16.09.2026 (в макете
+ * группы читались слишком разрозненно).
  *
  * ОБВОДКИ У КАРТОЧКИ НЕТ — под ней та же двойная тень, что под карточками
  * заведений. Раньше здесь стояла рамка `border/default` и тени не было вовсе:
@@ -241,9 +245,13 @@ function FiltersForm({
   const patch = (partial: Partial<CatalogState>) => onChange({ ...state, ...partial, page: 1 });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
+      {/* `gap-3` на fieldset не даёт отступа под `<legend>` в проде (владелец
+          подтвердил на живом сайте 16.09.2026) — `<legend>` не всегда
+          участвует в flex-gap как обычный item. `mb-3` на самом legend —
+          явный фолбэк, а не дубль на всякий случай. */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-[15px] font-semibold leading-[22px] text-ink">
+        <legend className="mb-3 text-[15px] font-semibold leading-[22px] text-ink">
           {t.web.catalog.filters.cuisine}
         </legend>
         <AsyncBlock
@@ -271,7 +279,7 @@ function FiltersForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-[15px] font-semibold leading-[22px] text-ink">
+        <legend className="mb-3 text-[15px] font-semibold leading-[22px] text-ink">
           {t.web.catalog.filters.price}
         </legend>
         {/* Ряд из четырёх РАВНЫХ долей (узел 3525:14424), а не переносимая
@@ -301,7 +309,7 @@ function FiltersForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-[15px] font-semibold leading-[22px] text-ink">
+        <legend className="mb-3 text-[15px] font-semibold leading-[22px] text-ink">
           {t.web.catalog.filters.features}
         </legend>
         <AsyncBlock
@@ -329,7 +337,7 @@ function FiltersForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="text-[15px] font-semibold leading-[22px] text-ink">
+        <legend className="mb-3 text-[15px] font-semibold leading-[22px] text-ink">
           {t.web.catalog.filters.extra}
         </legend>
         <CheckboxRow

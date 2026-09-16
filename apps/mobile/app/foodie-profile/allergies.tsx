@@ -28,7 +28,12 @@ export default function FoodieProfileAllergiesScreen() {
           step={3}
           onBack={() => router.back()}
           nextLabel={t.onboarding.foodieProfile.next}
-          nextEnabled={selected.length > 0}
+          // В отличие от кухни (нужно выбрать хоть одну) и диеты (есть
+          // эксклюзивный пункт «без диеты»), у аллергий нет пункта «нет
+          // аллергий» — пустой выбор ЗДЕСЬ означает именно «нет аллергий», а
+          // не «гость ещё не ответил». Требовать выбор было багом: гость без
+          // аллергий не мог пройти дальше вовсе.
+          nextEnabled
           onNext={() => router.push("/foodie-profile/budget")}
         />
       </SafeAreaView>
