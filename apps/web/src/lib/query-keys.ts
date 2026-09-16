@@ -50,7 +50,7 @@ const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
  * Персонализация v1 (спека `foodie-personalization-v1-20260916.md`, §3.9) —
  * `usePicks`/`useEvents`(на главной)/`usePromotions` в `queries.ts` ключуются
  * как `[locale, "picks", city]`/`[locale, "events", city, "for_you"]`/
- * `[locale, "promos-feed", city]`: `locale` — переменный первый элемент, а не
+ * `[locale, "promotions", city]`: `locale` — переменный первый элемент, а не
  * фиксированный корень, поэтому префиксное совпадение из
  * `SESSION_SCOPED_KEYS` их не поймает — нужен предикат по ВТОРОМУ элементу.
  * Эти ключи, в отличие от избранного/брони, существуют и для анонима (там
@@ -58,11 +58,20 @@ const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
  * переход сессии, не только на выход (PR #232 review, 2026-09-16: иначе
  * анонимный/чужой ряд «Выбрали для вас» и его сортировка доживают до входа
  * следующего гостя в пределах `staleTime`, пока не подоспеет перезапрос).
+ *
+ * `"promotions"`, НЕ `"promos-feed"` (второй раунд ревью, 2026-09-16—
+ * первая версия этого набора перепутала их): `usePromotions` читает
+ * `GET /feed` — персонализированную ленту главной на OptionalAuth (тот же
+ * `tastematch.Loader`, что у picks/events), а `"promos-feed"` — это
+ * `usePromosFeed` → `GET /promos`, обычный публичный список без гостя
+ * вообще (см. `internal/bootstrap/app.go` в bookeat-backend — у ручки
+ * promos нет UserID). Чистка `"promos-feed"` была безвредной, но ничего не
+ * защищала: ряд «Акции» на главной оставался на ключе `"promotions"`.
  */
 const SESSION_SENSITIVE_SECOND_SEGMENTS: ReadonlySet<string> = new Set([
   "picks",
   "events",
-  "promos-feed",
+  "promotions",
 ]);
 
 /**

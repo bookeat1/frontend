@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../auth";
+import { FOODIE_INVITE_SNOOZE_KEY } from "../foodie-invite-snooze";
 import { getAccessToken } from "../token-store";
 
 /**
@@ -133,6 +134,21 @@ describe("signing out purges private cached data", () => {
     for (const [key] of PRIVATE_ENTRIES) {
       expect(queryClient.getQueryData(key), `after sign-out ${JSON.stringify(key)}`).toBeUndefined();
     }
+  });
+
+  it("выход сбрасывает device-wide флаг «профиль не пуст» — гость Б должен снова увидеть приглашение", async () => {
+    await SecureStore.setItemAsync(
+      FOODIE_INVITE_SNOOZE_KEY,
+      JSON.stringify({ dismissals: 0, snoozedUntil: null, hiddenForever: true }),
+    );
+    const { result } = await signedInSession();
+    expect(await SecureStore.getItemAsync(FOODIE_INVITE_SNOOZE_KEY)).not.toBeNull();
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(await SecureStore.getItemAsync(FOODIE_INVITE_SNOOZE_KEY)).toBeNull();
   });
 
   it("removes the session-sensitive home rows too (they are personal, not just private)", async () => {

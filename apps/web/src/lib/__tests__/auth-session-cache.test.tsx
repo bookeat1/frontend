@@ -79,7 +79,7 @@ function renderProbe() {
   // review): `locale` первым элементом, поэтому это предикат, не префикс.
   client.setQueryData(["ru", "picks", "Алматы"], { mode: "for_you", items: [] });
   client.setQueryData(["ru", "events", "Алматы", "for_you"], { items: [] });
-  client.setQueryData(["ru", "promos-feed", "Алматы"], { items: [] });
+  client.setQueryData(["ru", "promotions", "Алматы"], { items: [] });
   // И его недописанную форму брони.
   writeBookingFormDraft("venue-1", DRAFT);
   writeBookingFormDraft("venue-2", DRAFT);
@@ -122,13 +122,13 @@ describe("кэш и смена сессии", () => {
     const client = renderProbe();
     expect(client.getQueryData(["ru", "picks", "Алматы"])).toBeDefined();
     expect(client.getQueryData(["ru", "events", "Алматы", "for_you"])).toBeDefined();
-    expect(client.getQueryData(["ru", "promos-feed", "Алматы"])).toBeDefined();
+    expect(client.getQueryData(["ru", "promotions", "Алматы"])).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "выйти" }));
 
     await waitFor(() => expect(client.getQueryData(["ru", "picks", "Алматы"])).toBeUndefined());
     expect(client.getQueryData(["ru", "events", "Алматы", "for_you"])).toBeUndefined();
-    expect(client.getQueryData(["ru", "promos-feed", "Алматы"])).toBeUndefined();
+    expect(client.getQueryData(["ru", "promotions", "Алматы"])).toBeUndefined();
   });
 
   it("вход тоже стирает анонимный/чужой персональный ряд, не только на выходе", async () => {
@@ -139,7 +139,7 @@ describe("кэш и смена сессии", () => {
     await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("in"));
     expect(client.getQueryData(["ru", "picks", "Алматы"])).toBeUndefined();
     expect(client.getQueryData(["ru", "events", "Алматы", "for_you"])).toBeUndefined();
-    expect(client.getQueryData(["ru", "promos-feed", "Алматы"])).toBeUndefined();
+    expect(client.getQueryData(["ru", "promotions", "Алматы"])).toBeUndefined();
   });
 
   it("вход стирает бронь прежнего гостя из кэша этой вкладки", async () => {

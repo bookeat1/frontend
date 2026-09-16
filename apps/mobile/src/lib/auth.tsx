@@ -215,6 +215,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const applySession = useCallback(
     async (session: AuthSession | null) => {
+      // Смена ЛИЧНОСТИ (вход/выход/гидратация), а не просто обновление
+      // токена того же гостя (`refreshNow` зовёт `applySession(refreshed)`
+      // на том же аккаунте каждые ~15 минут) — второй раунд ревью PR #232:
+      // без этой развилки чистка ниже срабатывала и на обновлении, обрывая
+      // запросы picks/feed/events, которые сами же вызвали refresh (жест
+      // pull-to-refresh на главной после долгого простоя), лишним раундом
+      // сети и миганием скелетона. Вычисляется ДО перезаписи `sessionRef`.
+      const identityChanged = (sessionRef.current === null) !== (session === null);
       sessionRef.current = session;
       setAccessToken(session?.accessToken);
       setStatus(session ? "signed-in" : "signed-out");
@@ -226,22 +234,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         for (const key of PRIVATE_QUERY_KEYS) {
           queryClient.removeQueries({ queryKey: key });
         }
+      }
+      if (!session && identityChanged) {
         // Флаг «профиль гостя больше не пуст» (карточка-приглашение фуди-
         // профиля, foodie-invite-snooze.ts) живёт в SecureStore, не в
         // react-query — по одному фиксированному ключу на всё устройство, а
-        // не по сессии. Без сброса на выходе гость Б с ПУСТЫМ профилем на
-        // том же телефоне никогда не увидел бы приглашение — его молча погасил
-        // бы навсегда факт, что у гостя А профиль был заполнен (PR #232
-        // review, 2026-09-16).
-        void SecureStore.deleteItemAsync(FOODIE_INVITE_SNOOZE_KEY);
+        // не по сессии. Без сброса на РЕАЛЬНОМ выходе гость Б с ПУСТЫМ
+        // профилем на том же телефоне никогда не увидел бы приглашение — его
+        // молча погасил бы навсегда факт, что у гостя А профиль был заполнен
+        // (PR #232 review, 2026-09-16).
+        //
+        // ГЕЙТ НА `identityChanged` ЗДЕСЬ ОБЯЗАТЕЛЕН, а не просто "на всякий
+        // случай" — без него ГИДРАТАЦИЯ на холодном старте (нет персистнутой
+        // сессии → `applySession(null)`, `sessionRef.current` уже был `null`
+        // до этого вызова) стирала бы 30-дневный снуз анонимного гостя
+        // КАЖДЫЙ РАЗ при запуске приложения, а не только на реальном выходе
+        // из аккаунта (второй раунд ревью того же PR поймал это как
+        // регрессию в тесте — `identityChanged` ложно `false→false` на
+        // гидратации спас бы SESSION_SENSITIVE_QUERY_KEYS ниже, но эта строка
+        // жила отдельно от того гейта и его не наследовала).
+        void SecureStore.deleteItemAsync(FOODIE_INVITE_SNOOZE_KEY).catch(() => {});
       }
-      // На КАЖДЫЙ переход, не только на выход: эти ключи одни и те же и для
-      // анонима, и для вошедшего — «Для вас» же гостя A не должно дожить ни
-      // до выхода гостя A (уже покрыто выше — тут дубль ничего не портит), ни
-      // до входа гостя B на том же ключе (см. doc-комментарий у
-      // SESSION_SENSITIVE_QUERY_KEYS).
-      for (const key of SESSION_SENSITIVE_QUERY_KEYS) {
-        queryClient.removeQueries({ queryKey: key });
+      // На КАЖДЫЙ переход ЛИЧНОСТИ, не только на выход: эти ключи одни и те
+      // же и для анонима, и для вошедшего — «Для вас» же гостя A не должно
+      // дожить ни до выхода гостя A (уже покрыто выше — тут дубль ничего не
+      // портит), ни до входа гостя B на том же ключе (см. doc-комментарий у
+      // SESSION_SENSITIVE_QUERY_KEYS). Гейт на `identityChanged`, а не на
+      // каждый вызов — см. комментарий выше про refresh того же гостя.
+      // `persist` ниже — БЕЗ гейта: обновлённые (провёрнутые) токены нужно
+      // сохранить на КАЖДОМ вызове, включая refresh, иначе следующий холодный
+      // старт восстановит уже отозванный refresh-токен.
+      if (identityChanged) {
+        for (const key of SESSION_SENSITIVE_QUERY_KEYS) {
+          queryClient.removeQueries({ queryKey: key });
+        }
       }
       await persist(session);
     },
