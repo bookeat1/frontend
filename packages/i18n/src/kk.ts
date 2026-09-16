@@ -3209,6 +3209,12 @@ export const kk: LocaleOverride<Dictionary> = {
         settings: "Баптаулар",
         signOut: "Шығу",
       },
+      signOutDialog: {
+        title: "Аккаунттан шығасыз ба?",
+        text: "Аккаунттан шынымен шыққыңыз келе ме?",
+        confirm: "Шығу",
+        cancel: "Артқа қайту",
+      },
       bookings: {
         title: "Менің брондарым",
         segmentsLabel: "Брондар сүзгісі",
