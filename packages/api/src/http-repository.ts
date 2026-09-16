@@ -305,6 +305,12 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     const page = await this.client.get<ApiPage<ApiRestaurant> & { mode?: string }>(
       "/restaurants/picks",
       { city: city?.trim() || undefined, limit },
+      // OptionalAuth (spec §5.4): without this, a signed-in guest's request
+      // went out with no bearer token at all, so the backend could never
+      // tell them apart from an anonymous one — `mode` stuck on
+      // "editorial"/"popular" forever, no matter what the taste profile said
+      // (found live 2026-09-16: filled profile, picks rail never changed).
+      { optionalAuth: true },
     );
     const mode = mapPicksMode(page.mode);
     return { items: (page.items ?? []).map(mapRestaurantSummary), mode };
@@ -504,7 +510,11 @@ export class HttpRestaurantRepository implements RestaurantRepository {
       // Без параметра он не уходит вовсе, а не `undefined`-строкой —
       // HttpClient уже отбрасывает `undefined`-значения из query.
       sort: query?.sort,
-    });
+      // OptionalAuth (spec §5.4) — same bug as `getRecommendedRestaurants`:
+      // without this, `sort=for_you` had no bearer token to personalize
+      // with, so it silently behaved like plain `starts_at ASC` for a
+      // signed-in guest too.
+    }, { optionalAuth: true });
     return {
       items: (page.items ?? []).map(mapEventSummary),
       total: typeof page.total === "number" ? page.total : 0,
@@ -536,7 +546,14 @@ export class HttpRestaurantRepository implements RestaurantRepository {
    * wire safely.
    */
   async getPromotions(city: string): Promise<HomePromo[]> {
-    const feed = await this.client.get<{ items?: ApiFeedItem[] }>("/feed", { city });
+    // OptionalAuth (spec §5.4) — same bug as `getRecommendedRestaurants`:
+    // without this, the "Акции" row's taste-match ranking never saw who was
+    // asking and always scored every guest as anonymous.
+    const feed = await this.client.get<{ items?: ApiFeedItem[] }>(
+      "/feed",
+      { city },
+      { optionalAuth: true },
+    );
     return mapHomePromos(feed.items);
   }
 

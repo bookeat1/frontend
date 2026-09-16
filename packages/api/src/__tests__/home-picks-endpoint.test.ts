@@ -45,6 +45,24 @@ function capture(items: unknown[] = []): Captured {
   return { urls: () => urls, bodies: () => bodies, methods: () => methods };
 }
 
+/** Same as `capture`, but also records the `Authorization` header each
+ * request carried (or its absence) — this is the thing OptionalAuth needs to
+ * tell a signed-in guest from an anonymous one. */
+function captureAuth(items: unknown[] = []): { authHeaders: () => Array<string | null> } {
+  const authHeaders: Array<string | null> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      authHeaders.push(new Headers(init?.headers).get("Authorization"));
+      return new Response(
+        JSON.stringify({ data: { items, total: items.length, page: 1, per_page: items.length } }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }),
+  );
+  return { authHeaders: () => authHeaders };
+}
+
 function venue(id: string, name: string) {
   return { id, name, city: "Астана", is_active: true };
 }
@@ -156,6 +174,28 @@ describe("гость: GET /restaurants/picks", () => {
       new HttpRestaurantRepository({ baseUrl: BASE_URL }).getRecommendedRestaurants("Астана"),
     ).resolves.toEqual({ items: [], mode: "popular" });
   });
+
+  /**
+   * Живой баг 2026-09-16: гость заполнил фуди-профиль, ряд «Выбрали для вас»
+   * не изменился. Причина — `getRecommendedRestaurants` не передавала
+   * `{ optionalAuth: true }`, поэтому запрос уходил БЕЗ токена вообще, и
+   * бэкенд не мог отличить вошедшего гостя от анонима: `mode` навсегда
+   * застревал на `"editorial"`/`"popular"`, что бы ни было в профиле.
+   */
+  it("вошедший гость шлёт токен — иначе OptionalAuth ручка никогда не увидит, кто спрашивает", async () => {
+    const seen = captureAuth();
+    await new HttpRestaurantRepository({ baseUrl: BASE_URL, getToken: () => "guest-token" })
+      .getRecommendedRestaurants("Алматы");
+
+    expect(seen.authHeaders()).toEqual(["Bearer guest-token"]);
+  });
+
+  it("анонимный гость — запрос всё равно уходит, просто без токена", async () => {
+    const seen = captureAuth();
+    await new HttpRestaurantRepository({ baseUrl: BASE_URL }).getRecommendedRestaurants("Алматы");
+
+    expect(seen.authHeaders()).toEqual([null]);
+  });
 });
 
 describe("админка: чтение и запись подборки", () => {
@@ -221,5 +261,23 @@ describe("гость: GET /events sort=for_you", () => {
     });
 
     expect(new URL(seen.urls()[0]).searchParams.has("sort")).toBe(false);
+  });
+
+  it("вошедший гость шлёт токен на sort=for_you — та же ошибка 2026-09-16, что у picks", async () => {
+    const seen = captureAuth();
+    await new HttpRestaurantRepository({ baseUrl: BASE_URL, getToken: () => "guest-token" })
+      .listUpcomingEvents({ city: "Алматы", sort: "for_you" });
+
+    expect(seen.authHeaders()).toEqual(["Bearer guest-token"]);
+  });
+});
+
+describe("гость: GET /feed (ряд «Акции»)", () => {
+  it("вошедший гость шлёт токен — иначе персональная сортировка ленты недостижима", async () => {
+    const seen = captureAuth();
+    await new HttpRestaurantRepository({ baseUrl: BASE_URL, getToken: () => "guest-token" })
+      .getPromotions("Алматы");
+
+    expect(seen.authHeaders()).toEqual(["Bearer guest-token"]);
   });
 });
