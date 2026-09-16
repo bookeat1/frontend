@@ -28,6 +28,7 @@ import type {
   DayAvailability,
   EventAction,
   EventSummary,
+  FoodieProfile,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -819,6 +820,35 @@ export function mapUser(api: ApiUser): AuthUser {
     avatarUrl: text(api.avatar_url) || null,
     createdAt: text(api.created_at) || null,
     birthDate: text(api.birth_date) || null,
+  };
+}
+
+/**
+ * `GET/PUT /users/me/foodie-profile` wire shape
+ * (internal/transport/rest/users/response.go foodieProfileResponse,
+ * bookeat-backend feat/foodie-profile-backend). Arrays are contractually
+ * always present, never null, but mapped defensively the same way as every
+ * other list field here (an absent/non-array value folds to `[]` rather than
+ * throwing).
+ */
+export interface ApiFoodieProfile {
+  cuisines: string[];
+  diets: string[];
+  allergies: string[];
+  budget: string | null;
+}
+
+function stringIdList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((id) => text(typeof id === "string" ? id : "")).filter((id) => id.length > 0);
+}
+
+export function mapFoodieProfile(api: ApiFoodieProfile): FoodieProfile {
+  return {
+    cuisines: stringIdList(api.cuisines),
+    diets: stringIdList(api.diets),
+    allergies: stringIdList(api.allergies),
+    budget: text(api.budget) || null,
   };
 }
 

@@ -2228,7 +2228,6 @@ export const kk: LocaleOverride<Dictionary> = {
     menu: {
       favorites: "Таңдаулылар",
       foodProfile: "Фуди-профиль",
-      foodProfilePreviewBadge: "алдын ала қарау",
       myReviews: "Менің пікірлерім",
       personalData: "Жеке деректер",
       city: "Қала",
@@ -2330,6 +2329,8 @@ export const kk: LocaleOverride<Dictionary> = {
       headerTitle: "Фуди-профиль",
       next: "Келесі",
       done: "Дайын",
+      saveFailed: "Фуди-профильді сақтау мүмкін болмады. Қайталап көріңіз",
+      loadFailed: "Сақталған қалауларды жүктеу мүмкін болмады",
       cuisine: {
         title: "Сүйікті ас мәзірі",
         subtitle: "5 асқа дейін таңдаңыз",

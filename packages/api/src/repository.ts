@@ -17,6 +17,7 @@ import type {
   EventSummary,
   FavoriteItems,
   FavoriteKind,
+  FoodieProfile,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -606,6 +607,30 @@ export interface AuthRepository {
    * back.
    */
   deleteAccount(): Promise<void>;
+
+  /**
+   * `GET /users/me/foodie-profile` — the guest's saved "Фуди-профиль" wizard
+   * state. AUTHENTICATED, same bearer path as `getMe`. Never a 404: a guest
+   * who never opened the wizard reads back empty arrays and a null budget
+   * (bookeat-backend facade.GetFoodieProfile), so the caller can always use
+   * the answer to prefill the draft, first-time or not.
+   */
+  getFoodieProfile(): Promise<FoodieProfile>;
+  /**
+   * `PUT /users/me/foodie-profile` — REPLACE semantics, not merge: the wizard
+   * saves its whole draft in one call on the last screen, never one field at
+   * a time. Send every key every time; an empty array clears that category
+   * server-side, it does not mean "leave alone" (unlike `updateMe`'s pointer
+   * fields).
+   *
+   * Answers the profile the server actually stored (same shape), which the
+   * caller should treat as the new truth. 422 on an invalid option id, more
+   * than 5 cuisines, `no_diet` combined with another diet, or an unknown
+   * budget tier — none of which this app's own UI can produce today, since
+   * the wizard only offers the same closed option lists the backend
+   * validates against.
+   */
+  replaceFoodieProfile(input: FoodieProfile): Promise<FoodieProfile>;
 }
 
 /**

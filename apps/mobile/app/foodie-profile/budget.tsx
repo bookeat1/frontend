@@ -2,7 +2,7 @@ import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BudgetOptionCard } from "../../src/components/foodie-profile/BudgetOptionCard";
 import { FoodieProfileHeader } from "../../src/components/foodie-profile/FoodieProfileHeader";
@@ -23,22 +23,41 @@ const t = getDictionary();
  * гостя — решение и его причина подробно объяснены в
  * `foodie-profile-selection.ts`.
  *
- * ФИНАЛ. Сохранения на бэкенд нет — эндпоинта под фуди-профиль ещё не
- * существует (отдельная будущая задача). Собранный черновик печатается в
- * консоль (`console.info`, только это и остаётся от «отправки» на этом этапе)
- * и визард уходит на `/profile`, откуда его временно и открывают
- * (см. ProfileMenuRow «Фуди-профиль» в profile.tsx).
+ * ФИНАЛ. «Готово» шлёт весь черновик одним `PUT /users/me/foodie-profile`
+ * (`FoodieProfileDraftProvider.save`) и уходит на `/profile` только при
+ * успехе — при отказе черновик остаётся на экране вместе с текстом ошибки,
+ * «Готово» можно нажать ещё раз.
+ *
+ * ЗАЩИТА ОТ ТИХОЙ ПОТЕРИ ДАННЫХ. `PUT` заменяет весь профиль целиком, а не
+ * мержит. Пока стартовый `GET` (см. `foodie-profile-draft.tsx`) ещё грузится
+ * или упал — «Готово» заблокирована: иначе на плохой сети гость может
+ * протапать шаги поверх непрогруженного черновика и стереть ранее
+ * сохранённые категории пустым/неполным `PUT`.
  */
 export default function FoodieProfileBudgetScreen() {
   const router = useRouter();
-  const { draft, setBudget } = useFoodieProfileDraft();
+  const {
+    draft,
+    setBudget,
+    isSaving,
+    saveFailed,
+    isLoadingProfile,
+    profileLoadFailed,
+    retryLoadProfile,
+    save,
+  } = useFoodieProfileDraft();
 
   const finish = useCallback(() => {
-    // Временная точка «сохранения», пока эндпоинта фуди-профиля на бэкенде
-    // нет; заменится реальным вызовом API вместе с задачей на бэкенд.
-    console.info("[foodie-profile] draft", draft);
-    router.replace("/profile");
-  }, [draft, router]);
+    void (async () => {
+      const ok = await save();
+      if (ok) router.replace("/profile");
+    })();
+  }, [save, router]);
+
+  const goBack = useCallback(() => {
+    if (isSaving) return;
+    router.back();
+  }, [isSaving, router]);
 
   return (
     <View style={styles.root}>
@@ -46,9 +65,9 @@ export default function FoodieProfileBudgetScreen() {
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <FoodieProfileHeader
           step={4}
-          onBack={() => router.back()}
-          nextLabel={t.onboarding.foodieProfile.done}
-          nextEnabled
+          onBack={goBack}
+          nextLabel={isSaving || isLoadingProfile ? t.common.loading : t.onboarding.foodieProfile.done}
+          nextEnabled={!isSaving && !isLoadingProfile && !profileLoadFailed}
           onNext={finish}
         />
       </SafeAreaView>
@@ -74,6 +93,23 @@ export default function FoodieProfileBudgetScreen() {
             );
           })}
         </View>
+
+        {profileLoadFailed ? (
+          <View style={styles.loadErrorBox}>
+            <Text style={styles.saveError} accessibilityRole="alert">
+              {t.onboarding.foodieProfile.loadFailed}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={retryLoadProfile}>
+              <Text style={styles.retryLabel}>{t.common.retry}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {saveFailed ? (
+          <Text style={styles.saveError} accessibilityRole="alert">
+            {t.onboarding.foodieProfile.saveFailed}
+          </Text>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -103,5 +139,18 @@ const styles = StyleSheet.create({
   list: {
     marginTop: spacing.lg,
     gap: spacing.sm,
+  },
+  saveError: {
+    ...typography.body,
+    color: colors.brand.primary,
+    marginTop: spacing.md,
+  },
+  loadErrorBox: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  retryLabel: {
+    ...typography.labelSemiBold,
+    color: colors.brand.primary,
   },
 });

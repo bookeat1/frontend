@@ -13,6 +13,7 @@ import {
   mapBooking,
   mapEventSummary,
   mapFavoriteItems,
+  mapFoodieProfile,
   mapGuideCategories,
   mapGuideCollections,
   mapGuideRoutes,
@@ -38,6 +39,7 @@ import {
   type ApiEventListItem,
   type ApiFavoriteItems,
   type ApiFeedItem,
+  type ApiFoodieProfile,
   type ApiGuideCategory,
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
@@ -81,6 +83,7 @@ import type {
   EventSummary,
   FavoriteItems,
   FavoriteKind,
+  FoodieProfile,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -1304,6 +1307,37 @@ export class HttpAuthRepository implements AuthRepository {
    */
   async deleteAccount(): Promise<void> {
     await this.client.delete<unknown>("/users/me", { auth: true });
+  }
+
+  /**
+   * `GET /users/me/foodie-profile` — never a 404 (see FoodieProfile), so the
+   * caller can always drop the answer straight into the wizard's draft.
+   */
+  async getFoodieProfile(): Promise<FoodieProfile> {
+    const api = await this.client.get<ApiFoodieProfile>(
+      "/users/me/foodie-profile",
+      undefined,
+      { auth: true },
+    );
+    return mapFoodieProfile(api);
+  }
+
+  /**
+   * `PUT /users/me/foodie-profile` — replace, not merge: every field goes on
+   * the wire every time, matching the wizard's single final save.
+   */
+  async replaceFoodieProfile(input: FoodieProfile): Promise<FoodieProfile> {
+    const api = await this.client.put<ApiFoodieProfile>(
+      "/users/me/foodie-profile",
+      {
+        cuisines: input.cuisines,
+        diets: input.diets,
+        allergies: input.allergies,
+        budget: input.budget,
+      },
+      { auth: true },
+    );
+    return mapFoodieProfile(api);
   }
 }
 

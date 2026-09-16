@@ -2223,7 +2223,6 @@ export const en: LocaleOverride<Dictionary> = {
     menu: {
       favorites: "Favorites",
       foodProfile: "Foodie profile",
-      foodProfilePreviewBadge: "preview",
       myReviews: "My reviews",
       personalData: "Personal data",
       city: "City",
@@ -2325,6 +2324,8 @@ export const en: LocaleOverride<Dictionary> = {
       headerTitle: "Foodie profile",
       next: "Next",
       done: "Done",
+      saveFailed: "Could not save the foodie profile. Please try again",
+      loadFailed: "Couldn't load your saved preferences",
       cuisine: {
         title: "Favourite cuisine",
         subtitle: "Choose up to 5 cuisines",

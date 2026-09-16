@@ -925,6 +925,34 @@ export interface ProfileUpdate {
 }
 
 /**
+ * The "Фуди-профиль" onboarding wizard's whole state (mobile PR #222:
+ * `apps/mobile/app/foodie-profile/{cuisine,diet,allergies,budget}.tsx`),
+ * as `GET/PUT /users/me/foodie-profile` sends and accepts it
+ * (bookeat-backend feat/foodie-profile-backend,
+ * internal/transport/rest/users/{request,response}.go).
+ *
+ * `cuisines`/`diets`/`allergies` are option ids from the SAME static list
+ * the wizard renders (`apps/mobile/src/components/foodie-profile/
+ * foodie-profile-options.ts`) — the backend validates against exactly those
+ * ids (at most 5 cuisines, `no_diet` exclusive of every other diet), so this
+ * app never invents an id that isn't in that list.
+ *
+ * PUT is REPLACE, not merge: every field is sent every time, and an empty
+ * array means "cleared", not "leave alone" — there is no partial-save mode
+ * here, unlike `ProfileUpdate`'s pointer-field semantics. A guest who never
+ * opened the wizard reads back `{cuisines: [], diets: [], allergies: [],
+ * budget: null}`, never a 404.
+ */
+export interface FoodieProfile {
+  cuisines: string[];
+  diets: string[];
+  allergies: string[];
+  /** One of "budget"/"mid"/"premium", or null — the step is optional and
+   * stays unset until the guest actually picks a tier. */
+  budget: string | null;
+}
+
+/**
  * One upcoming event of the public cross-venue listing (`GET /events`).
  *
  * The guest-facing listing only ever returns PUBLISHED, not-yet-finished
