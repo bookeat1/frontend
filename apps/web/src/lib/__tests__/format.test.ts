@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { getDictionary } from "@bookeat/i18n";
 
-import { bookingDateLabel, searchDateLabel, slotDateIso, slotTimeLabel, venueWallClock } from "@web/lib/format";
+import {
+  bookingDateLabel,
+  nowTimeHhMm,
+  searchDateLabel,
+  slotDateIso,
+  slotTimeLabel,
+  venueWallClock,
+} from "@web/lib/format";
 
 /**
  * Подпись поля даты в панели поиска. Проверяем именно её, потому что нативное
@@ -115,5 +122,25 @@ describe("venueWallClock", () => {
 
   it("мусор — null", () => {
     expect(venueWallClock("завтра", "Asia/Almaty")).toBeNull();
+  });
+});
+
+/**
+ * Значение по умолчанию для поля времени в панели поиска — ближайший БУДУЩИЙ
+ * слот (шаг 30 минут), не сырое текущее время (правка владельца 16.09.2026).
+ */
+describe("nowTimeHhMm", () => {
+  it("округляет вверх до следующего получасового слота", () => {
+    expect(nowTimeHhMm(new Date(2026, 8, 16, 13, 58))).toBe("14:00");
+    expect(nowTimeHhMm(new Date(2026, 8, 16, 14, 5))).toBe("14:30");
+  });
+
+  it("время ровно на слоте не трогает", () => {
+    expect(nowTimeHhMm(new Date(2026, 8, 16, 14, 0))).toBe("14:00");
+    expect(nowTimeHhMm(new Date(2026, 8, 16, 14, 30))).toBe("14:30");
+  });
+
+  it("после 23:30 переносит на полночь следующих суток", () => {
+    expect(nowTimeHhMm(new Date(2026, 8, 16, 23, 45))).toBe("00:00");
   });
 });
