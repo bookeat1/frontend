@@ -6,6 +6,15 @@ import { RepositoryError } from "@bookeat/api/client";
 
 import { LocaleProvider } from "@web/lib/locale";
 
+const trackEvent = vi.fn();
+const identifyUser = vi.fn();
+vi.mock("@web/lib/analytics", () => ({
+  trackEvent: (name: string, props?: Record<string, unknown>) => trackEvent(name, props),
+  identifyUser: (user: unknown) => identifyUser(user),
+  initAnalytics: vi.fn(),
+  resetAnalytics: vi.fn(),
+}));
+
 /**
  * Экран входа. Проверяется поведение, из-за которого он вообще появился:
  * кнопка «Войти» больше не должна вести в никуда, а форма — обязана честно
@@ -99,6 +108,8 @@ describe("вход по номеру телефона", () => {
     window.localStorage.clear();
     search = "";
     replace.mockClear();
+    trackEvent.mockClear();
+    identifyUser.mockClear();
   });
 
   it("неполный номер не уходит на сервер", () => {
@@ -195,5 +206,30 @@ describe("вход по номеру телефона", () => {
     fireEvent.click(screen.getByRole("button", { name: "Изменить номер" }));
 
     expect((screen.getByLabelText("Номер телефона") as HTMLInputElement).value).toBe(PHONE);
+  });
+
+  /**
+   * Критерий 14 спеки `web-amplitude-analytics-20260916.md`: страховка над
+   * `trackEvent` на настоящем экране входа, не на заглушке `useAuth` — здесь
+   * `AuthProvider` реальный и реально шлёт `login`.
+   *
+   * Только `trackEvent`, не `identifyUser`: `auth.tsx` намеренно передаёт
+   * ему ВЕСЬ профиль (`identifyUser(fresh)`) — отбор одного лишь `city`
+   * происходит внутри `analytics.ts`, и эта граница уже держится отдельным
+   * тестом (`analytics-no-pii.test.ts`). Считать это утечкой здесь означало
+   * бы проверять не ту границу.
+   */
+  it("событие login не несёт ни номера, ни имени гостя в своих свойствах", async () => {
+    await goToCodeStep();
+    await enterCode();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+
+    expect(trackEvent).toHaveBeenCalledWith("login", { is_new_user: false });
+    const json = JSON.stringify(trackEvent.mock.calls.map((call) => call[1]));
+    expect(json).not.toContain("77018692233");
+    expect(json).not.toContain("Дамир");
+    for (const key of ["name", "phone", "notes", "full_name", "fullName", "message"]) {
+      expect(json).not.toContain(`"${key}"`);
+    }
   });
 });

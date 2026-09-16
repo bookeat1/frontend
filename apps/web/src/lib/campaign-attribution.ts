@@ -64,21 +64,32 @@ export function extractPromoFromSearch(
   return promo && isUuid(promo) && knownIds.includes(promo) ? promo : null;
 }
 
-/** Захватить `?promo=` при заходе на сайт, если он там есть, и запомнить на
+/**
+ * Захватить `?promo=` при заходе на сайт, если он там есть, и запомнить на
  * сессию. Идемпотентно: заход БЕЗ параметра не стирает уже захваченную метку
  * — гость может кликнуть с промо-ссылки на первую страницу и уйти дальше по
- * сайту без параметра в адресе, метка должна остаться с ним. */
+ * сайту без параметра в адресе, метка должна остаться с ним.
+ *
+ * Возвращает id акции, если он был НОВЫЙ (не было метки вовсе, или лежала
+ * другая) — по этому значению `AnalyticsProvider` шлёт `deep_link_attributed`
+ * ровно один раз. Повторный вызов с той же меткой (перезаход по той же
+ * ссылке в той же сессии) отдаёт `null`: писать в хранилище нечего и событие
+ * уже ушло в первый раз.
+ */
 export function captureCampaignFromUrl(
   search: string,
   knownIds: readonly string[] = KNOWN_CAMPAIGN_IDS,
-): void {
+): string | null {
   const promo = extractPromoFromSearch(search, knownIds);
-  if (!promo) return;
+  if (!promo) return null;
+  if (readCampaignAttribution() === promo) return null;
   try {
     storage()?.setItem(STORAGE_KEY, promo);
   } catch {
     // Хранилище недоступно — сессия просто идёт без атрибуции.
+    return null;
   }
+  return promo;
 }
 
 /** Метка текущей сессии, если она есть. `null` — обычный гость без акции, не

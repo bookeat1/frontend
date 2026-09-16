@@ -1,9 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
 import { menuDish, pending, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
 import { bookingHref } from "@web/lib/booking-link";
+
+const trackEvent = vi.fn();
+vi.mock("@web/lib/analytics", () => ({
+  trackEvent: (name: string, props?: Record<string, unknown>) => trackEvent(name, props),
+}));
 
 /**
  * Страница заведения. Важнее всего два состояния, которые легко перепутать:
@@ -29,6 +34,10 @@ vi.mock("@web/lib/api", () => ({
 }));
 
 const { VenueScreen } = await import("@web/components/venue/VenueScreen");
+
+beforeEach(() => {
+  trackEvent.mockClear();
+});
 
 describe("карточка заведения", () => {
   afterEach(() => {
@@ -515,5 +524,42 @@ describe("карточка акции — данные, которые рань�
 
     await screen.findByText("Скоро");
     expect(screen.queryByText("−0%")).toBeNull();
+  });
+});
+
+/** T6/T8 спеки `web-amplitude-analytics-20260916.md`, критерии 10 и 14. */
+describe("аналитика: restaurant_open", () => {
+  it("уходит один раз при открытии, других свойств нет", async () => {
+    renderScreen(<VenueScreen id="venue-1" />);
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(trackEvent).toHaveBeenCalledWith("restaurant_open", { restaurant_id: "venue-1" });
+    expect(trackEvent.mock.calls.filter((call) => call[0] === "restaurant_open")).toHaveLength(1);
+  });
+
+  it("ре-рендер (открытие галереи, смена локального состояния) не повторяет событие", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        photos: [{ id: "p1", uri: "https://cdn/1.webp", alt: "Зал", width: 1200, height: 800 }],
+      }),
+    );
+    renderScreen(<VenueScreen id="venue-1" />);
+    const button = await screen.findByRole("button", { name: /Все фото/ });
+    trackEvent.mockClear();
+
+    fireEvent.click(button);
+    await screen.findByRole("dialog");
+
+    expect(trackEvent).not.toHaveBeenCalledWith("restaurant_open", expect.anything());
+  });
+
+  it("ни один вызов trackEvent не содержит персональных данных гостя", async () => {
+    renderScreen(<VenueScreen id="venue-1" />);
+    await screen.findByRole("heading", { level: 1 });
+
+    const json = JSON.stringify(trackEvent.mock.calls);
+    for (const key of ["name", "phone", "notes", "full_name", "fullName", "message"]) {
+      expect(json).not.toContain(`"${key}"`);
+    }
   });
 });
