@@ -219,16 +219,13 @@ export default function ProfileScreen() {
                 onPress={() => router.push("/favorites")}
                 comingSoonLabel={t.profile.comingSoon}
               />
-              {/* ВРЕМЕННЫЙ вход в визард «Фуди-профиль» (задача 2026-09-15):
-                  на бэкенде ещё нет эндпоинта, который сохранял бы фуди-профиль,
-                  так что настоящей точки входа тоже нет — этот пункт нужен
-                  только чтобы визард можно было открыть и посмотреть вживую.
-                  Ряд уедет отсюда (или потеряет бейдж «превью»), когда
-                  сохранение подключат по-настоящему. */}
+              {/* Вход в визард «Фуди-профиль» (задача 2026-09-15, бэкенд
+                  подключён 2026-09-16): визард сам читает и сохраняет профиль
+                  через `GET/PUT /users/me/foodie-profile` —
+                  `FoodieProfileDraftProvider`. */}
               <ProfileMenuRow
                 icon={ForkKnife}
                 label={t.profile.menu.foodProfile}
-                value={t.profile.menu.foodProfilePreviewBadge}
                 onPress={() => router.push("/foodie-profile/cuisine")}
                 comingSoonLabel={t.profile.comingSoon}
               />

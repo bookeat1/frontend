@@ -40,6 +40,7 @@ import type {
   FavoriteItem,
   FavoriteItems,
   FavoriteKind,
+  FoodieProfile,
   GuideCategory,
   GuideCollection,
   GuideRoute,
@@ -1238,5 +1239,52 @@ export class MockAuthRepository implements AuthRepository {
     }
     this.user = null;
     this.otpPhone = null;
+  }
+
+  /**
+   * In-memory "Фуди-профиль" state, mirroring the real endpoint's own
+   * default: a guest who never saved one reads back empty arrays and a null
+   * budget, never a 404.
+   */
+  private foodieProfile: FoodieProfile = {
+    cuisines: [],
+    diets: [],
+    allergies: [],
+    budget: null,
+  };
+
+  async getFoodieProfile(): Promise<FoodieProfile> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    return this.foodieProfile;
+  }
+
+  /**
+   * Mock of `PUT /users/me/foodie-profile`. Re-checks the two rules the
+   * SERVER enforces (validateFoodieCuisines/validateFoodieDiets in
+   * internal/usecase/users/facade.go) so a validation bug surfaces with no
+   * backend too — the wizard's own UI cannot produce either violation today,
+   * but a future caller of this repository method might.
+   */
+  async replaceFoodieProfile(input: FoodieProfile): Promise<FoodieProfile> {
+    await this.simulateNetwork();
+    if (!this.user) {
+      throw new RepositoryError("Not authenticated", undefined, 401);
+    }
+    if (input.cuisines.length > 5) {
+      throw new RepositoryError("validation: at most 5 cuisines", undefined, 422);
+    }
+    if (input.diets.includes("no_diet") && input.diets.length > 1) {
+      throw new RepositoryError("validation: no_diet cannot combine with other diets", undefined, 422);
+    }
+    this.foodieProfile = {
+      cuisines: [...input.cuisines],
+      diets: [...input.diets],
+      allergies: [...input.allergies],
+      budget: input.budget,
+    };
+    return this.foodieProfile;
   }
 }

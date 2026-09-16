@@ -2,8 +2,11 @@ import { cuisinePhoto } from "../explore/cuisine-photos";
 
 /**
  * Статичные списки плиток визарда «Фуди-профиль». Список задан задачей
- * словами (не приходит ни с одной ручки бэкенда — сохранения фуди-профиля
- * пока нет вовсе), поэтому id — свои, не коды справочника `GET /cuisines`.
+ * словами, а не приходит ни с одной ручки бэкенда (нет справочника вроде
+ * `GET /cuisines` под эти категории) — поэтому id свои. `GET/PUT
+ * /users/me/foodie-profile` (bookeat-backend feat/foodie-profile-backend)
+ * хранит и возвращает РОВНО эти же id 1:1, так что менять их здесь без
+ * согласованной правки на бэкенде нельзя.
  */
 export interface FoodieProfileOption {
   id: string;

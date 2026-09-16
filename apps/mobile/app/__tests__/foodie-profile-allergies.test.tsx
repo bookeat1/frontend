@@ -1,4 +1,5 @@
 import { getDictionary } from "@bookeat/i18n";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
@@ -20,14 +21,30 @@ vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
+// FoodieProfileDraftProvider теперь читает сохранённый профиль (GET) при
+// монтировании — экрану этого шага он не нужен, поэтому ответ пустой, тот же
+// черновик, с которым все эти тесты уже написаны.
+vi.mock("../../src/lib/auth", () => ({
+  useAuth: () => ({
+    status: "signed-in",
+    repository: {
+      getFoodieProfile: vi.fn(async () => ({ cuisines: [], diets: [], allergies: [], budget: null })),
+      replaceFoodieProfile: vi.fn(async (input: unknown) => input),
+    },
+  }),
+}));
+
 const { default: FoodieProfileAllergiesScreen } = await import("../foodie-profile/allergies");
 const { FoodieProfileDraftProvider } = await import("../../src/lib/foodie-profile-draft");
 
 function renderScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <FoodieProfileDraftProvider>
-      <FoodieProfileAllergiesScreen />
-    </FoodieProfileDraftProvider>,
+    <QueryClientProvider client={queryClient}>
+      <FoodieProfileDraftProvider>
+        <FoodieProfileAllergiesScreen />
+      </FoodieProfileDraftProvider>
+    </QueryClientProvider>,
   );
 }
 

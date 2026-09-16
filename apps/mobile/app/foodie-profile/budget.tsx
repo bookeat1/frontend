@@ -23,22 +23,21 @@ const t = getDictionary();
  * гостя — решение и его причина подробно объяснены в
  * `foodie-profile-selection.ts`.
  *
- * ФИНАЛ. Сохранения на бэкенд нет — эндпоинта под фуди-профиль ещё не
- * существует (отдельная будущая задача). Собранный черновик печатается в
- * консоль (`console.info`, только это и остаётся от «отправки» на этом этапе)
- * и визард уходит на `/profile`, откуда его временно и открывают
- * (см. ProfileMenuRow «Фуди-профиль» в profile.tsx).
+ * ФИНАЛ. «Готово» шлёт весь черновик одним `PUT /users/me/foodie-profile`
+ * (`FoodieProfileDraftProvider.save`) и уходит на `/profile` только при
+ * успехе — при отказе черновик остаётся на экране вместе с текстом ошибки,
+ * «Готово» можно нажать ещё раз.
  */
 export default function FoodieProfileBudgetScreen() {
   const router = useRouter();
-  const { draft, setBudget } = useFoodieProfileDraft();
+  const { draft, setBudget, isSaving, saveFailed, save } = useFoodieProfileDraft();
 
   const finish = useCallback(() => {
-    // Временная точка «сохранения», пока эндпоинта фуди-профиля на бэкенде
-    // нет; заменится реальным вызовом API вместе с задачей на бэкенд.
-    console.info("[foodie-profile] draft", draft);
-    router.replace("/profile");
-  }, [draft, router]);
+    void (async () => {
+      const ok = await save();
+      if (ok) router.replace("/profile");
+    })();
+  }, [save, router]);
 
   return (
     <View style={styles.root}>
@@ -47,8 +46,8 @@ export default function FoodieProfileBudgetScreen() {
         <FoodieProfileHeader
           step={4}
           onBack={() => router.back()}
-          nextLabel={t.onboarding.foodieProfile.done}
-          nextEnabled
+          nextLabel={isSaving ? t.common.loading : t.onboarding.foodieProfile.done}
+          nextEnabled={!isSaving}
           onNext={finish}
         />
       </SafeAreaView>
@@ -74,6 +73,12 @@ export default function FoodieProfileBudgetScreen() {
             );
           })}
         </View>
+
+        {saveFailed ? (
+          <Text style={styles.saveError} accessibilityRole="alert">
+            {t.onboarding.foodieProfile.saveFailed}
+          </Text>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -103,5 +108,10 @@ const styles = StyleSheet.create({
   list: {
     marginTop: spacing.lg,
     gap: spacing.sm,
+  },
+  saveError: {
+    ...typography.body,
+    color: colors.brand.primary,
+    marginTop: spacing.md,
   },
 });
