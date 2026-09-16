@@ -65,6 +65,11 @@ import { loginHref } from "@web/lib/return-to";
  * true→false у `signedIn` (сессия БЫЛА и кончилась) сторож трактует как выход
  * и сам ведёт на главную; на `/login` уходит только тот, у кого сессии не было.
  *
+ * Пункт меню «Выйти» сначала открывает подтверждение (Figma
+ * `qmMsg4jO1ggmyEHNIAD2ll`, узел 5265:21449, `signOutDialog`) — случайный
+ * клик не должен ронять сессию сразу, тот же приём, что `CancelBookingDialog`
+ * ниже. Сам выход выполняется только из `onConfirm` диалога.
+ *
  * НИЖЕ `lg` (контракт `apps/web/docs/responsive.md`): структура «Профиля»
  * приложения — карточка, под ней меню на всю ширину, под ним раздел; числа из
  * Figma WEB стоят только под `lg:`. Просветы узкого экрана — шкала Tailwind, как
@@ -86,6 +91,7 @@ export function ProfileScreen() {
   // не должен перебивать переход вторым `replace`.
   const leaving = useRef(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
 
   // Строка поиска (`?section=favorites`) — гость мог прийти сюда прямой
   // ссылкой из подвала на конкретный раздел; `usePathname()` её не содержит,
@@ -118,8 +124,15 @@ export function ProfileScreen() {
     },
   ];
 
-  const handleSignOut = () => {
+  /** Открывает подтверждение — сам выход ждёт клика по «Выйти» в диалоге. */
+  const requestSignOut = () => {
     if (signingOut) return;
+    setSignOutDialogOpen(true);
+  };
+
+  const confirmSignOut = () => {
+    if (signingOut) return;
+    setSignOutDialogOpen(false);
     leaving.current = true;
     setSigningOut(true);
     signOut();
@@ -139,7 +152,7 @@ export function ProfileScreen() {
       <>
         <ProfileCard user={user} fallbackName={t.web.header.account} stats={stats} />
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-profile-content-gap">
-          <ProfileNav active={section} onSignOut={handleSignOut} signingOut={signingOut} />
+          <ProfileNav active={section} onSignOut={requestSignOut} signingOut={signingOut} />
           <div className="min-w-0 flex-1">
             {section === "bookings" ? (
               <BookingsSection
@@ -153,6 +166,9 @@ export function ProfileScreen() {
             )}
           </div>
         </div>
+        {signOutDialogOpen ? (
+          <SignOutDialog onConfirm={confirmSignOut} onClose={() => setSignOutDialogOpen(false)} />
+        ) : null}
       </>
     );
   }
@@ -412,6 +428,34 @@ function CancelBookingDialog({ booking, onClose }: { booking: Booking; onClose: 
             {texts.confirm}
           </Button>
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Подтверждение выхода (Figma `qmMsg4jO1ggmyEHNIAD2ll`, узел 5265:21449,
+ * `signOutDialog`) — тот же узор, что `CancelBookingDialog` выше и
+ * `RemovePreorderDialog` у предзаказа: общий `Modal` + два `Button`, а не
+ * `window.confirm`. Текст диалога — дословно из макета; сам ряд кнопок и
+ * центрированная иконка над заголовком в макете нарисованы иначе, чем в этих
+ * двух уже существующих диалогах — здесь взят их общий узор (кнопка отмены
+ * слева `secondary`, подтверждения справа `primary`, без иконки), а не
+ * нарисован третий вариант компонента ради одной иконки.
+ */
+function SignOutDialog({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
+  const { t } = useLocale();
+  const texts = t.web.profile.signOutDialog;
+
+  return (
+    <Modal title={texts.title} description={texts.text} onClose={onClose}>
+      <div className="flex flex-wrap justify-end gap-3">
+        <Button variant="secondary" size="m" onClick={onClose}>
+          {texts.cancel}
+        </Button>
+        <Button variant="primary" size="m" onClick={onConfirm}>
+          {texts.confirm}
+        </Button>
       </div>
     </Modal>
   );

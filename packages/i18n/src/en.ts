@@ -3122,6 +3122,12 @@ export const en: LocaleOverride<Dictionary> = {
         settings: "Settings",
         signOut: "Sign out",
       },
+      signOutDialog: {
+        title: "Sign out?",
+        text: "Are you sure you want to sign out?",
+        confirm: "Sign out",
+        cancel: "Go back",
+      },
       bookings: {
         title: "My bookings",
         segmentsLabel: "Booking filter",
