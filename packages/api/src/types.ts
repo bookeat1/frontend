@@ -999,9 +999,50 @@ export interface FoodieProfile {
   cuisines: string[];
   diets: string[];
   allergies: string[];
-  /** One of "budget"/"mid"/"premium", or null — the step is optional and
-   * stays unset until the guest actually picks a tier. */
+  /** A `code` from the live budget dictionary (`FoodieProfileOptions.budgets`
+   * — "budget"/"mid"/"premium" today, an admin can add more via the platform
+   * dictionary, spec foodie-profile-admin-dictionaries-20260916), or null —
+   * the step is optional and stays unset until the guest actually picks a
+   * tier. */
   budget: string | null;
+}
+
+/**
+ * One tile of the foodie-profile wizard's live dictionary (`GET
+ * /foodie-profile/options`, spec foodie-profile-admin-dictionaries-20260916)
+ * — a cuisine / diet / allergy option a platform admin manages without a
+ * client release. `code` is the value that round-trips through
+ * `FoodieProfile` (`cuisines`/`diets`/`allergies`); `id` is the dictionary
+ * row's own id, not used for selection. `name` is already resolved
+ * server-side by `Accept-Language`, ru-fallback — never re-pick a locale
+ * client-side.
+ */
+export interface FoodieOption {
+  id: string;
+  code: string;
+  name: string;
+  imageUrl?: string;
+  displayOrder: number;
+}
+
+/** Budget tier tile: same identity as `FoodieOption` plus the copy the
+ * "Ваш бюджет" step shows and the price tier the server's taste-match
+ * formula keys off of (`priceCategory`, mobile does not use it directly). */
+export interface FoodieBudgetOption extends FoodieOption {
+  description?: string;
+  priceLabel?: string;
+  priceCategory?: string;
+}
+
+/** `GET /foodie-profile/options` response — public (no session), only
+ * ACTIVE entries, sorted by `display_order, name`. This is the source of
+ * truth for what the wizard's four screens render — the client no longer
+ * ships its own hardcoded option lists. */
+export interface FoodieProfileOptions {
+  cuisines: FoodieOption[];
+  diets: FoodieOption[];
+  allergies: FoodieOption[];
+  budgets: FoodieBudgetOption[];
 }
 
 /**

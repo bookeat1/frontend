@@ -101,6 +101,26 @@ export {
   type VenueSaveOutcome,
 } from "./cuisines";
 export {
+  FOODIE_DIET_EXCLUSIVE_CODE,
+  FOODIE_OPTION_KINDS,
+  FOODIE_PRICE_CATEGORIES,
+  buildFoodieI18nField,
+  canHideFoodieOption,
+  classifyFoodieOptionFailure,
+  flattenFoodieOptions,
+  isLastActiveOfKind,
+  reorderFoodieOptions,
+  sortFoodieOptions,
+  type FoodieOptionBuckets,
+  type FoodieOptionEntry,
+  type FoodieOptionFailure,
+  type FoodieOptionFailureKind,
+  type FoodieOptionKind,
+  type FoodieOptionSaveInput,
+  type FoodieOptionsAdminResponse,
+  type FoodiePriceCategory,
+} from "./foodie-options";
+export {
   MAX_VENUE_FEATURES,
   activeVenueFeatures,
   mergeVenueFeatureOptions,

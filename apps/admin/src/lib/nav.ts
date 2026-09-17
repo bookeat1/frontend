@@ -55,6 +55,10 @@ export const NAV: NavGroup[] = [
       { href: "/platform", label: t.admin.nav.platform },
       { href: "/venues", label: t.admin.nav.venues },
       { href: "/cuisines", label: t.admin.nav.cuisines },
+      // Справочник вариантов визарда «Фуди-профиль» (кухни-плитки, диеты,
+      // аллергии, бюджет) — тот же расклад, что у «Кухонь»: платформенный
+      // справочник, суперадмин-only, работает без выбранного заведения.
+      { href: "/foodie-options", label: t.admin.nav.foodieOptions },
       { href: "/venue-features", label: t.admin.nav.venueFeatures },
       { href: "/cities", label: t.admin.nav.cities },
       { href: "/platform-guests", label: t.admin.nav.platformGuests },

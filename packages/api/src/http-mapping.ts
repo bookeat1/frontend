@@ -28,6 +28,8 @@ import type {
   DayAvailability,
   EventAction,
   EventSummary,
+  FoodieBudgetOption,
+  FoodieOption,
   FoodieProfile,
   GuideCategory,
   GuideCollection,
@@ -872,6 +874,63 @@ export function mapFoodieProfile(api: ApiFoodieProfile): FoodieProfile {
     diets: stringIdList(api.diets),
     allergies: stringIdList(api.allergies),
     budget: text(api.budget) || null,
+  };
+}
+
+/**
+ * One entry of `GET /foodie-profile/options` (spec
+ * foodie-profile-admin-dictionaries-20260916 §5,
+ * internal/transport/rest/foodieoptions on bookeat-backend). `name` is
+ * already resolved by `Accept-Language`/`?lang=` with ru fallback, the same
+ * way `/cuisines` resolves its own `name` — `name_i18n` is carried on the
+ * wire for the admin app, mobile never reads it.
+ */
+export interface ApiFoodieOption {
+  id: string;
+  code: string;
+  name: string;
+  name_i18n?: Record<string, string>;
+  image_url?: string | null;
+  display_order: number;
+}
+
+/** Budget tier adds the step-4 card copy and the price tier the server's
+ * taste-match formula keys off of. */
+export interface ApiFoodieBudgetOption extends ApiFoodieOption {
+  description?: string | null;
+  description_i18n?: Record<string, string>;
+  price_label?: string | null;
+  price_label_i18n?: Record<string, string>;
+  price_category?: string | null;
+}
+
+export interface ApiFoodieProfileOptions {
+  cuisines?: ApiFoodieOption[];
+  diets?: ApiFoodieOption[];
+  allergies?: ApiFoodieOption[];
+  budgets?: ApiFoodieBudgetOption[];
+}
+
+export function mapFoodieOption(api: ApiFoodieOption): FoodieOption {
+  const imageUrl = text(api.image_url);
+  return {
+    id: text(api.id),
+    code: text(api.code),
+    name: text(api.name),
+    ...(imageUrl ? { imageUrl } : {}),
+    displayOrder: api.display_order ?? 0,
+  };
+}
+
+export function mapFoodieBudgetOption(api: ApiFoodieBudgetOption): FoodieBudgetOption {
+  const description = text(api.description);
+  const priceLabel = text(api.price_label);
+  const priceCategory = text(api.price_category);
+  return {
+    ...mapFoodieOption(api),
+    ...(description ? { description } : {}),
+    ...(priceLabel ? { priceLabel } : {}),
+    ...(priceCategory ? { priceCategory } : {}),
   };
 }
 

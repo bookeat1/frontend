@@ -67,6 +67,11 @@ env:
   # secret, checked against a guest's `?promo=` before it is ever sent as
   # CreateBookingInput.promotionId (apps/web/src/lib/campaign-attribution.ts).
   NEXT_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
+  # Amplitude client-side WRITE key of the PRODUCTION project (the stand uses
+  # a different one in deploy-web-test.yml; same value as the production key
+  # in deploy-admin-prod.yml — one Amplitude project across site, app and
+  # panel, web-amplitude-analytics-20260916.md §6 🟡1).
+  NEXT_PUBLIC_AMPLITUDE_API_KEY: d084c0beaf84da775fd428b3b5544b57
   PUBLIC_URL: https://book-eat.com
   WEB_ROOT: /opt/bookeat/web
   # Neighbours on the same host and the same Caddy. They must survive every
@@ -199,6 +204,16 @@ jobs:
             echo "::error::robots.txt in this build does not advertise $NEXT_PUBLIC_SITE_URL/sitemap.xml — NEXT_PUBLIC_SITE_URL/NEXT_PUBLIC_ROBOTS_INDEX did not reach the build."
             exit 1
           }
+          # Same two-sided check as deploy-admin-prod.yml: the production
+          # Amplitude key must be IN the bundle, and the stand's key must not.
+          grep -rq "$NEXT_PUBLIC_AMPLITUDE_API_KEY" "$std/apps/web/.next/static" || {
+            echo "::error::The production Amplitude key is not in the bundle."
+            exit 1
+          }
+          if grep -rq "ea6dc484a21af0092fc13af158f8c404" "$std/apps/web/.next/static"; then
+            echo "::error::The STAND Amplitude key is present in a production bundle."
+            exit 1
+          fi
           # Served as /release.txt so the verification steps can prove the swap
           # took effect, not merely that something is up.
           printf '%s\n%s\n' "$RELEASE" "$GITHUB_SHA" > "$std/apps/web/public/release.txt"

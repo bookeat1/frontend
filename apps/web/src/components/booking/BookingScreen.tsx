@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Restaurant } from "@bookeat/api/client";
+import { RepositoryError, type Restaurant } from "@bookeat/api/client";
 
 import {
   ContactsCard,
@@ -14,6 +14,8 @@ import {
   type ContactsValue,
   type WishKey,
 } from "@web/components/booking/BookingCards";
+import { trackEvent } from "@web/lib/analytics";
+import { confirmErrorReason } from "@web/lib/booking-error-analytics";
 import {
   BookingSummary,
   type PreorderSummary,
@@ -174,6 +176,19 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   const formRef = useRef<HTMLDivElement>(null);
 
   const rescheduleId = intent.changeBookingId;
+
+  /**
+   * `booking_start` один раз при открытии формы В РЕЖИМЕ СОЗДАНИЯ. Перенос
+   * брони (`?change=`) — другой сценарий (см. 🟡6 спеки), событие ему не
+   * положено. `BookingForm` смонтирован с `key={data.id}` в `BookingScreen`
+   * выше, так что повторный рендер (смена даты/гостей/времени) этот эффект
+   * не перезапускает — только настоящее повторное открытие формы.
+   */
+  useEffect(() => {
+    if (rescheduleId) return;
+    trackEvent("booking_start", { restaurant_id: venue.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venue.id]);
 
   useEffect(() => {
     const iso = todayIso();
@@ -395,9 +410,29 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
         onSuccess: ({ booking, preorderFailed, preorderFailureReason }) => {
           preorderDraft.clear();
           if (preorderFailed) markPreorderFailed(booking.id, preorderFailureReason);
+          // Уходит и когда предзаказ не прикрепился (`preorderFailed`) — бронь
+          // в этом случае всё равно есть, свойств про предзаказ в событии нет.
+          trackEvent("booking_confirm", {
+            restaurant_id: venue.id,
+            // Та же метка, что ушла в `promotionId` этого запроса, зеркалом
+            // мобилки: `null`, а не отсутствие ключа, когда метки нет.
+            campaign_id: readCampaignAttribution() ?? null,
+          });
           onSuccess(booking.id);
         },
-        onError: (error) => setFailure(describeBookingFailure(error, t, () => setSlot(null))),
+        onError: (error) => {
+          setFailure(describeBookingFailure(error, t, () => setSlot(null)));
+          // Провал подтверждения виден в аналитике ровно так же, как успех —
+          // иначе `booking_confirm` рисовал бы воронку без единого отказа.
+          // Текст ошибки сервера НЕ шлём: он свободный, и однажды в него
+          // попадёт эхо тела запроса с именем или телефоном.
+          trackEvent("booking_confirm_error", {
+            restaurant_id: venue.id,
+            reason: confirmErrorReason(error),
+            status: error instanceof RepositoryError ? (error.status ?? null) : null,
+            code: error instanceof RepositoryError ? (error.code ?? null) : null,
+          });
+        },
       },
     );
   }

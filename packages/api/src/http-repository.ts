@@ -13,6 +13,8 @@ import {
   mapBooking,
   mapEventSummary,
   mapFavoriteItems,
+  mapFoodieBudgetOption,
+  mapFoodieOption,
   mapFoodieProfile,
   mapGuideCategories,
   mapGuideCollections,
@@ -41,6 +43,7 @@ import {
   type ApiFavoriteItems,
   type ApiFeedItem,
   type ApiFoodieProfile,
+  type ApiFoodieProfileOptions,
   type ApiGuideCategory,
   type ApiGuideCollection,
   type ApiGuideCollectionDetail,
@@ -85,6 +88,7 @@ import type {
   FavoriteItems,
   FavoriteKind,
   FoodieProfile,
+  FoodieProfileOptions,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -201,6 +205,15 @@ function localizedFeatureName(entry: ApiVenueFeatureEntry, language?: string): s
   const base = (language ?? "").trim().toLowerCase().split(/[-_]/)[0];
   const translated = base ? entry.name_i18n?.[base] : undefined;
   return translated?.trim() || entry.name;
+}
+
+/** Defensive re-sort for one list of `GET /foodie-profile/options` — same
+ * `display_order, name` rule as `sortCuisines`, reused here as-is since the
+ * shape requirement (`display_order` + `name`) is identical. */
+function sortFoodieOptions<T extends { display_order: number; name: string }>(
+  items: T[] | undefined,
+): T[] {
+  return sortCuisines((items ?? []).map((entry) => ({ ...entry, display_order: entry.display_order ?? 0 })));
 }
 
 /**
@@ -443,6 +456,27 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     return sortCuisines(
       active.map((entry) => ({ ...entry, display_order: entry.display_order ?? 0 })),
     ).map(mapCuisine);
+  }
+
+  /**
+   * `GET /foodie-profile/options` — the foodie-profile wizard's live
+   * dictionary (spec foodie-profile-admin-dictionaries-20260916). Only
+   * ACTIVE entries, `name` already resolved by the `Accept-Language` header
+   * this client already sends on every request — no client-side locale
+   * pick, unlike the old bundled i18n option lists this replaces.
+   *
+   * Re-sorted here the same defensive way `getCuisines` re-sorts its own
+   * list: the server already orders by `display_order, name`, but trusting
+   * that silently is the class of drift this codebase avoids elsewhere.
+   */
+  async getFoodieProfileOptions(): Promise<FoodieProfileOptions> {
+    const data = await this.client.get<ApiFoodieProfileOptions>("/foodie-profile/options");
+    return {
+      cuisines: sortFoodieOptions(data.cuisines).map(mapFoodieOption),
+      diets: sortFoodieOptions(data.diets).map(mapFoodieOption),
+      allergies: sortFoodieOptions(data.allergies).map(mapFoodieOption),
+      budgets: sortFoodieOptions(data.budgets).map(mapFoodieBudgetOption),
+    };
   }
 
   /**
