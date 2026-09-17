@@ -15,6 +15,7 @@ import type {
   AdminMenuCategory,
   AdminMenuItem,
   AdminMenuTopPick,
+  MenuItemPatch,
   AdminPromo,
   ApiPage,
   AuthUser,
@@ -1553,6 +1554,21 @@ export class AdminApiClient {
         itemId,
       )}/availability`,
       { body: { is_available: isAvailable } },
+    );
+  }
+
+  /**
+   * PATCH /admin/restaurants/:id/menu-items/:itemId — partial update of one
+   * dish. The panel only edits the photo today (see MenuItemPatch); the
+   * server-side pointer fields mean any key left out of `patch` is untouched.
+   */
+  updateMenuItem(restaurantId: string, itemId: string, patch: MenuItemPatch): Promise<AdminMenuItem> {
+    return this.request<AdminMenuItem>(
+      "PATCH",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/menu-items/${encodeURIComponent(
+        itemId,
+      )}`,
+      { body: patch },
     );
   }
 

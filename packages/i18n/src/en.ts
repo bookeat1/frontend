@@ -660,6 +660,12 @@ export const en: LocaleOverride<Dictionary> = {
       uncategorized: "Uncategorized",
       searchPlaceholder: "Search by name",
       noPhoto: "No photo",
+      editPhoto: "Edit",
+      editPhotoAria: (dish: string) => `Edit photo: ${dish}`,
+      editPhotoTitle: (dish: string) => `Photo of "${dish}"`,
+      fieldPhoto: "Photo",
+      photoSave: "Save",
+      photoSaveFailed: "Couldn't save the photo — try again",
       topPicks: {
         title: "Top picks",
         description:

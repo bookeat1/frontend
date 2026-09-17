@@ -664,6 +664,12 @@ export const kk: LocaleOverride<Dictionary> = {
       uncategorized: "Санатсыз",
       searchPlaceholder: "Атауы бойынша іздеу",
       noPhoto: "Фото жоқ",
+      editPhoto: "Өзгерту",
+      editPhotoAria: (dish: string) => `Фотоны өзгерту: ${dish}`,
+      editPhotoTitle: (dish: string) => `«${dish}» тағамының фотосы`,
+      fieldPhoto: "Фото",
+      photoSave: "Сақтау",
+      photoSaveFailed: "Фотоны сақтау мүмкін болмады — қайталап көріңіз",
       topPicks: {
         title: "Үздік тағамдар",
         description:
