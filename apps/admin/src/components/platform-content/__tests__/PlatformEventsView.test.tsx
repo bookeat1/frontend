@@ -57,6 +57,9 @@ function makeClient(over: Partial<Record<string, unknown>> = {}) {
     ),
     updateEvent: vi.fn(async () => event()),
     deleteEvent: vi.fn(async () => undefined),
+    listPushCampaigns: vi.fn(async () => []),
+    estimatePushCampaign: vi.fn(),
+    createPushCampaign: vi.fn(),
     ...over,
   };
 }

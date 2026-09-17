@@ -15,6 +15,7 @@ import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
 import { formatDateTime, isoToLocalInput, localInputToIso } from "@/lib/format";
 import { t } from "@/lib/i18n";
+import { usePushCampaigns } from "@/lib/use-push-campaigns";
 import { Button } from "./ui/Button";
 import { FeedControl } from "./ui/FeedControl";
 import { Field, TextInput, CheckboxRow } from "./ui/FormControls";
@@ -22,6 +23,7 @@ import { ImageGalleryField } from "./ui/ImageGalleryField";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
+import { PushCampaignControl } from "./ui/PushCampaignControl";
 import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { translationErrorMessage } from "./translation-copy";
@@ -78,6 +80,11 @@ export function PromosView() {
     }
     return map;
   }, [feedQuery.data]);
+
+  const { query: pushCampaignsQuery, bySubjectId: pushCampaignsBySubjectId } = usePushCampaigns({
+    kind: "promo",
+    restaurantId,
+  });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
@@ -198,6 +205,15 @@ export function PromosView() {
                     state={feedByItemId.get(p.id)}
                     listQueryKey={queryKey}
                   />
+
+                  {p.status === "published" ? (
+                    <PushCampaignControl
+                      kind="promo"
+                      subjectId={p.id}
+                      campaign={pushCampaignsBySubjectId.get(p.id)}
+                      onSent={() => void pushCampaignsQuery.refetch()}
+                    />
+                  ) : null}
                 </li>
               );
             })}

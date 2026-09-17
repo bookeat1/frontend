@@ -45,6 +45,7 @@ vi.mock("@/lib/api", () => ({
     listEvents: vi.fn(async () => page(events.value)),
     listEventRecurrences: vi.fn(async () => page(recurrences.value)),
     listVenueFeed: vi.fn(async () => page([])),
+    listPushCampaigns: vi.fn(async () => []),
     updateEvent,
     deleteEvent,
     updateEventRecurrence,

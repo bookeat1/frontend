@@ -22,6 +22,17 @@ export function formatDateTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? "—" : dateTimeFmt.format(d);
 }
 
+/** "DD.MM HH:mm", the exact shape the push-campaign badge quotes (spec
+ * "Пуш отправлен DD.MM HH:mm · N") — `formatDateTime`'s localized short month
+ * ("17 сент.") is a word, and Russian month names are exactly the kind of
+ * long word this badge's fixed-width pill has no room for. */
+export function formatShortDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Today's date as "YYYY-MM-DD" in the local timezone (for the bookings filter
  * default and the <input type="date"> value). */
 export function todayISODate(): string {
