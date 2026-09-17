@@ -1,14 +1,20 @@
 import type {
   ActionUrlProblem,
+  FoodieOptionFailureKind,
   PlatformContentFailureKind,
   PromoCodeFailureKind,
 } from "@bookeat/api/admin";
-import { classifyPlatformContentFailure, classifyPromoCodeFailure } from "@bookeat/api/admin";
+import {
+  classifyFoodieOptionFailure,
+  classifyPlatformContentFailure,
+  classifyPromoCodeFailure,
+} from "@bookeat/api/admin";
 
 import { t } from "@/lib/i18n";
 
 export const copy = t.admin.platformContent;
 export const promoCodesCopy = t.admin.promoCodes;
+export const foodieOptionsCopy = t.admin.foodieOptions;
 
 /**
  * Формулировка на каждый исход отказа, исчерпывающе по типу: новый вид отказа
@@ -67,4 +73,22 @@ const PROMO_CODE_FAILURE_TEXT: Record<PromoCodeFailureKind, string> = {
 
 export function promoCodeErrorText(error: unknown): string {
   return PROMO_CODE_FAILURE_TEXT[classifyPromoCodeFailure(error).kind];
+}
+
+/** Формулировка на каждый исход отказа записи варианта фуди-профиля. Узкого
+ * кода на запрет скрыть `no_diet`/последний активный или на «код неизменяем»
+ * сервер не заводит (все — общий 422 `validation`), поэтому эти причины
+ * панель объясняет ДО отправки (см. `canHideFoodieOption`), а здесь — только
+ * то, что сервер различает по-настоящему. */
+const FOODIE_OPTION_FAILURE_TEXT: Record<FoodieOptionFailureKind, string> = {
+  refused: foodieOptionsCopy.errorRefused,
+  duplicate: foodieOptionsCopy.errorDuplicate,
+  forbidden: foodieOptionsCopy.errorForbidden,
+  unauthorized: foodieOptionsCopy.errorUnauthorized,
+  not_found: foodieOptionsCopy.errorNotFound,
+  unknown: foodieOptionsCopy.errorUnknown,
+};
+
+export function foodieOptionErrorText(error: unknown): string {
+  return FOODIE_OPTION_FAILURE_TEXT[classifyFoodieOptionFailure(error).kind];
 }

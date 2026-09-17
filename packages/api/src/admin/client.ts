@@ -2,6 +2,7 @@ import { RepositoryError } from "../repository";
 import type { SocialLink, SocialLinkInput } from "./social-links";
 import type { CityDictionaryEntry, CitySaveInput } from "./cities";
 import type { CuisineDictionaryEntry, CuisineSaveInput } from "./cuisines";
+import type { FoodieOptionEntry, FoodieOptionSaveInput, FoodieOptionsAdminResponse } from "./foodie-options";
 import type { VenueFeatureDictionaryEntry, VenueFeatureSaveInput } from "./venue-features";
 import type {
   AdminBooking,
@@ -411,6 +412,48 @@ export class AdminApiClient {
       "PUT",
       `/restaurants/${encodeURIComponent(restaurantId)}/cuisines`,
       { body: { cuisine_ids: [...cuisineIds] } },
+    );
+  }
+
+  // ---- Фуди-профиль: варианты кухонь/диет/аллергий/бюджета -----------------
+  //
+  // Тот же расклад, что у справочника кухонь: `GET /foodie-profile/options`
+  // публичен (визард гостя), управление (`/admin/foodie-profile/options`) —
+  // под RequireRole(RoleAdmin). Ответ у GET и PATCH/POST/DELETE один и тот же
+  // объект-бакет {cuisines, diets, allergies, budgets} (спека §5), поэтому
+  // одна страница читает все четыре вкладки одним запросом.
+
+  /** GET /admin/foodie-profile/options — все варианты, включая скрытые. */
+  listFoodieOptionsForAdmin(): Promise<FoodieOptionsAdminResponse> {
+    return this.request<FoodieOptionsAdminResponse>("GET", "/admin/foodie-profile/options");
+  }
+
+  /** POST /admin/foodie-profile/options. */
+  createFoodieOption(input: FoodieOptionSaveInput): Promise<FoodieOptionEntry> {
+    return this.request<FoodieOptionEntry>("POST", "/admin/foodie-profile/options", {
+      body: input,
+    });
+  }
+
+  /** PATCH /admin/foodie-profile/options/:id — меняет только присланные ключи. */
+  updateFoodieOption(id: string, input: FoodieOptionSaveInput): Promise<FoodieOptionEntry> {
+    return this.request<FoodieOptionEntry>(
+      "PATCH",
+      `/admin/foodie-profile/options/${encodeURIComponent(id)}`,
+      { body: input },
+    );
+  }
+
+  /**
+   * DELETE /admin/foodie-profile/options/:id — СКРЫВАЕТ запись
+   * (`is_active = false`), как у кухонь: жёсткого удаления в API нет (на
+   * скрытый код ссылаются `user_foodie_*` без FK). Вернуть —
+   * `updateFoodieOption(id, {is_active: true})`.
+   */
+  hideFoodieOption(id: string): Promise<FoodieOptionEntry> {
+    return this.request<FoodieOptionEntry>(
+      "DELETE",
+      `/admin/foodie-profile/options/${encodeURIComponent(id)}`,
     );
   }
 
