@@ -1,8 +1,12 @@
+import { __mockFoodieProfileOptions, RepositoryError, type FoodieProfile } from "@bookeat/api";
+import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const t = getDictionary("ru");
 
 /**
  * Шаг 2/4 — «Диетические предпочтения» (Figma node 5062:5734).
@@ -23,31 +27,53 @@ vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
+vi.mock("../../src/lib/locale", () => ({
+  useLocale: () => ({ locale: "ru", dictionary: t, setLocale: vi.fn() }),
+}));
+
 // FoodieProfileDraftProvider теперь читает сохранённый профиль (GET) при
-// монтировании — экрану этого шага он не нужен, поэтому ответ пустой, тот же
-// черновик, с которым все эти тесты уже написаны.
+// монтировании — по умолчанию пустой, тот же черновик, с которым все эти
+// тесты уже написаны; тест на «скрытый, но выбранный» код переопределяет его.
+const getFoodieProfile = vi.fn(async (): Promise<FoodieProfile> => ({ cuisines: [], diets: [], allergies: [], budget: null }));
+const replaceFoodieProfile = vi.fn(async (input: unknown) => input);
 vi.mock("../../src/lib/auth", () => ({
   useAuth: () => ({
     status: "signed-in",
-    repository: {
-      getFoodieProfile: vi.fn(async () => ({ cuisines: [], diets: [], allergies: [], budget: null })),
-      replaceFoodieProfile: vi.fn(async (input: unknown) => input),
-    },
+    repository: { getFoodieProfile, replaceFoodieProfile },
   }),
 }));
+
+const getFoodieProfileOptions = vi.fn(async () => __mockFoodieProfileOptions);
+vi.mock("../../src/lib/repository", () => ({
+  useRepository: () => ({ getFoodieProfileOptions }),
+}));
+
+beforeEach(() => {
+  getFoodieProfile.mockClear();
+  getFoodieProfile.mockImplementation(async () => ({
+    cuisines: [],
+    diets: [],
+    allergies: [],
+    budget: null,
+  }));
+  getFoodieProfileOptions.mockClear();
+  getFoodieProfileOptions.mockImplementation(async () => __mockFoodieProfileOptions);
+});
 
 const { default: FoodieProfileDietScreen } = await import("../foodie-profile/diet");
 const { FoodieProfileDraftProvider } = await import("../../src/lib/foodie-profile-draft");
 
-function renderScreen() {
+async function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const utils = render(
     <QueryClientProvider client={queryClient}>
       <FoodieProfileDraftProvider>
         <FoodieProfileDietScreen />
       </FoodieProfileDraftProvider>
     </QueryClientProvider>,
   );
+  await waitFor(() => expect(screen.getByText("Без диеты")).toBeTruthy());
+  return utils;
 }
 
 function tile(name: string) {
@@ -61,7 +87,7 @@ function isChecked(name: string): boolean {
 describe("шаг «Диетические предпочтения»", () => {
   it("«Без диеты» снимает уже выбранные обычные пункты", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await user.click(screen.getByText("Веган"));
     await user.click(screen.getByText("Кето"));
@@ -77,7 +103,7 @@ describe("шаг «Диетические предпочтения»", () => {
 
   it("выбор обычного пункта снимает активное «Без диеты»", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await user.click(screen.getByText("Без диеты"));
     expect(isChecked("Без диеты")).toBe(true);
@@ -90,7 +116,7 @@ describe("шаг «Диетические предпочтения»", () => {
 
   it("обычные пункты мультивыбираются между собой свободно", async () => {
     const user = userEvent.setup();
-    renderScreen();
+    await renderScreen();
 
     await user.click(screen.getByText("Кето"));
     await user.click(screen.getByText("Палео"));
@@ -99,8 +125,64 @@ describe("шаг «Диетические предпочтения»", () => {
     expect(isChecked("Палео")).toBe(true);
   });
 
-  it("«Без лактозы» встречается на экране один раз, а не дважды (дубль макета не перенесён)", () => {
-    renderScreen();
+  it("«Без лактозы» встречается на экране один раз, а не дважды (дубль макета не перенесён)", async () => {
+    await renderScreen();
     expect(screen.getAllByText("Без лактозы")).toHaveLength(1);
+  });
+
+  it("пока справочник грузится — крутилка, «Далее» недоступна", async () => {
+    let resolveOptions: (value: typeof __mockFoodieProfileOptions) => void;
+    getFoodieProfileOptions.mockImplementation(
+      () => new Promise((resolve) => (resolveOptions = resolve)),
+    );
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FoodieProfileDraftProvider>
+          <FoodieProfileDietScreen />
+        </FoodieProfileDraftProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(t.onboarding.foodieProfile.optionsLoading)).toBeTruthy();
+    expect(screen.queryByText("Без диеты")).toBeNull();
+
+    resolveOptions!(__mockFoodieProfileOptions);
+    await waitFor(() => expect(screen.getByText("Без диеты")).toBeTruthy());
+  });
+
+  it("сбой загрузки справочника показывает ошибку с «Повторить»", async () => {
+    getFoodieProfileOptions.mockRejectedValueOnce(
+      new RepositoryError("simulated offline", undefined, undefined, undefined, undefined, undefined, true),
+    );
+
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FoodieProfileDraftProvider>
+          <FoodieProfileDietScreen />
+        </FoodieProfileDraftProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: t.common.retry }));
+    await waitFor(() => expect(screen.getByText("Без диеты")).toBeTruthy());
+  });
+
+  it("диета, скрытая админом, но уже выбранная гостем раньше, рисуется отмеченной с запасной подписью", async () => {
+    getFoodieProfile.mockImplementation(async () => ({
+      cuisines: [],
+      diets: ["vegan", "raw_food"],
+      allergies: [],
+      budget: null,
+    }));
+
+    await renderScreen();
+
+    const hiddenTile = await screen.findByRole("checkbox", { name: "raw_food" });
+    expect(hiddenTile.getAttribute("aria-checked")).toBe("true");
+    expect(isChecked("Веган")).toBe(true);
   });
 });

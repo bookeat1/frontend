@@ -1,21 +1,25 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { DataErrorState } from "../../src/components/DataErrorState";
 import { FoodieProfileHeader } from "../../src/components/foodie-profile/FoodieProfileHeader";
 import { FoodieProfileTileGrid } from "../../src/components/foodie-profile/FoodieProfileTileGrid";
-import { DIET_OPTIONS } from "../../src/components/foodie-profile/foodie-profile-options";
+import { LoadingState } from "../../src/components/StateViews";
+import { useFoodieOptions } from "../../src/hooks/useFoodieOptions";
 import { useFoodieProfileDraft } from "../../src/lib/foodie-profile-draft";
+import { withHiddenSelected } from "../../src/lib/foodie-profile-visible-options";
 
 const t = getDictionary();
 
 /**
  * Шаг 2/4 — «Диетические предпочтения» (Figma node 5062:5734).
  *
- * В макете «Без лактозы» нарисована ДВАЖДЫ — дубль макета, не перенесён в код
- * (см. `DIET_OPTIONS`, там ровно 10 уникальных пунктов).
+ * ВАРИАНТЫ — живой справочник (`useFoodieOptions()`), см. `cuisine.tsx` для
+ * полного обоснования состояний загрузки/ошибки и `withHiddenSelected` —
+ * то же решение применяется здесь один в один.
  *
  * «Без диеты» ЭКСКЛЮЗИВЕН относительно остальных девяти (решение агента,
  * обоснование — в `foodie-profile-selection.ts`): выбор снимает всё прочее и
@@ -24,7 +28,13 @@ const t = getDictionary();
 export default function FoodieProfileDietScreen() {
   const router = useRouter();
   const { draft, toggleDiet } = useFoodieProfileDraft();
+  const optionsQuery = useFoodieOptions();
   const selected = draft.diets;
+
+  const options = useMemo(
+    () => withHiddenSelected(optionsQuery.data?.diets ?? [], selected),
+    [optionsQuery.data, selected],
+  );
 
   return (
     <View style={styles.root}>
@@ -34,7 +44,7 @@ export default function FoodieProfileDietScreen() {
           step={2}
           onBack={() => router.back()}
           nextLabel={t.onboarding.foodieProfile.next}
-          nextEnabled={selected.length > 0}
+          nextEnabled={optionsQuery.isSuccess && selected.length > 0}
           onNext={() => router.push("/foodie-profile/allergies")}
         />
       </SafeAreaView>
@@ -45,18 +55,15 @@ export default function FoodieProfileDietScreen() {
         </Text>
         <Text style={styles.subtitle}>{t.onboarding.foodieProfile.diet.subtitle}</Text>
 
-        <View style={styles.grid}>
-          <FoodieProfileTileGrid
-            options={DIET_OPTIONS}
-            selected={selected}
-            labelFor={(id) =>
-              t.onboarding.foodieProfile.diet.options[
-                id as keyof typeof t.onboarding.foodieProfile.diet.options
-              ]
-            }
-            onToggle={(id) => toggleDiet(id)}
-          />
-        </View>
+        {optionsQuery.isLoading ? (
+          <LoadingState title={t.onboarding.foodieProfile.optionsLoading} compact />
+        ) : optionsQuery.isError ? (
+          <DataErrorState error={optionsQuery.error} onRetry={() => void optionsQuery.refetch()} compact />
+        ) : (
+          <View style={styles.grid}>
+            <FoodieProfileTileGrid options={options} selected={selected} onToggle={(code) => toggleDiet(code)} />
+          </View>
+        )}
       </ScrollView>
     </View>
   );

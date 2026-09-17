@@ -1,24 +1,36 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { DataErrorState } from "../../src/components/DataErrorState";
 import { FoodieProfileHeader } from "../../src/components/foodie-profile/FoodieProfileHeader";
 import { FoodieProfileTileGrid } from "../../src/components/foodie-profile/FoodieProfileTileGrid";
-import { ALLERGY_OPTIONS } from "../../src/components/foodie-profile/foodie-profile-options";
+import { LoadingState } from "../../src/components/StateViews";
+import { useFoodieOptions } from "../../src/hooks/useFoodieOptions";
 import { useFoodieProfileDraft } from "../../src/lib/foodie-profile-draft";
+import { withHiddenSelected } from "../../src/lib/foodie-profile-visible-options";
 
 const t = getDictionary();
 
 /**
  * Шаг 3/4 — «Аллергии» (Figma node 5062:5841). Мультивыбор без лимита и без
  * эксклюзивных пунктов — проще экрана диет, ловить тут нечего.
+ *
+ * ВАРИАНТЫ — живой справочник (`useFoodieOptions()`), см. `cuisine.tsx` для
+ * полного обоснования состояний загрузки/ошибки и `withHiddenSelected`.
  */
 export default function FoodieProfileAllergiesScreen() {
   const router = useRouter();
   const { draft, toggleAllergy } = useFoodieProfileDraft();
+  const optionsQuery = useFoodieOptions();
   const selected = draft.allergies;
+
+  const options = useMemo(
+    () => withHiddenSelected(optionsQuery.data?.allergies ?? [], selected),
+    [optionsQuery.data, selected],
+  );
 
   return (
     <View style={styles.root}>
@@ -32,8 +44,9 @@ export default function FoodieProfileAllergiesScreen() {
           // эксклюзивный пункт «без диеты»), у аллергий нет пункта «нет
           // аллергий» — пустой выбор ЗДЕСЬ означает именно «нет аллергий», а
           // не «гость ещё не ответил». Требовать выбор было багом: гость без
-          // аллергий не мог пройти дальше вовсе.
-          nextEnabled
+          // аллергий не мог пройти дальше вовсе. Живой справочник всё равно
+          // обязан загрузиться — без него «Далее» недоступна.
+          nextEnabled={optionsQuery.isSuccess}
           onNext={() => router.push("/foodie-profile/budget")}
         />
       </SafeAreaView>
@@ -44,18 +57,19 @@ export default function FoodieProfileAllergiesScreen() {
         </Text>
         <Text style={styles.subtitle}>{t.onboarding.foodieProfile.allergies.subtitle}</Text>
 
-        <View style={styles.grid}>
-          <FoodieProfileTileGrid
-            options={ALLERGY_OPTIONS}
-            selected={selected}
-            labelFor={(id) =>
-              t.onboarding.foodieProfile.allergies.options[
-                id as keyof typeof t.onboarding.foodieProfile.allergies.options
-              ]
-            }
-            onToggle={(id) => toggleAllergy(id)}
-          />
-        </View>
+        {optionsQuery.isLoading ? (
+          <LoadingState title={t.onboarding.foodieProfile.optionsLoading} compact />
+        ) : optionsQuery.isError ? (
+          <DataErrorState error={optionsQuery.error} onRetry={() => void optionsQuery.refetch()} compact />
+        ) : (
+          <View style={styles.grid}>
+            <FoodieProfileTileGrid
+              options={options}
+              selected={selected}
+              onToggle={(code) => toggleAllergy(code)}
+            />
+          </View>
+        )}
       </ScrollView>
     </View>
   );

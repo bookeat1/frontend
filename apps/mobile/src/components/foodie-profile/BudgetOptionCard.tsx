@@ -10,6 +10,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
  * Невыбранная — `background.chip`-подобная светло-серая заливка без обводки
  * (`colors.onboarding.budgetCardSurface`, #FAFAFA); выбранная — почти белая
  * (`budgetCardSelectedSurface`, #FFFBFB) с обводкой бренда 1.5, как в макете.
+ *
+ * `description`/`price` необязательны: «осиротевшая» карточка — ярус, который
+ * гость выбрал раньше, а админ потом скрыл (`withHiddenSelected`), — несёт
+ * только код без перевода (нет активной записи справочника, чтобы взять
+ * из неё копию), а не полный набор полей.
  */
 export function BudgetOptionCard({
   name,
@@ -19,16 +24,16 @@ export function BudgetOptionCard({
   onPress,
 }: {
   name: string;
-  description: string;
-  price: string;
+  description?: string;
+  price?: string;
   selected: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityLabel={`${name}, ${price}`}
-      accessibilityHint={description}
+      accessibilityLabel={price ? `${name}, ${price}` : name}
+      accessibilityHint={description || undefined}
       // `aria-checked`, а не `accessibilityState` — см. SelectableTile.tsx.
       aria-checked={selected}
       onPress={onPress}
@@ -36,11 +41,13 @@ export function BudgetOptionCard({
     >
       <View style={styles.copy}>
         <Text style={styles.name}>{name}</Text>
-        <Text style={styles.description} numberOfLines={2}>
-          {description}
-        </Text>
+        {description ? (
+          <Text style={styles.description} numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
       </View>
-      <Text style={styles.price}>{price}</Text>
+      {price ? <Text style={styles.price}>{price}</Text> : null}
     </Pressable>
   );
 }

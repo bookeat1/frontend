@@ -9,7 +9,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { BUDGET_TIERS } from "../components/foodie-profile/foodie-profile-options";
 import { useAuth } from "./auth";
 import {
   toggleAllergySelection,
@@ -64,13 +63,6 @@ export interface FoodieProfileDraft {
 }
 
 const EMPTY_DRAFT: FoodieProfileDraft = { cuisines: [], diets: [], allergies: [], budget: null };
-
-/** Читает `budget` бэкенда как `BudgetTier`, только если это один из трёх
- * известных вариантов — иначе (в т.ч. `null`) черновик остаётся без бюджета,
- * а не падает на незнакомом значении будущего бэкенда. */
-function asBudgetTier(value: string | null): BudgetTier | null {
-  return (BUDGET_TIERS as readonly string[]).includes(value ?? "") ? (value as BudgetTier) : null;
-}
 
 function toWireProfile(draft: FoodieProfileDraft): FoodieProfile {
   return {
@@ -163,7 +155,7 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
       cuisines: cuisinesTouched.current ? prev.cuisines : saved.cuisines,
       diets: dietsTouched.current ? prev.diets : saved.diets,
       allergies: allergiesTouched.current ? prev.allergies : saved.allergies,
-      budget: budgetTouched.current ? prev.budget : asBudgetTier(saved.budget),
+      budget: budgetTouched.current ? prev.budget : saved.budget,
     }));
   }, [profileQuery.data]);
 

@@ -12,6 +12,9 @@ import type {
   Cuisine,
   DayOfWeek,
   EventSummary,
+  FoodieBudgetOption,
+  FoodieOption,
+  FoodieProfileOptions,
   GuideCategory,
   GuideCollection,
   GuideRoute,
@@ -80,6 +83,81 @@ export const cuisines: Cuisine[] = [
   { id: "european", name: "Европейская" },
   { id: "asian", name: "Паназиатская" },
 ];
+
+/**
+ * `GET /foodie-profile/options` for the mock — the wizard's tile dictionary.
+ * Values copied from today's shipped codes/names (the ones the RU dictionary
+ * carried under `onboarding.foodieProfile.*.options` before this task moved
+ * them server-side, spec foodie-profile-admin-dictionaries-20260916), purely
+ * so tests/storybook/local dev without a backend keep seeing the same 36
+ * tiles as before. `id` mirrors `code` here — the mock has no real UUID
+ * dictionary rows, and nothing in the mock reads `id` for anything.
+ */
+function foodieOption(code: string, name: string, displayOrder: number): FoodieOption {
+  return { id: code, code, name, displayOrder };
+}
+
+export const foodieProfileOptions: FoodieProfileOptions = {
+  cuisines: [
+    foodieOption("kazakh", "Казахская", 0),
+    foodieOption("asian", "Азиатская", 1),
+    foodieOption("european", "Европейская", 2),
+    foodieOption("japanese", "Японская", 3),
+    foodieOption("italian", "Итальянская", 4),
+    foodieOption("korean", "Корейская", 5),
+    foodieOption("seafood", "Морепродукты", 6),
+    foodieOption("meat", "Мясо", 7),
+    foodieOption("vegan", "Веганская", 8),
+    foodieOption("desserts", "Десерты", 9),
+    foodieOption("coffee", "Кофе", 10),
+    foodieOption("healthy", "Здоровая еда", 11),
+    foodieOption("fastfood", "Фастфуд", 12),
+    foodieOption("spicy", "Острая", 13),
+    foodieOption("bbq", "Барбекю", 14),
+  ],
+  diets: [
+    foodieOption("no_diet", "Без диеты", 0),
+    foodieOption("vegan", "Веган", 1),
+    foodieOption("pescetarian", "Пескетарианец", 2),
+    foodieOption("halal", "Халяль", 3),
+    foodieOption("kosher", "Кошерное", 4),
+    foodieOption("keto", "Кето", 5),
+    foodieOption("low_carb", "Лоу-карб", 6),
+    foodieOption("paleo", "Палео", 7),
+    foodieOption("no_lactose", "Без лактозы", 8),
+    foodieOption("no_gluten", "Без глютена", 9),
+  ],
+  allergies: [
+    foodieOption("nuts", "Орехи", 0),
+    foodieOption("dairy", "Молочные", 1),
+    foodieOption("eggs", "Яйца", 2),
+    foodieOption("seafood", "Морепродукты", 3),
+    foodieOption("soy", "Соя", 4),
+    foodieOption("wheat", "Пшеница", 5),
+    foodieOption("shellfish", "Моллюски", 6),
+    foodieOption("sesame", "Кунжут", 7),
+  ],
+  budgets: [
+    {
+      ...foodieOption("budget", "Бюджетный", 0),
+      description: "Кофейни, fast casual, завтраки и быстрые встречи.",
+      priceLabel: "до 5 000 ₸",
+      priceCategory: "budget",
+    },
+    {
+      ...foodieOption("mid", "Средний", 1),
+      description: "Основной диапазон для ресторанов, ужинов и встреч.",
+      priceLabel: "5 000–15 000 ₸",
+      priceCategory: "mid",
+    },
+    {
+      ...foodieOption("premium", "Премиум", 2),
+      description: "Fine dining, авторская кухня и более камерный сервис.",
+      priceLabel: "от 15 000 ₸",
+      priceCategory: "premium",
+    },
+  ] satisfies FoodieBudgetOption[],
+};
 
 /**
  * Справочник удобств для мока — те же коды, что у боевого `GET /venue-features`
