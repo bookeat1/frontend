@@ -106,6 +106,18 @@ export interface AdminMenuItem {
 }
 
 /**
+ * Body for `PATCH /admin/restaurants/:id/menu-items/:itemId` (admin.menuItemRequest).
+ * The backend accepts the full dish payload (name/price/description/…), but the
+ * panel only edits the photo today — every other field is a separate editor
+ * that doesn't exist yet, so this type carries just what the UI actually sends.
+ * Omitted keys are left untouched server-side (pointer fields); `image_url: ""`
+ * clears the photo.
+ */
+export interface MenuItemPatch {
+  image_url?: string;
+}
+
+/**
  * Одна строка редактора «Лучших позиций» — GET /restaurants/:id/menu-top-picks.
  *
  * ЭТО ДРУГАЯ РУЧКА, НЕ /admin/restaurants/:id/menu. Список меню в панели идёт

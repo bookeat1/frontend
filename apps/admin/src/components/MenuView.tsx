@@ -11,6 +11,8 @@ import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
 import { CheckboxRow } from "./ui/FormControls";
 import { ImageThumb } from "./ui/ImageThumb";
+import { ImageUploadField } from "./ui/ImageUploadField";
+import { Modal } from "./ui/Modal";
 import { MenuTopPicksCard } from "./MenuTopPicksCard";
 import { menuTopPickErrorMessage } from "./menu-top-picks-copy";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
@@ -26,6 +28,7 @@ export function MenuView() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const [topPickError, setTopPickError] = useState<string | null>(null);
+  const [editingPhotoOf, setEditingPhotoOf] = useState<AdminMenuItem | null>(null);
 
   const queryKey = ["menu", restaurantId] as const;
   // Отдельный ключ, потому что это ДРУГАЯ ручка: админский список меню
@@ -193,13 +196,25 @@ export function MenuView() {
                     />
                     {/* Фото блюда. Пунктирная плашка «Нет фото» занимает ровно
                         то же место, что и картинка, — по ней управляющий
-                        глазами находит блюда без фотографии. */}
-                    <ImageThumb
-                      url={item.image_url}
-                      alt={item.name}
-                      emptyLabel={t.admin.menu.noPhoto}
-                      className="h-12 w-12"
-                    />
+                        глазами находит блюда без фотографии. Рядом — кнопка
+                        правки, единственный вход в MenuPhotoModal ниже. */}
+                    <div className="flex shrink-0 flex-col items-center gap-xxs">
+                      <ImageThumb
+                        url={item.image_url}
+                        alt={item.name}
+                        emptyLabel={t.admin.menu.noPhoto}
+                        className="h-12 w-12"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t.admin.menu.editPhotoAria(item.name)}
+                        onClick={() => setEditingPhotoOf(item)}
+                      >
+                        {t.admin.menu.editPhoto}
+                      </Button>
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-text">{item.name}</p>
                       {item.description ? (
@@ -282,7 +297,66 @@ export function MenuView() {
           </div>
         </div>
       ) : null}
+
+      {editingPhotoOf ? (
+        <MenuPhotoModal
+          item={editingPhotoOf}
+          save={(imageUrl) => apiClient.updateMenuItem(restaurantId, editingPhotoOf.id, { image_url: imageUrl })}
+          onClose={() => setEditingPhotoOf(null)}
+          onSaved={() => {
+            setEditingPhotoOf(null);
+            void queryClient.invalidateQueries({ queryKey });
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/** Форма «Фото блюда»: одна картинка, один PATCH. Отдельная от общего
+ * редактора блюда, которого в панели пока нет — задача просила только фото
+ * (см. MenuItemPatch), а не полный редактор name/price/description. */
+function MenuPhotoModal({
+  item,
+  save,
+  onClose,
+  onSaved,
+}: {
+  item: AdminMenuItem;
+  save: (imageUrl: string) => Promise<AdminMenuItem>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [image, setImage] = useState(item.image_url ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => save(image.trim()),
+    onSuccess: onSaved,
+    onError: () => setError(t.admin.menu.photoSaveFailed),
+  });
+
+  return (
+    <Modal title={t.admin.menu.editPhotoTitle(item.name)} onClose={onClose}>
+      <div className="flex flex-col gap-md">
+        <ImageUploadField value={image} onChange={setImage} label={t.admin.menu.fieldPhoto} />
+
+        {error ? (
+          <p role="alert" className="text-sm text-brand">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex justify-end gap-xs">
+          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+            {t.admin.common.cancel}
+          </Button>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>
+            {t.admin.menu.photoSave}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
