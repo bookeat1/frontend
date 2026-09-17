@@ -1,7 +1,7 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BudgetOptionCard } from "../../src/components/foodie-profile/BudgetOptionCard";
@@ -10,7 +10,6 @@ import { DataErrorState } from "../../src/components/DataErrorState";
 import { LoadingState } from "../../src/components/StateViews";
 import { useFoodieOptions } from "../../src/hooks/useFoodieOptions";
 import { useFoodieProfileDraft } from "../../src/lib/foodie-profile-draft";
-import { withHiddenSelected } from "../../src/lib/foodie-profile-visible-options";
 
 const t = getDictionary();
 
@@ -31,6 +30,10 @@ const t = getDictionary();
  * выбранной, но это демонстрация состояния, а не предустановленный ответ
  * гостя — решение и его причина подробно объяснены в
  * `foodie-profile-selection.ts`.
+ *
+ * СКРЫТЫЙ ЯРУС НЕ РИСУЕТСЯ (спека §3.5, критерий 20/22). Если сохранённый
+ * `budget` гостя больше не входит в активный список, `FoodieProfileDraftProvider`
+ * гидрирует `draft.budget = null` — экран здесь не занимается спецслучаями.
  *
  * ФИНАЛ. «Готово» шлёт весь черновик одним `PUT /users/me/foodie-profile`
  * (`FoodieProfileDraftProvider.save`) и уходит на `/profile` только при
@@ -57,11 +60,7 @@ export default function FoodieProfileBudgetScreen() {
     save,
   } = useFoodieProfileDraft();
   const optionsQuery = useFoodieOptions();
-
-  const tiers = useMemo(
-    () => withHiddenSelected(optionsQuery.data?.budgets ?? [], draft.budget ? [draft.budget] : []),
-    [optionsQuery.data, draft.budget],
-  );
+  const tiers = optionsQuery.data?.budgets ?? [];
 
   const finish = useCallback(() => {
     void (async () => {

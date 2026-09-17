@@ -194,8 +194,12 @@ describe("шаг «Любимая кухня»", () => {
     await waitFor(() => expect(screen.getByText("Казахская")).toBeTruthy());
   });
 
-  it("код, скрытый админом, но уже выбранный гостем раньше, рисуется отмеченным с запасной подписью", async () => {
+  it("код, скрытый админом, не рисуется плиткой и не считается в выборе, даже если он был в сохранённом профиле (спека §3.5)", async () => {
     getFoodieProfile.mockImplementation(async () => ({
+      // «truffle» — код, которого нет в живом справочнике (админ его скрыл
+      // ПОСЛЕ того, как гость когда-то его выбрал). Черновик визарда
+      // гидрируется без него: он просто не предлагается плиткой, а раз он
+      // не в черновике — «Готово» его тоже никуда не отправит.
       cuisines: ["kazakh", "truffle"],
       diets: [],
       allergies: [],
@@ -204,19 +208,25 @@ describe("шаг «Любимая кухня»", () => {
 
     await renderScreen();
 
-    // «truffle» — код, которого нет в живом справочнике (админ его скрыл),
-    // но он уже в сохранённом профиле гостя: плитка рисуется с запасной
-    // подписью (сам код) и отмеченной, а не пропадает молча.
-    const hiddenTile = await screen.findByRole("checkbox", { name: "truffle" });
-    expect(hiddenTile.getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("checkbox", { name: "Казахская" }).getAttribute("aria-checked")).toBe("true");
-
-    // Снять её можно обычным тапом, как любую другую плитку — код уходит из
-    // выбора, а раз его и так нет в живом справочнике, плитка просто исчезает
-    // (не «висит непонятной снятой»), в точности как обычная активная плитка
-    // исчезла бы из ЛЮБОГО списка, не будь она вообще выбрана.
-    const user = userEvent.setup();
-    await user.click(hiddenTile);
     expect(screen.queryByRole("checkbox", { name: "truffle" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Казахская" }).getAttribute("aria-checked")).toBe("true");
+    // Счётчик учитывает только реально отрисованный (активный) выбор — 1, не 2.
+    expect(screen.getByText(t.onboarding.foodieProfile.cuisine.counter(1))).toBeTruthy();
+  });
+
+  it("если ЕДИНСТВЕННЫЙ сохранённый код скрыт — счётчик и «Далее» ведут себя как при пустом выборе", async () => {
+    getFoodieProfile.mockImplementation(async () => ({
+      cuisines: ["truffle"],
+      diets: [],
+      allergies: [],
+      budget: null,
+    }));
+
+    await renderScreen();
+
+    expect(screen.getByText(t.onboarding.foodieProfile.cuisine.counter(0))).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: t.onboarding.foodieProfile.next }).getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 });

@@ -1,7 +1,7 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DataErrorState } from "../../src/components/DataErrorState";
@@ -10,7 +10,6 @@ import { FoodieProfileTileGrid } from "../../src/components/foodie-profile/Foodi
 import { LoadingState } from "../../src/components/StateViews";
 import { useFoodieOptions } from "../../src/hooks/useFoodieOptions";
 import { useFoodieProfileDraft } from "../../src/lib/foodie-profile-draft";
-import { withHiddenSelected } from "../../src/lib/foodie-profile-visible-options";
 
 const t = getDictionary();
 
@@ -18,8 +17,9 @@ const t = getDictionary();
  * Шаг 2/4 — «Диетические предпочтения» (Figma node 5062:5734).
  *
  * ВАРИАНТЫ — живой справочник (`useFoodieOptions()`), см. `cuisine.tsx` для
- * полного обоснования состояний загрузки/ошибки и `withHiddenSelected` —
- * то же решение применяется здесь один в один.
+ * полного обоснования состояний загрузки/ошибки и того, почему `draft.diets`
+ * здесь уже никогда не содержит скрытый код (фильтрация — в
+ * `FoodieProfileDraftProvider`, не на экране).
  *
  * «Без диеты» ЭКСКЛЮЗИВЕН относительно остальных девяти (решение агента,
  * обоснование — в `foodie-profile-selection.ts`): выбор снимает всё прочее и
@@ -30,11 +30,7 @@ export default function FoodieProfileDietScreen() {
   const { draft, toggleDiet } = useFoodieProfileDraft();
   const optionsQuery = useFoodieOptions();
   const selected = draft.diets;
-
-  const options = useMemo(
-    () => withHiddenSelected(optionsQuery.data?.diets ?? [], selected),
-    [optionsQuery.data, selected],
-  );
+  const options = optionsQuery.data?.diets ?? [];
 
   return (
     <View style={styles.root}>

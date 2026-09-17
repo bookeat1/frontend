@@ -1,7 +1,7 @@
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { Stack, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DataErrorState } from "../../src/components/DataErrorState";
@@ -12,7 +12,6 @@ import { LoadingState } from "../../src/components/StateViews";
 import { useFoodieOptions } from "../../src/hooks/useFoodieOptions";
 import { useFoodieProfileDraft } from "../../src/lib/foodie-profile-draft";
 import { CUISINE_SELECTION_LIMIT } from "../../src/lib/foodie-profile-selection";
-import { withHiddenSelected } from "../../src/lib/foodie-profile-visible-options";
 
 const t = getDictionary();
 
@@ -27,10 +26,15 @@ const t = getDictionary();
  * возможности пройти дальше (вшитого запасного списка нет нарочно, см.
  * `onboarding.foodieProfile.optionsLoading`).
  *
- * СКРЫТЫЙ, НО ВЫБРАННЫЙ. Черновик может нести код кухни, которую админ уже
- * скрыл (сценарий 3.5 спеки) — сервер её в `options` больше не пришлёт.
- * `withHiddenSelected` подмешивает такую плитку в конец списка отмеченной,
- * с запасной подписью (код без перевода), а не молча теряет выбор гостя.
+ * СКРЫТЫЙ, НО РАНЕЕ ВЫБРАННЫЙ КОД НЕ РИСУЕТСЯ (спека §3.5, критерий 20/22:
+ * «новый клиент не находит `spicy` среди активных и не рисует»). Фильтрация —
+ * в `FoodieProfileDraftProvider` (гидрация черновика из `GET
+ * /users/me/foodie-profile` сверяется с этим же справочником и отбрасывает
+ * коды не из активного списка), поэтому `draft.cuisines` здесь уже никогда
+ * не содержит код, которого нет в `options` — экран не занимается
+ * спецслучаями и просто рендерит `options` как есть. Сохранённый профиль
+ * гостя на сервере эта фильтрация не трогает — это забота бэкенда
+ * (критерий 12, taste-match).
  *
  * ЛИМИТ 5 — ТАП ПО ШЕСТОЙ БЛОКИРУЕТСЯ, а не вытесняет самую старую выбранную
  * (решение агента, задача оставляла его на усмотрение реализации). Полное
@@ -44,11 +48,7 @@ export default function FoodieProfileCuisineScreen() {
   const optionsQuery = useFoodieOptions();
   const selected = draft.cuisines;
   const atLimit = selected.length >= CUISINE_SELECTION_LIMIT;
-
-  const options = useMemo(
-    () => withHiddenSelected(optionsQuery.data?.cuisines ?? [], selected),
-    [optionsQuery.data, selected],
-  );
+  const options = optionsQuery.data?.cuisines ?? [];
 
   return (
     <View style={styles.root}>

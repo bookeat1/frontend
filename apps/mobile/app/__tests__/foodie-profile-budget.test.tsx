@@ -277,12 +277,23 @@ describe("шаг «Ваш бюджет»", () => {
     );
   });
 
-  it("ярус, скрытый админом, но уже выбранный гостем раньше, рисуется отмеченным с запасной подписью", async () => {
+  it("ярус, скрытый админом, не рисуется карточкой и не считается выбранным, даже если он был сохранён (спека §3.5)", async () => {
     renderScreen();
     settleGetProfile({ cuisines: [], diets: [], allergies: [], budget: "student" });
 
-    const hiddenCard = await screen.findByRole("radio", { name: "student" });
-    expect(hiddenCard.getAttribute("aria-checked")).toBe("true");
+    // «student» — ярус, которого нет в живом справочнике (админ его скрыл
+    // после того, как гость его когда-то выбрал). Гидрация роняет его до
+    // `null` — ни одна карточка не отмечена, «Готово» доступна как при
+    // пустом (валидном для необязательного шага) выборе.
+    for (const tier of __mockFoodieProfileOptions.budgets) {
+      const card = await screen.findByRole("radio", { name: `${tier.name}, ${tier.priceLabel}` });
+      expect(card.getAttribute("aria-checked")).toBe("false");
+    }
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: t.onboarding.foodieProfile.done }).getAttribute("aria-disabled"),
+      ).not.toBe("true"),
+    );
   });
 });
 

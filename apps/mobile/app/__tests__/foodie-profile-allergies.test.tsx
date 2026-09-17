@@ -151,7 +151,7 @@ describe("шаг «Аллергии»", () => {
     await waitFor(() => expect(screen.getByText("Орехи")).toBeTruthy());
   });
 
-  it("аллергия, скрытая админом, но уже выбранная гостем раньше, рисуется отмеченной с запасной подписью", async () => {
+  it("аллергия, скрытая админом, не рисуется плиткой, даже если она была в сохранённом профиле (спека §3.5)", async () => {
     getFoodieProfile.mockImplementation(async () => ({
       cuisines: [],
       diets: [],
@@ -161,8 +161,7 @@ describe("шаг «Аллергии»", () => {
 
     await renderScreen();
 
-    const hiddenTile = await screen.findByRole("checkbox", { name: "kiwi" });
-    expect(hiddenTile.getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByRole("checkbox", { name: "kiwi" })).toBeNull();
     expect(screen.getByRole("checkbox", { name: "Орехи" }).getAttribute("aria-checked")).toBe("true");
   });
 });

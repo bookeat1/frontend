@@ -171,7 +171,7 @@ describe("шаг «Диетические предпочтения»", () => {
     await waitFor(() => expect(screen.getByText("Без диеты")).toBeTruthy());
   });
 
-  it("диета, скрытая админом, но уже выбранная гостем раньше, рисуется отмеченной с запасной подписью", async () => {
+  it("диета, скрытая админом, не рисуется плиткой, даже если она была в сохранённом профиле (спека §3.5)", async () => {
     getFoodieProfile.mockImplementation(async () => ({
       cuisines: [],
       diets: ["vegan", "raw_food"],
@@ -181,8 +181,7 @@ describe("шаг «Диетические предпочтения»", () => {
 
     await renderScreen();
 
-    const hiddenTile = await screen.findByRole("checkbox", { name: "raw_food" });
-    expect(hiddenTile.getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByRole("checkbox", { name: "raw_food" })).toBeNull();
     expect(isChecked("Веган")).toBe(true);
   });
 });
