@@ -11,10 +11,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
  * (`colors.onboarding.budgetCardSurface`, #FAFAFA); выбранная — почти белая
  * (`budgetCardSelectedSurface`, #FFFBFB) с обводкой бренда 1.5, как в макете.
  *
- * `description`/`price` необязательны: «осиротевшая» карточка — ярус, который
- * гость выбрал раньше, а админ потом скрыл (`withHiddenSelected`), — несёт
- * только код без перевода (нет активной записи справочника, чтобы взять
- * из неё копию), а не полный набор полей.
+ * `description`/`price` необязательны: на проводе (`FoodieBudgetOption`)
+ * `description`/`price_label` — nullable, справочник может отдать ярус без
+ * описания или подписи цены.
  */
 export function BudgetOptionCard({
   name,

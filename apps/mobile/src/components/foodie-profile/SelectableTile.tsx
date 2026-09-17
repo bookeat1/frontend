@@ -79,7 +79,13 @@ export function SelectableTile({
       ]}
     >
       {imageUrl ? (
-        <PhotoView uri={imageUrl} style={StyleSheet.absoluteFill} decorative placeholderIconSize={24} />
+        <PhotoView
+          uri={imageUrl}
+          size="tile"
+          style={StyleSheet.absoluteFill}
+          decorative
+          placeholderIconSize={24}
+        />
       ) : photo ? (
         <Image testID="tile-photo" source={photo} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (

@@ -265,14 +265,17 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
     // would slip past an `isLoading || isError` guard and PUT over an
     // untouched draft. `isSuccess` only becomes true once the GET has
     // actually resolved at least once in this session.
-    if (!profileQuery.isSuccess) return false;
+    // `!optionsQuery.isSuccess` too — without the dictionary the hydration
+    // filter above never ran (passthrough), so an unfiltered draft could
+    // still carry a code the admin hid meanwhile straight into the PUT.
+    if (!profileQuery.isSuccess || !optionsQuery.isSuccess) return false;
     try {
       await replaceFoodieProfile(toWireProfile(draft));
       return true;
     } catch {
       return false;
     }
-  }, [draft, replaceFoodieProfile, profileQuery.isSuccess]);
+  }, [draft, replaceFoodieProfile, profileQuery.isSuccess, optionsQuery.isSuccess]);
 
   const { refetch: refetchProfile } = profileQuery;
   const retryLoadProfile = useCallback(() => {
