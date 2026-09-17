@@ -51,6 +51,8 @@ import type {
   HomePromo,
   MenuSection,
   NotificationFeed,
+  NotificationPreferences,
+  NotificationPreferencesInput,
   OtpRequest,
   PlatformPage,
   PlatformPageSlug,
@@ -1029,6 +1031,29 @@ export class MockRestaurantRepository implements RestaurantRepository {
     this.notifications = this.notifications.map((n) => ({ ...n, read: true }));
   }
 
+  /** Mock opt-out, in-memory for this process — every field `true` at start,
+   * same as a guest with no stored preferences row. */
+  private notificationPreferences: NotificationPreferences = {
+    notificationsEnabled: true,
+    pushEnabled: true,
+    emailEnabled: true,
+    promoPushEnabled: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    await this.simulateNetwork();
+    return { ...this.notificationPreferences };
+  }
+
+  async setNotificationPreferences(
+    input: NotificationPreferencesInput,
+  ): Promise<NotificationPreferences> {
+    await this.simulateNetwork();
+    this.notificationPreferences = { ...input, updatedAt: new Date().toISOString() };
+    return { ...this.notificationPreferences };
+  }
+
   /**
    * The mock never asks anyone to update: the verdict belongs to a server
    * policy, and a mock that invented one would put an update prompt in front
@@ -1056,6 +1081,8 @@ function buildMockNotifications(): AppNotification[] {
       createdAt: minutesAgo(45),
       read: false,
       bookingId: "mock-booking-1",
+      eventId: null,
+      promoId: null,
     },
     {
       id: "mock-notif-2",
@@ -1065,6 +1092,8 @@ function buildMockNotifications(): AppNotification[] {
       createdAt: minutesAgo(60 * 22),
       read: true,
       bookingId: "mock-booking-2",
+      eventId: null,
+      promoId: null,
     },
     {
       id: "mock-notif-3",
@@ -1074,6 +1103,19 @@ function buildMockNotifications(): AppNotification[] {
       createdAt: minutesAgo(60 * 30),
       read: true,
       bookingId: null,
+      eventId: null,
+      promoId: "mock-promo-1",
+    },
+    {
+      id: "mock-notif-4",
+      type: "event",
+      title: "Новое событие в «Абай»",
+      body: "Джазовый вечер · 26.09 в 19:00",
+      createdAt: minutesAgo(60 * 5),
+      read: false,
+      bookingId: null,
+      eventId: "mock-event-1",
+      promoId: null,
     },
   ];
 }

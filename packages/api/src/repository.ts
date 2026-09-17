@@ -27,6 +27,8 @@ import type {
   HomePromo,
   MenuSection,
   NotificationFeed,
+  NotificationPreferences,
+  NotificationPreferencesInput,
   OtpRequest,
   PlatformPage,
   PlatformPageSlug,
@@ -498,6 +500,25 @@ export interface RestaurantRepository {
   /** Marks the whole inbox read (`POST /notifications/read-all`). Requires a
    * session. Idempotent — an inbox with nothing unread still answers 200. */
   markAllNotificationsRead(): Promise<void>;
+
+  /* --- notification preferences (opt-out toggles, incl. «Акции и события») --- */
+
+  /**
+   * The caller's notification opt-out (`GET /notification-preferences`,
+   * authenticated). A guest with no stored row reads as every field `true` —
+   * this is opt-OUT, not opt-in (push-campaigns spec §0 decision 2).
+   */
+  getNotificationPreferences(): Promise<NotificationPreferences>;
+
+  /**
+   * Replaces the caller's notification opt-out (`PUT /notification-preferences`,
+   * authenticated). This app always sends all four fields — see
+   * `NotificationPreferencesInput` — so a write here can never leave a field
+   * the settings screen never showed to an unknown prior value.
+   */
+  setNotificationPreferences(
+    input: NotificationPreferencesInput,
+  ): Promise<NotificationPreferences>;
 
   /* --- update gate («Доступна новая версия») --- */
 

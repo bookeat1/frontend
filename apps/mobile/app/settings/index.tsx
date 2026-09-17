@@ -6,13 +6,14 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmSheet } from "../../src/components/ConfirmSheet";
 import { FlowHeader } from "../../src/components/FlowHeader";
-import { Bell, type IconProps, Info, Shield, Trash } from "../../src/components/icons";
+import { Bell, type IconProps, Info, SealPercent, Shield, Trash } from "../../src/components/icons";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
 import { ToggleRow } from "../../src/components/ToggleRow";
 import { useAuth } from "../../src/lib/auth";
 import { useLocale } from "../../src/lib/locale";
 import { SETTINGS_SECURITY_ROW_ENABLED } from "../../src/lib/feature-flags";
 import { usePushNotificationsSetting } from "../../src/hooks/usePushNotificationsSetting";
+import { usePromoPushSetting } from "../../src/hooks/usePromoPushSetting";
 
 /**
  * «Настройки» — the entry point reached from the gear/row on «Профиль».
@@ -40,6 +41,12 @@ import { usePushNotificationsSetting } from "../../src/hooks/usePushNotification
  * 01.09.2026 он показывал «включено» телефону, у которого уведомления
  * запрещены. Вся логика — в usePushNotificationsSetting, экран только рисует
  * исходы: обычная подпись, объяснение с кнопкой в системные настройки и ошибка.
+ *
+ * Под ним — «Акции и события» (push-campaigns, 17.09.2026): отдельный
+ * тумблер, чистое серверное состояние (`usePromoPushSetting`, GET/PUT
+ * `/notification-preferences`), без своего системного разрешения. Рисуется
+ * только когда мастер-тумблер включён — без этого условия он не значил бы
+ * ничего.
  *
  * Strings come from the CURRENT locale via useLocale, so the screen re-renders
  * in the chosen language.
@@ -76,6 +83,7 @@ export default function SettingsScreen() {
     }
   };
   const notifications = usePushNotificationsSetting();
+  const promoPush = usePromoPushSetting();
 
   // Подпись под тумблером объясняет ровно текущее положение. Порядок ветвей —
   // от самой конкретной причины к самой общей.
@@ -123,6 +131,32 @@ export default function SettingsScreen() {
               onPress={notifications.openSystemSettings}
             />
           </View>
+        ) : null}
+
+        {/*
+         * «Акции и события» (push-campaigns, критерий 34): рисуется только
+         * когда мастер-тумблер реально включён (системное разрешение granted
+         * И выбор гостя «да») — без разрешения ОС этот тумблер не значит
+         * ничего, а показывать его отдельно от объяснимой причины было бы
+         * строкой без смысла. Положение — чистое серверное состояние, своей
+         * ошибки разрешения ОС у него нет.
+         */}
+        {notifications.value ? (
+          <ToggleRow
+            icon={SealPercent}
+            label={t.settings.promoPush}
+            value={promoPush.value}
+            onValueChange={promoPush.setEnabled}
+            description={
+              promoPush.loading
+                ? undefined
+                : promoPush.failed
+                  ? t.settings.notificationsError
+                  : t.settings.promoPushDescription
+            }
+            descriptionIsError={promoPush.failed}
+            disabled={promoPush.loading || promoPush.working}
+          />
         ) : null}
 
         {SETTINGS_SECURITY_ROW_ENABLED ? (
