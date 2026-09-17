@@ -336,8 +336,17 @@ function MenuPhotoModal({
     onError: () => setError(t.admin.menu.photoSaveFailed),
   });
 
+  // Escape and backdrop-click both call Modal's onClose directly, bypassing
+  // the Cancel/Save buttons' own `disabled={mutation.isPending}` guard. Without
+  // this, closing mid-save lets a later onSuccess/onError from THIS mutation
+  // (React Query still fires those after unmount) call setEditingPhotoOf(null)
+  // and yank the modal a user has since opened for a different dish.
+  const closeUnlessSaving = () => {
+    if (!mutation.isPending) onClose();
+  };
+
   return (
-    <Modal title={t.admin.menu.editPhotoTitle(item.name)} onClose={onClose}>
+    <Modal title={t.admin.menu.editPhotoTitle(item.name)} onClose={closeUnlessSaving}>
       <div className="flex flex-col gap-md">
         <ImageUploadField value={image} onChange={setImage} label={t.admin.menu.fieldPhoto} />
 
@@ -348,7 +357,7 @@ function MenuPhotoModal({
         ) : null}
 
         <div className="flex justify-end gap-xs">
-          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+          <Button variant="ghost" onClick={closeUnlessSaving} disabled={mutation.isPending}>
             {t.admin.common.cancel}
           </Button>
           <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>
