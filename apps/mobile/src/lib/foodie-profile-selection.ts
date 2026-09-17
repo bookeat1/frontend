@@ -75,7 +75,17 @@ export function toggleAllergySelection(selected: readonly string[], id: string):
   return selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
 }
 
-export type BudgetTier = "budget" | "mid" | "premium";
+/**
+ * A budget tier is a `code` from the live budget dictionary
+ * (`FoodieProfileOptions.budgets`, `GET /foodie-profile/options`) — plain
+ * `string`, not a fixed 3-value literal union anymore. Before the
+ * foodie-profile-admin-dictionaries-20260916 task, "budget"/"mid"/"premium"
+ * were the only tiers that could ever exist; now a platform admin can add
+ * more (spec 3.10, e.g. `ultra`) without a client release, so pinning this
+ * type to three literals would make the app reject a tier the server already
+ * accepts.
+ */
+export type BudgetTier = string;
 
 /**
  * Бюджет: одиночный выбор, повторный тап по уже выбранной карточке снимает

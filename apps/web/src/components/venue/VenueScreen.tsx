@@ -15,6 +15,7 @@ import { HeartIcon } from "@web/components/ui/HeartIcon";
 import { Modal } from "@web/components/ui/Modal";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { Tag } from "@web/components/ui/Tag";
+import { trackEvent } from "@web/lib/analytics";
 import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
 import { useLoginHref } from "@web/lib/favorites";
@@ -144,6 +145,15 @@ function VenueBody({ venue }: { venue: Restaurant }) {
   /** Окно со всеми снимками открывают ДВА элемента — кнопка на мозаике и
    * вкладка «Фото · N», — поэтому его состояние живёт здесь, а не в галерее. */
   const [galleryOpen, setGalleryOpen] = useState(false);
+
+  /** `restaurant_open` один раз на `venue.id`: ре-рендер от избранного или
+   * смены данных запроса не считается повторным открытием. На вебе нет
+   * параметра источника перехода (в мобилке он приходит навигацией) — этого
+   * свойства здесь и не будет, читается как «неприменимо». */
+  useEffect(() => {
+    trackEvent("restaurant_open", { restaurant_id: venue.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venue.id]);
 
   /** Есть ли что показать в блоке контактов (2026-09-09, блок вернули без
    * карты) — та же `hasAnything`-проверка, что раньше жила внутри `Contacts`,

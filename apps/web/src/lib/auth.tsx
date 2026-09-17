@@ -6,6 +6,7 @@ import { RepositoryError, type AuthSession, type AuthUser } from "@bookeat/api/c
 import { useQueryClient } from "@tanstack/react-query";
 
 import { authRepository, setUnauthorizedHandler } from "@web/lib/api";
+import { identifyUser, trackEvent } from "@web/lib/analytics";
 import { clearAllBookingFormDrafts } from "@web/lib/booking-form-draft";
 import { forgetSessionScopedQueries } from "@web/lib/query-keys";
 import {
@@ -178,15 +179,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAllBookingFormDrafts();
       storeSession(storage, session);
       setSignedIn(true);
+      // Профиль читается ДО события `login`, и это не порядок ради порядка:
+      // Amplitude штампует событие тем user id, который стоит В МОМЕНТ
+      // вызова `track`, а `identify` из `AnalyticsProvider` случается только
+      // на следующем рендере. Без этого порядка КАЖДЫЙ вход уходил бы
+      // анонимным, от device id — тот же баг уже чинили в мобилке (см.
+      // `apps/mobile/src/lib/__tests__/auth-login-analytics.test.tsx`).
       try {
         const fresh = await authRepository.getMe();
         storeUser(browserStorage(), fresh);
         setUser(fresh);
+        identifyUser(fresh);
       } catch {
         // Профиль не приехал — вход всё равно состоялся, токены на месте.
         // Шапка покажет обобщённую подпись вместо имени, а не выкинет гостя.
+        // События ниже всё равно уходят, просто без свойств пользователя.
         setUser(null);
       }
+      // Явное событие входа, только на настоящий `verifyOtp` — не на
+      // гидратацию сессии из хранилища (та не проходит через `completeSignIn`
+      // вовсе). `is_new_user` уходит КАК ЕСТЬ, `null` остаётся `null`, а не
+      // становится `false`: это разные вещи — «сервер не сказал» и «точно не
+      // новый».
+      trackEvent("login", { is_new_user: session.isNewUser });
+      // Регистрация — ОТДЕЛЬНОЕ событие, а не свойство входа: воронку
+      // «сколько из открывших сайт завели аккаунт» строят по событию, номера
+      // телефона, по которому вход и произошёл, в свойствах нет.
+      if (session.isNewUser === true) trackEvent("signup");
     },
     [queryClient],
   );

@@ -1,33 +1,40 @@
+import type { FoodieOption } from "@bookeat/api";
 import { foodieProfileLayout, spacing } from "@bookeat/design-tokens";
 import React from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { SelectableTile } from "./SelectableTile";
-import type { FoodieProfileOption } from "./foodie-profile-options";
 
 /**
  * Сетка в 3 колонки для экранов «Кухня»/«Диета»/«Аллергии». Ширина колонки
  * считается от окна — тот же приём, что `rubricColumnWidth` в
  * `GuideRubricGrid`, только для трёх колонок вместо двух и с полями листа
  * `spacing.lg` (16), как у остальных экранов онбординга.
+ *
+ * `options` — живой справочник (`useFoodieOptions()`, `GET
+ * /foodie-profile/options`), уже отсортированный сервером/репозиторием;
+ * `option.name`/`option.imageUrl` рисуются как есть — сервер сам разрешил
+ * локаль, клиенту выбирать её незачем. Идентичность плитки и значение выбора
+ * — `option.code` (то же, что летает в `FoodieProfile.cuisines/diets/
+ * allergies`), не `option.id` (id справочника, серверный UUID).
  */
 export function FoodieProfileTileGrid({
   options,
   selected,
   disabledIds,
-  labelFor,
   photoFor,
   onToggle,
   accessibilityHintFor,
 }: {
-  options: readonly FoodieProfileOption[];
+  options: readonly FoodieOption[];
   selected: readonly string[];
   /** Плитки, недостижимые прямо сейчас (лимит кухонь набран). Пусто на
    * экранах без лимита. */
   disabledIds?: ReadonlySet<string>;
-  labelFor: (id: string) => string;
-  photoFor?: (id: string) => number | undefined;
-  onToggle: (id: string) => void;
-  accessibilityHintFor?: (id: string, disabled: boolean) => string | undefined;
+  /** Вшитый запасной снимок по коду — сегодня только у экрана «Кухня»
+   * (`cuisineOptionPhoto`), пока у справочника нет своих картинок. */
+  photoFor?: (code: string) => number | undefined;
+  onToggle: (code: string) => void;
+  accessibilityHintFor?: (code: string, disabled: boolean) => string | undefined;
 }) {
   const { width: windowWidth } = useWindowDimensions();
   const tileWidth = foodieProfileTileWidth(windowWidth);
@@ -35,18 +42,19 @@ export function FoodieProfileTileGrid({
   return (
     <View style={styles.grid}>
       {options.map((option) => {
-        const isSelected = selected.includes(option.id);
-        const isDisabled = !isSelected && (disabledIds?.has(option.id) ?? false);
+        const isSelected = selected.includes(option.code);
+        const isDisabled = !isSelected && (disabledIds?.has(option.code) ?? false);
         return (
           <SelectableTile
-            key={option.id}
-            label={labelFor(option.id)}
-            photo={photoFor?.(option.id)}
+            key={option.id || option.code}
+            label={option.name}
+            imageUrl={option.imageUrl}
+            photo={photoFor?.(option.code)}
             selected={isSelected}
             disabled={isDisabled}
             width={tileWidth}
-            onPress={() => onToggle(option.id)}
-            accessibilityHint={accessibilityHintFor?.(option.id, isDisabled)}
+            onPress={() => onToggle(option.code)}
+            accessibilityHint={accessibilityHintFor?.(option.code, isDisabled)}
           />
         );
       })}

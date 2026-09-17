@@ -30,6 +30,15 @@ vi.mock("../auth", () => ({
   }),
 }));
 
+// FoodieProfileDraftProvider теперь сверяется с живым справочником
+// (`useFoodieOptions()`) при гидрации, чтобы отбрасывать скрытые коды — эта
+// проверка не про инвалидацию, поэтому справочник просто пустой, но рабочий.
+vi.mock("../repository", () => ({
+  useRepository: () => ({
+    getFoodieProfileOptions: vi.fn(async () => ({ cuisines: [], diets: [], allergies: [], budgets: [] })),
+  }),
+}));
+
 const { FoodieProfileDraftProvider, useFoodieProfileDraft } = await import("../foodie-profile-draft");
 
 /** Зонд: одна кнопка «Сохранить», зовёт `save()` напрямую — без UI визарда. */

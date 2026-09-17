@@ -76,3 +76,29 @@ describe("captureCampaignFromUrl / readCampaignAttribution", () => {
     expect(readCampaignAttribution()).toBeNull();
   });
 });
+
+/**
+ * Возвращаемое значение — то, по чему `AnalyticsProvider` решает, слать ли
+ * `deep_link_attributed` (критерий 9 спеки Amplitude). Отличается от
+ * `readCampaignAttribution`: тут важно НЕ «какая метка сейчас», а «записали
+ * ли мы её только что, в первый раз».
+ */
+describe("captureCampaignFromUrl — новая метка для события deep_link_attributed", () => {
+  it("первый заход с распознанным ?promo= — отдаёт id", () => {
+    expect(captureCampaignFromUrl(`?promo=${PROMO}`, KNOWN_IDS)).toBe(PROMO);
+  });
+
+  it("повторный вызов с ТОЙ ЖЕ меткой — null, событие не должно уйти второй раз", () => {
+    captureCampaignFromUrl(`?promo=${PROMO}`, KNOWN_IDS);
+    expect(captureCampaignFromUrl(`?promo=${PROMO}`, KNOWN_IDS)).toBeNull();
+  });
+
+  it("заход без параметра — null", () => {
+    expect(captureCampaignFromUrl("", KNOWN_IDS)).toBeNull();
+  });
+
+  it("неизвестный UUID — null", () => {
+    const unknown = "00000000-0000-4000-8000-000000000000";
+    expect(captureCampaignFromUrl(`?promo=${unknown}`, KNOWN_IDS)).toBeNull();
+  });
+});
