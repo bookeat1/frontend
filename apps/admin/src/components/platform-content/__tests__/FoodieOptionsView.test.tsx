@@ -293,6 +293,50 @@ describe("справочник фуди-профиля", () => {
     expect(input.kind).toBeUndefined();
   });
 
+  it("плитка связана со скрытой кухней — связь видна отдельно и её можно снять (код-ревью 2026-09-17)", async () => {
+    // Без этого блока правка такой плитки была невозможна: cuisine_ids всегда
+    // уходит целиком, а чекбокса на скрытую кухню в списке активных не было —
+    // сохранение падало 422 у самого сервера, и отвязать было нечем.
+    const client = fakeClient({
+      listFoodieOptionsForAdmin: vi.fn(async () => ({
+        cuisines: [option({ id: "t1", code: "korean", name: "Корейская", cuisine_ids: ["c-hidden"] })],
+        diets: [],
+        allergies: [],
+        budgets: [],
+      })),
+      listCuisinesForAdmin: vi.fn(async () => [
+        cuisineEntry({ id: "c-active", code: "asian", name: "Азиатская", is_active: true }),
+        cuisineEntry({ id: "c-hidden", code: "spicy", name: "Острая", is_active: false }),
+      ]),
+    });
+    renderView(client);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Изменить вариант «Корейская»/i }));
+
+    // Скрытая, но связанная — отдельным блоком, отмечена, с пометкой.
+    const hiddenCheckbox = await screen.findByRole("checkbox", { name: "Острая (скрыта)" });
+    expect((hiddenCheckbox as HTMLInputElement).checked).toBe(true);
+    // Активная — в обычном списке, не отмечена.
+    const activeCheckbox = screen.getByRole("checkbox", { name: "Азиатская" }) as HTMLInputElement;
+    expect(activeCheckbox.checked).toBe(false);
+
+    // Можно сохранить как есть — 422 не проверяем (это уже дело сервера),
+    // важно, что клиент не молча теряет связь.
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() => expect(client.updateFoodieOption).toHaveBeenCalledTimes(1));
+    expect((client.updateFoodieOption.mock.calls[0]![1] as FoodieOptionSaveInput).cuisine_ids).toEqual([
+      "c-hidden",
+    ]);
+
+    // Успешный save закрывает модалку — открываем правку заново, снимаем
+    // галочку: связь уходит из следующего сохранения.
+    fireEvent.click(await screen.findByRole("button", { name: /Изменить вариант «Корейская»/i }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Острая (скрыта)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() => expect(client.updateFoodieOption).toHaveBeenCalledTimes(2));
+    expect((client.updateFoodieOption.mock.calls[1]![1] as FoodieOptionSaveInput).cuisine_ids).toEqual([]);
+  });
+
   it("сервер отказал 409 — форма показывает дубликат и не теряет введённое", async () => {
     const { AdminApiError } = await import("@bookeat/api/admin");
     const client = fakeClient({

@@ -1438,6 +1438,10 @@ export const en: LocaleOverride<Dictionary> = {
       fieldCuisinesHint:
         "Restaurants with these cuisines get points in the \"For you\" row when a guest picks this tile. No link — the tile doesn't affect matching.",
       fieldCuisinesEmpty: "The \"Cuisines\" list has no active entries yet",
+      fieldCuisinesLoading: "Loading the cuisine dictionary…",
+      fieldCuisinesFailed: "Couldn't load the cuisine dictionary",
+      fieldCuisinesHiddenLinked: "Hidden but still linked",
+      fieldCuisinesHiddenSuffix: "(hidden)",
       fieldDescription: "Description",
       fieldPriceLabel: "Price label",
       fieldPriceLabelHint: "For example \"up to ₸5,000\" — shown on the budget tile",

@@ -302,6 +302,8 @@ function FoodieOptions({ client }: { client: FoodieOptionsClient }) {
           title={`${copy.newTitle} — ${activeTab.label}`}
           kind={tab}
           cuisineDictionary={cuisineDictionaryQuery.data ?? []}
+          cuisineDictionaryLoading={cuisineDictionaryQuery.isLoading}
+          cuisineDictionaryFailed={cuisineDictionaryQuery.isError}
           save={(input) => client.createFoodieOption({ kind: tab, ...input })}
           onClose={() => setCreating(false)}
           onSaved={() => {
@@ -317,6 +319,8 @@ function FoodieOptions({ client }: { client: FoodieOptionsClient }) {
           kind={editing.kind}
           entry={editing}
           cuisineDictionary={cuisineDictionaryQuery.data ?? []}
+          cuisineDictionaryLoading={cuisineDictionaryQuery.isLoading}
+          cuisineDictionaryFailed={cuisineDictionaryQuery.isError}
           save={(input) => client.updateFoodieOption(editing.id, input)}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -358,6 +362,8 @@ function FoodieOptionFormModal({
   kind,
   entry,
   cuisineDictionary,
+  cuisineDictionaryLoading,
+  cuisineDictionaryFailed,
   save,
   onClose,
   onSaved,
@@ -367,6 +373,11 @@ function FoodieOptionFormModal({
   entry?: FoodieOptionEntry;
   /** Справочник кухонь заведений для мультивыбора — только `kind: "cuisine"`. */
   cuisineDictionary: readonly CuisineDictionaryEntry[];
+  /** Различают «справочник ещё грузится» / «загрузка упала» от «в справочнике
+   * реально нет активных кухонь» — иначе оба состояния молча схлопываются в
+   * `fieldCuisinesEmpty`, и не заполненная форма выглядит как пустой каталог. */
+  cuisineDictionaryLoading: boolean;
+  cuisineDictionaryFailed: boolean;
   save: (input: FoodieOptionSaveInput) => Promise<FoodieOptionEntry>;
   onClose: () => void;
   onSaved: () => void;
@@ -393,6 +404,19 @@ function FoodieOptionFormModal({
   const activeCuisines = useMemo(
     () => cuisineDictionary.filter((c) => c.is_active),
     [cuisineDictionary],
+  );
+
+  // Код-ревью 2026-09-17: плитка может быть связана с кухней заведений,
+  // которую позже скрыли в `/admin/cuisines` (нет каскада на hide —
+  // `foodieoption/repository.go` LEFT JOIN не смотрит на `is_active`). Если
+  // показывать только `activeCuisines`, такая связь остаётся в `cuisineIds`
+  // невидимой и несбрасываемой — сохранение падает 422 («сервер отклонил
+  // запись»), а чекбокса, чтобы отвязать её, в форме нет. Показываем скрытые,
+  // но всё ещё связанные, отдельным помеченным пунктом — админ может явно
+  // снять галочку и сохранить.
+  const hiddenLinkedCuisines = useMemo(
+    () => cuisineDictionary.filter((c) => !c.is_active && cuisineIds.includes(c.id)),
+    [cuisineDictionary, cuisineIds],
   );
 
   const mutation = useMutation({
@@ -507,7 +531,13 @@ function FoodieOptionFormModal({
           <div className="flex flex-col gap-xs">
             <span className="text-sm font-medium text-text">{copy.fieldCuisines}</span>
             <p className="text-[12px] text-text-muted">{copy.fieldCuisinesHint}</p>
-            {activeCuisines.length === 0 ? (
+            {cuisineDictionaryLoading ? (
+              <p className="text-[13px] text-text-muted">{copy.fieldCuisinesLoading}</p>
+            ) : cuisineDictionaryFailed ? (
+              <p role="alert" className="text-[13px] text-brand">
+                {copy.fieldCuisinesFailed}
+              </p>
+            ) : activeCuisines.length === 0 && hiddenLinkedCuisines.length === 0 ? (
               <p className="text-[13px] text-text-muted">{copy.fieldCuisinesEmpty}</p>
             ) : (
               <div className="flex flex-col gap-xxs rounded-card border border-hairline p-sm">
@@ -525,6 +555,26 @@ function FoodieOptionFormModal({
                 ))}
               </div>
             )}
+            {/* Кухня заведений скрыта в `/admin/cuisines`, но всё ещё
+                связана с этой плиткой (см. hiddenLinkedCuisines выше) — без
+                этого блока сохранение падает 422, а снять связь нечем. */}
+            {!cuisineDictionaryLoading && !cuisineDictionaryFailed && hiddenLinkedCuisines.length > 0 ? (
+              <div className="flex flex-col gap-xxs rounded-card border border-hairline border-dashed p-sm">
+                <span className="text-[12px] text-text-muted">{copy.fieldCuisinesHiddenLinked}</span>
+                {hiddenLinkedCuisines.map((c) => (
+                  <CheckboxRow
+                    key={c.id}
+                    label={`${c.name} ${copy.fieldCuisinesHiddenSuffix}`}
+                    checked={cuisineIds.includes(c.id)}
+                    onChange={(checked) =>
+                      setCuisineIds((prev) =>
+                        checked ? [...prev, c.id] : prev.filter((id) => id !== c.id),
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

@@ -1444,6 +1444,10 @@ export const kk: LocaleOverride<Dictionary> = {
       fieldCuisinesHint:
         "Осы асханалары бар орындар қонақ бұл плитканы таңдағанда «Сізге арналған» қатарында ұпай алады. Байланыс жоқ болса — плитка іріктеуге қатыспайды.",
       fieldCuisinesEmpty: "«Асханалар» анықтамалығында әзірге белсенді жазба жоқ",
+      fieldCuisinesLoading: "Асханалар анықтамалығы жүктелуде…",
+      fieldCuisinesFailed: "Асханалар анықтамалығын жүктеу мүмкін болмады",
+      fieldCuisinesHiddenLinked: "Жасырын, бірақ әлі байланысты",
+      fieldCuisinesHiddenSuffix: "(жасырын)",
       fieldDescription: "Сипаттама",
       fieldPriceLabel: "Баға жазуы",
       fieldPriceLabelHint: "Мысалы «5 000 ₸ дейін» — бюджет плиткасында көрінеді",

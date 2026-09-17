@@ -2034,6 +2034,10 @@ export const ru = {
       fieldCuisinesHint:
         "Заведения с этими кухнями получат очки в ряду «Для вас», когда гость выберет эту плитку. Без связи плитка в подборе не участвует.",
       fieldCuisinesEmpty: "В справочнике «Кухни» пока нет активных записей",
+      fieldCuisinesLoading: "Справочник кухонь загружается…",
+      fieldCuisinesFailed: "Не удалось загрузить справочник кухонь",
+      fieldCuisinesHiddenLinked: "Скрытые, но всё ещё связанные",
+      fieldCuisinesHiddenSuffix: "(скрыта)",
       fieldDescription: "Описание",
       fieldPriceLabel: "Подпись цены",
       fieldPriceLabelHint: "Например «до 5 000 ₸» — гость видит её на плитке яруса",

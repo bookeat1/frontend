@@ -70,7 +70,8 @@ describe("запрет скрыть последний активный вари
       entry({ id: "3", kind: "cuisine", code: "asian", is_active: true }),
     ];
     expect(isLastActiveOfKind(items, items[0]!)).toBe(true);
-    // Другого вида (cuisine) активный не одинок — своё правило считается ВНУТРИ вида.
+    // Другого вида (cuisine) тоже ровно один активный — он ТОЖЕ последний
+    // своего вида: счёт ведётся ВНУТРИ вида, а не по всему списку.
     expect(isLastActiveOfKind(items, items[2]!)).toBe(true);
   });
 
