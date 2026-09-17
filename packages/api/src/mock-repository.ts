@@ -1,6 +1,7 @@
 import {
   amenities,
   cuisines,
+  foodieProfileOptions,
   guideCategories,
   articles,
   guideCollection,
@@ -41,6 +42,7 @@ import type {
   FavoriteItems,
   FavoriteKind,
   FoodieProfile,
+  FoodieProfileOptions,
   GuideCategory,
   GuideCollection,
   GuideRoute,
@@ -381,6 +383,11 @@ export class MockRestaurantRepository implements RestaurantRepository {
   async getCuisines(): Promise<Cuisine[]> {
     await this.simulateNetwork();
     return cuisines;
+  }
+
+  async getFoodieProfileOptions(): Promise<FoodieProfileOptions> {
+    await this.simulateNetwork();
+    return foodieProfileOptions;
   }
 
   async getAmenities(): Promise<Amenity[]> {

@@ -1,3 +1,4 @@
+import { __mockFoodieProfileOptions, RepositoryError } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -35,6 +36,15 @@ vi.mock("expo-router", () => ({
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
   SafeAreaView: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("../../src/lib/locale", () => ({
+  useLocale: () => ({ locale: "ru", dictionary: t, setLocale: vi.fn() }),
+}));
+
+const getFoodieProfileOptions = vi.fn(async () => __mockFoodieProfileOptions);
+vi.mock("../../src/lib/repository", () => ({
+  useRepository: () => ({ getFoodieProfileOptions }),
 }));
 
 /** Управляется отдельными тестами: "success" — PUT отвечает тем же черновиком,
@@ -112,15 +122,16 @@ beforeEach(() => {
   replace.mockClear();
   replaceFoodieProfile.mockClear();
   getFoodieProfile.mockClear();
+  getFoodieProfileOptions.mockClear();
+  getFoodieProfileOptions.mockImplementation(async () => __mockFoodieProfileOptions);
   replaceOutcome = "success";
 });
 
 describe("шаг «Ваш бюджет»", () => {
-  it("по умолчанию ни одна карточка не выбрана", () => {
+  it("по умолчанию ни одна карточка не выбрана", async () => {
     renderScreen();
-    for (const tier of ["budget", "mid", "premium"] as const) {
-      const copy = t.onboarding.foodieProfile.budget.options[tier];
-      const card = screen.getByRole("radio", { name: `${copy.name}, ${copy.price}` });
+    for (const tier of __mockFoodieProfileOptions.budgets) {
+      const card = await screen.findByRole("radio", { name: `${tier.name}, ${tier.priceLabel}` });
       expect(card.getAttribute("aria-checked")).toBe("false");
     }
   });
@@ -212,14 +223,77 @@ describe("шаг «Ваш бюджет»", () => {
     const user = userEvent.setup();
     renderScreen();
 
-    const mid = t.onboarding.foodieProfile.budget.options.mid;
-    const midCard = screen.getByRole("radio", { name: `${mid.name}, ${mid.price}` });
+    const mid = __mockFoodieProfileOptions.budgets.find((tier) => tier.code === "mid")!;
+    const midCard = await screen.findByRole("radio", { name: `${mid.name}, ${mid.priceLabel}` });
 
     await user.click(midCard);
     expect(midCard.getAttribute("aria-checked")).toBe("true");
 
     await user.click(midCard);
     expect(midCard.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("пока справочник бюджетных ярусов грузится — крутилка, «Готово» недоступна", async () => {
+    let resolveOptions: (value: typeof __mockFoodieProfileOptions) => void;
+    getFoodieProfileOptions.mockImplementation(
+      () => new Promise((resolve) => (resolveOptions = resolve)),
+    );
+
+    renderScreen();
+    settleGetProfile({ cuisines: [], diets: [], allergies: [], budget: null });
+
+    expect(screen.getByText(t.onboarding.foodieProfile.optionsLoading)).toBeTruthy();
+    // На этот момент подпись справа может быть ещё «Загрузка» (ждём и GET
+    // профиля, и справочник) — важно, что кнопка задизейблена, а не какая
+    // именно подпись на ней прямо сейчас.
+    const nextButton = screen.getByRole("button", {
+      name: new RegExp(`^(${t.common.loading}|${t.onboarding.foodieProfile.done})$`),
+    });
+    expect(nextButton.getAttribute("aria-disabled")).toBe("true");
+
+    resolveOptions!(__mockFoodieProfileOptions);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: t.onboarding.foodieProfile.done }).getAttribute("aria-disabled"),
+      ).not.toBe("true"),
+    );
+  });
+
+  it("сбой загрузки справочника ярусов показывает ошибку с «Повторить»", async () => {
+    getFoodieProfileOptions.mockRejectedValueOnce(
+      new RepositoryError("simulated offline", undefined, undefined, undefined, undefined, undefined, true),
+    );
+
+    const user = userEvent.setup();
+    renderScreen();
+    settleGetProfile({ cuisines: [], diets: [], allergies: [], budget: null });
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: t.common.retry }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: t.onboarding.foodieProfile.done }).getAttribute("aria-disabled"),
+      ).not.toBe("true"),
+    );
+  });
+
+  it("ярус, скрытый админом, не рисуется карточкой и не считается выбранным, даже если он был сохранён (спека §3.5)", async () => {
+    renderScreen();
+    settleGetProfile({ cuisines: [], diets: [], allergies: [], budget: "student" });
+
+    // «student» — ярус, которого нет в живом справочнике (админ его скрыл
+    // после того, как гость его когда-то выбрал). Гидрация роняет его до
+    // `null` — ни одна карточка не отмечена, «Готово» доступна как при
+    // пустом (валидном для необязательного шага) выборе.
+    for (const tier of __mockFoodieProfileOptions.budgets) {
+      const card = await screen.findByRole("radio", { name: `${tier.name}, ${tier.priceLabel}` });
+      expect(card.getAttribute("aria-checked")).toBe("false");
+    }
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: t.onboarding.foodieProfile.done }).getAttribute("aria-disabled"),
+      ).not.toBe("true"),
+    );
   });
 });
 

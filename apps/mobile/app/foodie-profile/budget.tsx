@@ -6,22 +6,34 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BudgetOptionCard } from "../../src/components/foodie-profile/BudgetOptionCard";
 import { FoodieProfileHeader } from "../../src/components/foodie-profile/FoodieProfileHeader";
-import { BUDGET_TIERS } from "../../src/components/foodie-profile/foodie-profile-options";
+import { DataErrorState } from "../../src/components/DataErrorState";
+import { LoadingState } from "../../src/components/StateViews";
+import { useFoodieOptions } from "../../src/hooks/useFoodieOptions";
 import { useFoodieProfileDraft } from "../../src/lib/foodie-profile-draft";
-import type { BudgetTier } from "../../src/lib/foodie-profile-selection";
 
 const t = getDictionary();
 
 /**
  * Шаг 4/4 — «Ваш бюджет» (Figma node 5161:11786). Единственный
  * НЕОБЯЗАТЕЛЬНЫЙ шаг визарда: «Далее» (здесь — «Готово») доступна и без
- * выбора.
+ * выбора (при условии, что справочник загрузился — см. ниже).
+ *
+ * ВАРИАНТЫ — живой справочник (`useFoodieOptions().data.budgets`), а не
+ * вшитая тройка «budget/mid/premium»: суперадмин теперь может добавить
+ * новый ярус (спека 3.10, пример `ultra`) без релиза сборки. `draft.budget`
+ * хранит `code` выбранного яруса как обычную строку (`BudgetTier = string`,
+ * см. `foodie-profile-selection.ts`) — тип-литерал из трёх значений снят
+ * этой же задачей, иначе клиент отверг бы тариф, который сервер уже принял.
  *
  * ДЕФОЛТ — ничего не выбрано (`draft.budget === null` из
  * `FoodieProfileDraftProvider`). В макете карточка «Средний» нарисована
  * выбранной, но это демонстрация состояния, а не предустановленный ответ
  * гостя — решение и его причина подробно объяснены в
  * `foodie-profile-selection.ts`.
+ *
+ * СКРЫТЫЙ ЯРУС НЕ РИСУЕТСЯ (спека §3.5, критерий 20/22). Если сохранённый
+ * `budget` гостя больше не входит в активный список, `FoodieProfileDraftProvider`
+ * гидрирует `draft.budget = null` — экран здесь не занимается спецслучаями.
  *
  * ФИНАЛ. «Готово» шлёт весь черновик одним `PUT /users/me/foodie-profile`
  * (`FoodieProfileDraftProvider.save`) и уходит на `/profile` только при
@@ -30,9 +42,10 @@ const t = getDictionary();
  *
  * ЗАЩИТА ОТ ТИХОЙ ПОТЕРИ ДАННЫХ. `PUT` заменяет весь профиль целиком, а не
  * мержит. Пока стартовый `GET` (см. `foodie-profile-draft.tsx`) ещё грузится
- * или упал — «Готово» заблокирована: иначе на плохой сети гость может
- * протапать шаги поверх непрогруженного черновика и стереть ранее
- * сохранённые категории пустым/неполным `PUT`.
+ * или упал, ИЛИ пока справочник бюджетных ярусов ещё грузится/упал — «Готово»
+ * заблокирована: иначе на плохой сети гость может протапать шаги поверх
+ * непрогруженного черновика и стереть ранее сохранённые категории
+ * пустым/неполным `PUT`.
  */
 export default function FoodieProfileBudgetScreen() {
   const router = useRouter();
@@ -46,6 +59,8 @@ export default function FoodieProfileBudgetScreen() {
     retryLoadProfile,
     save,
   } = useFoodieProfileDraft();
+  const optionsQuery = useFoodieOptions();
+  const tiers = optionsQuery.data?.budgets ?? [];
 
   const finish = useCallback(() => {
     void (async () => {
@@ -59,6 +74,8 @@ export default function FoodieProfileBudgetScreen() {
     router.back();
   }, [isSaving, router]);
 
+  const optionsReady = optionsQuery.isSuccess;
+
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -67,7 +84,7 @@ export default function FoodieProfileBudgetScreen() {
           step={4}
           onBack={goBack}
           nextLabel={isSaving || isLoadingProfile ? t.common.loading : t.onboarding.foodieProfile.done}
-          nextEnabled={!isSaving && !isLoadingProfile && !profileLoadFailed}
+          nextEnabled={optionsReady && !isSaving && !isLoadingProfile && !profileLoadFailed}
           onNext={finish}
         />
       </SafeAreaView>
@@ -78,21 +95,24 @@ export default function FoodieProfileBudgetScreen() {
         </Text>
         <Text style={styles.subtitle}>{t.onboarding.foodieProfile.budget.subtitle}</Text>
 
-        <View style={styles.list}>
-          {BUDGET_TIERS.map((tier: BudgetTier) => {
-            const copy = t.onboarding.foodieProfile.budget.options[tier];
-            return (
+        {optionsQuery.isLoading ? (
+          <LoadingState title={t.onboarding.foodieProfile.optionsLoading} compact />
+        ) : optionsQuery.isError ? (
+          <DataErrorState error={optionsQuery.error} onRetry={() => void optionsQuery.refetch()} compact />
+        ) : (
+          <View style={styles.list}>
+            {tiers.map((tier) => (
               <BudgetOptionCard
-                key={tier}
-                name={copy.name}
-                description={copy.description}
-                price={copy.price}
-                selected={draft.budget === tier}
-                onPress={() => setBudget(tier)}
+                key={tier.id || tier.code}
+                name={tier.name}
+                description={tier.description}
+                price={tier.priceLabel}
+                selected={draft.budget === tier.code}
+                onPress={() => setBudget(tier.code)}
               />
-            );
-          })}
-        </View>
+            ))}
+          </View>
+        )}
 
         {profileLoadFailed ? (
           <View style={styles.loadErrorBox}>

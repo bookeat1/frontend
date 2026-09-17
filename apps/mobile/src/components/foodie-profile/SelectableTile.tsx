@@ -14,13 +14,17 @@ import { PhotoView } from "../PhotoView";
  * `GuideRubricTile` (гастрогид), только в сетке из трёх колонок вместо двух и
  * с состоянием «выбрано».
  *
- * ФОТО. `photo` — локальный `require()`-ресурс (число), когда для пункта
- * есть вшитый снимок (см. `cuisineOptionPhoto` в `foodie-profile-options.ts`
- * — переиспользует маппинг, уже заведённый для ряда «Выберите кухню» на
- * главной). Без него плитка рисует ту же плашку «фото нет», что и блюдо без
- * картинки (`PhotoView` с `uri={null}`) — существующий паттерн заглушки, а не
- * новый. Настоящих фотографий под эти категории нет и не будет в этой задаче
- * (только вёрстка, бэкенда для фуди-профиля не существует).
+ * ФОТО, приоритет источников:
+ *   1. `imageUrl` — картинка живого справочника (`FoodieOption.imageUrl`,
+ *      `GET /foodie-profile/options`), настоящий URI, через `PhotoView` (та
+ *      же плашка «фото нет» на пустом/битом URL, что и у блюда без фото —
+ *      ничего нового не изобретаем).
+ *   2. `photo` — вшитый `require()`-ресурс (число), запасной вариант ТОЛЬКО
+ *      для кухонь, пока у справочника нет своей картинки (см.
+ *      `cuisineOptionPhoto` в `foodie-profile-options.ts` — переиспользует
+ *      маппинг, уже заведённый для ряда «Выберите кухню» на главной).
+ *   3. Ни того, ни другого — та же плашка «фото нет» (`PhotoView` с
+ *      `uri={null}`).
  *
  * ВЫБРАННОЕ СОСТОЯНИЕ — обводка бренда поверх плитки и галочка в кружке в
  * правом верхнем углу. Координатор передал раскладку и цвета шапки/пагинации/
@@ -31,6 +35,7 @@ import { PhotoView } from "../PhotoView";
  */
 export function SelectableTile({
   label,
+  imageUrl,
   photo,
   selected,
   disabled,
@@ -39,6 +44,9 @@ export function SelectableTile({
   accessibilityHint,
 }: {
   label: string;
+  /** Remote tile photo from the live dictionary — takes priority over
+   * `photo` when present. */
+  imageUrl?: string;
   photo?: number;
   selected: boolean;
   /** Плитка недостижима — лимит кухонь набран, а эта не выбрана. Остаётся
@@ -70,7 +78,15 @@ export function SelectableTile({
         pressed && !disabled && styles.pressed,
       ]}
     >
-      {photo ? (
+      {imageUrl ? (
+        <PhotoView
+          uri={imageUrl}
+          size="tile"
+          style={StyleSheet.absoluteFill}
+          decorative
+          placeholderIconSize={24}
+        />
+      ) : photo ? (
         <Image testID="tile-photo" source={photo} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
         <PhotoView uri={null} style={StyleSheet.absoluteFill} decorative placeholderIconSize={24} />

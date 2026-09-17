@@ -18,6 +18,7 @@ import type {
   FavoriteItems,
   FavoriteKind,
   FoodieProfile,
+  FoodieProfileOptions,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -105,6 +106,15 @@ export interface RestaurantRepository {
   getCatalogPreview(perPage?: number): Promise<RestaurantSummary[]>;
 
   getCuisines(): Promise<Cuisine[]>;
+  /**
+   * `GET /foodie-profile/options` — the foodie-profile wizard's live
+   * dictionary of cuisine/diet/allergy tiles and budget tiers (spec
+   * `foodie-profile-admin-dictionaries-20260916`). A platform admin manages
+   * this in the admin app; the wizard screens (`app/foodie-profile/*.tsx`)
+   * render exactly this list instead of a bundled one, so a new/edited/hidden
+   * option reaches a guest without a client release. Public, no session.
+   */
+  getFoodieProfileOptions(): Promise<FoodieProfileOptions>;
   /**
    * Справочник удобств («Удобства» в шторке фильтров) — `GET /venue-features`.
    * Отдаётся ЦЕЛИКОМ, включая записи, у которых сегодня ноль заведений:

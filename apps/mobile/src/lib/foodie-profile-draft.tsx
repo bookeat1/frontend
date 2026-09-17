@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { BUDGET_TIERS } from "../components/foodie-profile/foodie-profile-options";
+import { useFoodieOptions } from "../hooks/useFoodieOptions";
 import { useAuth } from "./auth";
 import {
   toggleAllergySelection,
@@ -51,6 +51,23 @@ import {
  *      / `dietsTouched` / `allergiesTouched` / `budgetTouched`), не одним
  *      общим флагом — иначе тап по одной плитке молча блокирует гидрацию
  *      всех остальных трёх категорий (регрессия ревью PR #225, раунд 2);
+ *
+ *      ГИДРАЦИЯ ОТБРАСЫВАЕТ СКРЫТЫЕ КОДЫ (спека
+ *      foodie-profile-admin-dictionaries-20260916, §3.5: «новый клиент не
+ *      находит `spicy` среди активных и не рисует», критерий 20/22).
+ *      Провайдер сверяет `saved.*` с `useFoodieOptions()` (живой справочник,
+ *      `GET /foodie-profile/options`) и в черновик кладёт только коды,
+ *      которые сервер СЕЙЧАС считает активными — код, который админ скрыл
+ *      после того, как гость его выбрал, просто не попадает в состояние
+ *      визарда вовсе (не рисуется плиткой и не улетит следующим `PUT`).
+ *      Это чисто гидрация ЧЕРНОВИКА визарда — сохранённый на сервере профиль
+ *      гостя эта фильтрация не трогает: пока гость не нажал «Готово» ещё
+ *      раз, скрытый код у него на сервере остаётся и продолжает считаться в
+ *      `LoadTasteProfile` (критерий 12 — это бэкендовая, а не эта, забота).
+ *      Пока справочник (`useFoodieOptions()`) ещё не загрузился, фильтр не
+ *      применяется вовсе (нечем сверять) — категория гидрируется как есть и
+ *      будет отфильтрована повторным проходом эффекта, когда справочник
+ *      подъедет;
  *   2. на последнем шаге (`budget.tsx`) отдаёт `save()`, которая шлёт весь
  *      черновик одним `PUT` (replace, не merge) и возвращает `true`/`false`,
  *      чтобы экран уходил на `/profile` только при успехе.
@@ -64,13 +81,6 @@ export interface FoodieProfileDraft {
 }
 
 const EMPTY_DRAFT: FoodieProfileDraft = { cuisines: [], diets: [], allergies: [], budget: null };
-
-/** Читает `budget` бэкенда как `BudgetTier`, только если это один из трёх
- * известных вариантов — иначе (в т.ч. `null`) черновик остаётся без бюджета,
- * а не падает на незнакомом значении будущего бэкенда. */
-function asBudgetTier(value: string | null): BudgetTier | null {
-  return (BUDGET_TIERS as readonly string[]).includes(value ?? "") ? (value as BudgetTier) : null;
-}
 
 function toWireProfile(draft: FoodieProfileDraft): FoodieProfile {
   return {
@@ -152,20 +162,52 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
     // (см. profile.tsx), но провайдер не полагается на это молча.
     enabled: status === "signed-in",
   });
+  // Тот же ключ кэша, что у `useFoodieOptions()` на каждом из 4 экранов —
+  // общий кэш TanStack Query, второго запроса это не стоит.
+  const optionsQuery = useFoodieOptions();
 
   useEffect(() => {
     if (!profileQuery.data) return;
     // Runs on every GET response, not just the first — an untouched
     // category still picks up the latest server value if the query data
-    // changes again (e.g. a refetch after a failed retry).
+    // changes again (e.g. a refetch after a failed retry), AND every time
+    // the live options dictionary itself changes (options load in later than
+    // the profile most of the time — the filter below only has something to
+    // filter against once `optionsQuery.data` exists).
     const saved = profileQuery.data;
+    const options = optionsQuery.data;
+    // Пока справочник ещё не загрузился, фильтровать не по чему — категория
+    // гидрируется как есть, эффект перезапустится и отфильтрует, когда
+    // options.data подъедет (см. doc-comment выше).
+    const knownCuisines = options ? new Set(options.cuisines.map((o) => o.code)) : null;
+    const knownDiets = options ? new Set(options.diets.map((o) => o.code)) : null;
+    const knownAllergies = options ? new Set(options.allergies.map((o) => o.code)) : null;
+    const knownBudgets = options ? new Set(options.budgets.map((o) => o.code)) : null;
     setDraft((prev) => ({
-      cuisines: cuisinesTouched.current ? prev.cuisines : saved.cuisines,
-      diets: dietsTouched.current ? prev.diets : saved.diets,
-      allergies: allergiesTouched.current ? prev.allergies : saved.allergies,
-      budget: budgetTouched.current ? prev.budget : asBudgetTier(saved.budget),
+      cuisines: cuisinesTouched.current
+        ? prev.cuisines
+        : knownCuisines
+          ? saved.cuisines.filter((code) => knownCuisines.has(code))
+          : saved.cuisines,
+      diets: dietsTouched.current
+        ? prev.diets
+        : knownDiets
+          ? saved.diets.filter((code) => knownDiets.has(code))
+          : saved.diets,
+      allergies: allergiesTouched.current
+        ? prev.allergies
+        : knownAllergies
+          ? saved.allergies.filter((code) => knownAllergies.has(code))
+          : saved.allergies,
+      budget: budgetTouched.current
+        ? prev.budget
+        : knownBudgets && saved.budget
+          ? knownBudgets.has(saved.budget)
+            ? saved.budget
+            : null
+          : saved.budget,
     }));
-  }, [profileQuery.data]);
+  }, [profileQuery.data, optionsQuery.data]);
 
   const toggleCuisine = useCallback((id: string) => {
     cuisinesTouched.current = true;
@@ -223,14 +265,17 @@ export function FoodieProfileDraftProvider({ children }: { children: React.React
     // would slip past an `isLoading || isError` guard and PUT over an
     // untouched draft. `isSuccess` only becomes true once the GET has
     // actually resolved at least once in this session.
-    if (!profileQuery.isSuccess) return false;
+    // `!optionsQuery.isSuccess` too — without the dictionary the hydration
+    // filter above never ran (passthrough), so an unfiltered draft could
+    // still carry a code the admin hid meanwhile straight into the PUT.
+    if (!profileQuery.isSuccess || !optionsQuery.isSuccess) return false;
     try {
       await replaceFoodieProfile(toWireProfile(draft));
       return true;
     } catch {
       return false;
     }
-  }, [draft, replaceFoodieProfile, profileQuery.isSuccess]);
+  }, [draft, replaceFoodieProfile, profileQuery.isSuccess, optionsQuery.isSuccess]);
 
   const { refetch: refetchProfile } = profileQuery;
   const retryLoadProfile = useCallback(() => {
