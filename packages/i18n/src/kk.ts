@@ -2964,6 +2964,19 @@ export const kk: LocaleOverride<Dictionary> = {
       notFoundDescription: "Бұл бетті әлі жарияламаған сияқты.",
       backHome: "Басты бетке",
     },
+    /** Ешқашан экранға шықпайды: серверлік HTML бүгін тек орысша (ru.ts
+     * қараңыз). Толықтық тесті үшін ғана толтырылған. */
+    seo: {
+      venueTitleSuffix: (city: string) => `, ${city}: үстел брондау`,
+      venueBookingCta: "BookEat-те үстелді онлайн брондаңыз.",
+      hoursToday: (opens: string, closes: string) => `Бүгін ${opens}-ден ${closes}-ге дейін жұмыс істейді.`,
+      catalogTitle: "Алматы мейрамханалары мен кафелері: үстелді онлайн брондау",
+      catalogDescription: (count: number, cuisines: string) =>
+        `${count} мекеме: ${cuisines}. Күн, уақыт және қонақтар санын таңдап, бір минутта үстел брондаңыз.`,
+      homeTitle: "Алматы мейрамханалары мен кафелерінде үстелді онлайн брондау",
+      homeDescription: (count: number, city: string) =>
+        `BookEat: ${city} қаласында ${count} мекеме, бос үстелдер, мәзір бойынша алдын ала тапсырыс, қоңырауларсыз.`,
+    },
     venue: {
       breadcrumbLabel: "Сайт бойынша жол",
       breadcrumbHome: "Басты бет",

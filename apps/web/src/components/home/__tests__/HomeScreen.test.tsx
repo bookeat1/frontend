@@ -37,6 +37,22 @@ describe("главная", () => {
     expect((await screen.findAllByRole("status")).length).toBeGreaterThan(0);
   });
 
+  it("SEO T1: initialCatalog от серверного рендера рисует «Все заведения» сразу, без skeleton", () => {
+    repository.searchRestaurants = vi.fn(() => pending<Awaited<ReturnType<typeof repository.searchRestaurants>>>());
+
+    renderScreen(
+      <HomeScreen
+        initialCatalog={{
+          query: { text: "", filters: {} as never },
+          items: [venueSummary({ id: "ssr-1", name: "Auyl" })],
+          total: 1,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Auyl" })).toBeTruthy();
+  });
+
   it("пустые ленты объясняются словами, а не пустым местом", async () => {
     repository.getRecommendedRestaurants = vi.fn(async () => ({ items: [], mode: "popular" as const }));
     repository.getPromotions = vi.fn(async () => []);

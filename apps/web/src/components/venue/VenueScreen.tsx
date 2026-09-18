@@ -74,9 +74,9 @@ import { useFavoriteIds, useToggleFavorite, useVenue } from "@web/lib/queries";
  * раньше города заведения не было в модели отдельным полем, теперь есть
  * `Restaurant.city`, ничего склонять в коде не нужно.
  */
-export function VenueScreen({ id }: { id: string }) {
+export function VenueScreen({ id, initialVenue }: { id: string; initialVenue?: Restaurant }) {
   const t = useT();
-  const query = useVenue(id);
+  const query = useVenue(id, initialVenue);
 
   return (
     <SiteChrome active="venues">
