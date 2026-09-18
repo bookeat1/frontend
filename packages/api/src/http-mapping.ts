@@ -46,6 +46,7 @@ import type {
   MenuSection,
   AppNotification,
   NotificationFeed,
+  NotificationPreferences,
   NotificationType,
   PaymentPurpose,
   HomePromo,
@@ -935,10 +936,12 @@ export function mapFoodieBudgetOption(api: ApiFoodieBudgetOption): FoodieBudgetO
 }
 
 /**
- * One item of `GET /notifications`. `booking_id` / `restaurant_id` are carried
- * on the wire but not mapped into AppNotification — no row deep-links yet (see
- * AppNotification). Every field is read defensively: a missing key degrades one
- * row, it does not throw and blank the whole inbox.
+ * One item of `GET /notifications`. `restaurant_id` is carried on the wire
+ * but not mapped into AppNotification — no row deep-links yet (see
+ * AppNotification). `event_id`/`promo_id` are new (push-campaigns spec §4
+ * criterion 25) and null on any row that predates the feature. Every field
+ * is read defensively: a missing key degrades one row, it does not throw and
+ * blank the whole inbox.
  */
 export interface ApiNotification {
   id: string;
@@ -946,6 +949,8 @@ export interface ApiNotification {
   title: string;
   body: string;
   booking_id?: string | null;
+  event_id?: string | null;
+  promo_id?: string | null;
   restaurant_id?: string | null;
   read: boolean;
   created_at: string;
@@ -959,7 +964,7 @@ export interface ApiNotificationFeed {
   next_cursor?: string | null;
 }
 
-const NOTIFICATION_TYPES: NotificationType[] = ["booking", "reminder", "promo"];
+const NOTIFICATION_TYPES: NotificationType[] = ["booking", "reminder", "promo", "event"];
 
 /** An unrecognised type maps to "reminder": a bell is the generic notification
  * glyph, so an item of a kind this build has not shipped yet still renders
@@ -977,8 +982,10 @@ export function mapNotification(api: ApiNotification): AppNotification {
     body: text(api.body),
     createdAt: text(api.created_at),
     read: api.read === true,
-    // Пустая строка на проводе — это «брони нет», а не бронь с пустым id.
+    // Пустая строка на проводе — это «нет id», а не сущность с пустым id.
     bookingId: text(api.booking_id) || null,
+    eventId: text(api.event_id) || null,
+    promoId: text(api.promo_id) || null,
   };
 }
 
@@ -993,6 +1000,37 @@ export function mapNotificationFeed(api: ApiNotificationFeed): NotificationFeed 
     items: (api.items ?? []).map(mapNotification),
     unreadCount: typeof api.unread_count === "number" ? api.unread_count : 0,
     nextCursor: text(api.next_cursor) || null,
+  };
+}
+
+/**
+ * `GET/PUT /notification-preferences` payload (`transport/rest/consent`,
+ * `preferenceResponse`). `promo_push_enabled` is new (push-campaigns spec
+ * §5.2); every field is read defensively and defaults to `true` when absent
+ * or not a boolean — matching the server's own opt-OUT default
+ * (`domain.DefaultNotificationPreference`) for a guest with no stored row.
+ */
+export interface ApiNotificationPreferences {
+  notifications_enabled?: unknown;
+  push_enabled?: unknown;
+  email_enabled?: unknown;
+  promo_push_enabled?: unknown;
+  updated_at?: string;
+}
+
+function boolOrTrue(value: unknown): boolean {
+  return typeof value === "boolean" ? value : true;
+}
+
+export function mapNotificationPreferences(
+  api: ApiNotificationPreferences,
+): NotificationPreferences {
+  return {
+    notificationsEnabled: boolOrTrue(api.notifications_enabled),
+    pushEnabled: boolOrTrue(api.push_enabled),
+    emailEnabled: boolOrTrue(api.email_enabled),
+    promoPushEnabled: boolOrTrue(api.promo_push_enabled),
+    updatedAt: text(api.updated_at),
   };
 }
 

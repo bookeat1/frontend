@@ -2540,7 +2540,7 @@ export const en: LocaleOverride<Dictionary> = {
   push: {
     optInTitle: "Let you know when it's confirmed?",
     optInDescription:
-      "We'll notify you when the restaurant confirms your booking, and remind you before your visit. Nothing promotional",
+      "We'll notify you when the restaurant confirms your booking, remind you before your visit, and tell you about events and promotions in your city",
     optInEnable: "Turn on notifications",
     optInDismiss: "Not now",
     deniedTitle: "Notifications are off",
@@ -2549,7 +2549,7 @@ export const en: LocaleOverride<Dictionary> = {
     failedTitle: "Couldn't turn them on",
     failedDescription: "Try again — this doesn't affect your booking in any way",
     enabledTitle: "Notifications are on",
-    enabledDescription: "We'll let you know as soon as the restaurant replies",
+    enabledDescription: "We'll let you know as soon as the restaurant replies, and about events and promotions",
   },
   appUpdate: {
     title: "BookEat update available",
@@ -2569,12 +2569,14 @@ export const en: LocaleOverride<Dictionary> = {
     languageTitle: "Interface language",
     languageSubtitle: "Choose the app's language",
     notifications: "Notifications",
-    notificationsOn: "We'll let you know when the restaurant confirms, and remind you before the visit",
+    notificationsOn: "We'll let you know when the restaurant confirms, remind you before the visit, and tell you about events and promotions",
     notificationsOff: "Off right now — you'll only see the restaurant's answer inside the app",
     notificationsBlocked: "Your phone blocks notifications for this app. They can only be turned back on in its settings",
     notificationsOpenSettings: "Open phone settings",
     notificationsUnavailable: "Notifications don't work on this device",
     notificationsError: "Couldn't turn them on. Please try again",
+    promoPush: "Events and promotions",
+    promoPushDescription: "A push about a new event or promotion from a venue in your city",
     security: "Security",
     comingSoon: "Soon",
     appName: "BookEat",
