@@ -22,6 +22,13 @@ import { useRepository } from "../lib/repository";
  * existing `settings.notificationsError` copy — the same "не получилось,
  * попробуйте ещё раз" message the master toggle already shows for the same
  * kind of failure.
+ *
+ * The INITIAL `GET` can fail too (network/500) — that is `unavailable`, not
+ * `failed`: `failed` means "we know the real value, a flip just didn't save
+ * it"; `unavailable` means "we never learned the real value at all", so
+ * showing the switch as off would be a guess, not a fact. The screen must
+ * check `unavailable` itself (via `disabled`/the description) — this hook
+ * cannot disable anything on its own, it only exposes state.
  */
 export interface PromoPushSetting {
   /** Preferences not read yet: the row should render without a value rather
@@ -33,6 +40,11 @@ export interface PromoPushSetting {
   /** The last flip did not reach the server; the switch is back to its
    * previous position and `settings.notificationsError` should show. */
   failed: boolean;
+  /** The initial read never reached the server: there is no known value to
+   * show, and `setEnabled` is a no-op until a future mount succeeds. The
+   * screen must disable the row and show an error itself — `loading` is
+   * `false` by then, so it will NOT gate the row on its own. */
+  unavailable: boolean;
   setEnabled(next: boolean): void;
 }
 
@@ -42,6 +54,7 @@ export function usePromoPushSetting(): PromoPushSetting {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
   const mounted = useRef(true);
   // A ref, not just the `working` state: two synchronous taps (e.g. a fast
   // double-tap) both fire before React re-renders with `working: true`, so a
@@ -59,15 +72,21 @@ export function usePromoPushSetting(): PromoPushSetting {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setUnavailable(false);
     void repository
       .getNotificationPreferences()
       .then((next) => {
         if (cancelled) return;
         setPrefs(next);
+        setUnavailable(false);
       })
       .catch(() => {
-        // Could not read: the row stays without a value (disabled by the
-        // screen via `loading`) rather than guessing "on" or "off".
+        if (cancelled) return;
+        // Could not read: there is no known value, so `value` below would
+        // otherwise fall back to `false` and look like a real "off" — flag
+        // it explicitly so the screen can disable the row and show an error
+        // instead of a silently wrong, tappable-but-inert switch.
+        setUnavailable(true);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -117,6 +136,7 @@ export function usePromoPushSetting(): PromoPushSetting {
     value: prefs?.promoPushEnabled ?? false,
     working,
     failed,
+    unavailable,
     setEnabled,
   };
 }

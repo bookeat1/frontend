@@ -106,6 +106,26 @@ describe("usePromoPushSetting", () => {
     expect(result.current.working).toBe(false);
   });
 
+  it("flags unavailable (not a guessed false) when the initial read fails, and setEnabled stays a no-op", async () => {
+    repository.getNotificationPreferences.mockRejectedValue(new Error("network"));
+    const { result } = renderHook(() => usePromoPushSetting());
+
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Not silently "off" — the screen must be able to tell "unknown" apart
+    // from a real, server-confirmed off, and disable/error instead of
+    // showing a switch that looks interactive but does nothing.
+    expect(result.current.unavailable).toBe(true);
+    expect(result.current.value).toBe(false);
+    expect(result.current.failed).toBe(false);
+
+    result.current.setEnabled(true);
+    await Promise.resolve();
+    expect(repository.setNotificationPreferences).not.toHaveBeenCalled();
+    expect(result.current.unavailable).toBe(true);
+  });
+
   it("a second tap while a write is in flight is ignored", async () => {
     let resolveWrite!: (value: NotificationPreferences) => void;
     repository.setNotificationPreferences.mockReturnValue(

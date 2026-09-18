@@ -46,7 +46,11 @@ import { usePromoPushSetting } from "../../src/hooks/usePromoPushSetting";
  * тумблер, чистое серверное состояние (`usePromoPushSetting`, GET/PUT
  * `/notification-preferences`), без своего системного разрешения. Рисуется
  * только когда мастер-тумблер включён — без этого условия он не значил бы
- * ничего.
+ * ничего. Если начальный GET упал (сеть/500), хук отдаёт
+ * `unavailable: true` и `loading: false` — экран сам держит строку
+ * заблокированной и показывает ту же ошибку, что и у мастер-тумблера,
+ * вместо того чтобы молча нарисовать «выключено» и игнорировать тапы
+ * (правка код-ревью, 18.09.2026).
  *
  * Strings come from the CURRENT locale via useLocale, so the screen re-renders
  * in the chosen language.
@@ -150,12 +154,12 @@ export default function SettingsScreen() {
             description={
               promoPush.loading
                 ? undefined
-                : promoPush.failed
+                : promoPush.failed || promoPush.unavailable
                   ? t.settings.notificationsError
                   : t.settings.promoPushDescription
             }
-            descriptionIsError={promoPush.failed}
-            disabled={promoPush.loading || promoPush.working}
+            descriptionIsError={promoPush.failed || promoPush.unavailable}
+            disabled={promoPush.loading || promoPush.working || promoPush.unavailable}
           />
         ) : null}
 
