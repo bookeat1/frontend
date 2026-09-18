@@ -25,6 +25,19 @@ import { t } from "@web/lib/i18n";
  */
 export const revalidate = 600;
 
+/**
+ * Обязательна для `revalidate` (ISR) на динамическом сегменте: без неё
+ * Next.js рендерит маршрут полностью динамически и `revalidate` ничего не
+ * даёт (см. Next.js: "You must return an empty array from
+ * generateStaticParams … in order to revalidate (ISR) paths at runtime.
+ * Otherwise, the route will be dynamically rendered"). Пустой массив — ни
+ * один id не строится заранее при сборке, но появляется в Next data cache
+ * (и ISR-обновляется) при первом же реальном запросе.
+ */
+export function generateStaticParams() {
+  return [];
+}
+
 interface VenuePageProps {
   params: Promise<{ id: string }>;
 }
@@ -61,7 +74,6 @@ export default async function VenuePage({ params }: VenuePageProps) {
             restaurantJsonLd(venue),
             breadcrumbJsonLd([
               { name: t.web.venue.breadcrumbHome, path: "/" },
-              { name: venue.city },
               { name: t.web.venue.breadcrumbVenues, path: "/venues" },
               { name: venue.name },
             ]),

@@ -155,7 +155,12 @@ export function restaurantJsonLd(venue: Restaurant): JsonLdNode {
   return node;
 }
 
-/** `BreadcrumbList` — «Главная / {город} / Заведения / {название}», критерий C20. */
+/**
+ * `BreadcrumbList` — «Главная / Заведения / {название}», критерий C20 (спека
+ * C20 требует ровно эти три уровня, без города: Google Rich Results требует
+ * поле `item` у КАЖДОГО элемента, кроме последнего, а у города своей ссылки
+ * нет — вставлять его сюда означало бы невалидную разметку).
+ */
 export function breadcrumbJsonLd(
   items: ReadonlyArray<{ name: string; path?: string }>,
 ): JsonLdNode {

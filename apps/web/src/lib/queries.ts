@@ -387,7 +387,18 @@ export function useCatalog(
     // Прошлая выдача остаётся на экране, пока едет новая: иначе каждый клик по
     // чипу схлопывал бы список в скелет и страница прыгала бы.
     placeholderData: (previous) => previous,
-    initialData: locale === "ru" ? initialResult : undefined,
+    // Guard по городу — тот же приём, что у `useVenue` (initialVenue?.id ===
+    // id). `initialResult` получен на сервере для ОДНОГО конкретного города
+    // (DEFAULT_CITY): `CityProvider` читает сохранённый город гостя в
+    // useEffect ПОСЛЕ маунта, так что к моменту, когда initialData реально
+    // засеивает кэш, `query` может уже быть другим городом. Без этой
+    // проверки initialData подставлялась бы под ЛЮБОЙ ключ запроса, и гость
+    // с другим сохранённым городом увидел бы под правильным заголовком
+    // карточки из initialResult.
+    initialData:
+      locale === "ru" && initialResult?.query.filters.city === query.filters.city
+        ? initialResult
+        : undefined,
   });
 }
 
