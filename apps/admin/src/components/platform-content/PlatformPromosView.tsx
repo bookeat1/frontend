@@ -17,6 +17,7 @@ import { formatDateTime, isoToLocalInput, localInputToIso } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { useCityDictionary } from "@/lib/use-cities";
 import { useIsPlatformAdmin } from "@/lib/use-venue-catalog";
+import { usePushCampaigns, type PushCampaignsListClient } from "@/lib/use-push-campaigns";
 
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 import { Button } from "../ui/Button";
@@ -27,6 +28,7 @@ import { ImageGalleryField } from "../ui/ImageGalleryField";
 import { ImageUploadField } from "../ui/ImageUploadField";
 import { Modal } from "../ui/Modal";
 import { PublishBadge } from "../ui/PublishBadge";
+import { PushCampaignControl, type PushCampaignClient } from "../ui/PushCampaignControl";
 import { copy, platformContentErrorText } from "./copy";
 
 /**
@@ -45,7 +47,7 @@ import { copy, platformContentErrorText } from "./copy";
  *
  * Колонки с заведением в списке нет и быть не может.
  */
-export interface PlatformPromoClient {
+export interface PlatformPromoClient extends PushCampaignsListClient, PushCampaignClient {
   listPlatformPromos(params?: AdminListParams): Promise<ApiPage<AdminPromo>>;
   createPlatformPromo(input: PromoInput): Promise<AdminPromo>;
   updatePromo(promoId: string, input: PromoInput): Promise<AdminPromo>;
@@ -90,6 +92,11 @@ function PlatformPromos({ client }: { client: PlatformPromoClient }) {
     queryKey: QUERY_KEY,
     queryFn: () => client.listPlatformPromos({ per_page: 100 }),
   });
+
+  const { query: pushCampaignsQuery, bySubjectId: pushCampaignsBySubjectId } = usePushCampaigns(
+    { kind: "promo", platform: true },
+    client,
+  );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
@@ -146,61 +153,70 @@ function PlatformPromos({ client }: { client: PlatformPromoClient }) {
               const pendingDelete =
                 deleteMutation.isPending && deleteMutation.variables?.id === promo.id;
               return (
-                <li
-                  key={promo.id}
-                  className="flex flex-col gap-md rounded-card bg-surface p-lg sm:flex-row sm:items-start sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-sm">
-                      <span className="break-words text-sm font-semibold text-text">
-                        {promo.title}
-                      </span>
-                      <PublishBadge status={promo.status} />
-                      <CityChip city={promo.city} />
-                    </div>
-                    <p className="mt-xxs text-[13px] text-text-muted">
-                      {formatDateTime(promo.starts_at)} — {formatDateTime(promo.ends_at)}
-                    </p>
-                    {promo.discount_percent != null ? (
-                      <p className="mt-xxs text-[12px] text-text-muted">
-                        −{promo.discount_percent}%
+                <li key={promo.id} className="flex flex-col gap-md rounded-card bg-surface p-lg">
+                  <div className="flex flex-col gap-md sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-sm">
+                        <span className="break-words text-sm font-semibold text-text">
+                          {promo.title}
+                        </span>
+                        <PublishBadge status={promo.status} />
+                        <CityChip city={promo.city} />
+                      </div>
+                      <p className="mt-xxs text-[13px] text-text-muted">
+                        {formatDateTime(promo.starts_at)} — {formatDateTime(promo.ends_at)}
                       </p>
-                    ) : null}
+                      {promo.discount_percent != null ? (
+                        <p className="mt-xxs text-[12px] text-text-muted">
+                          −{promo.discount_percent}%
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap gap-xs sm:justify-end">
+                      <Button size="sm" variant="secondary" onClick={() => setEditing(promo)}>
+                        {t.admin.common.edit}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={promo.status === "published" ? "secondary" : "primary"}
+                        disabled={pendingStatus || pendingDelete}
+                        loading={pendingStatus}
+                        onClick={() => {
+                          setActionError(null);
+                          statusMutation.mutate({
+                            promo,
+                            status: promo.status === "published" ? "hidden" : "published",
+                          });
+                        }}
+                      >
+                        {promo.status === "published" ? t.admin.promos.hide : t.admin.promos.publish}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={pendingStatus || pendingDelete}
+                        loading={pendingDelete}
+                        onClick={() => {
+                          if (!window.confirm(copy.confirmDelete)) return;
+                          setActionError(null);
+                          deleteMutation.mutate(promo);
+                        }}
+                      >
+                        {t.admin.common.delete}
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-xs sm:justify-end">
-                    <Button size="sm" variant="secondary" onClick={() => setEditing(promo)}>
-                      {t.admin.common.edit}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={promo.status === "published" ? "secondary" : "primary"}
-                      disabled={pendingStatus || pendingDelete}
-                      loading={pendingStatus}
-                      onClick={() => {
-                        setActionError(null);
-                        statusMutation.mutate({
-                          promo,
-                          status: promo.status === "published" ? "hidden" : "published",
-                        });
-                      }}
-                    >
-                      {promo.status === "published" ? t.admin.promos.hide : t.admin.promos.publish}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={pendingStatus || pendingDelete}
-                      loading={pendingDelete}
-                      onClick={() => {
-                        if (!window.confirm(copy.confirmDelete)) return;
-                        setActionError(null);
-                        deleteMutation.mutate(promo);
-                      }}
-                    >
-                      {t.admin.common.delete}
-                    </Button>
-                  </div>
+                  {promo.status === "published" ? (
+                    <PushCampaignControl
+                      client={client}
+                      kind="promo"
+                      subjectId={promo.id}
+                      campaign={pushCampaignsBySubjectId.get(promo.id)}
+                      onSent={() => void pushCampaignsQuery.refetch()}
+                    />
+                  ) : null}
                 </li>
               );
             })}

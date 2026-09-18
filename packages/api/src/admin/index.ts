@@ -60,6 +60,13 @@ export {
   type GuideFailureKind,
 } from "./guide-failure";
 export {
+  classifyPushCampaignFailure,
+  isPushCampaignInFlight,
+  pushCampaignsPollIntervalMs,
+  type PushCampaignFailure,
+  type PushCampaignFailureKind,
+} from "./push-campaigns";
+export {
   isWhatsAppPhoneShaped,
   normalizeWhatsAppPhone,
 } from "./whatsapp-phone";

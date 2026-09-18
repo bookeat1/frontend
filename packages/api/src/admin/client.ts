@@ -52,10 +52,16 @@ import type {
   HomePicksInput,
   I18nPatch,
   KaspiCompany,
+  ListPushCampaignsParams,
   MyRestaurant,
   PlatformPageAdmin,
   PlatformPageInput,
   PlatformPageSlug,
+  CreatePushCampaignInput,
+  CreatePushCampaignResult,
+  PushCampaignEstimate,
+  PushCampaignKind,
+  PushCampaignSummary,
   Schedule,
   ScheduleOverrideInput,
   SetManagerWhatsAppInput,
@@ -1098,6 +1104,41 @@ export class AdminApiClient {
       `/admin/feed/items/${kind}/${encodeURIComponent(itemId)}/placement-weight`,
       { body: { placement_weight: weight } },
     );
+  }
+
+  // ---- Push campaigns (manual, superadmin-only) -----------------------------
+  //
+  // Spec push-campaigns-manual-spec-2026-09-17.md §4 criteria 3-5. RoleAdmin
+  // only for estimate/create; list also allows PermRestaurantManage in that
+  // one venue. Backend built in parallel — see the doc comments in
+  // ./push-campaigns.ts and ./types.ts for the exact assumptions made where
+  // the spec did not pin down a wire shape.
+
+  /** GET /admin/push-campaigns?kind=&restaurant_id= (venue screens) or
+   * ?kind=&platform=true (the two platform screens) — the latest campaign per
+   * subject, mapped by the caller onto its own list of published items. */
+  listPushCampaigns(params: ListPushCampaignsParams): Promise<PushCampaignSummary[]> {
+    const query: Params =
+      "restaurantId" in params
+        ? { kind: params.kind, restaurant_id: params.restaurantId }
+        : { kind: params.kind, platform: true };
+    return this.request<PushCampaignSummary[]>("GET", "/admin/push-campaigns", { params: query });
+  }
+
+  /** GET /admin/push-campaigns/estimate?kind=&subject_id= — reach + breakdown
+   * + the ru/kk/en preview shown before the confirm button. Safe to call while
+   * the send channel is disabled server-side (only POST answers 503). */
+  estimatePushCampaign(kind: PushCampaignKind, subjectId: string): Promise<PushCampaignEstimate> {
+    return this.request<PushCampaignEstimate>("GET", "/admin/push-campaigns/estimate", {
+      params: { kind, subject_id: subjectId },
+    });
+  }
+
+  /** POST /admin/push-campaigns — queues the send. 201 with the new campaign
+   * id and the estimate frozen at creation time; see
+   * `classifyPushCampaignFailure` for the 403/404/409/422/503 branches. */
+  createPushCampaign(input: CreatePushCampaignInput): Promise<CreatePushCampaignResult> {
+    return this.request<CreatePushCampaignResult>("POST", "/admin/push-campaigns", { body: input });
   }
 
   // ---- Schedule ------------------------------------------------------------
