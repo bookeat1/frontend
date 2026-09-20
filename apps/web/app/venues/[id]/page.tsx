@@ -20,24 +20,19 @@ import { t } from "@web/lib/i18n";
  * Неизвестный/деактивированный id — настоящий HTTP 404 (`notFound()`,
  * критерий A-8), а не «карточка не найдена» с кодом 200, как было раньше.
  * Сбой самого API (сеть, таймаут) — НЕ 404: страница отдаёт 200 с каркасом
- * (initialVenue не задан, `VenueScreen` идёт в обычный клиентский запрос), и
- * этот конкретный провал не залипает в кэше навечно (см. `cachedOrNull`
- * внутри `getVenueForSsr` — `unstable_cache` кэширует только успех).
+ * (initialVenue не задан, `VenueScreen` идёт в обычный клиентский запрос).
+ *
+ * БЕЗ ISR (правка ревью 3го круга, 2026-09-19, решение продукта): страница
+ * рендерится per-request (`dynamic = "force-dynamic"`), `unstable_cache`
+ * больше не используется в `getVenueForSsr`. Раньше `revalidate = 600` +
+ * `unstable_cache` кэшировали УСПЕШНЫЙ ответ на 10 минут — если заведение
+ * деактивируется между рендерами, до 10 минут отдавался старый 200 с
+ * мёртвым/пустым контентом вместо немедленного 404. Владелец продукта решил
+ * не подгонять таймер, а снять ISR с этой страницы совсем: on-demand
+ * revalidation (revalidatePath по вебхуку на изменение заведения) в проекте
+ * пока не существует, заводить его — отдельная задача.
  */
-export const revalidate = 600;
-
-/**
- * Обязательна для `revalidate` (ISR) на динамическом сегменте: без неё
- * Next.js рендерит маршрут полностью динамически и `revalidate` ничего не
- * даёт (см. Next.js: "You must return an empty array from
- * generateStaticParams … in order to revalidate (ISR) paths at runtime.
- * Otherwise, the route will be dynamically rendered"). Пустой массив — ни
- * один id не строится заранее при сборке, но появляется в Next data cache
- * (и ISR-обновляется) при первом же реальном запросе.
- */
-export function generateStaticParams() {
-  return [];
-}
+export const dynamic = "force-dynamic";
 
 interface VenuePageProps {
   params: Promise<{ id: string }>;
