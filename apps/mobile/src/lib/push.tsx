@@ -3,6 +3,8 @@ import * as Device from "expo-device";
 import { useRootNavigationState, useRouter } from "expo-router";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { Platform } from "react-native";
+import { ANDROID_NOTIFICATION_CHANNELS, type AndroidChannelImportance } from "./android-notification-channels";
+import { trackEvent } from "./analytics";
 import { useAuth } from "./auth";
 import * as Notifications from "./notifications";
 import { readNotificationsPref, writeNotificationsPref } from "./notifications-pref";
@@ -94,19 +96,31 @@ if (Platform.OS !== "web") {
   });
 }
 
-/** Android needs a channel before a notification can be shown with any
- * importance at all; without one the system files everything as "low". */
-async function ensureAndroidChannel(): Promise<void> {
+const ANDROID_IMPORTANCE: Record<AndroidChannelImportance, number> = {
+  high: Notifications.AndroidImportance.HIGH,
+  default: Notifications.AndroidImportance.DEFAULT,
+};
+
+/**
+ * Android needs a channel before a notification can be shown with any
+ * importance at all; without one the system files everything as "low".
+ *
+ * Creates BOTH channels (`android-notification-channels.ts`) — "bookings"
+ * (unchanged) and "offers", new for push-campaigns (criterion 33) — each
+ * independently, so one failing does not cost the other its importance.
+ */
+async function ensureAndroidChannels(): Promise<void> {
   if (Platform.OS !== "android") return;
-  try {
-    await Notifications.setNotificationChannelAsync("bookings", {
-      name: "Бронирования",
-      importance: Notifications.AndroidImportance.HIGH,
-      // Brand red, the same value app.json uses for the adaptive icon.
-      lightColor: "#B33036",
-    });
-  } catch {
-    // A channel that cannot be created costs importance, not delivery.
+  for (const channel of ANDROID_NOTIFICATION_CHANNELS) {
+    try {
+      await Notifications.setNotificationChannelAsync(channel.id, {
+        name: channel.name,
+        importance: ANDROID_IMPORTANCE[channel.importance],
+        lightColor: channel.lightColor,
+      });
+    } catch {
+      // A channel that cannot be created costs importance, not delivery.
+    }
   }
   try {
     // Matches the backend's pushcampaigns sender, which sends promo/event
@@ -140,7 +154,7 @@ function createGateway(support: PushSupport): PushGateway {
     },
     async getToken(): Promise<string | null> {
       if (!support.supported) return null;
-      await ensureAndroidChannel();
+      await ensureAndroidChannels();
       const token = await Notifications.getExpoPushTokenAsync({ projectId: support.projectId });
       return token.data || null;
     },
@@ -248,11 +262,19 @@ export function PushProvider({ children }: { children: React.ReactNode }) {
       const id = response.notification.request.identifier;
       if (handledResponses.current.has(id)) return;
       const target = pushNavigationTarget(response.notification.request.content.data);
-      // No usable booking id: do nothing at all. The guest is left where they
+      // No usable subject id: do nothing at all. The guest is left where they
       // are rather than being thrown at a screen the payload never named.
       if (!target) return;
       handledResponses.current.add(id);
-      router.push(target);
+      // Fired for every tap this app can route, booking pushes included —
+      // push-campaigns spec §4 criterion 36 asks for all three kinds.
+      trackEvent("push_opened", {
+        kind: target.kind,
+        ...("campaignId" in target && target.campaignId
+          ? { campaign_id: target.campaignId }
+          : {}),
+      });
+      router.push({ pathname: target.pathname, params: target.params });
     },
     [router],
   );

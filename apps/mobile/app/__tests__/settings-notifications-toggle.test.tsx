@@ -69,6 +69,33 @@ vi.mock("expo-constants", () => ({
 // Подменяется весь контекст: экран общается с системой только через него.
 vi.mock("../../src/lib/push", () => ({ usePush: () => push }));
 
+// «Акции и события» (usePromoPushSetting) — отдельная от push.tsx строка,
+// но тоже читает репозиторий. Этому файлу важно только то, что она не
+// падает и не мешает тестам мастер-тумблера; своё поведение проверяет
+// usePromoPushSetting.test.tsx.
+//
+// STABLE reference: `useRepository` must return the SAME object on every
+// call, exactly like the real Context provider (memoized). A fresh object
+// literal per call would change usePromoPushSetting's effect dependency on
+// every render and loop it forever — this bit once, silently, as a
+// non-terminating render that timed out every test in this file.
+const notificationPreferencesRepository = {
+  getNotificationPreferences: vi.fn(async () => ({
+    notificationsEnabled: true,
+    pushEnabled: true,
+    emailEnabled: true,
+    promoPushEnabled: true,
+    updatedAt: "2026-09-17T10:00:00Z",
+  })),
+  setNotificationPreferences: vi.fn(async (input: Record<string, unknown>) => ({
+    ...input,
+    updatedAt: "2026-09-17T10:00:00Z",
+  })),
+};
+vi.mock("../../src/lib/repository", () => ({
+  useRepository: () => notificationPreferencesRepository,
+}));
+
 // Переход в системные настройки — единственное, что нельзя проверить в jsdom
 // по-настоящему.
 vi.mock("../../src/lib/external-links", () => ({ openAppSettings }));
