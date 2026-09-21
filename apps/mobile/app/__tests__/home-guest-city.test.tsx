@@ -47,6 +47,10 @@ const authStatus = { value: "signed-out" as "loading" | "signed-out" | "signed-i
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push, back: vi.fn(), replace: vi.fn(), canGoBack: () => false }),
   usePathname: () => "/",
+  // Read by `useHomeSourceAttribution` (channel-tag `?source=` attribution,
+  // `specs/marathon-qr-attribution-20260921.md`) — no query params in this
+  // test's scenario.
+  useLocalSearchParams: () => ({}),
 }));
 
 vi.mock("expo-status-bar", () => ({ StatusBar: () => null }));

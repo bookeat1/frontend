@@ -4,6 +4,8 @@ import {
   CAMPAIGN_ATTRIBUTION_TTL_MS,
   attributionActive,
   extractCampaignId,
+  extractSource,
+  isValidSource,
   parseAttribution,
   readCampaignAttribution,
   writeCampaignAttribution,
@@ -66,6 +68,44 @@ describe("extractCampaignId", () => {
   });
 });
 
+/**
+ * Канал-метка `source` (21.09.2026, «Марафон Алматы» ревизия 2,
+ * `specs/marathon-qr-attribution-20260921.md`, критерий 5): формат
+ * `^[a-z0-9_-]{1,32}$`, невалидное значение — «метки нет», НЕ падение и НЕ
+ * повод ронять навигацию.
+ */
+describe("isValidSource / extractSource", () => {
+  it.each(["tshirt", "box", "a", "a-b_c", "a".repeat(32), "kz2026"])(
+    "%s — валидный формат",
+    (value) => {
+      expect(isValidSource(value)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["пробел", "t shirt"],
+    ["кириллица", "футболка"],
+    ["длиннее 32 символов", "a".repeat(33)],
+    ["пустая строка", ""],
+    ["заглавные буквы", "TShirt"],
+    ["спецсимволы", "tshirt!"],
+  ])("%s — невалидный формат", (_name, value) => {
+    expect(isValidSource(value)).toBe(false);
+  });
+
+  it("берёт source из параметров, если формат валиден", () => {
+    expect(extractSource({ source: "tshirt" })).toBe("tshirt");
+  });
+
+  it("невалидный формат — null, не бросает", () => {
+    expect(extractSource({ source: "футболка" })).toBeNull();
+  });
+
+  it("нет параметра source — null", () => {
+    expect(extractSource({ promo: "x" })).toBeNull();
+  });
+});
+
 describe("parseAttribution", () => {
   it("читает свою запись", () => {
     expect(
@@ -76,11 +116,26 @@ describe("parseAttribution", () => {
   it.each([
     ["пусто", null],
     ["не JSON", "{"],
-    ["не UUID в campaignId", JSON.stringify({ campaignId: "slug", linkId: "x", resolvedAt: NOW })],
+    ["не UUID в campaignId и невалидный source", JSON.stringify({ campaignId: "slug", linkId: "x", resolvedAt: NOW })],
     ["без linkId", JSON.stringify({ campaignId: PROMO, resolvedAt: NOW })],
     ["resolvedAt не число", JSON.stringify({ campaignId: PROMO, linkId: "x", resolvedAt: "вчера" })],
+    ["ни campaignId, ни source", JSON.stringify({ linkId: "x", resolvedAt: NOW })],
   ])("%s — это «метки нет», а не падение", (_name, raw) => {
     expect(parseAttribution(raw)).toBeNull();
+  });
+
+  it("читает запись только с source (новый формат канал-метки)", () => {
+    expect(
+      parseAttribution(JSON.stringify({ source: "tshirt", linkId: "https://x", resolvedAt: NOW })),
+    ).toEqual({ source: "tshirt", linkId: "https://x", resolvedAt: NOW });
+  });
+
+  it("невалидный source в записи отбрасывается, но campaignId остаётся", () => {
+    expect(
+      parseAttribution(
+        JSON.stringify({ campaignId: PROMO, source: "футболка", linkId: "https://x", resolvedAt: NOW }),
+      ),
+    ).toEqual({ campaignId: PROMO, linkId: "https://x", resolvedAt: NOW });
   });
 });
 
@@ -152,5 +207,77 @@ describe("read/writeCampaignAttribution", () => {
     );
     expect(written).toEqual({ campaignId: PROMO, linkId: "https://bookeat.godetour.link/marathon", resolvedAt: NOW });
     await expect(readCampaignAttribution(store.storage, NOW)).resolves.toBeNull();
+  });
+
+  /**
+   * Канал-метка `source` (критерии 1-5, 20 спеки `marathon-qr-attribution-
+   * 20260921.md`). Одна и та же запись/хранилище, что у `campaignId` —
+   * только имя поля и параметра другое.
+   */
+  describe("source", () => {
+    it("записывает и читает известный формат source", async () => {
+      const { storage } = memory();
+      const written = await writeCampaignAttribution(
+        { url: "https://bookeat.godetour.link/lQ9BPpUvJc00tshirt", params: { source: "tshirt" } },
+        NOW,
+        storage,
+      );
+
+      expect(written).toEqual({
+        source: "tshirt",
+        linkId: "https://bookeat.godetour.link/lQ9BPpUvJc00tshirt",
+        resolvedAt: NOW,
+      });
+      await expect(readCampaignAttribution(storage, NOW)).resolves.toEqual(written);
+    });
+
+    it("невалидный формат source — ничего не пишет (критерий 5)", async () => {
+      const { storage, map } = memory();
+      const written = await writeCampaignAttribution(
+        { url: "https://bookeat.godetour.link/x", params: { source: "футболка мусор 40 символов ровно" } },
+        NOW,
+        storage,
+      );
+
+      expect(written).toBeNull();
+      expect(map.has(CAMPAIGN_ATTRIBUTION_KEY)).toBe(false);
+    });
+
+    it("ни source, ни promo — ничего не пишет, без ошибок (критерий 4)", async () => {
+      const { storage, map } = memory();
+      const written = await writeCampaignAttribution(
+        { url: "https://bookeat.godetour.link/generic", params: {} },
+        NOW,
+        storage,
+      );
+
+      expect(written).toBeNull();
+      expect(map.has(CAMPAIGN_ATTRIBUTION_KEY)).toBe(false);
+    });
+
+    it("протухшая метка source читается как отсутствующая (TTL 30 дней, критерий 20)", async () => {
+      const { storage } = memory();
+      await writeCampaignAttribution(
+        { url: "https://bookeat.godetour.link/lQ9BPpUvJc00box", params: { source: "box" } },
+        NOW,
+        storage,
+      );
+
+      await expect(
+        readCampaignAttribution(storage, NOW + CAMPAIGN_ATTRIBUTION_TTL_MS + 1),
+      ).resolves.toBeNull();
+    });
+
+    it("старый формат campaignId побеждает, если ссылка почему-то несёт оба поля", async () => {
+      const { storage } = memory();
+      const written = await writeCampaignAttribution(
+        { url: "https://bookeat.godetour.link/both", params: { promo: PROMO, source: "tshirt" } },
+        NOW,
+        storage,
+        KNOWN_IDS,
+      );
+
+      expect(written).toEqual({ campaignId: PROMO, linkId: "https://bookeat.godetour.link/both", resolvedAt: NOW });
+    });
   });
 });

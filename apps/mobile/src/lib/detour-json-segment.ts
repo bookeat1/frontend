@@ -18,6 +18,53 @@
  *
  * Both callers used to duplicate this parsing; this module is the one place
  * it lives now.
+ *
+ * ---
+ *
+ * DETOUR DASHBOARD CONTRACT for the two "Marathon" QR channels (21.09.2026,
+ * `specs/marathon-qr-attribution-20260921.md` §6 задача З10 — for Damir to
+ * create the links himself, this repo has no Detour dashboard access):
+ *
+ *   1. Create both links inside the SAME Detour app the live marathon link
+ *      already uses (domain `bookeat.godetour.link`, links starting with the
+ *      short-code prefix `lQ9BPpUvJc` — e.g. the existing
+ *      `https://bookeat.godetour.link/lQ9BPpUvJc00ughb`). A link from a
+ *      DIFFERENT Detour app will not match `app.json`'s
+ *      `android.intentFilters` `pathPrefix: "/lQ9BPpUvJc"`, so Android App
+ *      Links will not intercept it and the tap falls through to a browser
+ *      (criterion 6 of the spec).
+ *   2. Give each link a custom parameter with key `source` — exactly that
+ *      key, lowercase — and value `tshirt` for the t-shirt QR, `box` for the
+ *      box QR. Both values must match `^[a-z0-9_-]{1,32}$` (they already do).
+ *      This is the ONLY thing that matters: whatever "destination route" the
+ *      dashboard form also asks for is irrelevant for this campaign — the
+ *      app never opens a promo screen for a `source`-tagged link, it always
+ *      lands on the ordinary home screen (`resolveSourcePathSegment` below /
+ *      `mapDetourResolvedUrlToRoute` in `detour-native-intent-route.ts`), so
+ *      any placeholder destination is fine.
+ *   3. Detour hands the parameter back to the app in one of two shapes, and
+ *      the client (this module + `campaign-attribution.ts`) reads BOTH:
+ *        - the live marathon link's shape — the parameter serialized as JSON
+ *          in the link's own trailing path segment, e.g.
+ *          `https://bookeat.godetour.link/lQ9BPpUvJc<slug>/%7B%22source%22%3A%22tshirt%22%7D`
+ *          (decodes to `{"source":"tshirt"}`) — handled by
+ *          `resolveSourcePathSegment` below;
+ *        - an ordinary query parameter, `?source=tshirt` — handled directly
+ *          by `extractSource` in `campaign-attribution.ts` without going
+ *          through this module at all.
+ *      Which shape a given link actually resolves to is Detour's own
+ *      dashboard configuration, not something the app controls — this repo
+ *      cannot confirm which shape the two NEW links will take before they
+ *      exist (§10 of the spec), which is exactly why both are supported.
+ *   4. After creating both links, resolve each one (Detour's own dashboard
+ *      preview / `resolve-short` call) and confirm the resulting URL still
+ *      starts with `https://bookeat.godetour.link/lQ9BPpUvJc` — that is
+ *      criterion 6 and this repo cannot check it without dashboard access.
+ *
+ * Regression: the OLD contract, `{"promo":"<uuid>"}` (still live on the
+ * Almaty Marathon link created earlier), is untouched by any of the above —
+ * `resolvePromoPathSegment` below is tried FIRST and wins if a link somehow
+ * carries both `promo` and `source` (spec criterion 7).
  */
 
 const PROMO_ROUTE_PREFIX = "/promotion";
@@ -43,6 +90,47 @@ function tryParseJsonSegment(segment: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+export interface ResolvedSourcePathSegment {
+  /**
+   * Always the home route: a channel-tag QR (21.09.2026, «Марафон Алматы»
+   * ревизия 2, `specs/marathon-qr-attribution-20260921.md`) never opens a
+   * promo screen — the tag survives the campaign and is not tied to any
+   * `promos` record (see `campaign-attribution.ts`'s module comment).
+   */
+  pathname: "/";
+  /** Same shape as `ResolvedPromoPathSegment.params` — the JSON payload's own
+   * primitive fields (`source` plus any extras), ready to forward. */
+  params: Record<string, string>;
+}
+
+/**
+ * Sibling of `resolvePromoPathSegment` for the channel-tag contract
+ * (`{"source":"tshirt"}` / `{"source":"box"}`): if the pathname's LAST
+ * segment decodes to a JSON object with a non-empty string `source` field,
+ * returns the HOME route (never a promo screen) plus that JSON's own
+ * primitive fields. Otherwise `null`.
+ *
+ * Callers must try `resolvePromoPathSegment` FIRST and only fall back to
+ * this function when it returns `null` — a link is never expected to carry
+ * both `promo` and `source`, but if it somehow did, the old `promo` contract
+ * wins (regression safety, `specs/marathon-qr-attribution-20260921.md`
+ * criterion 7).
+ */
+export function resolveSourcePathSegment(pathname: string): ResolvedSourcePathSegment | null {
+  const segments = pathname.split("/").filter(Boolean);
+  const lastSegment = segments[segments.length - 1];
+  const jsonPayload = lastSegment ? tryParseJsonSegment(lastSegment) : null;
+  const source = jsonPayload?.source;
+  if (typeof source !== "string" || source.length === 0) return null;
+
+  const params: Record<string, string> = {};
+  for (const [key, value] of Object.entries(jsonPayload ?? {})) {
+    if (isPrimitive(value)) params[key] = String(value);
+  }
+
+  return { pathname: "/", params };
 }
 
 export interface ResolvedPromoPathSegment {

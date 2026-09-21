@@ -294,3 +294,114 @@ describe("DetourLinkRouter: deferred-ссылка с JSON-сегментом п�
     expect(clearLink).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Канал-метка `source` (21.09.2026, «Марафон Алматы» ревизия 2,
+ * `specs/marathon-qr-attribution-20260921.md`, критерии 1, 2, 20) — тот же
+ * JSON-сегмент, что у промо (`{"source":"tshirt"}`/`{"source":"box"}`), но
+ * назначение ВСЕГДА главная: эта кампания больше не резолвит промо-экран.
+ */
+describe("DetourLinkRouter: канал-метка source (свежая установка через QR)", () => {
+  it("роутит на главную и пишет source из JSON-сегмента (критерий 1)", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ source: "tshirt" }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/",
+        params: expect.objectContaining({ source: "tshirt" }),
+      }),
+    );
+
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(stored).toBeTruthy();
+    expect(JSON.parse(stored!)).toMatchObject({ source: "tshirt" });
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("роутит на главную для box (критерий 2)", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ source: "box" }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(JSON.parse(stored!)).toMatchObject({ source: "box" });
+  });
+
+  it("ссылка без source и без promo — главная, записи нет, ошибок нет (критерий 4)", async () => {
+    isLinkProcessed = true;
+    link = {
+      url: "https://bookeat.godetour.link/generic",
+      route: "restaurant",
+      pathname: "/restaurant/[id]",
+      params: { id: "r-1" },
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/restaurant/[id]" }));
+    expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("невалидный формат source (мусор в ссылке) — навигация идёт, метка не пишется (критерий 5)", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ source: "футболка не по формату" }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/" }));
+    expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("промо (старый формат) на той же ссылке побеждает над source (регрессия, критерий 7)", async () => {
+    isLinkProcessed = true;
+    const encodedJson = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
+    link = {
+      url: `https://bookeat.godetour.link/lQ9BPpUvJc/${encodedJson}`,
+      route: `/${encodedJson}`,
+      pathname: `/${encodedJson}`,
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: `/promotion/${PROMO_UUID}` }),
+    );
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(JSON.parse(stored!)).toMatchObject({ campaignId: PROMO_UUID });
+  });
+});
