@@ -122,19 +122,6 @@ async function ensureAndroidChannels(): Promise<void> {
       // A channel that cannot be created costs importance, not delivery.
     }
   }
-  try {
-    // Matches the backend's pushcampaigns sender, which sends promo/event
-    // campaigns with ChannelID "offers" (internal/usecase/pushcampaigns/sender.go).
-    // Lower importance than "bookings" — offers are not time-critical.
-    await Notifications.setNotificationChannelAsync("offers", {
-      name: "Акции и предложения",
-      description: "Уведомления об акциях, событиях и специальных предложениях",
-      importance: Notifications.AndroidImportance.DEFAULT,
-      lightColor: "#B33036",
-    });
-  } catch {
-    // A channel that cannot be created costs importance, not delivery.
-  }
 }
 
 /** expo-notifications, narrowed to the three things the registrar needs. */

@@ -18,6 +18,12 @@
  *
  * NOT verified by this test: that the OS call itself succeeds on a real
  * device (see bugs/bookeat-android-push-devicenotregistered).
+ *
+ * The "offers" id must match the backend's pushcampaigns sender, which sends
+ * promo/event campaigns with ChannelID "offers"
+ * (internal/usecase/pushcampaigns/sender.go) — renaming it here without a
+ * matching backend change silently drops those pushes to a channel Android
+ * has never created.
  */
 export type AndroidChannelImportance = "high" | "default";
 
