@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, Restaurant } from "@bookeat/api";
+import type { Booking, BookingStatus, EffectiveBookingRules, Restaurant } from "@bookeat/api";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import React from "react";
@@ -6,11 +6,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReservationScreen from "../booking/[id]/index";
 
 /**
- * Trello BNjLdfSP: подвал «Явные правила брони» на экране брони, сразу под
- * «Что дальше?». `startsAt` фиксирован (не относительный) — `vitest.setup.ts`
- * пиннит `TZ=Asia/Almaty`, так что `14:30Z` печатается как `19:30`
- * детерминированно, тем же способом, что и в `apps/web` тесте того же
- * подвала.
+ * Trello BNjLdfSP (bookeat-backend PR #143): подвал «Явные правила брони» на
+ * экране брони, сразу под «Что дальше?». Источник — `booking.bookingRules`
+ * (вложенный `booking_rules` на `GET /bookings/:id`), НЕ заведение — сервер
+ * специально кладёт уже разрешённые правила прямо в бронь, чтобы экрану не
+ * был нужен второй запрос. `startsAt` фиксирован (не относительный) —
+ * `vitest.setup.ts` пиннит `TZ=Asia/Almaty`, так что `14:30Z` печатается как
+ * `19:30` детерминированно, тем же способом, что и в `apps/web` тесте того
+ * же подвала.
  */
 
 const push = vi.fn();
@@ -74,7 +77,10 @@ const BASE_RESTAURANT: Restaurant = {
   preorderMinAmountMinor: null,
 };
 
-function bookingWith(status: BookingStatus): Booking {
+function bookingWith(
+  status: BookingStatus,
+  bookingRules: EffectiveBookingRules | null = null,
+): Booking {
   return {
     id: "b-1",
     restaurantId: "r-1",
@@ -88,6 +94,7 @@ function bookingWith(status: BookingStatus): Booking {
     notes: null,
     freeCancelDeadline: null,
     createdAt: null,
+    bookingRules,
   };
 }
 
@@ -98,8 +105,8 @@ function withQueryClient(ui: React.ReactElement) {
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
-function renderScreen(status: BookingStatus) {
-  booking = bookingWith(status);
+function renderScreen(status: BookingStatus, bookingRules: EffectiveBookingRules | null = null) {
+  booking = bookingWith(status, bookingRules);
   return render(withQueryClient(<ReservationScreen />));
 }
 
@@ -109,8 +116,8 @@ beforeEach(() => {
 });
 
 describe("подвал «Явные правила брони» (Trello BNjLdfSP)", () => {
-  it("заведение не переопределило дефолты — клиент подставляет платформенные", async () => {
-    renderScreen("confirmed");
+  it("бронь без booking_rules (старый сервер/резолвер не сработал) — клиент подставляет платформенные дефолты", async () => {
+    renderScreen("confirmed", null);
 
     expect(
       await screen.findByText(
@@ -119,14 +126,12 @@ describe("подвал «Явные правила брони» (Trello BNjLdfSP
     ).toBeTruthy();
   });
 
-  it("заведение переопределило значения — экран показывает их, не платформенный дефолт", async () => {
-    restaurant = {
-      ...BASE_RESTAURANT,
+  it("сервер прислал разрешённые правила — экран показывает их, не платформенный дефолт", async () => {
+    renderScreen("confirmed", {
       holdMinutes: 30,
       freeCancelHours: 4,
       lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
-    };
-    renderScreen("confirmed");
+    });
 
     expect(
       await screen.findByText(

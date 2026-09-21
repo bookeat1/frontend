@@ -227,26 +227,29 @@ function Ticket({ booking }: { booking: Booking }) {
   const outcome = OUTCOME[booking.status];
   const code = bookingCode(booking.id);
 
-  // Явные правила брони (Trello BNjLdfSP) — короткий подвал билета. Только у
-  // живой брони (confirmed/pending): отменённой и прошедшей это уже не
-  // касается. Ждём заведение — без него нет ни эффективных значений, ни
-  // зоны, по которой считать «до какого часа».
-  const cancelWall = venue.data
-    ? venueWallClock(
-        new Date(
-          new Date(booking.startsAt).getTime() -
-            effectiveFreeCancelHours(venue.data) * 3_600_000,
-        ).toISOString(),
-        venue.data.schedule?.timezone,
-      )
-    : null;
+  // Явные правила брони (Trello BNjLdfSP, bookeat-backend PR #143) — короткий
+  // подвал билета. Только у живой брони (confirmed/pending): отменённой и
+  // прошедшей это уже не касается. Источник — САМА БРОНЬ (`booking.bookingRules`,
+  // `GET /bookings/:id`), не заведение: сервер специально положил
+  // разрешённые правила сюда же, «чтобы экрану подтверждения не нужен был
+  // второй запрос» (usecase/bookings/facade.go). Зона для перевода дедлайна
+  // отмены в стенные часы всё равно берётся с заведения, как и остальной
+  // билет (`venueWallClock` сама подставляет запасную зону, если заведение
+  // ещё не приехало — ждать его не нужно).
+  const cancelWall = venueWallClock(
+    new Date(
+      new Date(booking.startsAt).getTime() -
+        effectiveFreeCancelHours(booking.bookingRules) * 3_600_000,
+    ).toISOString(),
+    venue.data?.schedule?.timezone,
+  );
   const rulesFooterText =
-    (outcome === "confirmed" || outcome === "pending") && venue.data && cancelWall
+    outcome === "confirmed" || outcome === "pending"
       ? texts.rulesFooter(
-          effectiveHoldMinutes(venue.data),
+          effectiveHoldMinutes(booking.bookingRules),
           time,
-          effectiveLateArrivalText(venue.data),
-          cancelWall.time,
+          effectiveLateArrivalText(booking.bookingRules),
+          cancelWall?.time ?? "",
         )
       : null;
 

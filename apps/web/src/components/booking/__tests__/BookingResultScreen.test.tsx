@@ -160,11 +160,18 @@ describe("страница брони — билет", () => {
   });
 });
 
-/** Trello BNjLdfSP: подвал с правилами удержания стола/отмены/опоздания.
- * `booking()` даёт `startsAt: "2026-08-25T14:30:00Z"` → 19:30 по Алматы. */
+/**
+ * Trello BNjLdfSP (bookeat-backend PR #143): подвал с правилами удержания
+ * стола/отмены/опоздания. Источник — `booking.bookingRules` (вложенный
+ * `booking_rules` на `GET /bookings/:id`), НЕ заведение — сервер специально
+ * кладёт уже разрешённые правила прямо в бронь. `booking()` даёт
+ * `startsAt: "2026-08-25T14:30:00Z"` → 19:30 по Алматы.
+ */
 describe("подвал «Явные правила брони» (Trello BNjLdfSP)", () => {
-  it("заведение не переопределило дефолты — клиент подставляет платформенные", async () => {
-    repository.getRestaurant = vi.fn(async () => venueDetail());
+  it("бронь без booking_rules (старый сервер/резолвер не сработал) — клиент подставляет платформенные дефолты", async () => {
+    repository.getBooking = vi.fn(async () =>
+      booking({ id: ID, status: "confirmed", bookingRules: null }),
+    );
 
     renderResult();
 
@@ -176,12 +183,16 @@ describe("подвал «Явные правила брони» (Trello BNjLdfSP
     ).toBeTruthy();
   });
 
-  it("заведение переопределило значения — экран показывает их, не платформенный дефолт", async () => {
-    repository.getRestaurant = vi.fn(async () =>
-      venueDetail({
-        holdMinutes: 30,
-        freeCancelHours: 4,
-        lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
+  it("сервер прислал разрешённые правила — экран показывает их, не платформенный дефолт", async () => {
+    repository.getBooking = vi.fn(async () =>
+      booking({
+        id: ID,
+        status: "confirmed",
+        bookingRules: {
+          holdMinutes: 30,
+          freeCancelHours: 4,
+          lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
+        },
       }),
     );
 

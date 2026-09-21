@@ -1,49 +1,56 @@
 /**
  * Явные правила брони — Trello BNjLdfSP («Явные правила брони в момент
- * бронирования и в напоминании»).
+ * бронирования и в напоминании»), `bookeat-backend` PR #143 (смёржен в
+ * `develop`).
  *
- * Заведение может задать три поля (`bookeat-backend`, параллельная работа,
- * ветка/PR на момент этого коммита ещё не смёржены в `develop`):
- *   - `hold_minutes` — сколько минут после времени брони стол держат;
- *   - `free_cancel_hours` — за сколько часов до брони отмена ещё бесплатна;
- *   - `late_arrival_text` — что сказать гостю про опоздание.
+ * Заведение может задать три поля — `hold_minutes`, `late_arrival_text`
+ * (колонки `restaurants`, пишутся через `PATCH /restaurants/:id`) и
+ * `free_cancel_hours` (НЕ отдельная колонка — сервер округляет её из уже
+ * существующего денежного окна `restaurants.free_cancel_window_minutes`, см.
+ * `usecase/restaurants.ResolveBookingRules`, и своей ручки записи у неё в
+ * этом PR нет). Сервер отдаёт все три УЖЕ РАЗРЕШЁННЫМИ (заданное заведением
+ * или платформенный дефолт) вложенным объектом `booking_rules` — и на
+ * детальном ответе заведения (`GET/PATCH /restaurants/:id`), и на
+ * `GET /bookings/:id` (`EffectiveBookingRules` в `types.ts`).
  *
- * Контракт: ЭФФЕКТИВНОЕ значение (заданное заведением или платформенный
- * дефолт) должно прийти в ответе API самим сервером. Три функции ниже —
- * страховка НА КЛИЕНТЕ на случай, если бэкенд ещё не задеплоен/не смёржен:
- * поле на `Restaurant` в этом случае отсутствует (`undefined`), и здесь
- * подставляется ровно тот дефолт, что обещан бэкендом, — те же числа, тот же
- * текст. Когда бэкенд начнёт присылать поле всегда, эти функции не перестанут
- * работать (тот же дефолт останется страховкой на случай пропуска поля), но
- * фактически будут просто возвращать серверное значение.
+ * Три функции ниже — страховка НА КЛИЕНТЕ на случай отсутствия блока: старая
+ * сборка сервера, листинг (там `booking_rules` не бывает вовсе) или
+ * несработавший на сервере резолвер (сервер сам называет это «not a hard
+ * dependency» и глотает ошибку, отдавая брони без блока). В этих случаях
+ * подставляется ровно тот дефолт, что зашит в бэкенд (`BOOKING_DEFAULT_HOLD_MINUTES`
+ * / `PAYMENTS_FREE_CANCEL_WINDOW_MINUTES` / `BOOKING_DEFAULT_LATE_ARRIVAL_TEXT`)
+ * — те же числа, тот же текст. Источник для этих функций — И `Restaurant`
+ * (поля `holdMinutes`/`freeCancelHours`/`lateArrivalText`), И
+ * `Booking.bookingRules` (уже вложенный объект той же формы) — оба
+ * структурно подходят под `VenueBookingRulesSource` ниже.
  */
 
 export const PLATFORM_DEFAULT_HOLD_MINUTES = 15;
 export const PLATFORM_DEFAULT_FREE_CANCEL_HOURS = 2;
 export const PLATFORM_DEFAULT_LATE_ARRIVAL_TEXT = "Опаздываете — позвоните в заведение.";
 
-/** Заведение, у которого могут быть эти три поля — ровно то подмножество
- * `Restaurant`, которое нужно этому модулю, чтобы его можно было передавать
- * и частичные объекты (например, тестовые фикстуры). */
+/** То подмножество полей `Restaurant`/`EffectiveBookingRules`, которое нужно
+ * этому модулю, чтобы под него подходили и частичные объекты (тестовые
+ * фикстуры), и уже полностью разрешённый `Booking.bookingRules`. */
 export interface VenueBookingRulesSource {
   holdMinutes?: number;
   freeCancelHours?: number;
   lateArrivalText?: string;
 }
 
-export function effectiveHoldMinutes(venue: VenueBookingRulesSource | null | undefined): number {
-  return typeof venue?.holdMinutes === "number" ? venue.holdMinutes : PLATFORM_DEFAULT_HOLD_MINUTES;
+export function effectiveHoldMinutes(source: VenueBookingRulesSource | null | undefined): number {
+  return typeof source?.holdMinutes === "number" ? source.holdMinutes : PLATFORM_DEFAULT_HOLD_MINUTES;
 }
 
 export function effectiveFreeCancelHours(
-  venue: VenueBookingRulesSource | null | undefined,
+  source: VenueBookingRulesSource | null | undefined,
 ): number {
-  return typeof venue?.freeCancelHours === "number"
-    ? venue.freeCancelHours
+  return typeof source?.freeCancelHours === "number"
+    ? source.freeCancelHours
     : PLATFORM_DEFAULT_FREE_CANCEL_HOURS;
 }
 
-export function effectiveLateArrivalText(venue: VenueBookingRulesSource | null | undefined): string {
-  const trimmed = venue?.lateArrivalText?.trim();
+export function effectiveLateArrivalText(source: VenueBookingRulesSource | null | undefined): string {
+  const trimmed = source?.lateArrivalText?.trim();
   return trimmed ? trimmed : PLATFORM_DEFAULT_LATE_ARRIVAL_TEXT;
 }

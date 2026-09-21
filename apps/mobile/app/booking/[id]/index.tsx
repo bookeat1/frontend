@@ -260,24 +260,25 @@ export default function ReservationScreen() {
   // из несостоявшейся брони значит заставить его искать ресторан заново.
   const rebookable = isRebookableBooking(data);
 
-  // Явные правила брони (Trello BNjLdfSP) — короткий подвал сразу под «Что
-  // дальше?». Только у живой брони: отменённая и прошедшая уже не держат
-  // стол. Ждём заведение — без него нет ни эффективных значений, ни того,
-  // что подставлять вместо платформенного дефолта.
-  const rulesFooterText =
-    cancellable && restaurant.data
-      ? t.booking.rulesFooter(
-          effectiveHoldMinutes(restaurant.data),
-          formatTime(data.startsAt),
-          effectiveLateArrivalText(restaurant.data),
-          formatTime(
-            new Date(
-              new Date(data.startsAt).getTime() -
-                effectiveFreeCancelHours(restaurant.data) * 3_600_000,
-            ).toISOString(),
-          ),
-        )
-      : null;
+  // Явные правила брони (Trello BNjLdfSP, bookeat-backend PR #143) — короткий
+  // подвал сразу под «Что дальше?». Только у живой брони: отменённая и
+  // прошедшая уже не держат стол. Источник — САМА БРОНЬ (`data.bookingRules`,
+  // `GET /bookings/:id`), не заведение: сервер специально положил
+  // разрешённые правила сюда же, чтобы экрану подтверждения не был нужен
+  // второй запрос — поэтому подвал больше не ждёт `restaurant.data`.
+  const rulesFooterText = cancellable
+    ? t.booking.rulesFooter(
+        effectiveHoldMinutes(data.bookingRules),
+        formatTime(data.startsAt),
+        effectiveLateArrivalText(data.bookingRules),
+        formatTime(
+          new Date(
+            new Date(data.startsAt).getTime() -
+              effectiveFreeCancelHours(data.bookingRules) * 3_600_000,
+          ).toISOString(),
+        ),
+      )
+    : null;
 
   const onConfirmCancel = () => {
     setCancelError(null);

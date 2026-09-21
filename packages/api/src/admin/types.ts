@@ -432,16 +432,25 @@ export interface CatalogVenue {
    * с 422 — поэтому его нет в CatalogVenueInput. */
   features?: VenueFeature[];
   /**
-   * Явные правила брони (Trello BNjLdfSP) — `bookeat-backend` пишет их
-   * параллельно этой правке, поле на момент коммита ещё может не прийти.
-   * `undefined`/`null` — заведение не переопределяло платформенный дефолт
-   * (15 минут удержания, 2 часа на бесплатную отмену, стандартный текст про
-   * опоздание — см. `booking-rules.ts`); форма кабинета показывает это как
-   * пустое поле с подсказкой, а не как ноль.
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143,
+   * смёржен) — ВЛОЖЕННЫЙ объект `booking_rules` (та же форма, что и у
+   * гостевого `ApiRestaurant.booking_rules`/`ApiBooking.booking_rules` в
+   * `../http-mapping.ts`), не плоские поля. `undefined`/`null` — блок
+   * отсутствует (старая сборка сервера); внутри блока значения УЖЕ
+   * разрешены сервером (заданное заведением или платформенный дефолт — 15
+   * минут удержания / 2 часа на бесплатную отмену / стандартный текст, см.
+   * `../booking-rules.ts`), форма кабинета сверяет это с пустым полем ввода,
+   * а не с самим числом.
    */
-  hold_minutes?: number | null;
-  free_cancel_hours?: number | null;
-  late_arrival_text?: string | null;
+  booking_rules?: CatalogVenueBookingRules | null;
+}
+
+/** `booking_rules` в ответе на чтение заведения кабинетом — см. doc-комментарий
+ * у `CatalogVenue.booking_rules` выше. */
+export interface CatalogVenueBookingRules {
+  hold_minutes: number;
+  free_cancel_hours: number;
+  late_arrival_text: string;
 }
 
 /** Body of POST /restaurants and PATCH /restaurants/:id. Every field is
@@ -482,12 +491,23 @@ export interface CatalogVenueInput {
    * все. */
   social_links?: SocialLinkInput[];
   /**
-   * Явные правила брони (Trello BNjLdfSP). Пропуск ключа оставляет колонку
-   * как есть (как и у остальных полей этого PATCH); `null` — явный сброс на
-   * платформенный дефолт (пустое поле формы = «не переопределяем»).
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143) — ЗДЕСЬ,
+   * В ОТЛИЧИЕ ОТ ЧТЕНИЯ, ПЛОСКИЕ ПОЛЯ ПРЯМО В ТЕЛЕ PATCH: `saveRestaurantRequest`
+   * (`internal/transport/rest/restaurants/request.go`) кладёт их рядом с
+   * `name`/`address`/т.д., а не во вложенный `booking_rules` — сервер
+   * специально не стал заворачивать запись в ту же обёртку, что и чтение.
+   * Пропуск ключа оставляет колонку как есть; `null`/`0`/пустая строка — явный
+   * сброс на платформенный дефолт (пустое поле формы = «не переопределяем»).
+   *
+   * `free_cancel_hours` ЗДЕСЬ НЕТ И НЕ БУДЕТ: это не отдельная колонка, а
+   * округление денежного окна `restaurants.free_cancel_window_minutes`
+   * (см. `../booking-rules.ts`), и у него своя ручка записи —
+   * `PUT /admin/restaurants/:id/payment-settings/free-cancel-window`
+   * (`{free_cancel_window_minutes: number}`, минуты, не часы). Та ручка пока
+   * НЕ подключена ни к одному экрану `apps/admin` — значение в этом PATCH
+   * молча проигнорировалось бы, если бы поле здесь было.
    */
   hold_minutes?: number | null;
-  free_cancel_hours?: number | null;
   late_arrival_text?: string | null;
 }
 

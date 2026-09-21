@@ -351,10 +351,15 @@ function VenueFormModal({
   // Явные правила брони (Trello BNjLdfSP) — как и часы работы, приходят
   // только детальным чтением, поэтому пусто до него. Пустая строка тут не
   // «ноль» — это «заведение не переопределяло платформенный дефолт»
-  // (см. подсказки под полями и booking-rules.ts).
+  // (см. подсказки под полями и booking-rules.ts). Редактируемых полей
+  // только два: `free_cancel_hours` — производная денежного окна отмены,
+  // своей ручки записи у неё в PATCH заведения нет (см. комментарий у
+  // `CatalogVenueInput.hold_minutes` в admin/types.ts), поэтому она читается
+  // как обычное число и рисуется только для просмотра.
   const [holdMinutes, setHoldMinutes] = useState("");
-  const [freeCancelHours, setFreeCancelHours] = useState("");
   const [lateArrivalText, setLateArrivalText] = useState("");
+  // Только для показа — своей ручки записи в этом PATCH у неё нет (см. выше).
+  const [freeCancelHoursDisplay, setFreeCancelHoursDisplay] = useState<number | null>(null);
   // Черновики переводов. Русский текст остаётся в обычных полях выше.
   const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
   const [addressI18n, setAddressI18n] = useState(translationDraftFrom());
@@ -421,9 +426,9 @@ function VenueFormModal({
     setDescriptionI18n(translationDraftFrom(data.description_i18n));
     setAddressI18n(translationDraftFrom(data.address_i18n));
     setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
-    setHoldMinutes(data.hold_minutes != null ? String(data.hold_minutes) : "");
-    setFreeCancelHours(data.free_cancel_hours != null ? String(data.free_cancel_hours) : "");
-    setLateArrivalText(data.late_arrival_text ?? "");
+    setHoldMinutes(data.booking_rules?.hold_minutes != null ? String(data.booking_rules.hold_minutes) : "");
+    setLateArrivalText(data.booking_rules?.late_arrival_text ?? "");
+    setFreeCancelHoursDisplay(data.booking_rules?.free_cancel_hours ?? null);
   }, [detailQuery.data]);
 
   // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
@@ -543,15 +548,13 @@ function VenueFormModal({
       );
       // Явные правила брони: пустое поле формы — явный `null`, то есть
       // «не переопределяем платформенный дефолт», а не «оставить как было».
-      // Нечисловой ввод трактуется так же, как пустое поле.
+      // Нечисловой ввод трактуется так же, как пустое поле. `free_cancel_hours`
+      // сюда НЕ входит — своей ручки записи у него в этом PATCH нет (см.
+      // комментарий у `CatalogVenueInput.hold_minutes` в admin/types.ts),
+      // поле формы ниже только читает его.
       const holdMinutesNum = Number.parseInt(holdMinutes.trim(), 10);
       input.hold_minutes =
         holdMinutes.trim() !== "" && Number.isFinite(holdMinutesNum) ? holdMinutesNum : null;
-      const freeCancelHoursNum = Number.parseInt(freeCancelHours.trim(), 10);
-      input.free_cancel_hours =
-        freeCancelHours.trim() !== "" && Number.isFinite(freeCancelHoursNum)
-          ? freeCancelHoursNum
-          : null;
       input.late_arrival_text = lateArrivalText.trim() !== "" ? lateArrivalText.trim() : null;
     }
     // `cuisine_type_i18n` сервер тоже принимает, но в форме его НЕТ намеренно:
@@ -765,15 +768,27 @@ function VenueFormModal({
               disabled={busy || !detailLoaded}
             />
           </Field>
+          {/* Только чтение: `free_cancel_hours` — округление денежного окна
+              бесплатной отмены (`restaurants.free_cancel_window_minutes`),
+              не отдельная колонка. Своей ручки записи у него в PATCH
+              заведения нет (bookeat-backend PR #143) — меняется отдельной
+              ручкой `payment-settings/free-cancel-window`, которую этот
+              экран пока не вызывает. */}
           <Field
             label="Бесплатная отмена, часов до брони"
-            hint={`Пусто — платформенный дефолт: ${PLATFORM_DEFAULT_FREE_CANCEL_HOURS} ч.`}
+            hint="Считается из денежного окна отмены — правится не здесь."
           >
             <TextInput
               inputMode="numeric"
-              value={freeCancelHours}
-              onChange={(e) => setFreeCancelHours(e.target.value)}
-              disabled={busy || !detailLoaded}
+              value={
+                freeCancelHoursDisplay != null
+                  ? String(freeCancelHoursDisplay)
+                  : detailLoaded
+                    ? String(PLATFORM_DEFAULT_FREE_CANCEL_HOURS)
+                    : ""
+              }
+              disabled
+              readOnly
             />
           </Field>
         </div>
