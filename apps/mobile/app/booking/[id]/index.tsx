@@ -1,5 +1,8 @@
 import {
   canGuestCancel,
+  effectiveFreeCancelHours,
+  effectiveHoldMinutes,
+  effectiveLateArrivalText,
   formatServiceFeePercent,
   hasVisibleServiceFee,
   isCancellableBookingStatus,
@@ -259,6 +262,26 @@ export default function ReservationScreen() {
   // из несостоявшейся брони значит заставить его искать ресторан заново.
   const rebookable = isRebookableBooking(data);
 
+  // Явные правила брони (Trello BNjLdfSP, bookeat-backend PR #143) — короткий
+  // подвал сразу под «Что дальше?». Только у живой брони: отменённая и
+  // прошедшая уже не держат стол. Источник — САМА БРОНЬ (`data.bookingRules`,
+  // `GET /bookings/:id`), не заведение: сервер специально положил
+  // разрешённые правила сюда же, чтобы экрану подтверждения не был нужен
+  // второй запрос — поэтому подвал больше не ждёт `restaurant.data`.
+  const rulesFooterText = cancellable
+    ? t.booking.rulesFooter(
+        effectiveHoldMinutes(data.bookingRules),
+        formatTime(data.startsAt),
+        effectiveLateArrivalText(data.bookingRules),
+        formatTime(
+          new Date(
+            new Date(data.startsAt).getTime() -
+              effectiveFreeCancelHours(data.bookingRules) * 3_600_000,
+          ).toISOString(),
+        ),
+      )
+    : null;
+
   const onConfirmCancel = () => {
     setCancelError(null);
     cancel.mutate(
@@ -376,6 +399,16 @@ export default function ReservationScreen() {
         />
 
         <WhatHappensNextCard status={data.status} />
+
+        {/* Trello BNjLdfSP: держим стол/опоздание/бесплатная отмена одной
+            строкой, сразу под «Что дальше?». Нет узла в макете — поля на
+            заведении появились позже; блок молчит, пока заведение не
+            загрузилось или бронь уже не живая. */}
+        {rulesFooterText ? (
+          <BookingCard>
+            <Text style={styles.rulesFooterText}>{rulesFooterText}</Text>
+          </BookingCard>
+        ) : null}
 
         {/* The permission ask, and the only one in the app. Shown just after
             the booking was created, where «сообщим, когда подтвердят» answers
@@ -602,6 +635,10 @@ const styles = StyleSheet.create({
   preorderHint: {
     ...typography.body,
     color: colors.text.muted,
+  },
+  rulesFooterText: {
+    ...typography.body,
+    color: colors.text.mutedStrong,
   },
   notice: {
     borderWidth: 1,

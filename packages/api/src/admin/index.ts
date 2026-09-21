@@ -5,6 +5,11 @@
  */
 export * from "./types";
 export {
+  PLATFORM_DEFAULT_HOLD_MINUTES,
+  PLATFORM_DEFAULT_FREE_CANCEL_HOURS,
+  PLATFORM_DEFAULT_LATE_ARRIVAL_TEXT,
+} from "../booking-rules";
+export {
   AdminApiClient,
   AdminApiError,
   imageUploadErrorCode,

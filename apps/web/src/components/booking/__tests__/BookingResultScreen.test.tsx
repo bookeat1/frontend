@@ -160,6 +160,62 @@ describe("страница брони — билет", () => {
   });
 });
 
+/**
+ * Trello BNjLdfSP (bookeat-backend PR #143): подвал с правилами удержания
+ * стола/отмены/опоздания. Источник — `booking.bookingRules` (вложенный
+ * `booking_rules` на `GET /bookings/:id`), НЕ заведение — сервер специально
+ * кладёт уже разрешённые правила прямо в бронь. `booking()` даёт
+ * `startsAt: "2026-08-25T14:30:00Z"` → 19:30 по Алматы.
+ */
+describe("подвал «Явные правила брони» (Trello BNjLdfSP)", () => {
+  it("бронь без booking_rules (старый сервер/резолвер не сработал) — клиент подставляет платформенные дефолты", async () => {
+    repository.getBooking = vi.fn(async () =>
+      booking({ id: ID, status: "confirmed", bookingRules: null }),
+    );
+
+    renderResult();
+
+    await screen.findByText("Столик забронирован");
+    expect(
+      await screen.findByText(
+        "Стол держим 15 минут после 19:30. Опаздываете — позвоните в заведение. Бесплатная отмена — до 17:30.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("сервер прислал разрешённые правила — экран показывает их, не платформенный дефолт", async () => {
+    repository.getBooking = vi.fn(async () =>
+      booking({
+        id: ID,
+        status: "confirmed",
+        bookingRules: {
+          holdMinutes: 30,
+          freeCancelHours: 4,
+          lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
+        },
+      }),
+    );
+
+    renderResult();
+
+    await screen.findByText("Столик забронирован");
+    expect(
+      await screen.findByText(
+        "Стол держим 30 минут после 19:30. Задерживаетесь — напишите нам в WhatsApp. Бесплатная отмена — до 15:30.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("отменённая бронь — подвала нет: держать стол уже нечего", async () => {
+    repository.getBooking = vi.fn(async () => booking({ id: ID, status: "cancelled" }));
+
+    renderResult();
+
+    await screen.findByText("Бронь отменена");
+    expect(screen.queryByText(/Стол держим/)).toBeNull();
+  });
+});
+
 describe("блок «Предзаказ» на билете (A13, A14)", () => {
   beforeEach(() => {
     window.sessionStorage.clear();

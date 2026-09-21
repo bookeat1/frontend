@@ -2224,6 +2224,13 @@ export const kk: LocaleOverride<Dictionary> = {
       no_show:
         "Орын қонақтың келмегенін белгіледі. Егер бұл қате болса, төмендегі телефон арқылы орынмен байланысыңыз.",
     },
+    rulesFooter: (
+      holdMinutes: number,
+      bookingTime: string,
+      lateArrivalText: string,
+      cancelUntilTime: string,
+    ) =>
+      `Үстелді ${bookingTime}-дан кейін ${holdMinutes} минут ұстап тұрамыз. ${lateArrivalText} Тегін бас тарту — ${cancelUntilTime} дейін.`,
     contactsTitle: "Байланыстар",
     contactWebsite: "Орын сайты",
     contactWhatsapp: "WhatsApp-қа жазу",
@@ -3315,6 +3322,13 @@ export const kk: LocaleOverride<Dictionary> = {
         confirmedLockedNotice: "Расталған броннның құрамын мекеме өзгертеді",
         manualLockedNotice: "Құрамын мекеме өзгертті — өзгерістер мекеме арқылы",
       },
+      rulesFooter: (
+        holdMinutes: number,
+        bookingTime: string,
+        lateArrivalText: string,
+        cancelUntilTime: string,
+      ) =>
+        `Үстелді ${bookingTime}-дан кейін ${holdMinutes} минут ұстап тұрамыз. ${lateArrivalText} Тегін бас тарту — ${cancelUntilTime} дейін.`,
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

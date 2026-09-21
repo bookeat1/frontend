@@ -326,6 +326,49 @@ export interface Restaurant {
    * же, как `VenueCard.slots`.
    */
   amenities?: Amenity[];
+  /**
+   * Сколько минут после времени брони заведение держит стол — Trello
+   * BNjLdfSP, `bookeat-backend` PR #143 (смёржен). На проводе это поле сидит
+   * ВНУТРИ вложенного `booking_rules` объекта детального ответа
+   * (`aggregateToResponse`, `internal/transport/rest/restaurants/response.go`),
+   * не плоским полем — см. маппинг в `http-mapping.ts`. `undefined` — ключа
+   * `booking_rules` в ответе вовсе нет (старая сборка сервера или листинг, у
+   * которого этого блока нет вообще); клиент подставляет платформенный
+   * дефолт сам, см. `effectiveHoldMinutes` в `booking-rules.ts`. Сервер уже
+   * присылает ЭФФЕКТИВНОЕ значение (заданное заведением или платформенный
+   * дефолт) — это поле только для случая полного отсутствия блока в ответе.
+   */
+  holdMinutes?: number;
+  /**
+   * За сколько часов до брони отмена ещё бесплатна. НЕ отдельная колонка на
+   * бэкенде — сервер округляет её из уже существующего денежного окна
+   * `restaurants.free_cancel_window_minutes` (усилие `ResolveBookingRules`),
+   * поэтому у неё нет отдельной ручки записи (см. `booking-rules.ts` и
+   * комментарий у `CatalogVenueInput` в `admin/types.ts`). Та же страховка,
+   * что и у `holdMinutes`: `undefined` — подставляется платформенный дефолт,
+   * см. `effectiveFreeCancelHours`.
+   */
+  freeCancelHours?: number;
+  /**
+   * Текст про опоздание, который заведение показывает гостю. Тоже часть
+   * вложенного `booking_rules`. `undefined`/пустая строка — подставляется
+   * платформенный дефолт, см. `effectiveLateArrivalText`.
+   */
+  lateArrivalText?: string;
+}
+
+/**
+ * Явные правила брони (Trello BNjLdfSP), УЖЕ разрешённые сервером против
+ * платформенных дефолтов — зеркало бэкендового `domain.EffectiveBookingRules`
+ * (`bookeat-backend` PR #143). Приходит как вложенный `booking_rules` объект
+ * и на детальном ответе заведения, и на `GET /bookings/:id` (см. `Booking`
+ * ниже) — оба места используют одну и ту же серверную `ResolveBookingRules`,
+ * поэтому у клиента одна и та же форма для обоих источников.
+ */
+export interface EffectiveBookingRules {
+  holdMinutes: number;
+  freeCancelHours: number;
+  lateArrivalText: string;
 }
 
 export interface RestaurantSummary {
@@ -749,6 +792,23 @@ export interface Booking {
    * Нужен ровно для одного: посчитать, сколько бронь прожила до отмены.
    */
   createdAt: string | null;
+  /**
+   * Явные правила брони для ЭТОЙ брони (Trello BNjLdfSP, `bookeat-backend`
+   * PR #143) — держим стол/бесплатная отмена/текст про опоздание, уже
+   * разрешённые сервером. Приходит ТОЛЬКО в детальном ответе
+   * (`bookingDetailsResponse`, `GET /bookings/:id`) — сервер специально
+   * положил это сюда, а не только на заведение, «чтобы экрану подтверждения
+   * не нужен был второй запрос» (комментарий в `usecase/bookings/facade.go`);
+   * список (`GET /bookings`) поля не несёт вовсе.
+   *
+   * `undefined` — ключа `booking_rules` в ответе нет вовсе (старая сборка
+   * сервера или список). `null` — деталка есть, но резолвер не сработал
+   * (сервер сам называет это «not a hard dependency», проглатывает ошибку).
+   * В обоих случаях экран подтверждения подставляет платформенный дефолт сам
+   * — см. `effectiveHoldMinutes`/`effectiveFreeCancelHours`/`effectiveLateArrivalText`
+   * в `booking-rules.ts`.
+   */
+  bookingRules?: EffectiveBookingRules | null;
 }
 
 /**

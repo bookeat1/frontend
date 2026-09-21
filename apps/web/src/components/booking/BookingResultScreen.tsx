@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import type { Booking, BookingStatus, Preorder, Restaurant } from "@bookeat/api/client";
+import {
+  effectiveFreeCancelHours,
+  effectiveHoldMinutes,
+  effectiveLateArrivalText,
+  type Booking,
+  type BookingStatus,
+  type Preorder,
+  type Restaurant,
+} from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -219,6 +227,32 @@ function Ticket({ booking }: { booking: Booking }) {
   const outcome = OUTCOME[booking.status];
   const code = bookingCode(booking.id);
 
+  // Явные правила брони (Trello BNjLdfSP, bookeat-backend PR #143) — короткий
+  // подвал билета. Только у живой брони (confirmed/pending): отменённой и
+  // прошедшей это уже не касается. Источник — САМА БРОНЬ (`booking.bookingRules`,
+  // `GET /bookings/:id`), не заведение: сервер специально положил
+  // разрешённые правила сюда же, «чтобы экрану подтверждения не нужен был
+  // второй запрос» (usecase/bookings/facade.go). Зона для перевода дедлайна
+  // отмены в стенные часы всё равно берётся с заведения, как и остальной
+  // билет (`venueWallClock` сама подставляет запасную зону, если заведение
+  // ещё не приехало — ждать его не нужно).
+  const cancelWall = venueWallClock(
+    new Date(
+      new Date(booking.startsAt).getTime() -
+        effectiveFreeCancelHours(booking.bookingRules) * 3_600_000,
+    ).toISOString(),
+    venue.data?.schedule?.timezone,
+  );
+  const rulesFooterText =
+    outcome === "confirmed" || outcome === "pending"
+      ? texts.rulesFooter(
+          effectiveHoldMinutes(booking.bookingRules),
+          time,
+          effectiveLateArrivalText(booking.bookingRules),
+          cancelWall?.time ?? "",
+        )
+      : null;
+
   const heading = {
     confirmed: [texts.confirmedTitle, texts.confirmedText(dateLong, time, phone)],
     pending: [texts.pendingTitle, texts.pendingText(dateLong, time, phone)],
@@ -327,6 +361,16 @@ function Ticket({ booking }: { booking: Booking }) {
                   <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
                 </div>
               </div>
+            </>
+          ) : null}
+
+          {/* Trello BNjLdfSP: держим стол/опоздание/бесплатная отмена одной
+              строкой. Нет узла в макете 3525:15019 — поля на заведении
+              появились позже; подвал у самого низа билета, над кнопками. */}
+          {rulesFooterText ? (
+            <>
+              <Divider />
+              <p className="text-bodyS text-ink-secondary">{rulesFooterText}</p>
             </>
           ) : null}
 

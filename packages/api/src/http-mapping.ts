@@ -172,6 +172,17 @@ export interface ApiRestaurant {
    */
   preorder_min_amount_minor?: number | null;
   /**
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143,
+   * смёржен) — ВЛОЖЕННЫЙ объект, не плоские поля (`aggregateToResponse`,
+   * `internal/transport/rest/restaurants/response.go`, `json:"booking_rules,omitempty"`).
+   * Сервер уже присылает ЭФФЕКТИВНЫЕ значения (заданные заведением или
+   * платформенный дефолт) — как и `preorder_min_amount_minor` выше, только
+   * детальный ответ, в листинге ключа нет. `undefined`/`null` — ключа нет
+   * вовсе (старая сборка сервера или листинг); клиент подставляет
+   * платформенный дефолт сам, см. `booking-rules.ts`.
+   */
+  booking_rules?: ApiBookingRules | null;
+  /**
    * Ставка сервисного сбора заведения в базисных пунктах (350 = 3.5%) —
    * `restaurants.service_fee_bps` (`bookeat-backend`, ветка
    * `venue-service-fee-display`, Trello GvptXfr1). Только детальный ответ,
@@ -196,6 +207,22 @@ export interface ApiRestaurant {
    * `mode !== "for_you"`.
    */
   match?: ApiMatch | null;
+}
+
+/**
+ * `booking_rules` — тот же `bookingRulesResponse`, что бэкенд отдаёт и на
+ * детальном ответе заведения (`ApiRestaurant.booking_rules`), и на
+ * `GET /bookings/:id` (`ApiBooking.booking_rules`); оба места используют
+ * ОДИН И ТОТ ЖЕ Go-тип на сервере (см. комментарий `bookingRulesResponse`
+ * в `internal/transport/rest/restaurants/response.go` и его зеркало в
+ * `internal/transport/rest/bookings/response.go`), поэтому здесь тоже один
+ * интерфейс на оба источника. Значения УЖЕ разрешены сервером против
+ * платформенного дефолта — конкретные число/число/строка, не null.
+ */
+export interface ApiBookingRules {
+  hold_minutes: number;
+  free_cancel_hours: number;
+  late_arrival_text: string;
 }
 
 /** `match` заведения в ответе `restaurantResponse` — см. `TasteMatch`. */
@@ -663,6 +690,17 @@ export interface ApiBooking {
    * деталке (bookingResponse.CreatedAt). Необязательный здесь только на
    * случай старой сборки бэкенда. */
   created_at?: string | null;
+  /**
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143) —
+   * ВЛОЖЕННЫЙ объект, та же форма, что и на заведении (`ApiBookingRules`
+   * выше). Только `bookingDetailsResponse` (`GET /bookings/:id`), как и
+   * `free_cancel_deadline` — список поля не несёт. `undefined` — ключа нет
+   * вовсе (старая сборка сервера или список); `null` не приходит с этим
+   * ключом (сервер либо кладёт объект, либо опускает ключ через
+   * `omitempty`) — резолвер, который не сработал, тоже даёт опущенный ключ,
+   * НЕ `null`-значение внутри.
+   */
+  booking_rules?: ApiBookingRules | null;
 }
 
 /** paymentResponse — internal/transport/rest/payments/response.go. Only the
@@ -821,6 +859,16 @@ export function mapBooking(api: ApiBooking): Booking {
     notes: text(api.notes) || null,
     freeCancelDeadline: text(api.free_cancel_deadline) || null,
     createdAt: text(api.created_at) || null,
+    // Trello BNjLdfSP (PR #143): `undefined` — ключа нет вовсе (старая
+    // сборка/список), `null` — резолвер на сервере не сработал (опущенный
+    // ключ трактуем так же, как явный null — сервер их не различает).
+    bookingRules: api.booking_rules
+      ? {
+          holdMinutes: api.booking_rules.hold_minutes,
+          freeCancelHours: api.booking_rules.free_cancel_hours,
+          lateArrivalText: text(api.booking_rules.late_arrival_text),
+        }
+      : null,
   };
 }
 
@@ -1350,6 +1398,17 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // список у большинства заведений пустой, а отсутствие ключа отличает
     // «сервер их не прислал» от «их нет».
     amenities: mapVenueAmenities(api.features),
+    // Trello BNjLdfSP (PR #143): сервер уже присылает эффективное значение
+    // сам, ВНУТРИ вложенного booking_rules — `undefined` здесь означает
+    // «ключа booking_rules нет вовсе» (старая сборка или листинг), и
+    // клиентский фолбэк на платформенный дефолт живёт в booking-rules.ts, а
+    // не здесь, чтобы место дефолта было одно.
+    holdMinutes: typeof api.booking_rules?.hold_minutes === "number" ? api.booking_rules.hold_minutes : undefined,
+    freeCancelHours:
+      typeof api.booking_rules?.free_cancel_hours === "number"
+        ? api.booking_rules.free_cancel_hours
+        : undefined,
+    lateArrivalText: text(api.booking_rules?.late_arrival_text) || undefined,
   };
 }
 
