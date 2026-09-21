@@ -25,6 +25,7 @@ import {
   mapMenuSections,
   MENU_HIGHLIGHT_LIMIT,
   mapNotificationFeed,
+  mapNotificationPreferences,
   mapPayment,
   mapPicksMode,
   mapPlatformPage,
@@ -51,6 +52,7 @@ import {
   type ApiGuideRouteDetail,
   type ApiMenuItem,
   type ApiNotificationFeed,
+  type ApiNotificationPreferences,
   type ApiPayment,
   type ApiPlatformPage,
   type ApiPreorder,
@@ -97,6 +99,8 @@ import type {
   HomePromo,
   MenuSection,
   NotificationFeed,
+  NotificationPreferences,
+  NotificationPreferencesInput,
   OtpRequest,
   PlatformPage,
   PlatformPageSlug,
@@ -1074,6 +1078,43 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   /** POST /notifications/read-all — authenticated; idempotent server-side. */
   async markAllNotificationsRead(): Promise<void> {
     await this.client.post<unknown>("/notifications/read-all", undefined, { auth: true });
+  }
+
+  /* --- notification preferences («Акции и события» toggle, B5 Part 2) --- */
+
+  /** GET /notification-preferences — authenticated; the caller's own opt-out
+   * (`transport/rest/consent`). No client called this endpoint before
+   * push-campaigns; this is the first. */
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    const api = await this.client.get<ApiNotificationPreferences>(
+      "/notification-preferences",
+      undefined,
+      { auth: true },
+    );
+    return mapNotificationPreferences(api);
+  }
+
+  /**
+   * PUT /notification-preferences — authenticated, FULL replacement. This app
+   * always sends all four fields (see `NotificationPreferencesInput`), never a
+   * partial body: the server treats an absent `promo_push_enabled` as "don't
+   * change" for OTHER clients, but that carve-out has nothing to rely on here
+   * because every field this screen shows is always in the request.
+   */
+  async setNotificationPreferences(
+    input: NotificationPreferencesInput,
+  ): Promise<NotificationPreferences> {
+    const api = await this.client.put<ApiNotificationPreferences>(
+      "/notification-preferences",
+      {
+        notifications_enabled: input.notificationsEnabled,
+        push_enabled: input.pushEnabled,
+        email_enabled: input.emailEnabled,
+        promo_push_enabled: input.promoPushEnabled,
+      },
+      { auth: true },
+    );
+    return mapNotificationPreferences(api);
   }
 
   /* --- update gate («Доступна новая версия») --- */

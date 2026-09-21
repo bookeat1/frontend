@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { pushNavigationTarget } from "../push-routing";
 import { describePushSupport, devicePlatformFor } from "../push-support";
 
 /**
  * WHAT BREAKS FOR THE GUEST IF THIS FILE GOES RED.
  *
- * Two things a guest must never see, both decided here:
+ * An error, a spinner or an empty card on a build where push physically
+ * cannot work. Expo Go on Android has had no push since SDK 53, a simulator
+ * gets no APNs token, the web build has no Expo token at all, and this
+ * project has no EAS id yet. Every one of those is "quietly no", never
+ * "something went wrong".
  *
- *  - an error, a spinner or an empty card on a build where push physically
- *    cannot work. Expo Go on Android has had no push since SDK 53, a simulator
- *    gets no APNs token, the web build has no Expo token at all, and this
- *    project has no EAS id yet. Every one of those is "quietly no", never
- *    "something went wrong";
- *  - a tapped notification that opens the wrong screen — or opens the home
- *    screen and pretends that was the point. A payload that does not name a
- *    booking opens nothing.
+ * Routing a tapped notification to the right screen is `push-routing.ts`'s
+ * own concern — see `__tests__/push-routing.test.ts`.
  */
 
 describe("where push can and cannot work", () => {
@@ -81,50 +78,5 @@ describe("where push can and cannot work", () => {
     expect(devicePlatformFor("android")).toBe("android");
     expect(devicePlatformFor("web")).toBeUndefined();
     expect(devicePlatformFor("windows")).toBeUndefined();
-  });
-});
-
-describe("where a tapped notification takes the guest", () => {
-  /** Exactly what guestpush.go's buildGuestMessage puts in `Data`. */
-  const payload = {
-    event: "booking.confirmed",
-    booking_id: "8f6c1f42-1e4a-4a3a-9f2e-1a2b3c4d5e6f",
-    restaurant_id: "0f0c1f42-1e4a-4a3a-9f2e-1a2b3c4d5e6f",
-    starts_at: "2026-07-28T19:00:00+05:00",
-  };
-
-  it("opens the booking the notification is about", () => {
-    expect(pushNavigationTarget(payload)).toEqual({
-      pathname: "/booking/[id]",
-      params: { id: "8f6c1f42-1e4a-4a3a-9f2e-1a2b3c4d5e6f" },
-    });
-  });
-
-  it("does the same for all three events the backend sends", () => {
-    for (const event of ["booking.confirmed", "booking.cancelled", "booking.reminder"]) {
-      expect(pushNavigationTarget({ ...payload, event })).not.toBeNull();
-    }
-  });
-
-  it("opens nothing when the payload names no booking", () => {
-    expect(pushNavigationTarget({ ...payload, booking_id: "" })).toBeNull();
-    expect(pushNavigationTarget({ ...payload, booking_id: "   " })).toBeNull();
-    expect(pushNavigationTarget({ event: "booking.confirmed" })).toBeNull();
-    // A number where a string belongs: the payload survives a JSON round trip
-    // on the way through the OS, so nothing about the runtime type is assumed.
-    expect(pushNavigationTarget({ ...payload, booking_id: 42 })).toBeNull();
-  });
-
-  it("opens nothing for an event this build does not know", () => {
-    // A newer backend sending a fourth event type must not be guessed at.
-    expect(pushNavigationTarget({ ...payload, event: "booking.completed" })).toBeNull();
-    expect(pushNavigationTarget({ ...payload, event: undefined })).toBeNull();
-  });
-
-  it("survives junk instead of a payload", () => {
-    expect(pushNavigationTarget(undefined)).toBeNull();
-    expect(pushNavigationTarget(null)).toBeNull();
-    expect(pushNavigationTarget("booking.confirmed")).toBeNull();
-    expect(pushNavigationTarget([])).toBeNull();
   });
 });

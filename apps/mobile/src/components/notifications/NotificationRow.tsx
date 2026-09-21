@@ -4,14 +4,17 @@ import { StyleSheet, Text, View } from "react-native";
 import { useLocale } from "../../lib/locale";
 import { formatNotificationTimestamp } from "../../lib/format";
 import type { AppNotification, NotificationType } from "../../hooks/useNotifications";
-import { Bell, ForkKnife, Percent, type IconProps } from "../icons";
+import { Bell, CalendarBlank, ForkKnife, Percent, type IconProps } from "../icons";
 
-/** Leading glyph per type (Figma notifications render, 2026-08-06): a booking
- * carries the fork/utensils icon, a reminder the bell, a promo the percent. */
+/** Leading glyph per type (Figma notifications render, 2026-08-06 + the
+ * push-campaigns spec, §4 criterion 35): a booking carries the fork/utensils
+ * icon, a reminder the bell, a promo the percent, a push-campaign event the
+ * calendar (matching «Афиша»'s own event glyph). */
 const ICON_BY_TYPE: Record<NotificationType, React.ComponentType<IconProps>> = {
   booking: ForkKnife,
   reminder: Bell,
   promo: Percent,
+  event: CalendarBlank,
 };
 
 /**
