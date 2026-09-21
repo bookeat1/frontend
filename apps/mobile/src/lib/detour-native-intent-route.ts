@@ -1,6 +1,6 @@
 import type { DetourNativeIntentResolvedValue } from "@swmansion/react-native-detour/expo-router";
 import { isKnownAppRoutePathname } from "./detour-known-routes";
-import { resolvePromoPathSegment } from "./detour-json-segment";
+import { resolvePromoPathSegment, resolveSourcePathSegment } from "./detour-json-segment";
 
 /**
  * Custom `mapToRoute` for `app/+native-intent.tsx`.
@@ -117,6 +117,22 @@ export const mapDetourResolvedUrlToRoute = ({
       : resolvedUrl.search;
     const query = [toQueryString(resolved.params), resolvedQuery].filter(Boolean).join("&");
     return `${resolved.pathname}${query ? `?${query}` : ""}`;
+  }
+
+  // CHANNEL-TAG CONTRACT (21.09.2026, `{"source":"tshirt"}`/`{"source":"box"}`,
+  // `specs/marathon-qr-attribution-20260921.md`): same JSON-tail shape as the
+  // promo link above, but the destination is ALWAYS home — this campaign
+  // never opens a promo screen. `source` stays in the query so the home
+  // screen's own attribution effect (`app/index.tsx`, the "app already
+  // installed" mirror of `app/promotion/[id].tsx`'s `promo` effect) can read
+  // it via `useLocalSearchParams` and persist it the same way.
+  const resolvedSource = resolveSourcePathSegment(resolvedUrl.pathname);
+  if (resolvedSource) {
+    const resolvedQuery = resolvedUrl.search.startsWith("?")
+      ? resolvedUrl.search.slice(1)
+      : resolvedUrl.search;
+    const query = [toQueryString(resolvedSource.params), resolvedQuery].filter(Boolean).join("&");
+    return `${resolvedSource.pathname}${query ? `?${query}` : ""}`;
   }
 
   return defaultRouteForWebUrl(resolvedUrl);

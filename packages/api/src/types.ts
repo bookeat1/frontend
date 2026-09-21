@@ -932,6 +932,18 @@ export interface CreateBookingInput {
    * Omitted when there is no attribution to attach, same as `email`/`notes`.
    */
   promotionId?: string;
+  /**
+   * Permanent channel tag (`tshirt`, `box`, ...) the guest scanned in — see
+   * `bookeat-mobile`'s `campaign-attribution.ts` (`CampaignAttribution.source`).
+   * Unlike `promotionId` this is NOT tied to any `promos` record and never
+   * expires with a campaign; it maps to `POST /bookings`'
+   * `attribution_source` (`bookings.attribution_source`,
+   * `specs/marathon-qr-attribution-20260921.md` §5). Format
+   * `^[a-z0-9_-]{1,32}$`; the backend silently drops an invalid value to
+   * `NULL` rather than rejecting the booking (§5 — this field must never
+   * cost a guest their booking). Omitted when there is no tag to attach.
+   */
+  attributionSource?: string;
 }
 
 export interface PreorderLine {
