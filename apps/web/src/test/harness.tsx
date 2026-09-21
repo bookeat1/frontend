@@ -94,6 +94,9 @@ export function venueDetail(overrides: Partial<Restaurant> = {}): Restaurant {
     // D-API-1: детальный ответ по умолчанию без минимума предзаказа —
     // тесты, которым он нужен, задают его через `overrides`.
     preorderMinAmountMinor: null,
+    // Trello GvptXfr1: по умолчанию сбор не задан — тесты, которым он нужен,
+    // задают его через `overrides`.
+    serviceFeeBps: null,
     ...overrides,
   } as Restaurant;
 }

@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { type Amenity, type Photo, type Restaurant } from "@bookeat/api/client";
+import {
+  formatServiceFeePercent,
+  hasVisibleServiceFee,
+  type Amenity,
+  type Photo,
+  type Restaurant,
+} from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -443,6 +449,13 @@ function VenueHeader({
           <Tag tone={status.tone === "success" ? "success" : "neutral"} dot={status.tone === "success"}>
             {status.label}
           </Tag>
+          {/* Сервисный сбор заведения — Trello GvptXfr1, решение владельца
+              03.09.2026: ярлык рядом со статусом часов работы, СОВСЕМ не
+              рисуется, когда `serviceFeeBps` пуст/0/не задан
+              (`hasVisibleServiceFee` — единственное место с этим условием). */}
+          {hasVisibleServiceFee(venue.serviceFeeBps) ? (
+            <Tag tone="neutral">{t.web.venue.serviceFee(formatServiceFeePercent(venue.serviceFeeBps))}</Tag>
+          ) : null}
         </div>
         <p className="text-[16px] leading-6 text-ink-secondary">{venueMeta(venue, t)}</p>
         {amenities.length > 0 ? <AmenityRow amenities={amenities} /> : null}

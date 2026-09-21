@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
-import type { Restaurant } from "@bookeat/api/client";
+import { formatServiceFeePercent, hasVisibleServiceFee, type Restaurant } from "@bookeat/api/client";
 
 import { StateMessage } from "@web/components/state/AsyncBlock";
 import { BottomBar } from "@web/components/ui/BottomBar";
@@ -59,6 +59,9 @@ export interface PreorderSummary {
   /** `Restaurant.preorderMinAmountMinor` — `null`, если у заведения минимума
    * нет (D-WEB-1, ТЗ `web-preorder-menu-20260908`, D4). */
   minAmountMinor: number | null;
+  /** `Restaurant.serviceFeeBps` — Trello GvptXfr1. `null`/`0` (см.
+   * `hasVisibleServiceFee`) прячет строку сбора целиком. */
+  serviceFeeBps: number | null;
 }
 
 export type SummaryAction =
@@ -269,6 +272,13 @@ function PreorderBlock({ preorder }: { preorder: PreorderSummary }) {
         ))}
       </ul>
       <p className="text-flow-summary-label text-ink">{texts.totalApprox(formatMoneyMinor(preorder.totalMinor))}</p>
+      {/* Сервисный сбор заведения рядом с суммой — Trello GvptXfr1, скрыт
+          целиком, когда `serviceFeeBps` пуст/0/не задан. */}
+      {hasVisibleServiceFee(preorder.serviceFeeBps) ? (
+        <p className="text-bodyS text-ink-tertiary">
+          {texts.serviceFee(formatServiceFeePercent(preorder.serviceFeeBps))}
+        </p>
+      ) : null}
       <BelowMinimumHint minAmountMinor={preorder.minAmountMinor} totalMinor={preorder.totalMinor} />
     </div>
   );

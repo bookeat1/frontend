@@ -389,6 +389,7 @@ export const en: LocaleOverride<Dictionary> = {
     photosCount: (count: number) => `${count} ${count === 1 ? "photo" : "photos"}`,
     about: "About the restaurant",
     workingHours: "Hours",
+    serviceFee: (percent: string) => `Service fee — ${percent}`,
     address: "Address",
     tables: "Tables",
     tableFor: (seats: number) => `For ${seats} ${seats === 1 ? "guest" : "guests"}`,
@@ -2118,6 +2119,7 @@ export const en: LocaleOverride<Dictionary> = {
     preorderTotalEstimate: "Estimated",
     preorderTotalEstimateNote:
       "The restaurant calculates the final total — this is an estimate based on menu prices",
+    preorderServiceFeeNote: (percent: string) => `Restaurant service fee — ${percent}`,
     preorderSaveFailed:
       "Your booking is placed and the table is yours. But we couldn't save the pre-order — you can order the dishes on the spot",
     dishAdd: "Add",
@@ -2982,6 +2984,7 @@ export const en: LocaleOverride<Dictionary> = {
       saved: "Saved",
       saveFailed: "Could not save. Please try again",
       amenitiesLabel: "Venue amenities",
+      serviceFee: (percent: string) => `Service fee ${percent}`,
       notFound: {
         title: "Venue not found",
         text: "The link is probably out of date, or the venue has been unpublished.",
@@ -3215,6 +3218,7 @@ export const en: LocaleOverride<Dictionary> = {
           chooseDishes: "Choose dishes",
           changeSelection: "Change selection",
           belowMinimum: (min: string, missing: string) => `Minimum pre-order ${min} — add ${missing} more`,
+          serviceFee: (percent: string) => `Restaurant service fee — ${percent}`,
         },
       },
       errors: {

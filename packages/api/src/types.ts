@@ -302,6 +302,19 @@ export interface Restaurant {
    */
   preorderMinAmountMinor: number | null;
   /**
+   * Ставка сервисного сбора заведения в базисных пунктах (`restaurants.service_fee_bps`,
+   * 350 = 3.5%; Trello GvptXfr1, `bookeat-backend` ветка `venue-service-fee-display`).
+   *
+   * `null` — сбор НЕ ЗАДАН у этого заведения (сервер не подставляет сюда
+   * платформенный дефолт из `usecase/payments.Config.ServiceFeeBps` — это
+   * поле только для отображения, а не обещание, сколько спишется при
+   * оплате). Экран обязан прятать блок сбора и при `null`, и при `0` —
+   * решение владельца от 03.09.2026: «пусто/0/не задано — не показываем
+   * НИГДЕ». Только детальный ответ (`GET /restaurants/:id`), как и
+   * `preorderMinAmountMinor` — в листинге поля нет.
+   */
+  serviceFeeBps: number | null;
+  /**
    * Удобства заведения из справочника платформы — «Терраса», «Wi-Fi»,
    * «Бизнес-ланч». Приходят полем `features` ДЕТАЛЬНОГО ответа
    * (`GET /restaurants/:id`), в списке их нет.
