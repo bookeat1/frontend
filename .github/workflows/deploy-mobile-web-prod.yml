@@ -66,23 +66,18 @@ env:
   # app.config.js is "/preview", so an unset variable here would 404 every
   # asset — the assertion step below refuses such a build before it is uploaded.
   BOOKEAT_WEB_BASE_URL: ""
-  # "Almaty Marathon" promo (backend migration 0107, 10.09.2026) — not a
-  # secret, same literal value as deploy-web-prod.yml's
-  # NEXT_PUBLIC_MARATHON_PROMO_ID and every EAS profile in apps/mobile/eas.json
-  # (`EXPO_PUBLIC_MARATHON_PROMO_ID`). Was missing here: the hand-built release
-  # of 2026-09-08 predates this pipeline and shipped without it, so
-  # `KNOWN_CAMPAIGN_IDS` in campaign-attribution.ts was an empty array on the
-  # mobile web origin and any promo UUID was silently discarded (see the
-  # module's own comment — an empty list degrades attribution, it does not
-  # crash). NOTE: on the WEB export this alone does not turn attribution on —
-  # campaign-attribution.ts is only ever written to by DetourLinkRouter, and
-  # DetourProviderGate does not mount `<DetourProvider>` without
-  # EXPO_PUBLIC_DETOUR_API_KEY/EXPO_PUBLIC_DETOUR_APP_ID, which stay absent
-  # here on purpose (Detour is deferred-INSTALL attribution; there is no
-  # install event in a browser tab). This variable only keeps the constant
-  # correct and the bundle consistent with the native builds and the desktop
-  # site; wiring a `?promo=` capture path for phone browsers (mirroring
-  # apps/web/src/lib/campaign-attribution.ts) is separate, unstarted work.
+  # Known promo campaigns (backend migration 0107, 10.09.2026 onward) — not a
+  # secret, same literal values as deploy-web-prod.yml's
+  # NEXT_PUBLIC_KNOWN_CAMPAIGN_IDS and (for native builds) the EAS Environment
+  # Variable `EXPO_PUBLIC_MARATHON_PROMO_ID` in the `production` environment.
+  # Was missing here originally: the hand-built release of 2026-09-08 predates
+  # this pipeline and shipped without it, so `KNOWN_CAMPAIGN_IDS` in
+  # campaign-attribution.ts was an empty array on the mobile web origin and any
+  # promo UUID was silently discarded (see the module's own comment — an empty
+  # list degrades attribution, it does not crash). Comma-separated list, any
+  # number of campaigns; EXPO_PUBLIC_MARATHON_PROMO_ID below is a legacy
+  # single-id var still merged in for compatibility.
+  EXPO_PUBLIC_KNOWN_CAMPAIGN_IDS: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd,ab6cd665-eb11-4c45-b0ad-999db0c95116
   EXPO_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
   # Note: EXPO_PUBLIC_OTP_DELIVERY_DISABLED is absent on purpose — production
   # delivers real codes. EXPO_PUBLIC_DETOUR_* stays absent: those keys are

@@ -63,9 +63,12 @@ env:
   # The ONLY build that may invite crawlers. Every other build (stand, local)
   # ships Disallow: /.
   NEXT_PUBLIC_ROBOTS_INDEX: "true"
-  # "Almaty Marathon" promo (backend migration 0107, 10.09.2026) — not a
+  # Known promo campaigns (backend migration 0107, 10.09.2026 onward) — not a
   # secret, checked against a guest's `?promo=` before it is ever sent as
   # CreateBookingInput.promotionId (apps/web/src/lib/campaign-attribution.ts).
+  # Comma-separated list, any number of campaigns; NEXT_PUBLIC_MARATHON_PROMO_ID
+  # below is a legacy single-id var still merged in for compatibility.
+  NEXT_PUBLIC_KNOWN_CAMPAIGN_IDS: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd,ab6cd665-eb11-4c45-b0ad-999db0c95116
   NEXT_PUBLIC_MARATHON_PROMO_ID: 6a3736b9-d4e5-4ec6-9ed2-7233476184fd
   # Amplitude client-side WRITE key of the PRODUCTION project (the stand uses
   # a different one in deploy-web-test.yml; same value as the production key
