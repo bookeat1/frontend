@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { trackEvent } from "./analytics";
 import { writeCampaignAttribution } from "./campaign-attribution";
 import { resolvePromoPathSegment } from "./detour-json-segment";
+import { isKnownAppRoutePathname } from "./detour-known-routes";
 
 type AppHref = Parameters<ImperativeRouter["replace"]>[0];
 
@@ -67,7 +68,24 @@ export function DetourLinkRouter(): null {
       // the more authoritative source, the JSON blob only exists as a
       // workaround for this one Detour dashboard link shape.
       const resolvedPromo = resolvePromoPathSegment(link.pathname);
-      const pathname = resolvedPromo?.pathname ?? link.pathname;
+      // UNMATCHED-ROUTE GUARD (2026-09-21): when Detour resolves a deferred
+      // link without a promo payload, `link.pathname` is normally a real
+      // route already — but for a short link whose destination isn't
+      // configured on Detour's side, the SDK can resolve it into a bare
+      // custom-scheme URL and hand us the link's own shortcode as
+      // `pathname` (e.g. "/lQ9BPpUvJc"), which matches no screen.
+      // `router.replace`-ing straight to it surfaces Expo Router's
+      // "Unmatched Route" instead of the ordinary home screen — mirrors
+      // the `fallbackPath: ""` safety net `app/+native-intent.tsx` already
+      // has for the sibling "tap while already installed" case (see
+      // `detour-known-routes.ts` for why that mechanism doesn't cover this
+      // path). Only applies when there's no recognized promo payload —
+      // the promo branch above is untouched.
+      const pathname = resolvedPromo
+        ? resolvedPromo.pathname
+        : isKnownAppRoutePathname(link.pathname)
+          ? link.pathname
+          : "/";
       const params = resolvedPromo ? { ...resolvedPromo.params, ...link.params } : link.params;
 
       const attribution = await writeCampaignAttribution({ url: link.url, params });
