@@ -224,6 +224,12 @@ export interface ApiMenuItem {
   image_url: string | null;
   is_available: boolean;
   category: string | null;
+  /** "300 г", "0.5 л"… — already resolved to the requested language by the
+   * server (menuItemResponse.PortionSize, itemToResponse's resolvePtr), same
+   * treatment as `name`/`description`/`category`. Empty on ~31 dish pairs
+   * that still need the venue to fill it in (Trello XVCDSbi3) — null there,
+   * never a guessed value. */
+  portion_size: string | null;
   display_order: number | null;
 }
 
@@ -1078,6 +1084,7 @@ export function mapMenuSections(items: ApiMenuItem[] | null | undefined): MenuSe
       priceMinor: parsePriceMinor(item.price),
       imageUrl: text(item.image_url) || null,
       isAvailable: item.is_available !== false,
+      portionSize: text(item.portion_size) || null,
     });
   }
   const sections = [...byCategory.values()];

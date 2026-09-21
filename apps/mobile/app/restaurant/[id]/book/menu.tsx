@@ -225,6 +225,7 @@ const DishRow = React.memo(function DishRow({
           {dish.priceMinor === null
             ? t.booking.preorderNoPrice
             : formatMoneyMinor(dish.priceMinor)}
+          {dish.portionSize ? ` · ${dish.portionSize}` : ""}
         </Text>
         {!dish.isAvailable ? (
           <Text style={styles.dishUnavailable}>{t.booking.preorderUnavailable}</Text>

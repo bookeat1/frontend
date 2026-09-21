@@ -30,6 +30,9 @@ export interface DishCardItem {
   priceMinor: number | null;
   imageUrl: string | null;
   isAvailable: boolean;
+  /** Размер порции ("300 г"), когда заведение его заполнило. null — ничего
+   * не показываем, не выводим из цены и не додумываем. */
+  portionSize: string | null;
 }
 
 /** Блюдо из меню заведения (`GET /restaurants/:id/menu`). */
@@ -42,6 +45,7 @@ export function dishCardFromMenuDish(dish: MenuDish): DishCardItem {
     priceMinor: dish.priceMinor,
     imageUrl: dish.imageUrl,
     isAvailable: dish.isAvailable,
+    portionSize: dish.portionSize,
   };
 }
 
@@ -66,5 +70,8 @@ export function dishCardFromHighlight(item: MenuHighlight): DishCardItem {
     priceMinor: item.priceMinor,
     imageUrl: item.photo?.uri ?? null,
     isAvailable: true,
+    // «Лучшие позиции» не несёт portion_size в своём ответе — вне охвата
+    // XVCDSbi3, которая просила именно экран меню заведения.
+    portionSize: null,
   };
 }

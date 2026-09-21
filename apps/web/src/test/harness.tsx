@@ -109,6 +109,7 @@ export function menuDish(overrides: Partial<MenuDish> = {}): MenuDish {
     priceMinor: 540000,
     imageUrl: null,
     isAvailable: true,
+    portionSize: null,
     ...overrides,
   };
 }

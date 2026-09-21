@@ -666,6 +666,14 @@ export const en: LocaleOverride<Dictionary> = {
       fieldPhoto: "Photo",
       photoSave: "Save",
       photoSaveFailed: "Couldn't save the photo — try again",
+      noPortion: "Portion not set",
+      editPortion: "Portion",
+      editPortionAria: (dish: string) => `Edit portion: ${dish}`,
+      editPortionTitle: (dish: string) => `Portion of "${dish}"`,
+      fieldPortion: "Portion size",
+      fieldPortionPlaceholder: "e.g. 300 g",
+      portionSave: "Save",
+      portionSaveFailed: "Couldn't save the portion — try again",
       topPicks: {
         title: "Top picks",
         description:

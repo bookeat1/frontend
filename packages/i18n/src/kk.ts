@@ -670,6 +670,14 @@ export const kk: LocaleOverride<Dictionary> = {
       fieldPhoto: "Фото",
       photoSave: "Сақтау",
       photoSaveFailed: "Фотоны сақтау мүмкін болмады — қайталап көріңіз",
+      noPortion: "Порция көрсетілмеген",
+      editPortion: "Порция",
+      editPortionAria: (dish: string) => `Порцияны өзгерту: ${dish}`,
+      editPortionTitle: (dish: string) => `«${dish}» тағамының порциясы`,
+      fieldPortion: "Порция мөлшері",
+      fieldPortionPlaceholder: "Мысалы, 300 г",
+      portionSave: "Сақтау",
+      portionSaveFailed: "Порцияны сақтау мүмкін болмады — қайталап көріңіз",
       topPicks: {
         title: "Үздік тағамдар",
         description:
