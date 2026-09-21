@@ -467,6 +467,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
         onDecrement: preorderDraft.decrement,
         menuHref: menuHref(venue.id, { date, guests, slot }),
         minAmountMinor: venue.preorderMinAmountMinor,
+        serviceFeeBps: venue.serviceFeeBps,
       };
 
   let action: SummaryAction;

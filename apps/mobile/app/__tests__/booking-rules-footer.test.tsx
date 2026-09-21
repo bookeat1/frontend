@@ -75,6 +75,7 @@ const BASE_RESTAURANT: Restaurant = {
   acceptsOnlineBookings: true,
   acceptsOnlinePayment: false,
   preorderMinAmountMinor: null,
+  serviceFeeBps: null,
 };
 
 function bookingWith(

@@ -40,6 +40,7 @@ function menuWithSignatureDishes(): MenuSection[] {
           priceMinor: 3799000,
           imageUrl: null,
           isAvailable: true,
+          portionSize: null,
         },
         {
           id: "dish-2",
@@ -48,6 +49,7 @@ function menuWithSignatureDishes(): MenuSection[] {
           priceMinor: 1509000,
           imageUrl: null,
           isAvailable: true,
+          portionSize: null,
         },
       ],
     },

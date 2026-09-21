@@ -58,6 +58,7 @@ const RIBEYE: MenuDish = {
   priceMinor: 899_000,
   imageUrl: null,
   isAvailable: true,
+  portionSize: null,
 };
 
 const SECTIONS: MenuSection[] = [{ title: "Горячее", dishes: [RIBEYE] }];

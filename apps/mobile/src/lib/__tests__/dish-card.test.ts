@@ -15,6 +15,7 @@ const DISH: MenuDish = {
   priceMinor: 390000,
   imageUrl: null,
   isAvailable: true,
+  portionSize: null,
 };
 
 const HIGHLIGHT: MenuHighlight = {

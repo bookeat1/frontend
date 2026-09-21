@@ -393,6 +393,7 @@ export const kk: LocaleOverride<Dictionary> = {
     photosCount: (count: number) => `${count} фото`,
     about: "Мейрамхана туралы",
     workingHours: "Жұмыс уақыты",
+    serviceFee: (percent: string) => `Қызмет көрсету алымы — ${percent}`,
     address: "Мекенжай",
     tables: "Үстелдер",
     tableFor: (seats: number) => `${seats} қонаққа`,
@@ -670,6 +671,14 @@ export const kk: LocaleOverride<Dictionary> = {
       fieldPhoto: "Фото",
       photoSave: "Сақтау",
       photoSaveFailed: "Фотоны сақтау мүмкін болмады — қайталап көріңіз",
+      noPortion: "Порция көрсетілмеген",
+      editPortion: "Порция",
+      editPortionAria: (dish: string) => `Порцияны өзгерту: ${dish}`,
+      editPortionTitle: (dish: string) => `«${dish}» тағамының порциясы`,
+      fieldPortion: "Порция мөлшері",
+      fieldPortionPlaceholder: "Мысалы, 300 г",
+      portionSave: "Сақтау",
+      portionSaveFailed: "Порцияны сақтау мүмкін болмады — қайталап көріңіз",
       topPicks: {
         title: "Үздік тағамдар",
         description:
@@ -2122,6 +2131,7 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderTotalEstimate: "Алдын ала",
     preorderTotalEstimateNote:
       "Қорытындыны орын есептейді — мұнда мәзір бағасы бойынша бағалау",
+    preorderServiceFeeNote: (percent: string) => `Мейрамхананың қызмет көрсету алымы — ${percent}`,
     preorderSaveFailed:
       "Бронь жасалды, үстел сіздікі. Ал алдын ала тапсырысты сақтау мүмкін болмады — тағамдарға жерде тапсырыс беруге болады",
     dishAdd: "Қосу",
@@ -2552,7 +2562,7 @@ export const kk: LocaleOverride<Dictionary> = {
   push: {
     optInTitle: "Расталғанда хабарлайық па?",
     optInDescription:
-      "Мейрамхана бронды растағанда хабарлама жібереміз және келер алдында еске саламыз. Ешқандай жарнама жоқ",
+      "Мейрамхана бронды растағанда хабарлама жібереміз, келер алдында еске саламыз және қалаңыздағы акциялар мен іс-шаралар туралы айтамыз",
     optInEnable: "Хабарламаларды қосу",
     optInDismiss: "Қазір емес",
     deniedTitle: "Хабарламалар өшірілген",
@@ -2561,7 +2571,7 @@ export const kk: LocaleOverride<Dictionary> = {
     failedTitle: "Қосу мүмкін болмады",
     failedDescription: "Қайталап көріңіз — бұл бронға еш әсер етпейді",
     enabledTitle: "Хабарламалар қосылды",
-    enabledDescription: "Мейрамхана жауап беруі бойынша хабарлаймыз",
+    enabledDescription: "Мейрамхана жауап беруі бойынша және акциялар мен іс-шаралар туралы хабарлаймыз",
   },
   appUpdate: {
     title: "BookEat жаңартуы қолжетімді",
@@ -2581,12 +2591,14 @@ export const kk: LocaleOverride<Dictionary> = {
     languageTitle: "Интерфейс тілі",
     languageSubtitle: "Қосымша тілін таңдаңыз",
     notifications: "Хабарламалар",
-    notificationsOn: "Мейрамхана броньді растағанда хабарлаймыз және бару алдында еске саламыз",
+    notificationsOn: "Мейрамхана броньді растағанда хабарлаймыз, бару алдында еске саламыз және акциялар мен іс-шаралар туралы айтамыз",
     notificationsOff: "Қазір өшірулі — мейрамхананың жауабын тек қосымшадан көресіз",
     notificationsBlocked: "Телефон бұл қосымшаға хабарламаларға тыйым салған. Оны тек телефон баптауларынан қайтаруға болады",
     notificationsOpenSettings: "Телефон баптауларын ашу",
     notificationsUnavailable: "Бұл құрылғыда хабарламалар жұмыс істемейді",
     notificationsError: "Қосу мүмкін болмады. Қайталап көріңіз",
+    promoPush: "Акциялар мен іс-шаралар",
+    promoPushDescription: "Қалаңыздағы мейрамхананың жаңа іс-шарасы немесе акциясы туралы пуш",
     security: "Қауіпсіздік",
     comingSoon: "Жақында",
     appName: "BookEat",
@@ -2994,6 +3006,7 @@ export const kk: LocaleOverride<Dictionary> = {
       saved: "Сақталды",
       saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
       amenitiesLabel: "Орынның ыңғайлылықтары",
+      serviceFee: (percent: string) => `Қызмет көрсету алымы ${percent}`,
       notFound: {
         title: "Орын табылмады",
         text: "Сілтеме ескірген немесе орын жарияланымнан алынған сияқты.",
@@ -3228,6 +3241,7 @@ export const kk: LocaleOverride<Dictionary> = {
           changeSelection: "Таңдауды өзгерту",
           belowMinimum: (min: string, missing: string) =>
             `Ең аз тапсырыс ${min} — тағы ${missing} қосыңыз`,
+          serviceFee: (percent: string) => `Мейрамхананың қызмет көрсету алымы — ${percent}`,
         },
       },
       errors: {

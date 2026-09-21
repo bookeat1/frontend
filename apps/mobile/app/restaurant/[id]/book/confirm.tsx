@@ -1,5 +1,5 @@
 import type { BookingConflictKind } from "@bookeat/api";
-import { RepositoryError } from "@bookeat/api";
+import { RepositoryError, formatServiceFeePercent, hasVisibleServiceFee } from "@bookeat/api";
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -329,6 +329,13 @@ export default function ConfirmBookingScreen() {
                 }
               />
             ))}
+            {/* Сервисный сбор заведения рядом с суммой — Trello GvptXfr1,
+                скрыт целиком, когда `serviceFeeBps` пуст/0/не задан. */}
+            {restaurant && hasVisibleServiceFee(restaurant.serviceFeeBps) ? (
+              <Text style={styles.serviceFeeNote}>
+                {t.booking.preorderServiceFeeNote(formatServiceFeePercent(restaurant.serviceFeeBps))}
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -540,6 +547,10 @@ const styles = StyleSheet.create({
   preorderTotal: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
+  },
+  serviceFeeNote: {
+    ...typography.caption,
+    color: colors.text.muted,
   },
   detailRow: {
     flexDirection: "row",

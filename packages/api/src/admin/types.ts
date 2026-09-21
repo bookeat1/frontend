@@ -108,13 +108,15 @@ export interface AdminMenuItem {
 /**
  * Body for `PATCH /admin/restaurants/:id/menu-items/:itemId` (admin.menuItemRequest).
  * The backend accepts the full dish payload (name/price/description/…), but the
- * panel only edits the photo today — every other field is a separate editor
- * that doesn't exist yet, so this type carries just what the UI actually sends.
- * Omitted keys are left untouched server-side (pointer fields); `image_url: ""`
- * clears the photo.
+ * panel only edits the photo and the portion size today — every other field is
+ * a separate editor that doesn't exist yet, so this type carries just what the
+ * UI actually sends. Omitted keys are left untouched server-side (pointer
+ * fields); `image_url: ""` clears the photo, `portion_size: ""` clears the
+ * portion label the same way.
  */
 export interface MenuItemPatch {
   image_url?: string;
+  portion_size?: string;
 }
 
 /**

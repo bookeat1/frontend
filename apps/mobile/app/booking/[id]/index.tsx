@@ -3,6 +3,8 @@ import {
   effectiveFreeCancelHours,
   effectiveHoldMinutes,
   effectiveLateArrivalText,
+  formatServiceFeePercent,
+  hasVisibleServiceFee,
   isCancellableBookingStatus,
   isRebookableBooking,
   isTerminalBookingStatus,
@@ -471,6 +473,13 @@ export default function ReservationScreen() {
                 {formatMoneyMinor(preorder.data.totalMinor)}
               </Text>
             </View>
+            {/* Сервисный сбор заведения рядом с суммой — Trello GvptXfr1,
+                скрыт целиком, когда `serviceFeeBps` пуст/0/не задан. */}
+            {restaurant.data && hasVisibleServiceFee(restaurant.data.serviceFeeBps) ? (
+              <Text style={styles.serviceFeeNote}>
+                {t.booking.preorderServiceFeeNote(formatServiceFeePercent(restaurant.data.serviceFeeBps))}
+              </Text>
+            ) : null}
           </BookingCard>
         ) : null}
 
@@ -673,5 +682,9 @@ const styles = StyleSheet.create({
   preorderTotalValue: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
+  },
+  serviceFeeNote: {
+    ...typography.caption,
+    color: colors.text.muted,
   },
 });

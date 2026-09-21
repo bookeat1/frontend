@@ -750,6 +750,9 @@ export const restaurants: Restaurant[] = [
     // бронь без неё.
     acceptsOnlinePayment: true,
     preorderMinAmountMinor: null,
+    // 350 = 3.5% — то же единственное заведение с «подключённой» оплатой
+    // выше, чтобы офлайн-режим показал непустой блок сбора хотя бы раз.
+    serviceFeeBps: 350,
   },
   {
     id: "r2",
@@ -784,6 +787,7 @@ export const restaurants: Restaurant[] = [
     acceptsOnlineBookings: true,
     acceptsOnlinePayment: false,
     preorderMinAmountMinor: null,
+    serviceFeeBps: null,
   },
   {
     id: "r3",
@@ -815,6 +819,7 @@ export const restaurants: Restaurant[] = [
     acceptsOnlineBookings: false,
     acceptsOnlinePayment: false,
     preorderMinAmountMinor: null,
+    serviceFeeBps: null,
   },
   {
     id: "r4",
@@ -863,6 +868,7 @@ export const restaurants: Restaurant[] = [
     acceptsOnlineBookings: true,
     acceptsOnlinePayment: false,
     preorderMinAmountMinor: null,
+    serviceFeeBps: null,
   },
 ];
 

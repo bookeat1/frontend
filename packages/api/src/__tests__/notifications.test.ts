@@ -65,6 +65,8 @@ describe("mapNotificationFeed", () => {
       createdAt: "2026-08-07T10:00:00Z",
       read: false,
       bookingId: "b-1",
+      eventId: null,
+      promoId: null,
     });
     // restaurant_id is carried on the wire but still not modelled — no screen
     // opens a venue from the inbox. booking_id IS modelled: the row opens it.
@@ -73,6 +75,56 @@ describe("mapNotificationFeed", () => {
     expect(feed.items[1]!.bookingId).toBeNull();
     expect(feed.items[1]!.read).toBe(true);
     expect(feed.items[1]!.type).toBe("promo");
+  });
+
+  it("maps a push-campaign event row: type 'event', eventId set, bookingId/promoId null", () => {
+    const feed = mapNotificationFeed({
+      items: [
+        {
+          id: "n-4",
+          type: "event",
+          title: "Новое событие в «Абай»",
+          body: "Джазовый вечер · 26.09 в 19:00",
+          event_id: "e-1",
+          restaurant_id: "r-1",
+          read: false,
+          created_at: "2026-09-17T10:00:00Z",
+        },
+      ],
+      unread_count: 1,
+      next_cursor: null,
+    });
+
+    expect(feed.items[0]).toEqual({
+      id: "n-4",
+      type: "event",
+      title: "Новое событие в «Абай»",
+      body: "Джазовый вечер · 26.09 в 19:00",
+      createdAt: "2026-09-17T10:00:00Z",
+      read: false,
+      bookingId: null,
+      eventId: "e-1",
+      promoId: null,
+    });
+  });
+
+  it("a deleted subject leaves eventId/promoId null (backend ON DELETE SET NULL) — row stays, un-openable", () => {
+    const feed = mapNotificationFeed({
+      items: [
+        {
+          id: "n-5",
+          type: "event",
+          title: "Новое событие",
+          body: "…",
+          event_id: null,
+          read: true,
+          created_at: "2026-09-17T10:00:00Z",
+        },
+      ],
+      unread_count: 0,
+      next_cursor: null,
+    });
+    expect(feed.items[0]!.eventId).toBeNull();
   });
 
   it("an unknown type degrades to reminder rather than being dropped", () => {

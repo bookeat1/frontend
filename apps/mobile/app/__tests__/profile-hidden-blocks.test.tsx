@@ -81,6 +81,28 @@ vi.mock("../../src/lib/push", () => ({
   }),
 }));
 
+// «Акции и события» (usePromoPushSetting) читает репозиторий unconditionally
+// on every render of SettingsScreen — even here, where it never shows (master
+// toggle is unsupported). К спрятанным блокам отношения не имеет.
+//
+// STABLE reference: a fresh object per call would change the hook's effect
+// dependency every render and loop it forever (bit once, see
+// settings-notifications-toggle.test.tsx).
+const notificationPreferencesRepository = vi.hoisted(() => ({
+  getNotificationPreferences: () =>
+    Promise.resolve({
+      notificationsEnabled: true,
+      pushEnabled: true,
+      emailEnabled: true,
+      promoPushEnabled: true,
+      updatedAt: "2026-09-17T10:00:00Z",
+    }),
+  setNotificationPreferences: () => Promise.resolve(undefined),
+}));
+vi.mock("../../src/lib/repository", () => ({
+  useRepository: () => notificationPreferencesRepository,
+}));
+
 const ProfileScreen = (await import("../profile")).default;
 const SettingsScreen = (await import("../settings/index")).default;
 

@@ -389,6 +389,7 @@ export const en: LocaleOverride<Dictionary> = {
     photosCount: (count: number) => `${count} ${count === 1 ? "photo" : "photos"}`,
     about: "About the restaurant",
     workingHours: "Hours",
+    serviceFee: (percent: string) => `Service fee — ${percent}`,
     address: "Address",
     tables: "Tables",
     tableFor: (seats: number) => `For ${seats} ${seats === 1 ? "guest" : "guests"}`,
@@ -666,6 +667,14 @@ export const en: LocaleOverride<Dictionary> = {
       fieldPhoto: "Photo",
       photoSave: "Save",
       photoSaveFailed: "Couldn't save the photo — try again",
+      noPortion: "Portion not set",
+      editPortion: "Portion",
+      editPortionAria: (dish: string) => `Edit portion: ${dish}`,
+      editPortionTitle: (dish: string) => `Portion of "${dish}"`,
+      fieldPortion: "Portion size",
+      fieldPortionPlaceholder: "e.g. 300 g",
+      portionSave: "Save",
+      portionSaveFailed: "Couldn't save the portion — try again",
       topPicks: {
         title: "Top picks",
         description:
@@ -2118,6 +2127,7 @@ export const en: LocaleOverride<Dictionary> = {
     preorderTotalEstimate: "Estimated",
     preorderTotalEstimateNote:
       "The restaurant calculates the final total — this is an estimate based on menu prices",
+    preorderServiceFeeNote: (percent: string) => `Restaurant service fee — ${percent}`,
     preorderSaveFailed:
       "Your booking is placed and the table is yours. But we couldn't save the pre-order — you can order the dishes on the spot",
     dishAdd: "Add",
@@ -2547,7 +2557,7 @@ export const en: LocaleOverride<Dictionary> = {
   push: {
     optInTitle: "Let you know when it's confirmed?",
     optInDescription:
-      "We'll notify you when the restaurant confirms your booking, and remind you before your visit. Nothing promotional",
+      "We'll notify you when the restaurant confirms your booking, remind you before your visit, and tell you about events and promotions in your city",
     optInEnable: "Turn on notifications",
     optInDismiss: "Not now",
     deniedTitle: "Notifications are off",
@@ -2556,7 +2566,7 @@ export const en: LocaleOverride<Dictionary> = {
     failedTitle: "Couldn't turn them on",
     failedDescription: "Try again — this doesn't affect your booking in any way",
     enabledTitle: "Notifications are on",
-    enabledDescription: "We'll let you know as soon as the restaurant replies",
+    enabledDescription: "We'll let you know as soon as the restaurant replies, and about events and promotions",
   },
   appUpdate: {
     title: "BookEat update available",
@@ -2576,12 +2586,14 @@ export const en: LocaleOverride<Dictionary> = {
     languageTitle: "Interface language",
     languageSubtitle: "Choose the app's language",
     notifications: "Notifications",
-    notificationsOn: "We'll let you know when the restaurant confirms, and remind you before the visit",
+    notificationsOn: "We'll let you know when the restaurant confirms, remind you before the visit, and tell you about events and promotions",
     notificationsOff: "Off right now — you'll only see the restaurant's answer inside the app",
     notificationsBlocked: "Your phone blocks notifications for this app. They can only be turned back on in its settings",
     notificationsOpenSettings: "Open phone settings",
     notificationsUnavailable: "Notifications don't work on this device",
     notificationsError: "Couldn't turn them on. Please try again",
+    promoPush: "Events and promotions",
+    promoPushDescription: "A push about a new event or promotion from a venue in your city",
     security: "Security",
     comingSoon: "Soon",
     appName: "BookEat",
@@ -2989,6 +3001,7 @@ export const en: LocaleOverride<Dictionary> = {
       saved: "Saved",
       saveFailed: "Could not save. Please try again",
       amenitiesLabel: "Venue amenities",
+      serviceFee: (percent: string) => `Service fee ${percent}`,
       notFound: {
         title: "Venue not found",
         text: "The link is probably out of date, or the venue has been unpublished.",
@@ -3222,6 +3235,7 @@ export const en: LocaleOverride<Dictionary> = {
           chooseDishes: "Choose dishes",
           changeSelection: "Change selection",
           belowMinimum: (min: string, missing: string) => `Minimum pre-order ${min} — add ${missing} more`,
+          serviceFee: (percent: string) => `Restaurant service fee — ${percent}`,
         },
       },
       errors: {

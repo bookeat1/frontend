@@ -302,6 +302,19 @@ export interface Restaurant {
    */
   preorderMinAmountMinor: number | null;
   /**
+   * Ставка сервисного сбора заведения в базисных пунктах (`restaurants.service_fee_bps`,
+   * 350 = 3.5%; Trello GvptXfr1, `bookeat-backend` ветка `venue-service-fee-display`).
+   *
+   * `null` — сбор НЕ ЗАДАН у этого заведения (сервер не подставляет сюда
+   * платформенный дефолт из `usecase/payments.Config.ServiceFeeBps` — это
+   * поле только для отображения, а не обещание, сколько спишется при
+   * оплате). Экран обязан прятать блок сбора и при `null`, и при `0` —
+   * решение владельца от 03.09.2026: «пусто/0/не задано — не показываем
+   * НИГДЕ». Только детальный ответ (`GET /restaurants/:id`), как и
+   * `preorderMinAmountMinor` — в листинге поля нет.
+   */
+  serviceFeeBps: number | null;
+  /**
    * Удобства заведения из справочника платформы — «Терраса», «Wi-Fi»,
    * «Бизнес-ланч». Приходят полем `features` ДЕТАЛЬНОГО ответа
    * (`GET /restaurants/:id`), в списке их нет.
@@ -610,6 +623,16 @@ export interface MenuDish {
   priceMinor: number | null;
   imageUrl: string | null;
   isAvailable: boolean;
+  /**
+   * «Порция» — размер/объём этой конкретной строки меню ("300 г", "0.5 л"),
+   * когда заведение его заполнило (menu_items.portion_size). Уже
+   * локализовано сервером под запрошенный язык (см. ApiMenuItem.portion_size).
+   * null — заведение поле не заполнило, экран не выдумывает подпись и не
+   * показывает ничего рядом с ценой. НЕ выводится из цены и не склеивает
+   * позиции с одинаковым названием — эти два блюда так и остаются двумя
+   * строками, просто теперь подписанными по-разному.
+   */
+  portionSize: string | null;
 }
 
 export interface MenuSection {
@@ -1660,23 +1683,29 @@ export interface RegisterPushTokenInput {
  *   - "booking"  → a confirmed/updated reservation (ForkKnife glyph)
  *   - "reminder" → a visit reminder (Bell glyph)
  *   - "promo"    → a discount/offer from a venue (Percent glyph)
+ *   - "event"    → a push-campaign announcement for a venue's event
+ *     (CalendarBlank glyph; push-campaigns spec §4 criterion 25/35)
  *
- * These are the three values `GET /notifications` emits in its `type` field.
- * A value the server grows later that this build does not know is mapped to a
+ * These are the values `GET /notifications` emits in its `type` field. A
+ * value the server grows later that this build does not know is mapped to a
  * neutral "reminder" rather than dropped — a bell is the generic notification
  * glyph, so an unknown item still shows honestly instead of vanishing.
  */
-export type NotificationType = "booking" | "reminder" | "promo";
+export type NotificationType = "booking" | "reminder" | "promo" | "event";
 
 /**
  * One item of the guest notifications inbox, already mapped off the wire
  * (`created_at` → `createdAt`, `read` passed through).
  *
  * `bookingId` is the booking the notification is ABOUT, when it is about one:
- * tapping such a row opens that reservation. Null for anything that has no
- * booking behind it (a promo, a general reminder) — those rows only mark
- * themselves read. `restaurant_id` also travels on the wire and is still not
- * modelled: no screen opens a venue from the inbox yet.
+ * tapping such a row opens that reservation. `eventId`/`promoId` are the
+ * same idea for a push-campaign row (spec §4 criterion 25): at most one of
+ * `bookingId`/`eventId`/`promoId` is non-null per row (the backend's own
+ * `CHECK (num_nonnulls(...) = 1)` on the source tables). Null for anything
+ * that has no openable subject behind it (an old promo row predating this
+ * field, a general reminder) — those rows only mark themselves read.
+ * `restaurant_id` also travels on the wire and is still not modelled: no
+ * screen opens a venue from the inbox yet.
  */
 export interface AppNotification {
   id: string;
@@ -1688,6 +1717,11 @@ export interface AppNotification {
   read: boolean;
   /** Booking this row is about, or null when it is about nothing openable. */
   bookingId: string | null;
+  /** Event this row announces, or null. A deleted event still leaves the row
+   * (backend `ON DELETE SET NULL`) — such a row only marks itself read. */
+  eventId: string | null;
+  /** Promo this row announces, or null. Same deletion behaviour as `eventId`. */
+  promoId: string | null;
 }
 
 /**
@@ -1704,6 +1738,38 @@ export interface NotificationFeed {
   unreadCount: number;
   nextCursor: string | null;
 }
+
+/**
+ * The guest's own notification opt-out (`GET/PUT /notification-preferences`,
+ * `transport/rest/consent`). Before push-campaigns this endpoint existed but
+ * NO client called it (grep confirmed 17.09.2026) — the settings screen's
+ * master «Уведомления» toggle is local state (`notifications-pref.ts`) plus
+ * OS permission, not this row. `promoPushEnabled` is new (push-campaigns spec
+ * §5.2 migration 0111) and is the only field THIS app's toggle can change;
+ * the other three exist for other channels/clients this app does not surface
+ * yet, and are carried through unread so a PUT never silently resets them.
+ *
+ * A guest with no preferences row at all reads as every field `true`
+ * (`domain.DefaultNotificationPreference` — opt-out, not opt-in).
+ */
+export interface NotificationPreferences {
+  notificationsEnabled: boolean;
+  pushEnabled: boolean;
+  emailEnabled: boolean;
+  /** «Акции и события» toggle in Settings. */
+  promoPushEnabled: boolean;
+  /** RFC3339. Informational only — no screen shows it. */
+  updatedAt: string;
+}
+
+/**
+ * `PUT /notification-preferences` body. A FULL replacement, all four fields
+ * always present — this app never sends a partial body (the "field absent
+ * means don't change" carve-out in the spec, criterion 23, exists for other/
+ * older clients, not this one), so a write can never silently touch a field
+ * the screen never showed.
+ */
+export type NotificationPreferencesInput = Omit<NotificationPreferences, "updatedAt">;
 
 /**
  * Fixed allowlist of editable platform text pages (footer links: «Как это
