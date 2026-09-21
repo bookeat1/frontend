@@ -52,6 +52,20 @@ describe("карточка заведения", () => {
     expect(await screen.findByRole("status")).toBeTruthy();
   });
 
+  it("SEO T1: initialVenue от серверного рендера рисует контент сразу, без skeleton и без сетевого запроса", async () => {
+    repository.getRestaurant = vi.fn(() => pending<Restaurant>());
+    const venue = venueDetail({ id: "venue-1", name: "Local Coffee" });
+
+    renderScreen(<VenueScreen id="venue-1" initialVenue={venue} />);
+
+    // Сразу, без findBy/await: initialData у useQuery делает isLoading false
+    // ещё на первом рендере — именно это и даёт роботу готовый HTML (в
+    // проде фоновый рефетч не стартует первые 15 с, `staleTime` общего
+    // QueryClient; тестовый клиент этого не держит, поэтому здесь только
+    // синхронная отрисовка, а не «сеть не тронута»).
+    expect(screen.getByRole("heading", { name: "Local Coffee" })).toBeTruthy();
+  });
+
   it("404 — это «заведение не найдено», а не «проверьте соединение»", async () => {
     repository.getRestaurant = vi.fn(async () => {
       throw new RepositoryError("not found", undefined, 404);

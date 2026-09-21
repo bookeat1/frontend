@@ -2,13 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AdminEvent,
-  AdminListParams,
-  ApiPage,
-  EventActionInput,
-  EventInput,
-} from "@bookeat/api/admin";
+import type { AdminEvent, AdminListParams, ApiPage, EventActionInput, EventInput } from "@bookeat/api/admin";
 import {
   buildTranslationPatch,
   translationDraftFrom,
@@ -22,6 +16,7 @@ import { t } from "@/lib/i18n";
 import { formatTags, parseTags } from "@/lib/tags";
 import { useCityDictionary } from "@/lib/use-cities";
 import { useIsPlatformAdmin } from "@/lib/use-venue-catalog";
+import { usePushCampaigns, type PushCampaignsListClient } from "@/lib/use-push-campaigns";
 
 import { EmptyState, ErrorState, LoadingState } from "../StateViews";
 import { Button } from "../ui/Button";
@@ -32,6 +27,7 @@ import { ImageGalleryField } from "../ui/ImageGalleryField";
 import { ImageUploadField } from "../ui/ImageUploadField";
 import { Modal } from "../ui/Modal";
 import { PublishBadge } from "../ui/PublishBadge";
+import { PushCampaignControl, type PushCampaignClient } from "../ui/PushCampaignControl";
 import { CityChip } from "./PlatformPromosView";
 import { actionUrlText, copy, platformContentErrorText } from "./copy";
 
@@ -50,7 +46,7 @@ import { actionUrlText, copy, platformContentErrorText } from "./copy";
  *     запросе нет вовсе), и без явного выбора «пусто» читалось бы как «я ещё
  *     не заполнил», а означало бы «кнопка ведёт на страницу события».
  */
-export interface PlatformEventClient {
+export interface PlatformEventClient extends PushCampaignsListClient, PushCampaignClient {
   listPlatformEvents(params?: AdminListParams): Promise<ApiPage<AdminEvent>>;
   createPlatformEvent(input: EventInput): Promise<AdminEvent>;
   updateEvent(eventId: string, input: EventInput): Promise<AdminEvent>;
@@ -105,6 +101,11 @@ function PlatformEvents({ client }: { client: PlatformEventClient }) {
     queryKey: QUERY_KEY,
     queryFn: () => client.listPlatformEvents({ per_page: 100 }),
   });
+
+  const { query: pushCampaignsQuery, bySubjectId: pushCampaignsBySubjectId } = usePushCampaigns(
+    { kind: "event", platform: true },
+    client,
+  );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
 
@@ -161,72 +162,81 @@ function PlatformEvents({ client }: { client: PlatformEventClient }) {
               const pendingDelete =
                 deleteMutation.isPending && deleteMutation.variables?.id === event.id;
               return (
-                <li
-                  key={event.id}
-                  className="flex flex-col gap-md rounded-card bg-surface p-lg sm:flex-row sm:items-start sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-sm">
-                      <span className="break-words text-sm font-semibold text-text">
-                        {event.title}
-                      </span>
-                      <PublishBadge status={event.status} />
-                      <CityChip city={event.city} />
+                <li key={event.id} className="flex flex-col gap-md rounded-card bg-surface p-lg">
+                  <div className="flex flex-col gap-md sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-sm">
+                        <span className="break-words text-sm font-semibold text-text">
+                          {event.title}
+                        </span>
+                        <PublishBadge status={event.status} />
+                        <CityChip city={event.city} />
+                      </div>
+                      <p className="mt-xxs text-[13px] text-text-muted">
+                        {formatDateTime(event.starts_at)} — {formatDateTime(event.ends_at)}
+                      </p>
+                      {/* Площадка — это СТРОКА адреса, а не заведение платформы:
+                          заведения у такого события нет и колонки для него быть
+                          не может. */}
+                      {event.venue ? (
+                        <p className="mt-xxs break-words text-[13px] text-text-muted">
+                          {event.venue}
+                        </p>
+                      ) : null}
+                      {event.action ? (
+                        <p className="mt-xxs break-words text-[12px] text-text-muted">
+                          {event.action.label} ·{" "}
+                          {event.action.target === "external"
+                            ? (event.action.url ?? copy.actionModeExternal)
+                            : copy.actionModeEvent}
+                        </p>
+                      ) : null}
                     </div>
-                    <p className="mt-xxs text-[13px] text-text-muted">
-                      {formatDateTime(event.starts_at)} — {formatDateTime(event.ends_at)}
-                    </p>
-                    {/* Площадка — это СТРОКА адреса, а не заведение платформы:
-                        заведения у такого события нет и колонки для него быть
-                        не может. */}
-                    {event.venue ? (
-                      <p className="mt-xxs break-words text-[13px] text-text-muted">
-                        {event.venue}
-                      </p>
-                    ) : null}
-                    {event.action ? (
-                      <p className="mt-xxs break-words text-[12px] text-text-muted">
-                        {event.action.label} ·{" "}
-                        {event.action.target === "external"
-                          ? (event.action.url ?? copy.actionModeExternal)
-                          : copy.actionModeEvent}
-                      </p>
-                    ) : null}
+
+                    <div className="flex flex-wrap gap-xs sm:justify-end">
+                      <Button size="sm" variant="secondary" onClick={() => setEditing(event)}>
+                        {t.admin.common.edit}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={event.status === "published" ? "secondary" : "primary"}
+                        disabled={pendingStatus || pendingDelete}
+                        loading={pendingStatus}
+                        onClick={() => {
+                          setActionError(null);
+                          statusMutation.mutate({
+                            event,
+                            status: event.status === "published" ? "hidden" : "published",
+                          });
+                        }}
+                      >
+                        {event.status === "published" ? t.admin.events.hide : t.admin.events.publish}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={pendingStatus || pendingDelete}
+                        loading={pendingDelete}
+                        onClick={() => {
+                          if (!window.confirm(copy.confirmDelete)) return;
+                          setActionError(null);
+                          deleteMutation.mutate(event);
+                        }}
+                      >
+                        {t.admin.common.delete}
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-xs sm:justify-end">
-                    <Button size="sm" variant="secondary" onClick={() => setEditing(event)}>
-                      {t.admin.common.edit}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={event.status === "published" ? "secondary" : "primary"}
-                      disabled={pendingStatus || pendingDelete}
-                      loading={pendingStatus}
-                      onClick={() => {
-                        setActionError(null);
-                        statusMutation.mutate({
-                          event,
-                          status: event.status === "published" ? "hidden" : "published",
-                        });
-                      }}
-                    >
-                      {event.status === "published" ? t.admin.events.hide : t.admin.events.publish}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={pendingStatus || pendingDelete}
-                      loading={pendingDelete}
-                      onClick={() => {
-                        if (!window.confirm(copy.confirmDelete)) return;
-                        setActionError(null);
-                        deleteMutation.mutate(event);
-                      }}
-                    >
-                      {t.admin.common.delete}
-                    </Button>
-                  </div>
+                  {event.status === "published" ? (
+                    <PushCampaignControl
+                      client={client}
+                      kind="event"
+                      subjectId={event.id}
+                      campaign={pushCampaignsBySubjectId.get(event.id)}
+                      onSent={() => void pushCampaignsQuery.refetch()}
+                    />
+                  ) : null}
                 </li>
               );
             })}

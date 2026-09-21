@@ -25,6 +25,7 @@ const DISH: DishCardItem = {
   priceMinor: 390000,
   imageUrl: null,
   isAvailable: true,
+  portionSize: null,
 };
 
 function renderSheet(props: Partial<React.ComponentProps<typeof DishDetailSheet>> = {}) {

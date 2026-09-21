@@ -23,6 +23,7 @@ import {
 } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { formatTags, parseTags } from "@/lib/tags";
+import { usePushCampaigns } from "@/lib/use-push-campaigns";
 import {
   contentOverridesOf,
   groupEventsIntoSeries,
@@ -37,6 +38,7 @@ import { ImageGalleryField } from "./ui/ImageGalleryField";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
 import { PublishBadge } from "./ui/PublishBadge";
+import { PushCampaignControl } from "./ui/PushCampaignControl";
 import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { translationErrorMessage } from "./translation-copy";
@@ -71,6 +73,13 @@ export function EventsView() {
     }
     return map;
   }, [feedQuery.data]);
+
+  // One call for the whole venue's push-campaign status (spec §4 criterion
+  // 26); mapped by subject_id below, same pattern as the feed query above.
+  const { query: pushCampaignsQuery, bySubjectId: pushCampaignsBySubjectId } = usePushCampaigns({
+    kind: "event",
+    restaurantId,
+  });
 
   // Правила повтора того же заведения. Без них 18 дат «Greek Party» —
   // 18 одинаковых карточек: сгруппировать их можно и по `recurrence_id` одному,
@@ -225,6 +234,15 @@ export function EventsView() {
                     state={feedByItemId.get(e.id)}
                     listQueryKey={queryKey}
                   />
+
+                  {e.status === "published" ? (
+                    <PushCampaignControl
+                      kind="event"
+                      subjectId={e.id}
+                      campaign={pushCampaignsBySubjectId.get(e.id)}
+                      onSent={() => void pushCampaignsQuery.refetch()}
+                    />
+                  ) : null}
                 </li>
               );
             })}

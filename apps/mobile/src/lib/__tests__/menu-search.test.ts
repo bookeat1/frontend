@@ -11,7 +11,7 @@ import { filterMenuSections } from "../menu-search";
  */
 
 function dish(id: string, name: string, description = ""): MenuDish {
-  return { id, name, description, priceMinor: 100000, imageUrl: null, isAvailable: true };
+  return { id, name, description, priceMinor: 100000, imageUrl: null, isAvailable: true, portionSize: null };
 }
 
 const sections = [

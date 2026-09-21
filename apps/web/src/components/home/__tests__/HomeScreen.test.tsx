@@ -4,6 +4,7 @@ import { screen } from "@testing-library/react";
 import type { RestaurantsPicksResult } from "@bookeat/api/client";
 
 import { pending, renderScreen, repositoryStub, venueSummary } from "@web/test/harness";
+import { DEFAULT_CITY } from "@web/lib/default-city";
 
 /**
  * Главная — это восемь независимых блоков. Проверяем не вёрстку, а что каждый
@@ -35,6 +36,47 @@ describe("главная", () => {
     renderScreen(<HomeScreen />);
 
     expect((await screen.findAllByRole("status")).length).toBeGreaterThan(0);
+  });
+
+  it("SEO T1: initialCatalog от серверного рендера рисует «Все заведения» сразу, без skeleton", () => {
+    repository.searchRestaurants = vi.fn(() => pending<Awaited<ReturnType<typeof repository.searchRestaurants>>>());
+
+    // Первый рендер `CityProvider` (до его useEffect) отдаёт DEFAULT_CITY —
+    // именно для него и получен `initialCatalog` на сервере, поэтому здесь
+    // filters.city обязан совпасть с ним, иначе guard в `useCatalog`
+    // (blocker 1: чужой город после гидратации) отбросит initialData.
+    renderScreen(
+      <HomeScreen
+        initialCatalog={{
+          query: { text: "", filters: { city: DEFAULT_CITY } as never },
+          items: [venueSummary({ id: "ssr-1", name: "Auyl" })],
+          total: 1,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Auyl" })).toBeTruthy();
+  });
+
+  it("SEO T1: initialCatalog для другого города НЕ подставляется, ждём собственный запрос", async () => {
+    repository.searchRestaurants = vi.fn(async (query) => ({
+      query,
+      items: [venueSummary({ id: "live-1", name: "Live venue" })],
+      total: 1,
+    }));
+
+    renderScreen(
+      <HomeScreen
+        initialCatalog={{
+          query: { text: "", filters: { city: "Астана" } as never },
+          items: [venueSummary({ id: "ssr-1", name: "Auyl" })],
+          total: 1,
+        }}
+      />,
+    );
+
+    expect(await screen.findByRole("link", { name: "Live venue" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Auyl" })).toBeNull();
   });
 
   it("пустые ленты объясняются словами, а не пустым местом", async () => {

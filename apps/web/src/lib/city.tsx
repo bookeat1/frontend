@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { isApiConfigured, repository } from "@web/lib/api";
+import { DEFAULT_CITY } from "@web/lib/default-city";
 
 /**
  * Выбранный город.
@@ -26,8 +27,12 @@ const STORAGE_KEY = "bookeat.web.city";
  * её сегодня нет, см. ADR-016 «Город гостя»). Показывается сразу, не дожидаясь
  * ответа `GET /cities`: значение — канонический enum бэкенда, а не догадка,
  * так что пустое состояние на время загрузки не нужно.
+ *
+ * Значение живёт в `lib/default-city.ts` (БЕЗ `"use client"`) и переэкспортируется
+ * отсюда ради обратной совместимости импортов — см. комментарий в том файле,
+ * почему серверному коду (SEO T1) нужен именно этот путь, а не этот модуль.
  */
-export const DEFAULT_CITY = "Алматы";
+export { DEFAULT_CITY };
 
 interface CityContextValue {
   /**

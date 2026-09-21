@@ -146,12 +146,13 @@ export default function NotificationsScreen() {
               refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
             >
               {visible.map((item) => {
-                // Строка ведёт на бронь, если уведомление про неё, и заодно
-                // помечает себя прочитанной. Если брони нет (промо, общее
-                // напоминание) — тап только помечает прочитанным, а уже
-                // прочитанная строка без брони не нажимается вовсе: запрос был
-                // бы холостым.
-                const openable = Boolean(item.bookingId);
+                // Строка ведёт на бронь/событие/акцию, если уведомление про
+                // одно из них, и заодно помечает себя прочитанной. Если
+                // открывать нечего (общее напоминание, удалённый субъект —
+                // спец §3.15) — тап только помечает прочитанным, а уже
+                // прочитанная строка без субъекта не нажимается вовсе: запрос
+                // был бы холостым.
+                const openable = Boolean(item.bookingId || item.eventId || item.promoId);
                 if (item.read && !openable) {
                   return <NotificationRow key={item.id} notification={item} />;
                 }
@@ -162,6 +163,8 @@ export default function NotificationsScreen() {
                     onPress={() => {
                       if (!item.read) markRead.mutate(item.id);
                       if (item.bookingId) router.push(`/booking/${item.bookingId}`);
+                      else if (item.eventId) router.push(`/event/${item.eventId}`);
+                      else if (item.promoId) router.push(`/promotion/${item.promoId}`);
                     }}
                     style={({ pressed }) => (pressed ? styles.rowPressed : undefined)}
                   >

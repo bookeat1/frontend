@@ -108,13 +108,15 @@ export interface AdminMenuItem {
 /**
  * Body for `PATCH /admin/restaurants/:id/menu-items/:itemId` (admin.menuItemRequest).
  * The backend accepts the full dish payload (name/price/description/…), but the
- * panel only edits the photo today — every other field is a separate editor
- * that doesn't exist yet, so this type carries just what the UI actually sends.
- * Omitted keys are left untouched server-side (pointer fields); `image_url: ""`
- * clears the photo.
+ * panel only edits the photo and the portion size today — every other field is
+ * a separate editor that doesn't exist yet, so this type carries just what the
+ * UI actually sends. Omitted keys are left untouched server-side (pointer
+ * fields); `image_url: ""` clears the photo, `portion_size: ""` clears the
+ * portion label the same way.
  */
 export interface MenuItemPatch {
   image_url?: string;
+  portion_size?: string;
 }
 
 /**
@@ -431,6 +433,26 @@ export interface CatalogVenue {
    * свободнотекстовый ключ `features` в теле PATCH заведения сервер отвергает
    * с 422 — поэтому его нет в CatalogVenueInput. */
   features?: VenueFeature[];
+  /**
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143,
+   * смёржен) — ВЛОЖЕННЫЙ объект `booking_rules` (та же форма, что и у
+   * гостевого `ApiRestaurant.booking_rules`/`ApiBooking.booking_rules` в
+   * `../http-mapping.ts`), не плоские поля. `undefined`/`null` — блок
+   * отсутствует (старая сборка сервера); внутри блока значения УЖЕ
+   * разрешены сервером (заданное заведением или платформенный дефолт — 15
+   * минут удержания / 2 часа на бесплатную отмену / стандартный текст, см.
+   * `../booking-rules.ts`), форма кабинета сверяет это с пустым полем ввода,
+   * а не с самим числом.
+   */
+  booking_rules?: CatalogVenueBookingRules | null;
+}
+
+/** `booking_rules` в ответе на чтение заведения кабинетом — см. doc-комментарий
+ * у `CatalogVenue.booking_rules` выше. */
+export interface CatalogVenueBookingRules {
+  hold_minutes: number;
+  free_cancel_hours: number;
+  late_arrival_text: string;
 }
 
 /** Body of POST /restaurants and PATCH /restaurants/:id. Every field is
@@ -470,6 +492,25 @@ export interface CatalogVenueInput {
    * только зная текущий набор: пропуск ключа сохраняет ссылки, `[]` — стирает
    * все. */
   social_links?: SocialLinkInput[];
+  /**
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143) — ЗДЕСЬ,
+   * В ОТЛИЧИЕ ОТ ЧТЕНИЯ, ПЛОСКИЕ ПОЛЯ ПРЯМО В ТЕЛЕ PATCH: `saveRestaurantRequest`
+   * (`internal/transport/rest/restaurants/request.go`) кладёт их рядом с
+   * `name`/`address`/т.д., а не во вложенный `booking_rules` — сервер
+   * специально не стал заворачивать запись в ту же обёртку, что и чтение.
+   * Пропуск ключа оставляет колонку как есть; `null`/`0`/пустая строка — явный
+   * сброс на платформенный дефолт (пустое поле формы = «не переопределяем»).
+   *
+   * `free_cancel_hours` ЗДЕСЬ НЕТ И НЕ БУДЕТ: это не отдельная колонка, а
+   * округление денежного окна `restaurants.free_cancel_window_minutes`
+   * (см. `../booking-rules.ts`), и у него своя ручка записи —
+   * `PUT /admin/restaurants/:id/payment-settings/free-cancel-window`
+   * (`{free_cancel_window_minutes: number}`, минуты, не часы). Та ручка пока
+   * НЕ подключена ни к одному экрану `apps/admin` — значение в этом PATCH
+   * молча проигнорировалось бы, если бы поле здесь было.
+   */
+  hold_minutes?: number | null;
+  late_arrival_text?: string | null;
 }
 
 // ---- Events ----------------------------------------------------------------
@@ -1795,3 +1836,138 @@ export interface PlatformPageInput {
   body: string;
   published?: boolean;
 }
+
+// ---- Push campaigns (manual, per-publication, superadmin-only) -------------
+//
+// Spec: push-campaigns-manual-spec-2026-09-17.md §4 (criteria 3-5, 21, 23, 25),
+// §5.2. Backend for this feature is being built in parallel and was not yet
+// available to confirm these shapes against a live response — every field
+// below is either quoted verbatim from the spec's acceptance criteria or is an
+// explicit assumption (called out in the doc comment) that should be checked
+// against the merged backend PR at review time.
+
+/** `event`/`promo` — the path segment used by all push-campaign routes
+ * (matches domain.PushCampaignKind, same set as FeedItemKind). */
+export type PushCampaignKind = "event" | "promo";
+
+/**
+ * Campaign lifecycle (spec §5.3): `queued → sending → done | failed`;
+ * `queued|sending → cancelled` (subject unpublished/removed by the time the
+ * worker looked); `queued → expired` (sat in the queue past the max age).
+ * Terminal: done, cancelled, expired, failed — "send again" is always a new
+ * campaign, never a resume.
+ */
+export type PushCampaignStatus = "queued" | "sending" | "done" | "cancelled" | "expired" | "failed";
+
+/**
+ * ASSUMPTION (not in the spec's response shape, §3.9/3.15 only name the two
+ * reasons in prose): kept as a plain string rather than a closed union so an
+ * unrecognised reason from the backend renders as raw text instead of failing
+ * a type check — the badge copy has a fallback for exactly this case. The two
+ * reasons the spec does name are exported below for the copy lookup.
+ */
+export type PushCampaignCancelReason = string;
+export const PUSH_CAMPAIGN_CANCEL_REASON_SUBJECT_UNPUBLISHED = "subject_unpublished";
+export const PUSH_CAMPAIGN_CANCEL_REASON_SUBJECT_MISSING = "subject_missing";
+
+/**
+ * One row of `GET /admin/push-campaigns?kind=&restaurant_id=` /
+ * `?kind=&platform=true` (spec §4 criterion 5) — the latest campaign per
+ * subject, keyed by `subject_id` so the caller can map it onto its own list.
+ *
+ * ASSUMPTION: the spec does not state the envelope. Following the precedent
+ * set by `GET /admin/promo-codes` (also a superadmin list with no pagination
+ * need, see `bugs`/`conventions/bookeat-admin.md`), this is typed as a plain
+ * array, not `ApiPage<T>` — confirm against the real handler at review time.
+ */
+export interface PushCampaignSummary {
+  subject_id: string;
+  id: string;
+  status: PushCampaignStatus;
+  created_at: string;
+  finished_at: string | null;
+  sent_count: number;
+  skipped_count: number;
+  failed_count: number;
+  estimated_recipients: number;
+  cancel_reason: PushCampaignCancelReason | null;
+}
+
+/** One language's pre-rendered push text (spec §4 criterion 3, `preview`). */
+export interface PushCampaignPreviewText {
+  title: string;
+  body: string;
+}
+
+/** `GET /admin/push-campaigns/estimate` always returns all three locales —
+ * the text is generated server-side, never edited in the panel (§6 item 6). */
+export interface PushCampaignPreviewByLocale {
+  ru: PushCampaignPreviewText;
+  kk: PushCampaignPreviewText;
+  en: PushCampaignPreviewText;
+}
+
+/** The prior campaign on the same subject, folded into the estimate so the
+ * modal can say "already sent DD.MM · N, repeat will reach only ~M". */
+export interface PushCampaignLastCampaign {
+  id: string;
+  status: PushCampaignStatus;
+  finished_at: string | null;
+  sent_count: number;
+}
+
+/**
+ * `GET /admin/push-campaigns/estimate?kind=&subject_id=` response (spec §4
+ * criterion 3, quoted verbatim): `eligible = in_city − no_device − opted_out
+ * − capped − already_received`, categories counted in that order and
+ * non-overlapping. `city` is `null` for a platform subject with no resolved
+ * city ("everywhere" — §3.7).
+ */
+export interface PushCampaignEstimate {
+  city: string | null;
+  in_city: number;
+  no_device: number;
+  opted_out: number;
+  capped: number;
+  already_received: number;
+  eligible: number;
+  quiet_hours_now: boolean;
+  campaigns_today_in_city: number;
+  last_campaign: PushCampaignLastCampaign | null;
+  preview: PushCampaignPreviewByLocale;
+}
+
+/** The five 422 reasons `POST /admin/push-campaigns` can answer with (spec §4
+ * criterion 4, quoted verbatim: `subject_not_published | subject_expired |
+ * venue_inactive | city_unresolved | quiet_hours`). */
+export type PushCampaignRefusalReason =
+  | "subject_not_published"
+  | "subject_expired"
+  | "venue_inactive"
+  | "city_unresolved"
+  | "quiet_hours";
+
+/** `POST /admin/push-campaigns` body (spec §4 criterion 4). `force_quiet_hours`
+ * is the explicit night checkbox (§3.8) — omit it (or send `false`) inside the
+ * 21:00–10:00 Asia/Almaty window and the server answers 422 `quiet_hours`. */
+export interface CreatePushCampaignInput {
+  kind: PushCampaignKind;
+  subject_id: string;
+  force_quiet_hours?: boolean;
+}
+
+/** `POST /admin/push-campaigns` 201 response (spec §4 criterion 4, quoted
+ * verbatim: `{id, status:"queued", estimated_recipients}`). */
+export interface CreatePushCampaignResult {
+  id: string;
+  status: "queued";
+  estimated_recipients: number;
+}
+
+/** Filters for `listPushCampaigns` (spec §4 criterion 5): a venue's own
+ * screens pass `restaurantId` (server also accepts `PermRestaurantManage` in
+ * that venue, not just RoleAdmin), the two platform screens pass
+ * `platform: true` (RoleAdmin only). */
+export type ListPushCampaignsParams =
+  | { kind: PushCampaignKind; restaurantId: string }
+  | { kind: PushCampaignKind; platform: true };

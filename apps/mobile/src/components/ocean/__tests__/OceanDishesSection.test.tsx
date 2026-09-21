@@ -29,6 +29,7 @@ const PLATTER: MenuDish = {
   priceMinor: 3_799_000,
   imageUrl: null,
   isAvailable: true,
+  portionSize: null,
 };
 const PRAWNS: MenuDish = {
   id: "dish-prawns",
@@ -37,6 +38,7 @@ const PRAWNS: MenuDish = {
   priceMinor: 1_509_000,
   imageUrl: null,
   isAvailable: false,
+  portionSize: null,
 };
 
 function renderSection(state: OceanSignatureDishesState) {

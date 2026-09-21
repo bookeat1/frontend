@@ -393,6 +393,7 @@ export const kk: LocaleOverride<Dictionary> = {
     photosCount: (count: number) => `${count} фото`,
     about: "Мейрамхана туралы",
     workingHours: "Жұмыс уақыты",
+    serviceFee: (percent: string) => `Қызмет көрсету алымы — ${percent}`,
     address: "Мекенжай",
     tables: "Үстелдер",
     tableFor: (seats: number) => `${seats} қонаққа`,
@@ -670,6 +671,14 @@ export const kk: LocaleOverride<Dictionary> = {
       fieldPhoto: "Фото",
       photoSave: "Сақтау",
       photoSaveFailed: "Фотоны сақтау мүмкін болмады — қайталап көріңіз",
+      noPortion: "Порция көрсетілмеген",
+      editPortion: "Порция",
+      editPortionAria: (dish: string) => `Порцияны өзгерту: ${dish}`,
+      editPortionTitle: (dish: string) => `«${dish}» тағамының порциясы`,
+      fieldPortion: "Порция мөлшері",
+      fieldPortionPlaceholder: "Мысалы, 300 г",
+      portionSave: "Сақтау",
+      portionSaveFailed: "Порцияны сақтау мүмкін болмады — қайталап көріңіз",
       topPicks: {
         title: "Үздік тағамдар",
         description:
@@ -1158,6 +1167,55 @@ export const kk: LocaleOverride<Dictionary> = {
       hintEvent:
         "Жіберілгеннен кейін іс-шара модерацияға түседі. Қосымшаның басты экранында ол тек мақұлданғаннан кейін және өтетін күндері көрінеді.",
       actionFailed: "Күйін өзгерту мүмкін болмады. Қайталап көріңіз.",
+    },
+    pushCampaigns: {
+      badgeNotSent: "Пуш: жіберілмеген",
+      badgeSending: "Пуш: жіберіліп жатыр…",
+      badgeSent: (when: string, count: number) => `Пуш жіберілді ${when} · ${count}`,
+      badgeFailed: (sent: number, total: number) => `Жіберу қатесі · ${total} ішінен ${sent}`,
+      badgeExpired: "Жіберілмеді: кезек 6 сағаттан астам тұрып қалды",
+      badgeCancelled: (reason: string) => `Тоқтатылды: ${reason}`,
+      cancelReasonSubjectUnpublished: "жариялау жіберілгенге дейін жасырылды",
+      cancelReasonSubjectMissing: "жариялау жіберілгенге дейін өшірілді",
+      cancelReasonUnknown: "себебі көрсетілмеген",
+      send: "Пуш жіберу",
+      sending: "Жіберіп жатырмыз…",
+      modalTitle: "Қонақтарға пуш жіберу",
+      loadingEstimate: "Қамтуды есептеп жатырмыз…",
+      estimateFailed: "Қамтуды есептеу мүмкін болмады. Қайталап көріңіз.",
+      cityLabel: (city: string) => `Қала: ${city}`,
+      cityEverywhere: "Қосымшаның барлық қонақтары (жариялаудың қаласы жоқ)",
+      eligibleLabel: "Пуш алады",
+      eligibleZero: "Алушы жоқ: қаланың барлық қонағы төменде сүзілді",
+      inCityLabel: (n: number) => `Қаладағы қосымшасы бар қонақтар: ${n}`,
+      breakdownNoDevice: (n: number) => `${n} құрылғысы жоқ`,
+      breakdownOptedOut: (n: number) => `${n} «Акциялар мен іс-шараларды» өшірген`,
+      breakdownCapped: (n: number) => `${n} бүгін/осы аптада пуш алып қойған`,
+      breakdownAlreadyReceived: (n: number) => `${n} осы пушты бұрын алған`,
+      previewTitle: "Қонаққа көрінетін пуш мәтіні",
+      previewLangRu: "Орысша",
+      previewLangKk: "Қазақша",
+      previewLangEn: "Ағылшынша",
+      quietHoursWarning: "Алматы уақыты бойынша қазір түн — қонақтар пушты дереу алады.",
+      quietHoursConfirm: "Түсінемін, қазір жіберу",
+      lastCampaignNote: (when: string, count: number) =>
+        `Бұрын жіберілген ${when} · ${count} қонаққа. Қайта жіберілгенде тек осы пушты әлі алмаған қонақтар алады.`,
+      campaignsTodayWarning: (n: number) => `Бүгін осы қалада жіберілген науқандар: ${n}`,
+      confirm: (n: number) => `${n} қонаққа жіберу`,
+      cancel: "Бас тарту",
+      errors: {
+        subject_not_published: "Жариялау әлі жарияланбаған — алдымен жариялаңыз.",
+        subject_expired: "Жариялау мерзімі бітті — пуш жіберуге кеш.",
+        venue_inactive: "Мекеме қазір белсенді емес.",
+        city_unresolved: "Жариялаудың қаласы анықталмаған — жіберу мүмкін емес.",
+        quiet_hours: "Қазір түн — дереу жіберу үшін белгіні қойыңыз.",
+        in_progress: "Бұл жариялау бойынша жіберу әлі жүріп жатыр — аяқталуын күтіңіз.",
+        channel_disabled: "Серверде пуш арнасы өшірілген. Әзірлеушілерге хабарлаңыз.",
+        not_found: "Жариялау табылмады.",
+        forbidden: "Пуш жіберу тек платформа әкімшілеріне қолжетімді.",
+        unauthorized: "Сессия аяқталды. Қайта кіріңіз.",
+        unknown: "Пуш жіберу мүмкін болмады. Қайталап көріңіз.",
+      },
     },
     feedModeration: {
       title: "Басты бетті модерациялау",
@@ -2073,6 +2131,7 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderTotalEstimate: "Алдын ала",
     preorderTotalEstimateNote:
       "Қорытындыны орын есептейді — мұнда мәзір бағасы бойынша бағалау",
+    preorderServiceFeeNote: (percent: string) => `Мейрамхананың қызмет көрсету алымы — ${percent}`,
     preorderSaveFailed:
       "Бронь жасалды, үстел сіздікі. Ал алдын ала тапсырысты сақтау мүмкін болмады — тағамдарға жерде тапсырыс беруге болады",
     dishAdd: "Қосу",
@@ -2165,6 +2224,13 @@ export const kk: LocaleOverride<Dictionary> = {
       no_show:
         "Орын қонақтың келмегенін белгіледі. Егер бұл қате болса, төмендегі телефон арқылы орынмен байланысыңыз.",
     },
+    rulesFooter: (
+      holdMinutes: number,
+      bookingTime: string,
+      lateArrivalText: string,
+      cancelUntilTime: string,
+    ) =>
+      `Үстелді ${bookingTime}-дан кейін ${holdMinutes} минут ұстап тұрамыз. ${lateArrivalText} Тегін бас тарту — ${cancelUntilTime} дейін.`,
     contactsTitle: "Байланыстар",
     contactWebsite: "Орын сайты",
     contactWhatsapp: "WhatsApp-қа жазу",
@@ -2496,7 +2562,7 @@ export const kk: LocaleOverride<Dictionary> = {
   push: {
     optInTitle: "Расталғанда хабарлайық па?",
     optInDescription:
-      "Мейрамхана бронды растағанда хабарлама жібереміз және келер алдында еске саламыз. Ешқандай жарнама жоқ",
+      "Мейрамхана бронды растағанда хабарлама жібереміз, келер алдында еске саламыз және қалаңыздағы акциялар мен іс-шаралар туралы айтамыз",
     optInEnable: "Хабарламаларды қосу",
     optInDismiss: "Қазір емес",
     deniedTitle: "Хабарламалар өшірілген",
@@ -2505,7 +2571,7 @@ export const kk: LocaleOverride<Dictionary> = {
     failedTitle: "Қосу мүмкін болмады",
     failedDescription: "Қайталап көріңіз — бұл бронға еш әсер етпейді",
     enabledTitle: "Хабарламалар қосылды",
-    enabledDescription: "Мейрамхана жауап беруі бойынша хабарлаймыз",
+    enabledDescription: "Мейрамхана жауап беруі бойынша және акциялар мен іс-шаралар туралы хабарлаймыз",
   },
   appUpdate: {
     title: "BookEat жаңартуы қолжетімді",
@@ -2525,12 +2591,14 @@ export const kk: LocaleOverride<Dictionary> = {
     languageTitle: "Интерфейс тілі",
     languageSubtitle: "Қосымша тілін таңдаңыз",
     notifications: "Хабарламалар",
-    notificationsOn: "Мейрамхана броньді растағанда хабарлаймыз және бару алдында еске саламыз",
+    notificationsOn: "Мейрамхана броньді растағанда хабарлаймыз, бару алдында еске саламыз және акциялар мен іс-шаралар туралы айтамыз",
     notificationsOff: "Қазір өшірулі — мейрамхананың жауабын тек қосымшадан көресіз",
     notificationsBlocked: "Телефон бұл қосымшаға хабарламаларға тыйым салған. Оны тек телефон баптауларынан қайтаруға болады",
     notificationsOpenSettings: "Телефон баптауларын ашу",
     notificationsUnavailable: "Бұл құрылғыда хабарламалар жұмыс істемейді",
     notificationsError: "Қосу мүмкін болмады. Қайталап көріңіз",
+    promoPush: "Акциялар мен іс-шаралар",
+    promoPushDescription: "Қалаңыздағы мейрамхананың жаңа іс-шарасы немесе акциясы туралы пуш",
     security: "Қауіпсіздік",
     comingSoon: "Жақында",
     appName: "BookEat",
@@ -2915,6 +2983,19 @@ export const kk: LocaleOverride<Dictionary> = {
       notFoundDescription: "Бұл бетті әлі жарияламаған сияқты.",
       backHome: "Басты бетке",
     },
+    /** Ешқашан экранға шықпайды: серверлік HTML бүгін тек орысша (ru.ts
+     * қараңыз). Толықтық тесті үшін ғана толтырылған. */
+    seo: {
+      venueTitleSuffix: (city: string) => `, ${city}: үстел брондау`,
+      venueBookingCta: "BookEat-те үстелді онлайн брондаңыз.",
+      hoursToday: (opens: string, closes: string) => `Бүгін ${opens}-ден ${closes}-ге дейін жұмыс істейді.`,
+      catalogTitle: "Алматы мейрамханалары мен кафелері: үстелді онлайн брондау",
+      catalogDescription: (count: number, cuisines: string) =>
+        `${count} мекеме: ${cuisines}. Күн, уақыт және қонақтар санын таңдап, бір минутта үстел брондаңыз.`,
+      homeTitle: "Алматы мейрамханалары мен кафелерінде үстелді онлайн брондау",
+      homeDescription: (count: number, city: string) =>
+        `BookEat: ${city} қаласында ${count} мекеме, бос үстелдер, мәзір бойынша алдын ала тапсырыс, қоңырауларсыз.`,
+    },
     venue: {
       breadcrumbLabel: "Сайт бойынша жол",
       breadcrumbHome: "Басты бет",
@@ -2925,6 +3006,7 @@ export const kk: LocaleOverride<Dictionary> = {
       saved: "Сақталды",
       saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
       amenitiesLabel: "Орынның ыңғайлылықтары",
+      serviceFee: (percent: string) => `Қызмет көрсету алымы ${percent}`,
       notFound: {
         title: "Орын табылмады",
         text: "Сілтеме ескірген немесе орын жарияланымнан алынған сияқты.",
@@ -3159,6 +3241,7 @@ export const kk: LocaleOverride<Dictionary> = {
           changeSelection: "Таңдауды өзгерту",
           belowMinimum: (min: string, missing: string) =>
             `Ең аз тапсырыс ${min} — тағы ${missing} қосыңыз`,
+          serviceFee: (percent: string) => `Мейрамхананың қызмет көрсету алымы — ${percent}`,
         },
       },
       errors: {
@@ -3239,6 +3322,13 @@ export const kk: LocaleOverride<Dictionary> = {
         confirmedLockedNotice: "Расталған броннның құрамын мекеме өзгертеді",
         manualLockedNotice: "Құрамын мекеме өзгертті — өзгерістер мекеме арқылы",
       },
+      rulesFooter: (
+        holdMinutes: number,
+        bookingTime: string,
+        lateArrivalText: string,
+        cancelUntilTime: string,
+      ) =>
+        `Үстелді ${bookingTime}-дан кейін ${holdMinutes} минут ұстап тұрамыз. ${lateArrivalText} Тегін бас тарту — ${cancelUntilTime} дейін.`,
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

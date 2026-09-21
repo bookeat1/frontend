@@ -143,6 +143,7 @@ export function DishDetailSheet({
             {shown.description ? <Text style={styles.description}>{shown.description}</Text> : null}
             <Text style={styles.price}>
               {shown.priceLabel === null ? t.restaurant.menuDishNoPrice : shown.priceLabel}
+              {shown.portionSize ? ` · ${shown.portionSize}` : ""}
             </Text>
             {!shown.isAvailable ? (
               <Text style={styles.unavailable}>{t.restaurant.menuDishUnavailable}</Text>

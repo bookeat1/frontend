@@ -389,6 +389,7 @@ export const en: LocaleOverride<Dictionary> = {
     photosCount: (count: number) => `${count} ${count === 1 ? "photo" : "photos"}`,
     about: "About the restaurant",
     workingHours: "Hours",
+    serviceFee: (percent: string) => `Service fee — ${percent}`,
     address: "Address",
     tables: "Tables",
     tableFor: (seats: number) => `For ${seats} ${seats === 1 ? "guest" : "guests"}`,
@@ -666,6 +667,14 @@ export const en: LocaleOverride<Dictionary> = {
       fieldPhoto: "Photo",
       photoSave: "Save",
       photoSaveFailed: "Couldn't save the photo — try again",
+      noPortion: "Portion not set",
+      editPortion: "Portion",
+      editPortionAria: (dish: string) => `Edit portion: ${dish}`,
+      editPortionTitle: (dish: string) => `Portion of "${dish}"`,
+      fieldPortion: "Portion size",
+      fieldPortionPlaceholder: "e.g. 300 g",
+      portionSave: "Save",
+      portionSaveFailed: "Couldn't save the portion — try again",
       topPicks: {
         title: "Top picks",
         description:
@@ -1153,6 +1162,55 @@ export const en: LocaleOverride<Dictionary> = {
       hintEvent:
         "Once sent, the event goes to moderation. It appears on the app's home screen only after approval and only on the dates it runs.",
       actionFailed: "Couldn't change the status. Please try again.",
+    },
+    pushCampaigns: {
+      badgeNotSent: "Push: not sent",
+      badgeSending: "Push: sending…",
+      badgeSent: (when: string, count: number) => `Push sent ${when} · ${count}`,
+      badgeFailed: (sent: number, total: number) => `Send error · ${sent} of ${total}`,
+      badgeExpired: "Not sent: the queue sat idle for over 6 hours",
+      badgeCancelled: (reason: string) => `Cancelled: ${reason}`,
+      cancelReasonSubjectUnpublished: "the publication was hidden before it went out",
+      cancelReasonSubjectMissing: "the publication was deleted before it went out",
+      cancelReasonUnknown: "no reason given",
+      send: "Send push",
+      sending: "Sending…",
+      modalTitle: "Send a push to guests",
+      loadingEstimate: "Estimating reach…",
+      estimateFailed: "Couldn't estimate reach. Please try again.",
+      cityLabel: (city: string) => `City: ${city}`,
+      cityEverywhere: "Every app guest (this publication has no city)",
+      eligibleLabel: "Will receive the push",
+      eligibleZero: "No recipients: every guest in the city was filtered out below",
+      inCityLabel: (n: number) => `Guests with the app in the city: ${n}`,
+      breakdownNoDevice: (n: number) => `${n} without a device`,
+      breakdownOptedOut: (n: number) => `${n} turned off "Deals and events"`,
+      breakdownCapped: (n: number) => `${n} already received a push today/this week`,
+      breakdownAlreadyReceived: (n: number) => `${n} already received this push`,
+      previewTitle: "Push text the guest sees",
+      previewLangRu: "Russian",
+      previewLangKk: "Kazakh",
+      previewLangEn: "English",
+      quietHoursWarning: "It's night right now in Almaty — guests will get the push immediately.",
+      quietHoursConfirm: "I understand, send now",
+      lastCampaignNote: (when: string, count: number) =>
+        `Already sent ${when} · to ${count} guests. A repeat will only reach guests who have not received this push yet.`,
+      campaignsTodayWarning: (n: number) => `Campaigns already sent in this city today: ${n}`,
+      confirm: (n: number) => `Send to ${n} guests`,
+      cancel: "Cancel",
+      errors: {
+        subject_not_published: "The publication isn't published yet — publish it first.",
+        subject_expired: "The publication already ended — too late to send a push.",
+        venue_inactive: "The venue is currently inactive.",
+        city_unresolved: "The publication has no resolved city — cannot send.",
+        quiet_hours: "It's night right now — check the box to send immediately.",
+        in_progress: "A push for this publication is already in progress — wait for it to finish.",
+        channel_disabled: "The push channel is disabled on the server. Tell the developers.",
+        not_found: "The publication was not found.",
+        forbidden: "Sending a push is available to platform admins only.",
+        unauthorized: "Your session expired. Please sign in again.",
+        unknown: "Couldn't send the push. Please try again.",
+      },
     },
     feedModeration: {
       title: "Home screen moderation",
@@ -2069,6 +2127,7 @@ export const en: LocaleOverride<Dictionary> = {
     preorderTotalEstimate: "Estimated",
     preorderTotalEstimateNote:
       "The restaurant calculates the final total — this is an estimate based on menu prices",
+    preorderServiceFeeNote: (percent: string) => `Restaurant service fee — ${percent}`,
     preorderSaveFailed:
       "Your booking is placed and the table is yours. But we couldn't save the pre-order — you can order the dishes on the spot",
     dishAdd: "Add",
@@ -2161,6 +2220,13 @@ export const en: LocaleOverride<Dictionary> = {
       no_show:
         "The restaurant marked that the guest didn't show up. If this is a mistake, contact the restaurant at the phone number below.",
     },
+    rulesFooter: (
+      holdMinutes: number,
+      bookingTime: string,
+      lateArrivalText: string,
+      cancelUntilTime: string,
+    ) =>
+      `We hold the table for ${holdMinutes} minutes after ${bookingTime}. ${lateArrivalText} Free cancellation until ${cancelUntilTime}.`,
     contactsTitle: "Contacts",
     contactWebsite: "Restaurant website",
     contactWhatsapp: "Message on WhatsApp",
@@ -2491,7 +2557,7 @@ export const en: LocaleOverride<Dictionary> = {
   push: {
     optInTitle: "Let you know when it's confirmed?",
     optInDescription:
-      "We'll notify you when the restaurant confirms your booking, and remind you before your visit. Nothing promotional",
+      "We'll notify you when the restaurant confirms your booking, remind you before your visit, and tell you about events and promotions in your city",
     optInEnable: "Turn on notifications",
     optInDismiss: "Not now",
     deniedTitle: "Notifications are off",
@@ -2500,7 +2566,7 @@ export const en: LocaleOverride<Dictionary> = {
     failedTitle: "Couldn't turn them on",
     failedDescription: "Try again — this doesn't affect your booking in any way",
     enabledTitle: "Notifications are on",
-    enabledDescription: "We'll let you know as soon as the restaurant replies",
+    enabledDescription: "We'll let you know as soon as the restaurant replies, and about events and promotions",
   },
   appUpdate: {
     title: "BookEat update available",
@@ -2520,12 +2586,14 @@ export const en: LocaleOverride<Dictionary> = {
     languageTitle: "Interface language",
     languageSubtitle: "Choose the app's language",
     notifications: "Notifications",
-    notificationsOn: "We'll let you know when the restaurant confirms, and remind you before the visit",
+    notificationsOn: "We'll let you know when the restaurant confirms, remind you before the visit, and tell you about events and promotions",
     notificationsOff: "Off right now — you'll only see the restaurant's answer inside the app",
     notificationsBlocked: "Your phone blocks notifications for this app. They can only be turned back on in its settings",
     notificationsOpenSettings: "Open phone settings",
     notificationsUnavailable: "Notifications don't work on this device",
     notificationsError: "Couldn't turn them on. Please try again",
+    promoPush: "Events and promotions",
+    promoPushDescription: "A push about a new event or promotion from a venue in your city",
     security: "Security",
     comingSoon: "Soon",
     appName: "BookEat",
@@ -2910,6 +2978,19 @@ export const en: LocaleOverride<Dictionary> = {
       notFoundDescription: "Looks like this page hasn't been published yet.",
       backHome: "Back to home",
     },
+    /** Never rendered: the server HTML is Russian-only today (see ru.ts).
+     * Kept complete only for the i18n completeness guard. */
+    seo: {
+      venueTitleSuffix: (city: string) => `, ${city}: book a table`,
+      venueBookingCta: "Book a table online on BookEat.",
+      hoursToday: (opens: string, closes: string) => `Open today from ${opens} to ${closes}.`,
+      catalogTitle: "Restaurants and cafes in Almaty: book a table online",
+      catalogDescription: (count: number, cuisines: string) =>
+        `${count} venues: ${cuisines}. Pick a date, time and party size, book a table in a minute.`,
+      homeTitle: "Book a table online in Almaty restaurants and cafes",
+      homeDescription: (count: number, city: string) =>
+        `BookEat: ${count} venues in ${city}, real-time table availability, menu pre-order, no phone calls.`,
+    },
     venue: {
       breadcrumbLabel: "Breadcrumb",
       breadcrumbHome: "Home",
@@ -2920,6 +3001,7 @@ export const en: LocaleOverride<Dictionary> = {
       saved: "Saved",
       saveFailed: "Could not save. Please try again",
       amenitiesLabel: "Venue amenities",
+      serviceFee: (percent: string) => `Service fee ${percent}`,
       notFound: {
         title: "Venue not found",
         text: "The link is probably out of date, or the venue has been unpublished.",
@@ -3153,6 +3235,7 @@ export const en: LocaleOverride<Dictionary> = {
           chooseDishes: "Choose dishes",
           changeSelection: "Change selection",
           belowMinimum: (min: string, missing: string) => `Minimum pre-order ${min} — add ${missing} more`,
+          serviceFee: (percent: string) => `Restaurant service fee — ${percent}`,
         },
       },
       errors: {
@@ -3233,6 +3316,13 @@ export const en: LocaleOverride<Dictionary> = {
         confirmedLockedNotice: "The venue changes a confirmed booking's order",
         manualLockedNotice: "The venue edited this order — changes go through the venue",
       },
+      rulesFooter: (
+        holdMinutes: number,
+        bookingTime: string,
+        lateArrivalText: string,
+        cancelUntilTime: string,
+      ) =>
+        `We hold the table for ${holdMinutes} minutes after ${bookingTime}. ${lateArrivalText} Free cancellation until ${cancelUntilTime}.`,
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

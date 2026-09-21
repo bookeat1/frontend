@@ -28,7 +28,13 @@ export const NOTIFICATIONS_QUERY_KEY = ["notifications"] as const;
 export type NotificationFilter = "all" | "bookings" | "promos";
 
 /** Which notification types each chip admits. Single source of truth so the
- * chip row and the filtering stay in sync. */
+ * chip row and the filtering stay in sync.
+ *
+ * "promos" also admits "event" (push-campaigns spec, §4 criterion 35): a
+ * push-campaign row is a venue announcement exactly like a promo one, just
+ * about an event rather than a discount, and the chip is labelled «Акции» —
+ * splitting it into a fourth chip would be new UI this task does not ask
+ * for. */
 export function matchesFilter(type: NotificationType, filter: NotificationFilter): boolean {
   switch (filter) {
     case "all":
@@ -36,7 +42,7 @@ export function matchesFilter(type: NotificationType, filter: NotificationFilter
     case "bookings":
       return type === "booking" || type === "reminder";
     case "promos":
-      return type === "promo";
+      return type === "promo" || type === "event";
   }
 }
 

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
-import { EMPTY_FILTERS, HttpRestaurantRepository } from "@bookeat/api/client";
+import { EMPTY_FILTERS, type HttpRestaurantRepository } from "@bookeat/api/client";
 
+import { publicRepository } from "@web/lib/seo/server-repository";
 import { buildSitemapEntries, EMPTY_SOURCES, type SitemapSources } from "@web/lib/sitemap-entries";
 
 /**
@@ -21,23 +22,10 @@ import { buildSitemapEntries, EMPTY_SOURCES, type SitemapSources } from "@web/li
  */
 export const revalidate = 3600;
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
-
 /** Верхняя граница страниц на источник — защита от бесконечного цикла при странном `pages`. */
 const MAX_PAGES = 10;
 /** Серверный потолок `per_page` у обоих листингов — 100. */
 const PAGE_SIZE = 100;
-
-/**
- * Свой экземпляр, а не `repository` из `lib/api.ts`: тот привязан к сессии
- * гостя в браузере (токен из localStorage, обработчик 401), а здесь — сервер,
- * анонимные публичные ручки и русская локаль (в sitemap язык не важен, но
- * заголовок Accept-Language сервер требует непустым).
- */
-function publicRepository(): HttpRestaurantRepository | null {
-  if (!API_URL) return null;
-  return new HttpRestaurantRepository({ baseUrl: API_URL, getLanguage: () => "ru" });
-}
 
 async function collectVenueIds(repo: HttpRestaurantRepository): Promise<string[]> {
   // Поиск без фильтров = весь активный каталог; одна страница на 100 — сегодня

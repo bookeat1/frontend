@@ -46,6 +46,7 @@ import type {
   MenuSection,
   AppNotification,
   NotificationFeed,
+  NotificationPreferences,
   NotificationType,
   PaymentPurpose,
   HomePromo,
@@ -171,6 +172,28 @@ export interface ApiRestaurant {
    */
   preorder_min_amount_minor?: number | null;
   /**
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143,
+   * смёржен) — ВЛОЖЕННЫЙ объект, не плоские поля (`aggregateToResponse`,
+   * `internal/transport/rest/restaurants/response.go`, `json:"booking_rules,omitempty"`).
+   * Сервер уже присылает ЭФФЕКТИВНЫЕ значения (заданные заведением или
+   * платформенный дефолт) — как и `preorder_min_amount_minor` выше, только
+   * детальный ответ, в листинге ключа нет. `undefined`/`null` — ключа нет
+   * вовсе (старая сборка сервера или листинг); клиент подставляет
+   * платформенный дефолт сам, см. `booking-rules.ts`.
+   */
+  booking_rules?: ApiBookingRules | null;
+  /**
+   * Ставка сервисного сбора заведения в базисных пунктах (350 = 3.5%) —
+   * `restaurants.service_fee_bps` (`bookeat-backend`, ветка
+   * `venue-service-fee-display`, Trello GvptXfr1). Только детальный ответ,
+   * та же дисциплина, что у `preorder_min_amount_minor`: в листинге ключа
+   * нет. `null`/отсутствие/`0` — «сбор не задан», карточка/бронь не
+   * показывают его НИГДЕ — сервер не подставляет платформенный дефолт сюда
+   * (в отличие от расчёта платежа в `usecase/payments`, у которого свой
+   * фолбэк). См. `Restaurant.serviceFeeBps`.
+   */
+  service_fee_bps?: number | null;
+  /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
    * по названию заведения поля нет вовсе, поэтому оно необязательное и может
@@ -184,6 +207,22 @@ export interface ApiRestaurant {
    * `mode !== "for_you"`.
    */
   match?: ApiMatch | null;
+}
+
+/**
+ * `booking_rules` — тот же `bookingRulesResponse`, что бэкенд отдаёт и на
+ * детальном ответе заведения (`ApiRestaurant.booking_rules`), и на
+ * `GET /bookings/:id` (`ApiBooking.booking_rules`); оба места используют
+ * ОДИН И ТОТ ЖЕ Go-тип на сервере (см. комментарий `bookingRulesResponse`
+ * в `internal/transport/rest/restaurants/response.go` и его зеркало в
+ * `internal/transport/rest/bookings/response.go`), поэтому здесь тоже один
+ * интерфейс на оба источника. Значения УЖЕ разрешены сервером против
+ * платформенного дефолта — конкретные число/число/строка, не null.
+ */
+export interface ApiBookingRules {
+  hold_minutes: number;
+  free_cancel_hours: number;
+  late_arrival_text: string;
 }
 
 /** `match` заведения в ответе `restaurantResponse` — см. `TasteMatch`. */
@@ -223,6 +262,12 @@ export interface ApiMenuItem {
   image_url: string | null;
   is_available: boolean;
   category: string | null;
+  /** "300 г", "0.5 л"… — already resolved to the requested language by the
+   * server (menuItemResponse.PortionSize, itemToResponse's resolvePtr), same
+   * treatment as `name`/`description`/`category`. Empty on ~31 dish pairs
+   * that still need the venue to fill it in (Trello XVCDSbi3) — null there,
+   * never a guessed value. */
+  portion_size: string | null;
   display_order: number | null;
 }
 
@@ -645,6 +690,17 @@ export interface ApiBooking {
    * деталке (bookingResponse.CreatedAt). Необязательный здесь только на
    * случай старой сборки бэкенда. */
   created_at?: string | null;
+  /**
+   * Явные правила брони (Trello BNjLdfSP, `bookeat-backend` PR #143) —
+   * ВЛОЖЕННЫЙ объект, та же форма, что и на заведении (`ApiBookingRules`
+   * выше). Только `bookingDetailsResponse` (`GET /bookings/:id`), как и
+   * `free_cancel_deadline` — список поля не несёт. `undefined` — ключа нет
+   * вовсе (старая сборка сервера или список); `null` не приходит с этим
+   * ключом (сервер либо кладёт объект, либо опускает ключ через
+   * `omitempty`) — резолвер, который не сработал, тоже даёт опущенный ключ,
+   * НЕ `null`-значение внутри.
+   */
+  booking_rules?: ApiBookingRules | null;
 }
 
 /** paymentResponse — internal/transport/rest/payments/response.go. Only the
@@ -803,6 +859,16 @@ export function mapBooking(api: ApiBooking): Booking {
     notes: text(api.notes) || null,
     freeCancelDeadline: text(api.free_cancel_deadline) || null,
     createdAt: text(api.created_at) || null,
+    // Trello BNjLdfSP (PR #143): `undefined` — ключа нет вовсе (старая
+    // сборка/список), `null` — резолвер на сервере не сработал (опущенный
+    // ключ трактуем так же, как явный null — сервер их не различает).
+    bookingRules: api.booking_rules
+      ? {
+          holdMinutes: api.booking_rules.hold_minutes,
+          freeCancelHours: api.booking_rules.free_cancel_hours,
+          lateArrivalText: text(api.booking_rules.late_arrival_text),
+        }
+      : null,
   };
 }
 
@@ -935,10 +1001,12 @@ export function mapFoodieBudgetOption(api: ApiFoodieBudgetOption): FoodieBudgetO
 }
 
 /**
- * One item of `GET /notifications`. `booking_id` / `restaurant_id` are carried
- * on the wire but not mapped into AppNotification — no row deep-links yet (see
- * AppNotification). Every field is read defensively: a missing key degrades one
- * row, it does not throw and blank the whole inbox.
+ * One item of `GET /notifications`. `restaurant_id` is carried on the wire
+ * but not mapped into AppNotification — no row deep-links yet (see
+ * AppNotification). `event_id`/`promo_id` are new (push-campaigns spec §4
+ * criterion 25) and null on any row that predates the feature. Every field
+ * is read defensively: a missing key degrades one row, it does not throw and
+ * blank the whole inbox.
  */
 export interface ApiNotification {
   id: string;
@@ -946,6 +1014,8 @@ export interface ApiNotification {
   title: string;
   body: string;
   booking_id?: string | null;
+  event_id?: string | null;
+  promo_id?: string | null;
   restaurant_id?: string | null;
   read: boolean;
   created_at: string;
@@ -959,7 +1029,7 @@ export interface ApiNotificationFeed {
   next_cursor?: string | null;
 }
 
-const NOTIFICATION_TYPES: NotificationType[] = ["booking", "reminder", "promo"];
+const NOTIFICATION_TYPES: NotificationType[] = ["booking", "reminder", "promo", "event"];
 
 /** An unrecognised type maps to "reminder": a bell is the generic notification
  * glyph, so an item of a kind this build has not shipped yet still renders
@@ -977,8 +1047,10 @@ export function mapNotification(api: ApiNotification): AppNotification {
     body: text(api.body),
     createdAt: text(api.created_at),
     read: api.read === true,
-    // Пустая строка на проводе — это «брони нет», а не бронь с пустым id.
+    // Пустая строка на проводе — это «нет id», а не сущность с пустым id.
     bookingId: text(api.booking_id) || null,
+    eventId: text(api.event_id) || null,
+    promoId: text(api.promo_id) || null,
   };
 }
 
@@ -993,6 +1065,37 @@ export function mapNotificationFeed(api: ApiNotificationFeed): NotificationFeed 
     items: (api.items ?? []).map(mapNotification),
     unreadCount: typeof api.unread_count === "number" ? api.unread_count : 0,
     nextCursor: text(api.next_cursor) || null,
+  };
+}
+
+/**
+ * `GET/PUT /notification-preferences` payload (`transport/rest/consent`,
+ * `preferenceResponse`). `promo_push_enabled` is new (push-campaigns spec
+ * §5.2); every field is read defensively and defaults to `true` when absent
+ * or not a boolean — matching the server's own opt-OUT default
+ * (`domain.DefaultNotificationPreference`) for a guest with no stored row.
+ */
+export interface ApiNotificationPreferences {
+  notifications_enabled?: unknown;
+  push_enabled?: unknown;
+  email_enabled?: unknown;
+  promo_push_enabled?: unknown;
+  updated_at?: string;
+}
+
+function boolOrTrue(value: unknown): boolean {
+  return typeof value === "boolean" ? value : true;
+}
+
+export function mapNotificationPreferences(
+  api: ApiNotificationPreferences,
+): NotificationPreferences {
+  return {
+    notificationsEnabled: boolOrTrue(api.notifications_enabled),
+    pushEnabled: boolOrTrue(api.push_enabled),
+    emailEnabled: boolOrTrue(api.email_enabled),
+    promoPushEnabled: boolOrTrue(api.promo_push_enabled),
+    updatedAt: text(api.updated_at),
   };
 }
 
@@ -1040,6 +1143,7 @@ export function mapMenuSections(items: ApiMenuItem[] | null | undefined): MenuSe
       priceMinor: parsePriceMinor(item.price),
       imageUrl: text(item.image_url) || null,
       isAvailable: item.is_available !== false,
+      portionSize: text(item.portion_size) || null,
     });
   }
   const sections = [...byCategory.values()];
@@ -1282,6 +1386,11 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // число тиынов, а `??` пропустил бы NaN/строку не тем значением.
     preorderMinAmountMinor:
       typeof api.preorder_min_amount_minor === "number" ? api.preorder_min_amount_minor : null,
+    // Trello GvptXfr1: `null`, когда поля нет / оно `null` — «сбор не
+    // задан». Ноль передаётся дальше как есть (не схлопывается тут в
+    // `null`) — «показывать ли» решает `serviceFeeBps > 0` на стороне
+    // экрана, ровно как с `preorderMinAmountMinor` выше.
+    serviceFeeBps: typeof api.service_fee_bps === "number" ? api.service_fee_bps : null,
     // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
     // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
     // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб
@@ -1289,6 +1398,17 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // список у большинства заведений пустой, а отсутствие ключа отличает
     // «сервер их не прислал» от «их нет».
     amenities: mapVenueAmenities(api.features),
+    // Trello BNjLdfSP (PR #143): сервер уже присылает эффективное значение
+    // сам, ВНУТРИ вложенного booking_rules — `undefined` здесь означает
+    // «ключа booking_rules нет вовсе» (старая сборка или листинг), и
+    // клиентский фолбэк на платформенный дефолт живёт в booking-rules.ts, а
+    // не здесь, чтобы место дефолта было одно.
+    holdMinutes: typeof api.booking_rules?.hold_minutes === "number" ? api.booking_rules.hold_minutes : undefined,
+    freeCancelHours:
+      typeof api.booking_rules?.free_cancel_hours === "number"
+        ? api.booking_rules.free_cancel_hours
+        : undefined,
+    lateArrivalText: text(api.booking_rules?.late_arrival_text) || undefined,
   };
 }
 

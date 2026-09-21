@@ -1,4 +1,5 @@
 import type { Restaurant } from "@bookeat/api";
+import { formatServiceFeePercent, hasVisibleServiceFee } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -155,6 +156,16 @@ export default function RestaurantDetailScreen() {
                 schedule={restaurant.schedule}
                 openingHoursText={restaurant.openingHoursText}
               />
+              {/* Сервисный сбор заведения — Trello GvptXfr1, решение владельца
+                  03.09.2026: строкой рядом с часами работы, СОВСЕМ не
+                  показывается, когда `serviceFeeBps` пуст/0/не задан
+                  (`hasVisibleServiceFee` — единственное место, где это
+                  условие решается). */}
+              {hasVisibleServiceFee(restaurant.serviceFeeBps) ? (
+                <Text style={styles.serviceFeeNote}>
+                  {t.restaurant.serviceFee(formatServiceFeePercent(restaurant.serviceFeeBps))}
+                </Text>
+              ) : null}
             </View>
 
             {/* Блок меню есть ТОЛЬКО у заведения, у которого в API
@@ -334,6 +345,10 @@ const styles = StyleSheet.create({
   description: {
     ...typography.body,
     color: colors.text.primary,
+  },
+  serviceFeeNote: {
+    ...typography.caption,
+    color: colors.text.muted,
   },
   menuRow: {
     flexDirection: "row",

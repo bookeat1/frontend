@@ -769,6 +769,7 @@ function DishCard({
           <div className="flex min-w-0 flex-col gap-1">
             <p className="break-words text-[16px] font-bold leading-6 text-ink">
               {dish.priceMinor === null ? t.web.venue.menu.noPrice : formatMoneyMinor(dish.priceMinor)}
+              {dish.portionSize ? ` · ${dish.portionSize}` : ""}
             </p>
             {!dish.isAvailable ? (
               <p className="text-[13px] leading-[18px] text-ink-tertiary">

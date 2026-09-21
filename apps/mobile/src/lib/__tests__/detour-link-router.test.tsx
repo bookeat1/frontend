@@ -252,7 +252,7 @@ describe("DetourLinkRouter: deferred-ссылка с JSON-сегментом п�
     expect(clearLink).toHaveBeenCalledTimes(1);
   });
 
-  it("JSON-сегмент без promo — обычная (не-промо) маршрутизация, как раньше", async () => {
+  it("JSON-сегмент без promo — не настоящий маршрут, уходит на домашний экран, а не в Unmatched Route", async () => {
     isLinkProcessed = true;
     const encodedJson = encodeURIComponent(JSON.stringify({ utm_content: "stand" }));
     link = {
@@ -266,7 +266,30 @@ describe("DetourLinkRouter: deferred-ссылка с JSON-сегментом п�
     render(<DetourLinkRouter />);
     await flush();
 
-    expect(replace).toHaveBeenCalledWith(expect.objectContaining({ pathname: `/${encodedJson}` }));
+    // До 2026-09-21 здесь ожидался буквальный переход на `/${encodedJson}` —
+    // тот же класс бага, что и «Unmatched Route» для сырого shortcode:
+    // `link.pathname` не соответствует ни одному реальному маршруту.
+    // `isKnownAppRoutePathname` (detour-known-routes.ts) теперь ловит и этот
+    // случай тоже, не только промо-JSON-сегмент.
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/" }));
+    expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
+    expect(clearLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("сырой shortcode, который Detour не смог зарезолвить (bookeat://<shortcode>) — уходит на домашний экран", async () => {
+    isLinkProcessed = true;
+    link = {
+      url: "bookeat://lQ9BPpUvJc",
+      route: "/lQ9BPpUvJc",
+      pathname: "/lQ9BPpUvJc",
+      params: {},
+      type: "deferred",
+    };
+
+    render(<DetourLinkRouter />);
+    await flush();
+
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/" }));
     expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
     expect(clearLink).toHaveBeenCalledTimes(1);
   });

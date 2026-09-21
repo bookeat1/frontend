@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { formatPrice } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
-import { CheckboxRow } from "./ui/FormControls";
+import { CheckboxRow, Field, TextInput } from "./ui/FormControls";
 import { ImageThumb } from "./ui/ImageThumb";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { Modal } from "./ui/Modal";
@@ -29,6 +29,7 @@ export function MenuView() {
   const [notice, setNotice] = useState<string | null>(null);
   const [topPickError, setTopPickError] = useState<string | null>(null);
   const [editingPhotoOf, setEditingPhotoOf] = useState<AdminMenuItem | null>(null);
+  const [editingPortionOf, setEditingPortionOf] = useState<AdminMenuItem | null>(null);
 
   const queryKey = ["menu", restaurantId] as const;
   // Отдельный ключ, потому что это ДРУГАЯ ручка: админский список меню
@@ -224,6 +225,23 @@ export function MenuView() {
                     <span className="shrink-0 text-sm text-text-muted">
                       {formatPrice(item.price)}
                     </span>
+                    {/* Порция — тот же узор, что «Изменить» под фото: одно
+                        поле, своя маленькая форма, а не общий редактор блюда,
+                        которого в панели всё ещё нет (см. MenuPhotoModal). */}
+                    <div className="flex shrink-0 flex-wrap items-center gap-xs">
+                      <span className="text-sm text-text-muted">
+                        {item.portion_size?.trim() || t.admin.menu.noPortion}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t.admin.menu.editPortionAria(item.name)}
+                        onClick={() => setEditingPortionOf(item)}
+                      >
+                        {t.admin.menu.editPortion}
+                      </Button>
+                    </div>
                     {/* Отметка «в лучшие позиции». Общий CheckboxRow, а не
                         свой флажок: второй похожий контрол — это дефект.
                         Заперт, когда все места заняты, и тогда же объясняет
@@ -309,6 +327,20 @@ export function MenuView() {
           }}
         />
       ) : null}
+
+      {editingPortionOf ? (
+        <MenuPortionModal
+          item={editingPortionOf}
+          save={(portionSize) =>
+            apiClient.updateMenuItem(restaurantId, editingPortionOf.id, { portion_size: portionSize })
+          }
+          onClose={() => setEditingPortionOf(null)}
+          onSaved={() => {
+            setEditingPortionOf(null);
+            void queryClient.invalidateQueries({ queryKey });
+          }}
+        />
+      ) : null}
     </section>
   );
 }
@@ -362,6 +394,73 @@ function MenuPhotoModal({
           </Button>
           <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>
             {t.admin.menu.photoSave}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Форма «Порция блюда»: одна строка текста, один PATCH — тот же узор, что
+ * MenuPhotoModal. Закрывает XVCDSbi3: у 31 пары позиций с одинаковым
+ * названием и разной ценой `portion_size` пуст, и гость не может понять,
+ * чем строки различаются. Поле свободного текста ("300 г", "0.5 л"), а не
+ * выбор из списка — единиц измерения в меню слишком много (граммы,
+ * миллилитры, штуки, порции на компанию), чтобы зашивать их сюда.
+ */
+function MenuPortionModal({
+  item,
+  save,
+  onClose,
+  onSaved,
+}: {
+  item: AdminMenuItem;
+  save: (portionSize: string) => Promise<AdminMenuItem>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [portion, setPortion] = useState(item.portion_size ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => save(portion.trim()),
+    onSuccess: onSaved,
+    onError: () => setError(t.admin.menu.portionSaveFailed),
+  });
+
+  // Same reason as MenuPhotoModal: Escape/backdrop bypass the disabled-while-
+  // saving buttons, so a stray onSuccess from an abandoned save must not close
+  // a modal the manager has since reopened for a different dish.
+  const closeUnlessSaving = () => {
+    if (!mutation.isPending) onClose();
+  };
+
+  return (
+    <Modal title={t.admin.menu.editPortionTitle(item.name)} onClose={closeUnlessSaving}>
+      <div className="flex flex-col gap-md">
+        <Field label={t.admin.menu.fieldPortion} htmlFor="menu-portion-size">
+          <TextInput
+            id="menu-portion-size"
+            value={portion}
+            onChange={(e) => setPortion(e.target.value)}
+            placeholder={t.admin.menu.fieldPortionPlaceholder}
+            disabled={mutation.isPending}
+          />
+        </Field>
+
+        {error ? (
+          <p role="alert" className="text-sm text-brand">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex justify-end gap-xs">
+          <Button variant="ghost" onClick={closeUnlessSaving} disabled={mutation.isPending}>
+            {t.admin.common.cancel}
+          </Button>
+          <Button onClick={() => mutation.mutate()} loading={mutation.isPending}>
+            {t.admin.menu.portionSave}
           </Button>
         </div>
       </div>

@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
+import { buildSitePageRoute } from "@web/lib/seo/site-page-route";
 
-import { SitePageScreen } from "@web/components/pages/SitePageScreen";
-import { t } from "@web/lib/i18n";
-
-/** «Как это работает» — T4, текст правит суперадмин в кабинете
- * (`GET /pages/how-it-works`). */
-export const metadata: Metadata = {
-  title: t.web.pages.tabTitle["how-it-works"],
-};
-
-export default function HowItWorksPage() {
-  return <SitePageScreen slug="how-it-works" />;
-}
+/**
+ * T1/T3/T4: серверный рендер + метаданные — см. site-page-route.tsx.
+ *
+ * `revalidate` — литерал ОБЯЗАТЕЛЬНО прямо здесь: сборщик Next разбирает
+ * `export const revalidate` по AST страницы и не умеет вычислить ни
+ * обращение к полю объекта, ни импортированный идентификатор (оба варианта
+ * уронили `next build` с «Invalid segment configuration export» — см.
+ * site-page-route.tsx).
+ */
+const route = buildSitePageRoute("how-it-works");
+export const generateMetadata = route.generateMetadata;
+export const revalidate = 3600;
+export default route.Page;

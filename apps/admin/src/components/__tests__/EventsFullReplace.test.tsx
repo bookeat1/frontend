@@ -33,6 +33,7 @@ vi.mock("@/lib/api", () => ({
       }),
     ),
     listVenueFeed: vi.fn(async () => ({ items: [], total: 0, pages: 1, page: 1, per_page: 100 })),
+    listPushCampaigns: vi.fn(async () => []),
     updateEvent,
     deleteEvent: vi.fn(),
   },

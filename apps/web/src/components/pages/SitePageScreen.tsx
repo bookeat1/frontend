@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlatformPageSlug } from "@bookeat/api/client";
+import type { PlatformPage, PlatformPageSlug } from "@bookeat/api/client";
 import { Markdown } from "@bookeat/markdown";
 
 import { Container } from "@web/components/layout/Container";
@@ -32,9 +32,17 @@ import { useSitePage } from "@web/lib/queries";
  * редактора (критерий 31 спеки: предпросмотр обязан совпадать с сайтом
  * буквально, одним и тем же импортом, а не «похожим» рендером).
  */
-export function SitePageScreen({ slug }: { slug: PlatformPageSlug }) {
+export function SitePageScreen({
+  slug,
+  initialPage,
+}: {
+  slug: PlatformPageSlug;
+  /** Данные, полученные СЕРВЕРОМ при рендере `app/<slug>/page.tsx` (SEO T1) —
+   * см. комментарий у `useSitePage` в `lib/queries.ts`. */
+  initialPage?: PlatformPage;
+}) {
   const t = useT();
-  const query = useSitePage(slug);
+  const query = useSitePage(slug, initialPage);
 
   return (
     <SiteChrome>

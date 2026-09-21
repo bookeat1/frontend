@@ -45,6 +45,16 @@ describe("страница текстового раздела платформ�
     expect(repository.getPage).toHaveBeenCalledWith("offer");
   });
 
+  it("SEO T1: initialPage от серверного рендера рисует текст сразу, без skeleton", () => {
+    repository.getPage = vi.fn(() => pending<PlatformPage>());
+    renderScreen(
+      <SitePageScreen slug="offer" initialPage={sitePage({ slug: "offer", title: "Оферта" })} />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: "Оферта" })).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("markdown тела рендерится через общий компонент — заголовок раздела становится h2", async () => {
     repository.getPage = vi.fn(async () =>
       sitePage({ slug: "privacy", title: "Политика данных", body: "## Сбор данных\n\nТекст." }),
