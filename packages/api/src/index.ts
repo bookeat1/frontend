@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./time-of-day";
 export * from "./schedule";
 export * from "./static-map";
+export * from "./service-fee";
 export * from "./repository";
 export * from "./mock-repository";
 export * from "./http-repository";

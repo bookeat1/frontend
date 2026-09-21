@@ -901,6 +901,13 @@ export const ru = {
     photosCount: (count: number) => `${count} фото`,
     about: "О ресторане",
     workingHours: "Часы работы",
+    /**
+     * Сервисный сбор заведения — Trello GvptXfr1, решение владельца
+     * 03.09.2026: строка рядом с блоком часов работы, только когда сбор
+     * реально задан (`hasVisibleServiceFee`, `@bookeat/api`). `percent` —
+     * уже готовая строка вида «3.5%» (`formatServiceFeePercent`).
+     */
+    serviceFee: (percent: string) => `Сервисный сбор заведения — ${percent}`,
     address: "Адрес",
     tables: "Столики",
     tableFor: (seats: number) => `На ${seats} ${seats === 1 ? "гостя" : "гостей"}`,
@@ -2969,6 +2976,12 @@ export const ru = {
     preorderTotalEstimate: "Предварительно",
     preorderTotalEstimateNote:
       "Итог посчитает заведение — здесь оценка по ценам меню",
+    /**
+     * Сервисный сбор заведения рядом с суммой предзаказа — Trello GvptXfr1
+     * (то же условие видимости, что у `restaurant.serviceFee`: только когда
+     * `hasVisibleServiceFee` истинна).
+     */
+    preorderServiceFeeNote: (percent: string) => `Сервисный сбор заведения — ${percent}`,
     preorderSaveFailed:
       "Бронь создана, столик за вами. А вот предзаказ сохранить не удалось — блюда можно будет заказать на месте",
     dishAdd: "Добавить",
@@ -4276,6 +4289,13 @@ export const ru = {
       /** Ряд ярлыков под названием (узел 3261:57). Названия удобств
        * переводит СЕРВЕР по Accept-Language — своего словаря у них нет. */
       amenitiesLabel: "Удобства заведения",
+      /**
+       * Сервисный сбор заведения — Trello GvptXfr1, решение владельца
+       * 03.09.2026: ярлык рядом со статусом часов работы, только когда сбор
+       * реально задан (`hasVisibleServiceFee`, `@bookeat/api`). `percent` —
+       * уже готовая строка вида «3.5%» (`formatServiceFeePercent`).
+       */
+      serviceFee: (percent: string) => `Сервисный сбор ${percent}`,
       notFound: {
         title: "Заведение не найдено",
         text: "Похоже, ссылка устарела или заведение сняли с публикации.",
@@ -4673,6 +4693,12 @@ export const ru = {
            * карточке «Предзаказ» страницы меню (`VenueMenuScreen.tsx`). */
           belowMinimum: (min: string, missing: string) =>
             `Минимальный предзаказ ${min} — добавьте ещё на ${missing}`,
+          /**
+           * Сервисный сбор заведения рядом с суммой — Trello GvptXfr1, решение
+           * владельца 03.09.2026. Показывается только когда `hasVisibleServiceFee`
+           * истинна (`percent` — уже готовая строка вида «3.5%»).
+           */
+          serviceFee: (percent: string) => `Сервисный сбор заведения — ${percent}`,
         },
       },
       /** Отказы сервера. Ветвление ТОЛЬКО по машинному коду ответа — по

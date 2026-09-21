@@ -393,6 +393,7 @@ export const kk: LocaleOverride<Dictionary> = {
     photosCount: (count: number) => `${count} фото`,
     about: "Мейрамхана туралы",
     workingHours: "Жұмыс уақыты",
+    serviceFee: (percent: string) => `Қызмет көрсету алымы — ${percent}`,
     address: "Мекенжай",
     tables: "Үстелдер",
     tableFor: (seats: number) => `${seats} қонаққа`,
@@ -2130,6 +2131,7 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderTotalEstimate: "Алдын ала",
     preorderTotalEstimateNote:
       "Қорытындыны орын есептейді — мұнда мәзір бағасы бойынша бағалау",
+    preorderServiceFeeNote: (percent: string) => `Мейрамхананың қызмет көрсету алымы — ${percent}`,
     preorderSaveFailed:
       "Бронь жасалды, үстел сіздікі. Ал алдын ала тапсырысты сақтау мүмкін болмады — тағамдарға жерде тапсырыс беруге болады",
     dishAdd: "Қосу",
@@ -2997,6 +2999,7 @@ export const kk: LocaleOverride<Dictionary> = {
       saved: "Сақталды",
       saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
       amenitiesLabel: "Орынның ыңғайлылықтары",
+      serviceFee: (percent: string) => `Қызмет көрсету алымы ${percent}`,
       notFound: {
         title: "Орын табылмады",
         text: "Сілтеме ескірген немесе орын жарияланымнан алынған сияқты.",
@@ -3231,6 +3234,7 @@ export const kk: LocaleOverride<Dictionary> = {
           changeSelection: "Таңдауды өзгерту",
           belowMinimum: (min: string, missing: string) =>
             `Ең аз тапсырыс ${min} — тағы ${missing} қосыңыз`,
+          serviceFee: (percent: string) => `Мейрамхананың қызмет көрсету алымы — ${percent}`,
         },
       },
       errors: {

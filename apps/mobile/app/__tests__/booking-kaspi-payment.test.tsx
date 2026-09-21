@@ -125,6 +125,7 @@ const RESTAURANT: Restaurant = {
   // только у заведения, которому вообще разрешено платить.
   acceptsOnlinePayment: true,
   preorderMinAmountMinor: null,
+  serviceFeeBps: null,
 };
 
 function bookingWith(status: BookingStatus): Booking {

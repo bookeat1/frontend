@@ -172,6 +172,17 @@ export interface ApiRestaurant {
    */
   preorder_min_amount_minor?: number | null;
   /**
+   * Ставка сервисного сбора заведения в базисных пунктах (350 = 3.5%) —
+   * `restaurants.service_fee_bps` (`bookeat-backend`, ветка
+   * `venue-service-fee-display`, Trello GvptXfr1). Только детальный ответ,
+   * та же дисциплина, что у `preorder_min_amount_minor`: в листинге ключа
+   * нет. `null`/отсутствие/`0` — «сбор не задан», карточка/бронь не
+   * показывают его НИГДЕ — сервер не подставляет платформенный дефолт сюда
+   * (в отличие от расчёта платежа в `usecase/payments`, у которого свой
+   * фолбэк). См. `Restaurant.serviceFeeBps`.
+   */
+  service_fee_bps?: number | null;
+  /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
    * по названию заведения поля нет вовсе, поэтому оно необязательное и может
@@ -1327,6 +1338,11 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // число тиынов, а `??` пропустил бы NaN/строку не тем значением.
     preorderMinAmountMinor:
       typeof api.preorder_min_amount_minor === "number" ? api.preorder_min_amount_minor : null,
+    // Trello GvptXfr1: `null`, когда поля нет / оно `null` — «сбор не
+    // задан». Ноль передаётся дальше как есть (не схлопывается тут в
+    // `null`) — «показывать ли» решает `serviceFeeBps > 0` на стороне
+    // экрана, ровно как с `preorderMinAmountMinor` выше.
+    serviceFeeBps: typeof api.service_fee_bps === "number" ? api.service_fee_bps : null,
     // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
     // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
     // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб
