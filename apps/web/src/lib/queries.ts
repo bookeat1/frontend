@@ -302,13 +302,27 @@ export function useArticle(slug: string): UseQueryResult<GuideCollectionDetail> 
  * «Политика данных», «Контакты», «Вакансии», «О BookEat». Неопубликованная
  * страница — 404, повтор запроса на 404 бессмысленен (ровно как у статьи).
  */
-export function useSitePage(slug: PlatformPageSlug): UseQueryResult<PlatformPage> {
+/**
+ * `initialPage` — данные, полученные СЕРВЕРОМ при рендере `app/<slug>/page.tsx`
+ * (SEO T1/T2). Ключ запроса не включает город и не зависит ни от чего, кроме
+ * локали и слага, а серверный рендер всегда идёт на локали "ru" — той же, что
+ * держит `LocaleContext` до первого эффекта (см. `locale.tsx`), поэтому
+ * значение подходит под ключ первого клиентского рендера без расхождений
+ * гидратации. `undefined` — сервер не смог получить страницу (адрес не задан
+ * или сбой API): экран сам сходит за данными и покажет skeleton/ошибку, как
+ * раньше.
+ */
+export function useSitePage(
+  slug: PlatformPageSlug,
+  initialPage?: PlatformPage,
+): UseQueryResult<PlatformPage> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "site-page", slug],
     queryFn: () => repository.getPage(slug),
     enabled: isApiConfigured,
     retry: (failureCount, error) => failureCount < 1 && !isNotFound(error),
+    initialData: locale === "ru" ? initialPage : undefined,
   });
 }
 
@@ -351,8 +365,20 @@ export function useGuideRoute(slug: string): UseQueryResult<GuideRouteDetail> {
  * Каталог. Ключ содержит ВЕСЬ запрос: сменился фильтр — сменился ключ, и
  * TanStack Query сам сходит за новой выдачей. Именно это и проверяет тест
  * листинга: клик по фильтру обязан менять аргументы `searchRestaurants`.
+ *
+ * `initialResult` — тот же приём, что у `useSitePage`: результат СЕРВЕРНОГО
+ * поиска (SEO T1), передаётся только когда `query` на сервере и на первом
+ * клиентском рендере совпадают ДОСЛОВНО (иначе гость увидел бы чужую выдачу
+ * до первого эффекта). Сегодня это только «Все заведения» на главной
+ * (`buildSearchQuery(EMPTY_CATALOG_STATE, DEFAULT_CITY)`, `HomeScreen.tsx`) —
+ * листинг `/venues` читает фильтры из адресной строки и своего SSR ещё не
+ * получил (см. `web-ai-search-visibility-20260918.md`, T1 волна 1, «не
+ * проверено» в отчёте задачи).
  */
-export function useCatalog(query: SearchQuery): UseQueryResult<SearchResult> {
+export function useCatalog(
+  query: SearchQuery,
+  initialResult?: SearchResult,
+): UseQueryResult<SearchResult> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "catalog", query],
@@ -361,10 +387,22 @@ export function useCatalog(query: SearchQuery): UseQueryResult<SearchResult> {
     // Прошлая выдача остаётся на экране, пока едет новая: иначе каждый клик по
     // чипу схлопывал бы список в скелет и страница прыгала бы.
     placeholderData: (previous) => previous,
+    // Guard по городу — тот же приём, что у `useVenue` (initialVenue?.id ===
+    // id). `initialResult` получен на сервере для ОДНОГО конкретного города
+    // (DEFAULT_CITY): `CityProvider` читает сохранённый город гостя в
+    // useEffect ПОСЛЕ маунта, так что к моменту, когда initialData реально
+    // засеивает кэш, `query` может уже быть другим городом. Без этой
+    // проверки initialData подставлялась бы под ЛЮБОЙ ключ запроса, и гость
+    // с другим сохранённым городом увидел бы под правильным заголовком
+    // карточки из initialResult.
+    initialData:
+      locale === "ru" && initialResult?.query.filters.city === query.filters.city
+        ? initialResult
+        : undefined,
   });
 }
 
-export function useVenue(id: string): UseQueryResult<Restaurant> {
+export function useVenue(id: string, initialVenue?: Restaurant): UseQueryResult<Restaurant> {
   const { locale } = useLocale();
   return useQuery({
     queryKey: [locale, "venue", id],
@@ -373,6 +411,7 @@ export function useVenue(id: string): UseQueryResult<Restaurant> {
     // 404 — это ответ, а не сбой связи: повторять его бессмысленно.
     retry: (failureCount, error) =>
       failureCount < 1 && !(error instanceof Error && "status" in error && error.status === 404),
+    initialData: locale === "ru" && initialVenue?.id === id ? initialVenue : undefined,
   });
 }
 

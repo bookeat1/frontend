@@ -4215,6 +4215,25 @@ export const ru = {
       notFoundDescription: "Похоже, эту страницу ещё не опубликовали.",
       backHome: "На главную",
     },
+    /**
+     * Тексты, которые никогда не попадают на экран, только в `<title>`,
+     * `<meta name="description">` и JSON-LD (SEO T3/T4,
+     * `web-ai-search-visibility-20260918.md`, §5.2). Серверный HTML сегодня
+     * только русский (§6 «Принятые допущения»), поэтому `kk`/`en` здесь не
+     * читаются рендером ни разу — заведены только ради
+     * `packages/i18n/src/__tests__/completeness.test.ts`.
+     */
+    seo: {
+      venueTitleSuffix: (city: string) => `, ${city}: забронировать столик`,
+      venueBookingCta: "Онлайн-бронирование столика на BookEat.",
+      hoursToday: (opens: string, closes: string) => `Сегодня работает с ${opens} до ${closes}.`,
+      catalogTitle: "Рестораны и кафе Алматы: бронирование столиков онлайн",
+      catalogDescription: (count: number, cuisines: string) =>
+        `${count} заведений: ${cuisines}. Выберите дату, время и число гостей, забронируйте столик за минуту.`,
+      homeTitle: "Бронирование столиков в ресторанах и кафе Алматы онлайн",
+      homeDescription: (count: number, city: string) =>
+        `BookEat: ${count} заведений в городе ${city}, свободные столы на дату и время, предзаказ по меню, без звонков.`,
+    },
     /** Карточка заведения — узел 3261:2. */
     venue: {
       breadcrumbLabel: "Путь по сайту",

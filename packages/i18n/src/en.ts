@@ -2959,6 +2959,19 @@ export const en: LocaleOverride<Dictionary> = {
       notFoundDescription: "Looks like this page hasn't been published yet.",
       backHome: "Back to home",
     },
+    /** Never rendered: the server HTML is Russian-only today (see ru.ts).
+     * Kept complete only for the i18n completeness guard. */
+    seo: {
+      venueTitleSuffix: (city: string) => `, ${city}: book a table`,
+      venueBookingCta: "Book a table online on BookEat.",
+      hoursToday: (opens: string, closes: string) => `Open today from ${opens} to ${closes}.`,
+      catalogTitle: "Restaurants and cafes in Almaty: book a table online",
+      catalogDescription: (count: number, cuisines: string) =>
+        `${count} venues: ${cuisines}. Pick a date, time and party size, book a table in a minute.`,
+      homeTitle: "Book a table online in Almaty restaurants and cafes",
+      homeDescription: (count: number, city: string) =>
+        `BookEat: ${count} venues in ${city}, real-time table availability, menu pre-order, no phone calls.`,
+    },
     venue: {
       breadcrumbLabel: "Breadcrumb",
       breadcrumbHome: "Home",

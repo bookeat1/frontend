@@ -3,7 +3,9 @@ import { Noto_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
 
+import { JsonLdScript } from "@web/components/seo/JsonLdScript";
 import { t } from "@web/lib/i18n";
+import { graph, organizationGraph } from "@web/lib/seo/jsonld";
 import { siteUrl } from "@web/lib/site";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -52,14 +54,28 @@ export const metadata: Metadata = {
   // Без metadataBase относительные canonical/OG-ссылки на страницах
   // резолвятся в localhost. Значение — из NEXT_PUBLIC_SITE_URL (lib/site.ts).
   metadataBase: new URL(siteUrl),
+  // НЕ `title: { template }`: в таблице §5.2 ни у одного реального заголовка
+  // (заведение, каталог, главная, статья) нет суффикса «| BookEat» — каждая
+  // страница строит окончательную строку сама (см. `lib/seo/metadata.ts`).
+  // Next применил бы шаблон КО ВСЕМ дочерним `title`, включая уже готовые —
+  // получилось бы двойное дублирование бренда. Этот заголовок — только
+  // запасной для страниц без своего <title> (сегодня таких нет).
   title: t.web.header.brand,
   description: t.web.footer.tagline,
 };
+
+/**
+ * `Organization` + `WebSite` (T4, критерий C-19) — в `<head>` каждой
+ * страницы сайта разом, а не по одной копии на экран: узел один и тот же
+ * везде, `@id` у него ОДИН (`${siteUrl}/#organization`).
+ */
+const ORGANIZATION_JSON_LD = graph(organizationGraph());
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className={`${notoSans.variable} ${playfairDisplay.variable}`}>
       <body>
+        <JsonLdScript data={ORGANIZATION_JSON_LD} />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -20,6 +20,8 @@ import {
   SHOW_SECTION_LINKS,
   guideCardHref,
 } from "@web/components/home/Cards";
+import type { SearchResult } from "@bookeat/api/client";
+
 import { CuisineRow, CuisineRowSkeleton } from "@web/components/home/CuisineRow";
 import { SearchPanel } from "@web/components/home/SearchPanel";
 import { Container } from "@web/components/layout/Container";
@@ -63,7 +65,7 @@ import {
  *     КАЖДУЮ карточку; на плохой связи это двадцать запросов ради подсказки,
  *     поэтому свободное время показывает только страница заведения.
  */
-export function HomeScreen() {
+export function HomeScreen({ initialCatalog }: { initialCatalog?: SearchResult } = {}) {
   const t = useT();
   const { city, isError: cityFailed } = useCity();
 
@@ -72,7 +74,7 @@ export function HomeScreen() {
   const promos = usePromotions(city);
   const events = useEvents(city);
   const guide = useGuideCollections();
-  const catalog = useCatalog(buildSearchQuery(EMPTY_CATALOG_STATE, city));
+  const catalog = useCatalog(buildSearchQuery(EMPTY_CATALOG_STATE, city), initialCatalog);
   // Одна подписка на избранное на всю страницу: карточек здесь дюжина.
   const favoriteProps = useFavoriteControl();
 
