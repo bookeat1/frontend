@@ -608,6 +608,9 @@ export class MockRestaurantRepository implements RestaurantRepository {
           // в фикстурах оно есть, но код обязан переживать и его отсутствие.
           imageUrl: dish.photo?.uri ?? null,
           isAvailable: true,
+          // Фикстуры не несут размер порции — мок остаётся честным «не
+          // заполнено», как и большинство живых позиций сегодня.
+          portionSize: null,
         })),
       },
     ];

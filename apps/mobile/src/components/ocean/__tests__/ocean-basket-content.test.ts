@@ -106,14 +106,14 @@ describe("блюда «Фирменного улова» в меню", () => {
     {
       title: "Платтеры",
       dishes: [
-        { id: "p", name: "Full Deck Platter", description: "", priceMinor: 3_799_000, imageUrl: null, isAvailable: true },
+        { id: "p", name: "Full Deck Platter", description: "", priceMinor: 3_799_000, imageUrl: null, isAvailable: true, portionSize: null },
       ],
     },
     {
       title: "Креветки",
       dishes: [
-        { id: "k10", name: "King Креветки 10 шт", description: "", priceMinor: 2_239_000, imageUrl: null, isAvailable: true },
-        { id: "k6", name: "King  креветки 6 шт ", description: "", priceMinor: 1_509_000, imageUrl: null, isAvailable: true },
+        { id: "k10", name: "King Креветки 10 шт", description: "", priceMinor: 2_239_000, imageUrl: null, isAvailable: true, portionSize: null },
+        { id: "k6", name: "King  креветки 6 шт ", description: "", priceMinor: 1_509_000, imageUrl: null, isAvailable: true, portionSize: null },
       ],
     },
   ];
