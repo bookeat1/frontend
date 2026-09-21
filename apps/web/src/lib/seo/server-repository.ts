@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
 import {
   EMPTY_FILTERS,
@@ -65,19 +66,31 @@ async function fetchOrNull<T>(label: string, fn: () => Promise<T>): Promise<T | 
  * клиент сам перезапросит); бросает исходную ошибку при 404 — вызывающий код
  * обязан позвать `notFound()`.
  *
- * БЕЗ кэша (правка ревью 3го круга, 2026-09-19): раньше здесь был
- * `unstable_cache` на 600 секунд (`cachedOrNull`) — успешный ответ
+ * БЕЗ кэша между запросами (правка ревью 3го круга, 2026-09-19): раньше здесь
+ * был `unstable_cache` на 600 секунд (`cachedOrNull`) — успешный ответ
  * замораживался в Data Cache Next.js, и если заведение деактивировалось
  * между рендерами, до 10 минут отдавался старый 200 с мёртвым контентом
  * вместо немедленного 404. Владелец продукта решил снять ISR с этой
  * страницы совсем, а не подгонять таймер — читаем API напрямую на каждый
  * запрос (`app/venues/[id]/page.tsx` теперь `dynamic = "force-dynamic"`).
+ *
+ * `React.cache` СНАРУЖИ (правка гейта, 2026-09-21): `getRestaurant` сама
+ * фанится в четыре ручки (`/restaurants/:id` + `/reviews/summary` +
+ * `/menu-highlights` + `/promos`, см. `HttpRestaurantRepository.getRestaurant`),
+ * а `page.tsx` вызывает `getVenueForSsr(id)` ДВАЖДЫ на один показ —
+ * `generateMetadata` и сам компонент страницы — итого восемь запросов к
+ * бэкенду на одну карточку заведения вместо четырёх. `cache()` — это
+ * per-request memoization Next.js App Router (не Data Cache, не
+ * `unstable_cache`): повторный вызов с тем же `id` В РАМКАХ ОДНОГО рендера
+ * отдаёт тот же промис без нового запроса, а следующий заход на страницу
+ * снова бьёт по API — поведение при деактивации заведения между рендерами
+ * не меняется, только дубль внутри одного рендера уходит.
  */
-export async function getVenueForSsr(id: string): Promise<Restaurant | null> {
+export const getVenueForSsr = cache(async (id: string): Promise<Restaurant | null> => {
   const repo = publicRepository();
   if (!repo) return null;
   return fetchOrNull(`getRestaurant(${id})`, () => repo.getRestaurant(id));
-}
+});
 
 /**
  * Первая страница каталога без фильтров — «Все заведения» на главной
