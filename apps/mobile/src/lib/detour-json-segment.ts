@@ -32,7 +32,11 @@
  *      DIFFERENT Detour app will not match `app.json`'s
  *      `android.intentFilters` `pathPrefix: "/lQ9BPpUvJc"`, so Android App
  *      Links will not intercept it and the tap falls through to a browser
- *      (criterion 6 of the spec).
+ *      (criterion 6 of the spec). Both links now exist and are live:
+ *        - t-shirt QR: https://bookeat.godetour.link/lQ9BPpUvJc05rn4w
+ *        - box QR:     https://bookeat.godetour.link/lQ9BPpUvJc097qa8
+ *      Both already carry the required `lQ9BPpUvJc` prefix, satisfying
+ *      criterion 6.
  *   2. Give each link a custom parameter with key `source` — exactly that
  *      key, lowercase — and value `tshirt` for the t-shirt QR, `box` for the
  *      box QR. Both values must match `^[a-z0-9_-]{1,32}$` (they already do).
@@ -52,14 +56,14 @@
  *        - an ordinary query parameter, `?source=tshirt` — handled directly
  *          by `extractSource` in `campaign-attribution.ts` without going
  *          through this module at all.
- *      Which shape a given link actually resolves to is Detour's own
- *      dashboard configuration, not something the app controls — this repo
- *      cannot confirm which shape the two NEW links will take before they
- *      exist (§10 of the spec), which is exactly why both are supported.
- *   4. After creating both links, resolve each one (Detour's own dashboard
- *      preview / `resolve-short` call) and confirm the resulting URL still
- *      starts with `https://bookeat.godetour.link/lQ9BPpUvJc` — that is
- *      criterion 6 and this repo cannot check it without dashboard access.
+ *      CONFIRMED (QA, live resolve of the two links above, 21.09.2026): both
+ *      new links resolve to the JSON-TAIL shape, NOT `?source=`. A raw
+ *      resolve of the t-shirt link's short URL answers a path ending in
+ *      `%7B%22source%22:%22tshirt%22%7D` — i.e. `{"source":"tshirt"}` sitting
+ *      in the path itself, exactly the shape `resolveSourcePathSegment`
+ *      below parses. The `?source=` branch in `extractSource` stays as
+ *      defensive handling for a link configured differently in the future,
+ *      but is not what these two links produce.
  *
  * Regression: the OLD contract, `{"promo":"<uuid>"}` (still live on the
  * Almaty Marathon link created earlier), is untouched by any of the above —
