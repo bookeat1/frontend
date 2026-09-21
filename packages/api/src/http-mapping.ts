@@ -171,6 +171,16 @@ export interface ApiRestaurant {
    */
   preorder_min_amount_minor?: number | null;
   /**
+   * Явные правила брони (Trello BNjLdfSP) — `bookeat-backend` пишет их
+   * параллельно этой правке, ветка на момент коммита ещё не смёржена.
+   * Эффективное значение (заданное заведением или платформенный дефолт)
+   * должен присылать сам сервер; здесь поля необязательные и на отсутствие
+   * ключа/`null` клиент подставляет дефолт сам, см. `booking-rules.ts`.
+   */
+  hold_minutes?: number | null;
+  free_cancel_hours?: number | null;
+  late_arrival_text?: string | null;
+  /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
    * по названию заведения поля нет вовсе, поэтому оно необязательное и может
@@ -1289,6 +1299,13 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // список у большинства заведений пустой, а отсутствие ключа отличает
     // «сервер их не прислал» от «их нет».
     amenities: mapVenueAmenities(api.features),
+    // Trello BNjLdfSP: сервер должен присылать эффективное значение сам —
+    // `undefined` здесь означает «ключа нет вовсе» (сервер ещё не смёржен),
+    // и клиентский фолбэк на платформенный дефолт живёт в booking-rules.ts,
+    // а не здесь, чтобы место дефолта было одно.
+    holdMinutes: typeof api.hold_minutes === "number" ? api.hold_minutes : undefined,
+    freeCancelHours: typeof api.free_cancel_hours === "number" ? api.free_cancel_hours : undefined,
+    lateArrivalText: text(api.late_arrival_text) || undefined,
   };
 }
 

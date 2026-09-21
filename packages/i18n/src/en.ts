@@ -2210,6 +2210,13 @@ export const en: LocaleOverride<Dictionary> = {
       no_show:
         "The restaurant marked that the guest didn't show up. If this is a mistake, contact the restaurant at the phone number below.",
     },
+    rulesFooter: (
+      holdMinutes: number,
+      bookingTime: string,
+      lateArrivalText: string,
+      cancelUntilTime: string,
+    ) =>
+      `We hold the table for ${holdMinutes} minutes after ${bookingTime}. ${lateArrivalText} Free cancellation until ${cancelUntilTime}.`,
     contactsTitle: "Contacts",
     contactWebsite: "Restaurant website",
     contactWhatsapp: "Message on WhatsApp",
@@ -3295,6 +3302,13 @@ export const en: LocaleOverride<Dictionary> = {
         confirmedLockedNotice: "The venue changes a confirmed booking's order",
         manualLockedNotice: "The venue edited this order — changes go through the venue",
       },
+      rulesFooter: (
+        holdMinutes: number,
+        bookingTime: string,
+        lateArrivalText: string,
+        cancelUntilTime: string,
+      ) =>
+        `We hold the table for ${holdMinutes} minutes after ${bookingTime}. ${lateArrivalText} Free cancellation until ${cancelUntilTime}.`,
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

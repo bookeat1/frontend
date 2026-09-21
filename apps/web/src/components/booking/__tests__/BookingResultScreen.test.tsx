@@ -160,6 +160,51 @@ describe("страница брони — билет", () => {
   });
 });
 
+/** Trello BNjLdfSP: подвал с правилами удержания стола/отмены/опоздания.
+ * `booking()` даёт `startsAt: "2026-08-25T14:30:00Z"` → 19:30 по Алматы. */
+describe("подвал «Явные правила брони» (Trello BNjLdfSP)", () => {
+  it("заведение не переопределило дефолты — клиент подставляет платформенные", async () => {
+    repository.getRestaurant = vi.fn(async () => venueDetail());
+
+    renderResult();
+
+    await screen.findByText("Столик забронирован");
+    expect(
+      await screen.findByText(
+        "Стол держим 15 минут после 19:30. Опаздываете — позвоните в заведение. Бесплатная отмена — до 17:30.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("заведение переопределило значения — экран показывает их, не платформенный дефолт", async () => {
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({
+        holdMinutes: 30,
+        freeCancelHours: 4,
+        lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
+      }),
+    );
+
+    renderResult();
+
+    await screen.findByText("Столик забронирован");
+    expect(
+      await screen.findByText(
+        "Стол держим 30 минут после 19:30. Задерживаетесь — напишите нам в WhatsApp. Бесплатная отмена — до 15:30.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("отменённая бронь — подвала нет: держать стол уже нечего", async () => {
+    repository.getBooking = vi.fn(async () => booking({ id: ID, status: "cancelled" }));
+
+    renderResult();
+
+    await screen.findByText("Бронь отменена");
+    expect(screen.queryByText(/Стол держим/)).toBeNull();
+  });
+});
+
 describe("блок «Предзаказ» на билете (A13, A14)", () => {
   beforeEach(() => {
     window.sessionStorage.clear();

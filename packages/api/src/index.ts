@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./booking-rules";
 export * from "./time-of-day";
 export * from "./schedule";
 export * from "./static-map";

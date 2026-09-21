@@ -3097,6 +3097,22 @@ export const ru = {
       no_show:
         "Заведение отметило, что гость не пришёл. Если это ошибка, свяжитесь с заведением по телефону ниже.",
     },
+    /**
+     * Явные правила брони (Trello BNjLdfSP) — короткая строка-подвал на
+     * экране брони, сразу под «Что дальше?». `holdMinutes` — число минут,
+     * `bookingTime`/`cancelUntilTime` — уже отформатированное время
+     * устройства («19:30», на телефоне это и есть время заведения — см.
+     * комментарий у `formatTime`), `lateArrivalText` — эффективный текст
+     * заведения или платформенный дефолт (`booking-rules.ts`). Показывается
+     * только у живой брони.
+     */
+    rulesFooter: (
+      holdMinutes: number,
+      bookingTime: string,
+      lateArrivalText: string,
+      cancelUntilTime: string,
+    ) =>
+      `Стол держим ${holdMinutes} минут после ${bookingTime}. ${lateArrivalText} Бесплатная отмена — до ${cancelUntilTime}.`,
     contactsTitle: "Контакты",
     contactWebsite: "Сайт заведения",
     contactWhatsapp: "Написать в WhatsApp",
@@ -4765,6 +4781,21 @@ export const ru = {
          * (`menuItemId === null`) — полная замена стёрла бы её. */
         manualLockedNotice: "Состав менял ресторан — изменения через заведение",
       },
+      /**
+       * Явные правила брони (Trello BNjLdfSP) — короткая строка в подвале
+       * билета. `holdMinutes` — число минут, `bookingTime`/`cancelUntilTime` —
+       * уже отформатированное стенное время заведения («19:30»),
+       * `lateArrivalText` — эффективный текст заведения (или платформенный
+       * дефолт), см. `booking-rules.ts`. Показывается только у живой брони
+       * (confirmed/pending) — отменённой и прошедшей это уже не касается.
+       */
+      rulesFooter: (
+        holdMinutes: number,
+        bookingTime: string,
+        lateArrivalText: string,
+        cancelUntilTime: string,
+      ) =>
+        `Стол держим ${holdMinutes} минут после ${bookingTime}. ${lateArrivalText} Бесплатная отмена — до ${cancelUntilTime}.`,
     },
     /** Страница гостя — узлы 3525:15153 и 3525:15365. */
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка

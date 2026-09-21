@@ -313,6 +313,29 @@ export interface Restaurant {
    * же, как `VenueCard.slots`.
    */
   amenities?: Amenity[];
+  /**
+   * Сколько минут после времени брони заведение держит стол —
+   * `restaurants.hold_minutes` (Trello BNjLdfSP, `bookeat-backend` — ветка на
+   * момент этого коммита ещё не смёржена). `undefined` — сервер поля не
+   * прислал (старая сборка или заведение не переопределяло дефолт); клиент
+   * подставляет платформенный дефолт сам, см. `effectiveHoldMinutes` в
+   * `booking-rules.ts`. Дефолт заведения (без переопределения) сервер обязан
+   * присылать эффективным значением — это поле для случая, когда его вовсе
+   * нет в ответе.
+   */
+  holdMinutes?: number;
+  /**
+   * За сколько часов до брони отмена ещё бесплатна — `restaurants.free_cancel_hours`
+   * (Trello BNjLdfSP). Та же страховка, что и у `holdMinutes`: `undefined` —
+   * подставляется платформенный дефолт, см. `effectiveFreeCancelHours`.
+   */
+  freeCancelHours?: number;
+  /**
+   * Текст про опоздание, который заведение показывает гостю — `restaurants.late_arrival_text`
+   * (Trello BNjLdfSP). `undefined`/пустая строка — подставляется платформенный
+   * дефолт, см. `effectiveLateArrivalText`.
+   */
+  lateArrivalText?: string;
 }
 
 export interface RestaurantSummary {

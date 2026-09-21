@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import type { Booking, BookingStatus, Preorder, Restaurant } from "@bookeat/api/client";
+import {
+  effectiveFreeCancelHours,
+  effectiveHoldMinutes,
+  effectiveLateArrivalText,
+  type Booking,
+  type BookingStatus,
+  type Preorder,
+  type Restaurant,
+} from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -219,6 +227,29 @@ function Ticket({ booking }: { booking: Booking }) {
   const outcome = OUTCOME[booking.status];
   const code = bookingCode(booking.id);
 
+  // Явные правила брони (Trello BNjLdfSP) — короткий подвал билета. Только у
+  // живой брони (confirmed/pending): отменённой и прошедшей это уже не
+  // касается. Ждём заведение — без него нет ни эффективных значений, ни
+  // зоны, по которой считать «до какого часа».
+  const cancelWall = venue.data
+    ? venueWallClock(
+        new Date(
+          new Date(booking.startsAt).getTime() -
+            effectiveFreeCancelHours(venue.data) * 3_600_000,
+        ).toISOString(),
+        venue.data.schedule?.timezone,
+      )
+    : null;
+  const rulesFooterText =
+    (outcome === "confirmed" || outcome === "pending") && venue.data && cancelWall
+      ? texts.rulesFooter(
+          effectiveHoldMinutes(venue.data),
+          time,
+          effectiveLateArrivalText(venue.data),
+          cancelWall.time,
+        )
+      : null;
+
   const heading = {
     confirmed: [texts.confirmedTitle, texts.confirmedText(dateLong, time, phone)],
     pending: [texts.pendingTitle, texts.pendingText(dateLong, time, phone)],
@@ -327,6 +358,16 @@ function Ticket({ booking }: { booking: Booking }) {
                   <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
                 </div>
               </div>
+            </>
+          ) : null}
+
+          {/* Trello BNjLdfSP: держим стол/опоздание/бесплатная отмена одной
+              строкой. Нет узла в макете 3525:15019 — поля на заведении
+              появились позже; подвал у самого низа билета, над кнопками. */}
+          {rulesFooterText ? (
+            <>
+              <Divider />
+              <p className="text-bodyS text-ink-secondary">{rulesFooterText}</p>
             </>
           ) : null}
 

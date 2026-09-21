@@ -1,5 +1,8 @@
 import {
   canGuestCancel,
+  effectiveFreeCancelHours,
+  effectiveHoldMinutes,
+  effectiveLateArrivalText,
   isCancellableBookingStatus,
   isRebookableBooking,
   isTerminalBookingStatus,
@@ -257,6 +260,25 @@ export default function ReservationScreen() {
   // из несостоявшейся брони значит заставить его искать ресторан заново.
   const rebookable = isRebookableBooking(data);
 
+  // Явные правила брони (Trello BNjLdfSP) — короткий подвал сразу под «Что
+  // дальше?». Только у живой брони: отменённая и прошедшая уже не держат
+  // стол. Ждём заведение — без него нет ни эффективных значений, ни того,
+  // что подставлять вместо платформенного дефолта.
+  const rulesFooterText =
+    cancellable && restaurant.data
+      ? t.booking.rulesFooter(
+          effectiveHoldMinutes(restaurant.data),
+          formatTime(data.startsAt),
+          effectiveLateArrivalText(restaurant.data),
+          formatTime(
+            new Date(
+              new Date(data.startsAt).getTime() -
+                effectiveFreeCancelHours(restaurant.data) * 3_600_000,
+            ).toISOString(),
+          ),
+        )
+      : null;
+
   const onConfirmCancel = () => {
     setCancelError(null);
     cancel.mutate(
@@ -374,6 +396,16 @@ export default function ReservationScreen() {
         />
 
         <WhatHappensNextCard status={data.status} />
+
+        {/* Trello BNjLdfSP: держим стол/опоздание/бесплатная отмена одной
+            строкой, сразу под «Что дальше?». Нет узла в макете — поля на
+            заведении появились позже; блок молчит, пока заведение не
+            загрузилось или бронь уже не живая. */}
+        {rulesFooterText ? (
+          <BookingCard>
+            <Text style={styles.rulesFooterText}>{rulesFooterText}</Text>
+          </BookingCard>
+        ) : null}
 
         {/* The permission ask, and the only one in the app. Shown just after
             the booking was created, where «сообщим, когда подтвердят» answers
@@ -593,6 +625,10 @@ const styles = StyleSheet.create({
   preorderHint: {
     ...typography.body,
     color: colors.text.muted,
+  },
+  rulesFooterText: {
+    ...typography.body,
+    color: colors.text.mutedStrong,
   },
   notice: {
     borderWidth: 1,

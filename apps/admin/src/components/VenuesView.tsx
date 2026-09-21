@@ -8,6 +8,9 @@ import {
   cuisineIdsOf,
   mergeVenueFeatureOptions,
   parseSocialLinkRows,
+  PLATFORM_DEFAULT_FREE_CANCEL_HOURS,
+  PLATFORM_DEFAULT_HOLD_MINUTES,
+  PLATFORM_DEFAULT_LATE_ARRIVAL_TEXT,
   sameCuisineSelection,
   sameVenueFeatureSelection,
   saveVenueWithDictionaries,
@@ -39,7 +42,7 @@ import {
 import { EmptyState, ErrorState, LoadingState } from "./StateViews";
 import { VenueFilterBar } from "./VenueFilterBar";
 import { Button } from "./ui/Button";
-import { Field, TextInput } from "./ui/FormControls";
+import { Field, TextArea, TextInput } from "./ui/FormControls";
 import { TranslatedField, TranslationCoverageNote } from "./ui/TranslatedField";
 import { CitySelectField, cityOptionsFor } from "./ui/CitySelectField";
 import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
@@ -345,6 +348,13 @@ function VenueFormModal({
   // а НЕ расписание из раздела «График». Правится здесь потому, что переводить
   // её больше негде: у PUT профиля своей формы в панели нет.
   const [openingHours, setOpeningHours] = useState("");
+  // Явные правила брони (Trello BNjLdfSP) — как и часы работы, приходят
+  // только детальным чтением, поэтому пусто до него. Пустая строка тут не
+  // «ноль» — это «заведение не переопределяло платформенный дефолт»
+  // (см. подсказки под полями и booking-rules.ts).
+  const [holdMinutes, setHoldMinutes] = useState("");
+  const [freeCancelHours, setFreeCancelHours] = useState("");
+  const [lateArrivalText, setLateArrivalText] = useState("");
   // Черновики переводов. Русский текст остаётся в обычных полях выше.
   const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
   const [addressI18n, setAddressI18n] = useState(translationDraftFrom());
@@ -411,6 +421,9 @@ function VenueFormModal({
     setDescriptionI18n(translationDraftFrom(data.description_i18n));
     setAddressI18n(translationDraftFrom(data.address_i18n));
     setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
+    setHoldMinutes(data.hold_minutes != null ? String(data.hold_minutes) : "");
+    setFreeCancelHours(data.free_cancel_hours != null ? String(data.free_cancel_hours) : "");
+    setLateArrivalText(data.late_arrival_text ?? "");
   }, [detailQuery.data]);
 
   // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
@@ -528,6 +541,18 @@ function VenueFormModal({
         openingHoursI18n,
         detail?.opening_hours_i18n,
       );
+      // Явные правила брони: пустое поле формы — явный `null`, то есть
+      // «не переопределяем платформенный дефолт», а не «оставить как было».
+      // Нечисловой ввод трактуется так же, как пустое поле.
+      const holdMinutesNum = Number.parseInt(holdMinutes.trim(), 10);
+      input.hold_minutes =
+        holdMinutes.trim() !== "" && Number.isFinite(holdMinutesNum) ? holdMinutesNum : null;
+      const freeCancelHoursNum = Number.parseInt(freeCancelHours.trim(), 10);
+      input.free_cancel_hours =
+        freeCancelHours.trim() !== "" && Number.isFinite(freeCancelHoursNum)
+          ? freeCancelHoursNum
+          : null;
+      input.late_arrival_text = lateArrivalText.trim() !== "" ? lateArrivalText.trim() : null;
     }
     // `cuisine_type_i18n` сервер тоже принимает, но в форме его НЕТ намеренно:
     // строку кухни собирает сам сервер из справочника кухонь, и ручной перевод
@@ -722,6 +747,48 @@ function VenueFormModal({
           stored={detail?.opening_hours_i18n}
           disabled={busy || !detailLoaded}
         />
+
+        {/* Явные правила брони — Trello BNjLdfSP. Пустое поле = платформенный
+            дефолт, подсказка проговаривает это словами, а не молчаливым
+            нулём. Недоступны, пока не пришло детальное чтение — та же
+            причина, что и у часов работы: писать вслепую значит стереть то,
+            чего форма не показывала. */}
+        <div className="grid gap-md sm:grid-cols-2">
+          <Field
+            label="Держим стол, мин"
+            hint={`Пусто — платформенный дефолт: ${PLATFORM_DEFAULT_HOLD_MINUTES} мин.`}
+          >
+            <TextInput
+              inputMode="numeric"
+              value={holdMinutes}
+              onChange={(e) => setHoldMinutes(e.target.value)}
+              disabled={busy || !detailLoaded}
+            />
+          </Field>
+          <Field
+            label="Бесплатная отмена, часов до брони"
+            hint={`Пусто — платформенный дефолт: ${PLATFORM_DEFAULT_FREE_CANCEL_HOURS} ч.`}
+          >
+            <TextInput
+              inputMode="numeric"
+              value={freeCancelHours}
+              onChange={(e) => setFreeCancelHours(e.target.value)}
+              disabled={busy || !detailLoaded}
+            />
+          </Field>
+        </div>
+
+        <Field
+          label="Текст про опоздание"
+          hint={`Пусто — платформенный дефолт: «${PLATFORM_DEFAULT_LATE_ARRIVAL_TEXT}»`}
+        >
+          <TextArea
+            rows={2}
+            value={lateArrivalText}
+            onChange={(e) => setLateArrivalText(e.target.value)}
+            disabled={busy || !detailLoaded}
+          />
+        </Field>
 
         <div className="grid gap-md sm:grid-cols-2">
           <Field label="Телефон">

@@ -431,6 +431,17 @@ export interface CatalogVenue {
    * свободнотекстовый ключ `features` в теле PATCH заведения сервер отвергает
    * с 422 — поэтому его нет в CatalogVenueInput. */
   features?: VenueFeature[];
+  /**
+   * Явные правила брони (Trello BNjLdfSP) — `bookeat-backend` пишет их
+   * параллельно этой правке, поле на момент коммита ещё может не прийти.
+   * `undefined`/`null` — заведение не переопределяло платформенный дефолт
+   * (15 минут удержания, 2 часа на бесплатную отмену, стандартный текст про
+   * опоздание — см. `booking-rules.ts`); форма кабинета показывает это как
+   * пустое поле с подсказкой, а не как ноль.
+   */
+  hold_minutes?: number | null;
+  free_cancel_hours?: number | null;
+  late_arrival_text?: string | null;
 }
 
 /** Body of POST /restaurants and PATCH /restaurants/:id. Every field is
@@ -470,6 +481,14 @@ export interface CatalogVenueInput {
    * только зная текущий набор: пропуск ключа сохраняет ссылки, `[]` — стирает
    * все. */
   social_links?: SocialLinkInput[];
+  /**
+   * Явные правила брони (Trello BNjLdfSP). Пропуск ключа оставляет колонку
+   * как есть (как и у остальных полей этого PATCH); `null` — явный сброс на
+   * платформенный дефолт (пустое поле формы = «не переопределяем»).
+   */
+  hold_minutes?: number | null;
+  free_cancel_hours?: number | null;
+  late_arrival_text?: string | null;
 }
 
 // ---- Events ----------------------------------------------------------------
