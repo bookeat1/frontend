@@ -54,14 +54,16 @@ describe("mapDetourResolvedUrlToRoute", () => {
     expect(route).toBe(`/promotion/${PROMO_UUID}?promo=${PROMO_UUID}&utm_source=qr`);
   });
 
-  it("ignores a JSON payload with no promo field and falls back to default routing", () => {
+  it("ignores a JSON payload with no promo field and falls back to the home route (not a real route)", () => {
     const encoded = encodeURIComponent(JSON.stringify({ utm_content: "stand" }));
     const route = mapDetourResolvedUrlToRoute(
       resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
     );
 
-    // Default behavior: drop the first (app-hash) segment, keep the rest.
-    expect(route).toBe(`/${encoded}`);
+    // Default behavior drops the first (app-hash) segment; what's left is a
+    // raw JSON blob, which is not a real app route — the UNMATCHED-ROUTE
+    // GUARD (2026-09-21) sends it to "/" instead of Unmatched Route.
+    expect(route).toBe("/");
   });
 
   it("leaves an ordinary (non-JSON) resolved link on the SDK's default drop-first-segment route", () => {
@@ -72,10 +74,20 @@ describe("mapDetourResolvedUrlToRoute", () => {
     expect(route).toBe("/restaurant/r-1");
   });
 
-  it("keeps a single-segment resolved link's own path (no app-hash to drop)", () => {
-    const route = mapDetourResolvedUrlToRoute(resolvedValue("https://bookeat.godetour.link/details"));
+  it("keeps a single-segment resolved link's own path when it is a known route (no app-hash to drop)", () => {
+    const route = mapDetourResolvedUrlToRoute(resolvedValue("https://bookeat.godetour.link/settings"));
 
-    expect(route).toBe("/details");
+    expect(route).toBe("/settings");
+  });
+
+  it("UNMATCHED-ROUTE GUARD: a single-segment resolved link that is NOT a known route falls back to home", () => {
+    // Same shape as a Detour short-link shortcode with no destination
+    // configured on the dashboard (e.g. "/lQ9BPpUvJc") — confirmed live,
+    // tapping such a link on an already-installed app used to land on
+    // Expo Router's "Unmatched Route".
+    const route = mapDetourResolvedUrlToRoute(resolvedValue("https://bookeat.godetour.link/lQ9BPpUvJc"));
+
+    expect(route).toBe("/");
   });
 
   it("preserves the query string on a non-JSON resolved link", () => {
@@ -110,46 +122,40 @@ describe("mapDetourResolvedUrlToRoute — edge cases", () => {
     );
   });
 
-  it("falls back to default routing on an empty JSON object", () => {
+  it("falls back to the home route on an empty JSON object (not a real route)", () => {
     const route = mapDetourResolvedUrlToRoute(
       resolvedValue("https://bookeat.godetour.link/lQ9BPpUvJc/%7B%7D"),
     );
 
-    expect(route).toBe("/%7B%7D");
+    expect(route).toBe("/");
   });
 
-  it("does not throw on a malformed percent-encoding in the last segment; falls back", () => {
+  it("does not throw on a malformed percent-encoding in the last segment; falls back to home", () => {
     // `%E0%A4%A` is a truncated UTF-8 sequence: decodeURIComponent throws URIError.
     const route = mapDetourResolvedUrlToRoute(
       resolvedValue("https://bookeat.godetour.link/lQ9BPpUvJc/%7B%22promo%22%3A%E0%A4%A"),
     );
 
-    expect(route).toBe("/%7B%22promo%22%3A%E0%A4%A");
+    expect(route).toBe("/");
   });
 
-  it("falls back when promo is not a non-empty string (number, empty string, array payload)", () => {
+  it("falls back to home when promo is not a non-empty string (number, empty string, array payload)", () => {
     const numeric = encodeURIComponent(JSON.stringify({ promo: 123 }));
     const empty = encodeURIComponent(JSON.stringify({ promo: "" }));
     const array = encodeURIComponent(JSON.stringify([{ promo: PROMO_UUID }]));
 
-    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${numeric}`))).toBe(
-      `/${numeric}`,
-    );
-    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${empty}`))).toBe(
-      `/${empty}`,
-    );
-    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${array}`))).toBe(
-      `/${array}`,
-    );
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${numeric}`))).toBe("/");
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${empty}`))).toBe("/");
+    expect(mapDetourResolvedUrlToRoute(resolvedValue(`https://x.godetour.link/h/${array}`))).toBe("/");
   });
 
-  it("only inspects the LAST segment: JSON in the middle is left to default routing", () => {
+  it("only inspects the LAST segment: JSON in the middle is not a known route, falls back to home", () => {
     const encoded = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }));
     const route = mapDetourResolvedUrlToRoute(
       resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc/${encoded}/extra`),
     );
 
-    expect(route).toBe(`/${encoded}/extra`);
+    expect(route).toBe("/");
   });
 
   it("still routes to /promotion/<id> when there are several segments before the JSON one", () => {

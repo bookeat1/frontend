@@ -1,4 +1,5 @@
 import type { DetourNativeIntentResolvedValue } from "@swmansion/react-native-detour/expo-router";
+import { isKnownAppRoutePathname } from "./detour-known-routes";
 import { resolvePromoPathSegment } from "./detour-json-segment";
 
 /**
@@ -61,13 +62,31 @@ const routeFromCustomScheme = (url: URL): string => {
 };
 
 /** Same "drop the first segment" rule as the SDK's `defaultMapToRoute`, for
- * links whose last segment is not JSON (the general Detour link case). */
+ * links whose last segment is not JSON (the general Detour link case).
+ *
+ * UNMATCHED-ROUTE GUARD (2026-09-21, second entry point): mirrors the
+ * fallback already added to `DetourLinkRouter` (`detour-link-router.tsx`)
+ * for the DEFERRED (fresh-install) path. This function is the sibling
+ * "app already installed, user scans/taps the same link again" entry point
+ * (`app/+native-intent.tsx` -> `mapDetourResolvedUrlToRoute` -> here) — for
+ * a short link whose destination isn't configured on Detour's dashboard,
+ * dropping the first segment can still leave a bare shortcode (e.g. a
+ * single-segment link `/lQ9BPpUvJc` has nothing left after dropping it, so
+ * the ORIGINAL raw pathname was returned as-is), which matches no real
+ * screen and surfaced Expo Router's "Unmatched Route" — confirmed live
+ * (Damir's device, scanning `https://bookeat.godetour.link/lQ9BPpUvJc` on
+ * an already-installed app). `app/+native-intent.tsx`'s own
+ * `fallbackPath: ""` does not cover this: it only fires when the SDK's
+ * resolve call itself throws, not when resolution succeeds with a result
+ * that isn't one of our routes. Reuses `isKnownAppRoutePathname`
+ * (`detour-known-routes.ts`) rather than a second allowlist. */
 const defaultRouteForWebUrl = (url: URL): string => {
   const segments = url.pathname.split("/").filter(Boolean);
-  if (segments.length <= 1) {
-    return `${url.pathname || "/"}${url.search}`;
+  const pathname = segments.length <= 1 ? url.pathname || "/" : `/${segments.slice(1).join("/")}`;
+  if (!isKnownAppRoutePathname(pathname)) {
+    return "/";
   }
-  return `/${segments.slice(1).join("/")}${url.search}`;
+  return `${pathname}${url.search}`;
 };
 
 const toQueryString = (params: Record<string, string>): string =>
