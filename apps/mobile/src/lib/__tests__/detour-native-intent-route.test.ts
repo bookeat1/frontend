@@ -189,3 +189,60 @@ describe("mapDetourResolvedUrlToRoute — edge cases", () => {
     expect(route).toBe("/promotion/a%20b%2Fc%3Fd?promo=a%20b%2Fc%3Fd");
   });
 });
+
+/**
+ * Канал-метка `source` (21.09.2026, «Марафон Алматы» ревизия 2,
+ * `specs/marathon-qr-attribution-20260921.md`, критерии 1-5, 7) — same
+ * JSON-tail shape as `promo`, but the destination is ALWAYS home: this
+ * campaign no longer opens a promo screen at all.
+ */
+describe("mapDetourResolvedUrlToRoute — channel tag `source`", () => {
+  it("routes a source link (JSON tail) to home, keeping source in the query (criteria 1/3)", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ source: "tshirt" }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
+    );
+
+    expect(route).toBe("/?source=tshirt");
+  });
+
+  it("routes the box channel to home too (criterion 2)", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ source: "box" }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
+    );
+
+    expect(route).toBe("/?source=box");
+  });
+
+  it("preserves the resolved URL's own query string alongside source", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ source: "tshirt" }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}?utm_source=qr`),
+    );
+
+    expect(route).toBe("/?source=tshirt&utm_source=qr");
+  });
+
+  it("falls back to home on an invalid source format, without a query param (criterion 5)", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ source: "футболка не по формату" }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
+    );
+
+    // The JSON-segment parser itself doesn't validate the FORMAT (that's
+    // `extractSource` in campaign-attribution.ts) — it only checks the field
+    // is a non-empty string, so routing still carries it through as a query
+    // param; the storage write downstream is what actually drops it.
+    expect(route).toBe(`/?source=${encodeURIComponent("футболка не по формату")}`);
+  });
+
+  it("promo wins when a link somehow carries both promo and source (regression, criterion 7)", () => {
+    const encoded = encodeURIComponent(JSON.stringify({ promo: PROMO_UUID, source: "tshirt" }));
+    const route = mapDetourResolvedUrlToRoute(
+      resolvedValue(`https://bookeat.godetour.link/lQ9BPpUvJc00ughb/${encoded}`),
+    );
+
+    expect(route).toBe(`/promotion/${PROMO_UUID}?promo=${PROMO_UUID}&source=tshirt`);
+  });
+});

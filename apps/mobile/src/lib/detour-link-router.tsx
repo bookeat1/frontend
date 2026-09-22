@@ -3,7 +3,7 @@ import { type ImperativeRouter, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { trackEvent } from "./analytics";
 import { writeCampaignAttribution } from "./campaign-attribution";
-import { resolvePromoPathSegment } from "./detour-json-segment";
+import { resolvePromoPathSegment, resolveSourcePathSegment } from "./detour-json-segment";
 import { isKnownAppRoutePathname } from "./detour-known-routes";
 
 type AppHref = Parameters<ImperativeRouter["replace"]>[0];
@@ -68,6 +68,13 @@ export function DetourLinkRouter(): null {
       // the more authoritative source, the JSON blob only exists as a
       // workaround for this one Detour dashboard link shape.
       const resolvedPromo = resolvePromoPathSegment(link.pathname);
+      // CHANNEL-TAG CONTRACT (21.09.2026, `{"source":"tshirt"}`/`{"source":
+      // "box"}`, `specs/marathon-qr-attribution-20260921.md`): same JSON-tail
+      // shape as the promo link, but the destination is ALWAYS home — this
+      // campaign no longer resolves a promo screen at all (§0 of the spec).
+      // Only checked when there's no `promo` field — the old contract wins
+      // if a link somehow carried both (regression safety, criterion 7).
+      const resolvedSource = resolvedPromo ? null : resolveSourcePathSegment(link.pathname);
       // UNMATCHED-ROUTE GUARD (2026-09-21): when Detour resolves a deferred
       // link without a promo payload, `link.pathname` is normally a real
       // route already — but for a short link whose destination isn't
@@ -79,14 +86,20 @@ export function DetourLinkRouter(): null {
       // the `fallbackPath: ""` safety net `app/+native-intent.tsx` already
       // has for the sibling "tap while already installed" case (see
       // `detour-known-routes.ts` for why that mechanism doesn't cover this
-      // path). Only applies when there's no recognized promo payload —
-      // the promo branch above is untouched.
+      // path). Only applies when there's no recognized promo/source payload
+      // — the branches above are untouched.
       const pathname = resolvedPromo
         ? resolvedPromo.pathname
-        : isKnownAppRoutePathname(link.pathname)
-          ? link.pathname
-          : "/";
-      const params = resolvedPromo ? { ...resolvedPromo.params, ...link.params } : link.params;
+        : resolvedSource
+          ? resolvedSource.pathname
+          : isKnownAppRoutePathname(link.pathname)
+            ? link.pathname
+            : "/";
+      const params = resolvedPromo
+        ? { ...resolvedPromo.params, ...link.params }
+        : resolvedSource
+          ? { ...resolvedSource.params, ...link.params }
+          : link.params;
 
       const attribution = await writeCampaignAttribution({ url: link.url, params });
       if (cancelled) return;

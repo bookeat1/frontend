@@ -169,6 +169,10 @@ export default function ConfirmBookingScreen() {
           phone: contactPhoneRaw,
           notes: draft.notes,
           promotionId: campaignAttribution?.campaignId,
+          // Постоянная канал-метка (`tshirt`/`box`, 21.09.2026,
+          // `specs/marathon-qr-attribution-20260921.md`) — независима от
+          // `campaignId`/акций, см. комментарий выше про `campaignAttribution`.
+          attributionSource: campaignAttribution?.source,
         },
         idempotencyKey: draft.idempotencyKey,
         preorder: draft.preorder.map((line) => ({

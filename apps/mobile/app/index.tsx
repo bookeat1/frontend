@@ -22,6 +22,7 @@ import { trackEvent } from "../src/lib/analytics";
 import { useAuth } from "../src/lib/auth";
 import { requestCitySelection } from "../src/lib/city-select";
 import { homeGreeting, usePartOfDay } from "../src/lib/greeting";
+import { useHomeSourceAttribution } from "../src/hooks/useHomeSourceAttribution";
 import { useLocale } from "../src/lib/locale";
 import { useSetPreferredCity } from "../src/lib/preferred-city";
 
@@ -49,6 +50,12 @@ export default function HomeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status, repository } = useAuth();
+
+  // КАНАЛ-МЕТКА «приложение уже установлено» (21.09.2026, критерий 3,
+  // `specs/marathon-qr-attribution-20260921.md`) — см. `useHomeSourceAttribution`
+  // для причины, почему у этого пути нет своего компонента-писателя, в
+  // отличие от `DetourLinkRouter` (свежая установка, отложенная ссылка).
+  useHomeSourceAttribution();
 
   // Greeting name and city read from the SAME ["me"] query cache the profile
   // screens edit (profile.tsx / profile/edit / profile/personal-data all write
