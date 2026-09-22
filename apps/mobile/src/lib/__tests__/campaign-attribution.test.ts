@@ -7,6 +7,7 @@ import {
   extractSource,
   isValidSource,
   parseAttribution,
+  parseKnownCampaignIds,
   readCampaignAttribution,
   writeCampaignAttribution,
   type AttributionStorage,
@@ -45,6 +46,31 @@ function memory(initial: Record<string, string> = {}) {
 }
 
 const NOW = Date.parse("2026-09-10T10:00:00Z");
+
+describe("parseKnownCampaignIds", () => {
+  const SECOND = "ab6cd665-eb11-4c45-b0ad-999db0c95116";
+
+  it("оба источника не заданы — пустой список", () => {
+    expect(parseKnownCampaignIds(undefined, undefined)).toEqual([]);
+  });
+
+  it("только новый список через запятую", () => {
+    expect(parseKnownCampaignIds(`${PROMO},${SECOND}`, undefined)).toEqual([PROMO, SECOND]);
+  });
+
+  it("пробелы вокруг запятых и пустые элементы отбрасываются", () => {
+    expect(parseKnownCampaignIds(` ${PROMO} , ,${SECOND} `, undefined)).toEqual([PROMO, SECOND]);
+  });
+
+  it("только legacy-переменная — обратная совместимость", () => {
+    expect(parseKnownCampaignIds(undefined, PROMO)).toEqual([PROMO]);
+  });
+
+  it("оба источника — объединяются без дублей", () => {
+    expect(parseKnownCampaignIds(PROMO, PROMO)).toEqual([PROMO]);
+    expect(parseKnownCampaignIds(SECOND, PROMO)).toEqual([SECOND, PROMO]);
+  });
+});
 
 describe("extractCampaignId", () => {
   it("берёт promo из параметров, если он в списке известных акций", () => {

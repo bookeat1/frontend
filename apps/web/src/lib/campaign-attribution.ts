@@ -20,8 +20,8 @@
  * `promotion_id`, но и то, что акция реально существует — случайный или
  * чужой UUID в адресе тоже роняет бронь (та же логика, что в мобильном
  * `campaign-attribution.ts`). Поэтому `?promo=` сверяется со списком
- * известных акций (`KNOWN_CAMPAIGN_IDS`, сейчас — только
- * `NEXT_PUBLIC_MARATHON_PROMO_ID`), а не просто с форматом UUID.
+ * известных акций (`KNOWN_CAMPAIGN_IDS`), а не просто с форматом UUID —
+ * подробности источника переменных у самой константы ниже.
  */
 
 const STORAGE_KEY = "bookeat.web.campaignAttribution.v1";
@@ -32,12 +32,33 @@ export function isUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
-/** UUID акций, которые реально существуют на бэкенде — сейчас «Марафон
- * Алматы» (миграция 0107). Публичное значение (просто идентификатор промо),
- * зашивается в бандл как и `NEXT_PUBLIC_API_URL`. Пустая переменная (сборка
- * без неё) даёт пустой список — атрибуция тихо выключается, а не падает. */
-export const KNOWN_CAMPAIGN_IDS: readonly string[] = [process.env.NEXT_PUBLIC_MARATHON_PROMO_ID].filter(
-  (id): id is string => Boolean(id),
+/**
+ * UUID акций, которые реально существуют на бэкенде — «Марафон Алматы»
+ * (миграция 0107) и любые следующие. Публичные значения, зашиваются в бандл
+ * как и `NEXT_PUBLIC_API_URL`.
+ *
+ * `NEXT_PUBLIC_KNOWN_CAMPAIGN_IDS` — список через запятую, основной источник
+ * для ЛЮБОГО количества акций (21.09.2026, вторая акция добавлена именно
+ * сюда). `NEXT_PUBLIC_MARATHON_PROMO_ID` читается ДОПОЛНИТЕЛЬНО, только для
+ * обратной совместимости с уже развёрнутыми конфигурациями. Обе переменные
+ * пустые/не заданы — пустой список, атрибуция тихо выключается, а не падает.
+ */
+/** Pure parser, exported so tests can exercise every combination of the two
+ * env vars without reloading the module / touching real `process.env`. */
+export function parseKnownCampaignIds(
+  listEnv: string | undefined,
+  legacyEnv: string | undefined,
+): readonly string[] {
+  const fromList = (listEnv ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return Array.from(new Set(legacyEnv ? [...fromList, legacyEnv] : fromList));
+}
+
+export const KNOWN_CAMPAIGN_IDS: readonly string[] = parseKnownCampaignIds(
+  process.env.NEXT_PUBLIC_KNOWN_CAMPAIGN_IDS,
+  process.env.NEXT_PUBLIC_MARATHON_PROMO_ID,
 );
 
 function storage(): Storage | null {

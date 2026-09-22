@@ -20,8 +20,10 @@ import * as SecureStore from "./secure-store";
  * С 10.09.2026 backend-dev добавил и проверку СУЩЕСТВОВАНИЯ промо (не только
  * формата): случайный, чужой или устаревший UUID тоже роняет бронь. Поэтому
  * `extractCampaignId` не просто проверяет UUID-формат, а сверяет значение со
- * СПИСКОМ ИЗВЕСТНЫХ акций (`KNOWN_CAMPAIGN_IDS`, сейчас — только
- * `EXPO_PUBLIC_MARATHON_PROMO_ID`): параметр ссылки, который выглядит как UUID,
+ * СПИСКОМ ИЗВЕСТНЫХ акций (`KNOWN_CAMPAIGN_IDS`, собирается из
+ * `EXPO_PUBLIC_KNOWN_CAMPAIGN_IDS` — список через запятую — плюс, для обратной
+ * совместимости, `EXPO_PUBLIC_MARATHON_PROMO_ID`, см. комментарий у самой
+ * константы ниже): параметр ссылки, который выглядит как UUID,
  * но не входит в список, отбрасывается точно так же, как нечитаемый мусор —
  * бронь всё равно проходит, только без атрибуции. Имя параметра (`promo`)
  * СОВПАДАЕТ с тем, что веб читает из `?promo=`
@@ -91,14 +93,36 @@ export function isUuid(value: string): boolean {
 const CAMPAIGN_PARAM_KEYS = ["promo", "campaignId", "campaign_id"] as const;
 
 /**
- * UUID акций, которые реально существуют на бэкенде — сейчас «Марафон
- * Алматы» (backend-dev, 10.09.2026, миграция 0107). Значение публичное
- * (просто идентификатор промо, не credential) — тот же выбор, что у
- * `EXPO_PUBLIC_DETOUR_APP_ID` в `detour.ts`. Пустая переменная (сборка без
- * `.env`) даёт пустой список: атрибуция тихо выключается, а не падает.
+ * UUID акций, которые реально существуют на бэкенде — «Марафон Алматы»
+ * (backend-dev, 10.09.2026, миграция 0107) и любые следующие. Значения
+ * публичные (просто идентификаторы промо, не credential) — тот же выбор, что
+ * у `EXPO_PUBLIC_DETOUR_APP_ID` в `detour.ts`.
+ *
+ * `EXPO_PUBLIC_KNOWN_CAMPAIGN_IDS` — список через запятую, основной источник
+ * для ЛЮБОГО количества акций (21.09.2026, вторая акция добавлена именно
+ * сюда, а не отдельной переменной). `EXPO_PUBLIC_MARATHON_PROMO_ID` читается
+ * ДОПОЛНИТЕЛЬНО и только для обратной совместимости — на 21.09.2026 в EAS
+ * (`production` environment) уже настроено именно это имя, менять его в
+ * живой прод-конфигурации отдельным внешним шагом ради переименования не
+ * нужно. Обе переменные пустые/не заданы — пустой список, атрибуция тихо
+ * выключается, а не падает.
  */
-export const KNOWN_CAMPAIGN_IDS: readonly string[] = [process.env.EXPO_PUBLIC_MARATHON_PROMO_ID].filter(
-  (id): id is string => Boolean(id),
+/** Pure parser, exported so tests can exercise every combination of the two
+ * env vars without reloading the module / touching real `process.env`. */
+export function parseKnownCampaignIds(
+  listEnv: string | undefined,
+  legacyEnv: string | undefined,
+): readonly string[] {
+  const fromList = (listEnv ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return Array.from(new Set(legacyEnv ? [...fromList, legacyEnv] : fromList));
+}
+
+export const KNOWN_CAMPAIGN_IDS: readonly string[] = parseKnownCampaignIds(
+  process.env.EXPO_PUBLIC_KNOWN_CAMPAIGN_IDS,
+  process.env.EXPO_PUBLIC_MARATHON_PROMO_ID,
 );
 
 /** `null`, если у ссылки нет параметра с UUID ИЗВЕСТНОЙ акции —
