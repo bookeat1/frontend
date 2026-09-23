@@ -274,6 +274,19 @@ export interface AcquirerAccountInput {
 }
 
 /**
+ * Денежное окно бесплатной отмены (transport `freeCancelWindowResponse`, PUT
+ * /admin/restaurants/:id/payment-settings/free-cancel-window). Эхо
+ * записанного значения — колонка `restaurants.free_cancel_window_minutes`
+ * NOT NULL, поэтому ответ всегда содержит конкретное число, никогда `null`.
+ * Своей ручки ЧТЕНИЯ у этого адреса нет: единственное чтение окна —
+ * округлённое `CatalogVenueBookingRules.free_cancel_hours` детального ответа
+ * заведения (см. её doc-комментарий выше).
+ */
+export interface FreeCancelWindowResponse {
+  free_cancel_window_minutes: number;
+}
+
+/**
  * Компания в нашем сервисе Kaspi (GET /admin/kaspi/companies, суперадмин).
  * Её `id` и есть `account_ref` привязки.
  *
@@ -521,9 +534,12 @@ export interface CatalogVenueInput {
    * округление денежного окна `restaurants.free_cancel_window_minutes`
    * (см. `../booking-rules.ts`), и у него своя ручка записи —
    * `PUT /admin/restaurants/:id/payment-settings/free-cancel-window`
-   * (`{free_cancel_window_minutes: number}`, минуты, не часы). Та ручка пока
-   * НЕ подключена ни к одному экрану `apps/admin` — значение в этом PATCH
-   * молча проигнорировалось бы, если бы поле здесь было.
+   * (`{free_cancel_window_minutes: number}`, минуты, не часы, см.
+   * `FreeCancelWindowResponse` и `AdminApiClient.setFreeCancelWindow` ниже).
+   * `VenuesView` вызывает эту ручку отдельным шагом после сохранения самого
+   * заведения (`saveVenueWithDictionaries`, `free_cancel_window_minutes`
+   * step) — значение в этом PATCH молча проигнорировалось бы, если бы поле
+   * здесь было.
    */
   hold_minutes?: number | null;
   late_arrival_text?: string | null;
