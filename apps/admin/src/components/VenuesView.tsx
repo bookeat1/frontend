@@ -7,6 +7,7 @@ import {
   buildTranslationPatch,
   cuisineIdsOf,
   mergeVenueFeatureOptions,
+  parseFreeCancelWindowMinutes,
   parseSocialLinkRows,
   PLATFORM_DEFAULT_FREE_CANCEL_HOURS,
   PLATFORM_DEFAULT_HOLD_MINUTES,
@@ -58,6 +59,12 @@ import {
 
 /** Ступени среднего чека, как их понимает каталог. Пустая — «не выбрано». */
 const PRICE_TIERS = ["", "₸", "₸₸", "₸₸₸"] as const;
+
+/** Платформенный дефолт денежного окна отмены в МИНУТАХ — той же единице, что
+ * принимает `payment-settings/free-cancel-window`. `PLATFORM_DEFAULT_FREE_CANCEL_HOURS`
+ * из `booking-rules.ts` — те же 120 минут, но в часах, для только-чтение
+ * округлённого значения в детальном ответе заведения. */
+const PLATFORM_DEFAULT_FREE_CANCEL_MINUTES = PLATFORM_DEFAULT_FREE_CANCEL_HOURS * 60;
 
 /**
  * «Заведения» — каталог глазами платформы: единственное место, где заведение
@@ -351,15 +358,19 @@ function VenueFormModal({
   // Явные правила брони (Trello BNjLdfSP) — как и часы работы, приходят
   // только детальным чтением, поэтому пусто до него. Пустая строка тут не
   // «ноль» — это «заведение не переопределяло платформенный дефолт»
-  // (см. подсказки под полями и booking-rules.ts). Редактируемых полей
-  // только два: `free_cancel_hours` — производная денежного окна отмены,
-  // своей ручки записи у неё в PATCH заведения нет (см. комментарий у
-  // `CatalogVenueInput.hold_minutes` в admin/types.ts), поэтому она читается
-  // как обычное число и рисуется только для просмотра.
+  // (см. подсказки под полями и booking-rules.ts).
   const [holdMinutes, setHoldMinutes] = useState("");
   const [lateArrivalText, setLateArrivalText] = useState("");
-  // Только для показа — своей ручки записи в этом PATCH у неё нет (см. выше).
-  const [freeCancelHoursDisplay, setFreeCancelHoursDisplay] = useState<number | null>(null);
+  // Денежное окно бесплатной отмены, В МИНУТАХ — своей ручки записи у него в
+  // ЭТОМ PATCH нет (см. комментарий у `CatalogVenueInput.hold_minutes` в
+  // admin/types.ts), пишется отдельно (`AdminApiClient.setFreeCancelWindow`,
+  // шаг `free_cancel_window` в `saveVenueWithDictionaries` ниже). Своей ручки
+  // ЧТЕНИЯ точных минут тоже нет — единственное чтение отдаёт округлённые
+  // ЧАСЫ (`booking_rules.free_cancel_hours`), поэтому при загрузке в поле
+  // подставляется `часы × 60` (см. эффект синхронизации ниже): значение
+  // честное только пока управляющий его не менял, после первого сохранения
+  // поле переписывается точным числом, которое эхом вернула ручка.
+  const [freeCancelMinutes, setFreeCancelMinutes] = useState("");
   // Черновики переводов. Русский текст остаётся в обычных полях выше.
   const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
   const [addressI18n, setAddressI18n] = useState(translationDraftFrom());
@@ -385,7 +396,9 @@ function VenueFormModal({
   // Состояние сохранения. Две записи — три исхода, и «заведение сохранили, а
   // кухни нет» это отдельный, со своей кнопкой.
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<null | "venue" | "cuisines" | "features">(null);
+  const [failure, setFailure] = useState<
+    null | "venue" | "cuisines" | "features" | "freeCancelWindow"
+  >(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
   // Ссылки на соцсети приходят ТОЛЬКО в детальном ответе: листинг каталога
@@ -428,7 +441,13 @@ function VenueFormModal({
     setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
     setHoldMinutes(data.booking_rules?.hold_minutes != null ? String(data.booking_rules.hold_minutes) : "");
     setLateArrivalText(data.booking_rules?.late_arrival_text ?? "");
-    setFreeCancelHoursDisplay(data.booking_rules?.free_cancel_hours ?? null);
+    // См. комментарий у useState freeCancelMinutes: единственное чтение отдаёт
+    // округлённые часы, минуты приблизительные до первого сохранения.
+    setFreeCancelMinutes(
+      data.booking_rules?.free_cancel_hours != null
+        ? String(data.booking_rules.free_cancel_hours * 60)
+        : "",
+    );
   }, [detailQuery.data]);
 
   // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
@@ -501,6 +520,15 @@ function VenueFormModal({
 
   const canSubmit = name.trim().length > 0 && !busy;
 
+  // Пустое/нечисловое поле — платформенный дефолт: у денежного окна нет
+  // сентинела «сбросить» (колонка `free_cancel_window_minutes` NOT NULL),
+  // поэтому дефолт подставляется здесь же, а не на сервере. `null`, пока не
+  // пришло детальное чтение — шаг тогда пропускается, писать вслепую значило
+  // бы затереть окно тем, чего форма не показывала.
+  const freeCancelWindowMinutesToSave = detailLoaded
+    ? (parseFreeCancelWindowMinutes(freeCancelMinutes) ?? PLATFORM_DEFAULT_FREE_CANCEL_MINUTES)
+    : null;
+
   const buildInput = (): CatalogVenueInput | null => {
     const input: CatalogVenueInput = {
       name: name.trim(),
@@ -551,7 +579,7 @@ function VenueFormModal({
       // Нечисловой ввод трактуется так же, как пустое поле. `free_cancel_hours`
       // сюда НЕ входит — своей ручки записи у него в этом PATCH нет (см.
       // комментарий у `CatalogVenueInput.hold_minutes` в admin/types.ts),
-      // поле формы ниже только читает его.
+      // денежное окно пишется отдельным шагом в `submit()` ниже.
       const holdMinutesNum = Number.parseInt(holdMinutes.trim(), 10);
       input.hold_minutes =
         holdMinutes.trim() !== "" && Number.isFinite(holdMinutesNum) ? holdMinutesNum : null;
@@ -581,6 +609,8 @@ function VenueFormModal({
       saveCuisines,
       featureIds: featuresChanged ? featureIds : null,
       saveFeatures,
+      freeCancelWindowMinutes: freeCancelWindowMinutesToSave,
+      saveFreeCancelWindow: (venueId, minutes) => apiClient.setFreeCancelWindow(venueId, minutes),
     });
     setBusy(false);
 
@@ -598,12 +628,18 @@ function VenueFormModal({
       setFailure("features");
       return;
     }
+    if (outcome.status === "free_cancel_window_failed") {
+      setCreatedId(outcome.venue.id);
+      setFailure("freeCancelWindow");
+      return;
+    }
     onSaved();
   };
 
   /** Повтор ТОЛЬКО кухонь: заведение уже сохранено, второй раз его писать
-   * незачем. Удобства после удавшихся кухонь всё-таки дописываются — иначе
-   * повтор оставил бы вторую половину набора несохранённой и молча. */
+   * незачем. Удобства и денежное окно после удавшихся кухонь всё-таки
+   * дописываются — иначе повтор оставил бы остаток набора несохранённым и
+   * молча. */
   const retryCuisines = async () => {
     const targetId = venue?.id ?? createdId;
     if (!targetId) return;
@@ -624,24 +660,62 @@ function VenueFormModal({
         return;
       }
     }
+    if (freeCancelWindowMinutesToSave != null) {
+      try {
+        await apiClient.setFreeCancelWindow(targetId, freeCancelWindowMinutesToSave);
+      } catch {
+        setBusy(false);
+        setFailure("freeCancelWindow");
+        return;
+      }
+    }
     setFailure(null);
     setBusy(false);
     onSaved();
   };
 
-  /** Повтор ТОЛЬКО удобств: и заведение, и кухни уже легли. */
+  /** Повтор ТОЛЬКО удобств: заведение и кухни уже легли, денежное окно после
+   * удавшихся удобств всё-таки дописывается — та же логика, что и у
+   * retryCuisines. */
   const retryFeatures = async () => {
     const targetId = venue?.id ?? createdId;
     if (!targetId) return;
     setBusy(true);
     try {
       await saveFeatures(targetId, featureIds);
+    } catch {
+      setBusy(false);
+      setFailure("features");
+      return;
+    }
+    if (freeCancelWindowMinutesToSave != null) {
+      try {
+        await apiClient.setFreeCancelWindow(targetId, freeCancelWindowMinutesToSave);
+      } catch {
+        setBusy(false);
+        setFailure("freeCancelWindow");
+        return;
+      }
+    }
+    setFailure(null);
+    setBusy(false);
+    onSaved();
+  };
+
+  /** Повтор ТОЛЬКО денежного окна: заведение, кухни и удобства уже легли —
+   * это всегда последний шаг. */
+  const retryFreeCancelWindow = async () => {
+    const targetId = venue?.id ?? createdId;
+    if (!targetId || freeCancelWindowMinutesToSave == null) return;
+    setBusy(true);
+    try {
+      await apiClient.setFreeCancelWindow(targetId, freeCancelWindowMinutesToSave);
       setFailure(null);
       setBusy(false);
       onSaved();
     } catch {
       setBusy(false);
-      setFailure("features");
+      setFailure("freeCancelWindow");
     }
   };
 
@@ -768,27 +842,22 @@ function VenueFormModal({
               disabled={busy || !detailLoaded}
             />
           </Field>
-          {/* Только чтение: `free_cancel_hours` — округление денежного окна
-              бесплатной отмены (`restaurants.free_cancel_window_minutes`),
-              не отдельная колонка. Своей ручки записи у него в PATCH
-              заведения нет (bookeat-backend PR #143) — меняется отдельной
-              ручкой `payment-settings/free-cancel-window`, которую этот
-              экран пока не вызывает. */}
+          {/* Денежное окно бесплатной отмены (`restaurants.
+              free_cancel_window_minutes`), не отдельная колонка PATCH
+              заведения — пишется отдельной ручкой `payment-settings/
+              free-cancel-window` (bookeat-backend PR #143 + отдельный шаг
+              `saveVenueWithDictionaries`, см. `submit()`). В МИНУТАХ, не
+              часах: та же единица, что принимает ручка, и точнее, чем
+              округлённые часы единственного чтения. */}
           <Field
-            label="Бесплатная отмена, часов до брони"
-            hint="Считается из денежного окна отмены — правится не здесь."
+            label="Бесплатная отмена, минут до брони"
+            hint={`Пусто — платформенный дефолт: ${PLATFORM_DEFAULT_FREE_CANCEL_MINUTES} мин.`}
           >
             <TextInput
               inputMode="numeric"
-              value={
-                freeCancelHoursDisplay != null
-                  ? String(freeCancelHoursDisplay)
-                  : detailLoaded
-                    ? String(PLATFORM_DEFAULT_FREE_CANCEL_HOURS)
-                    : ""
-              }
-              disabled
-              readOnly
+              value={freeCancelMinutes}
+              onChange={(e) => setFreeCancelMinutes(e.target.value)}
+              disabled={busy || !detailLoaded}
             />
           </Field>
         </div>
@@ -907,6 +976,25 @@ function VenueFormModal({
                 onClick={() => void retryFeatures()}
               >
                 Повторить удобства
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {failure === "freeCancelWindow" ? (
+          <div className="flex flex-col gap-xs" role="alert">
+            <p className="text-sm text-brand">
+              Заведение сохранили, а бесплатную отмену — нет. Всё остальное уже на месте:
+              повторите только это поле или закройте форму и вернитесь к нему позже.
+            </p>
+            <div>
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={busy}
+                onClick={() => void retryFreeCancelWindow()}
+              >
+                Повторить бесплатную отмену
               </Button>
             </div>
           </div>

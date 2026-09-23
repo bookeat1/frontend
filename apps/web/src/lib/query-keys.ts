@@ -38,12 +38,18 @@ export const MY_BOOKINGS_KEY = ["my-bookings"] as const;
  * та же строка блюд, что и билет брони, поэтому чистится вместе с ним. */
 export const PREORDER_KEY = ["preorder"] as const;
 
+/** Префикс ключа «живого» платежа брони (`GET /bookings/:id/payment`):
+ * `[...BOOKING_PAYMENT_KEY, bookingId]`. Как и предзаказ — данные сессии,
+ * чистятся вместе с бронью. */
+export const BOOKING_PAYMENT_KEY = ["booking-payment"] as const;
+
 /** Всё, что нельзя показывать следующему гостю в этой же вкладке. */
 const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
   FAVORITES_KEY,
   BOOKING_KEY,
   MY_BOOKINGS_KEY,
   PREORDER_KEY,
+  BOOKING_PAYMENT_KEY,
 ];
 
 /**

@@ -15,6 +15,7 @@ import type {
   AuthUser,
   Booking,
   BookingPage,
+  BookingPayment,
   CreateBookingInput,
   RescheduleBookingInput,
   Cuisine,
@@ -46,7 +47,7 @@ import { RepositoryError } from "@bookeat/api/client";
 import { authRepository, isApiConfigured, repository } from "@web/lib/api";
 import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
-import { BOOKING_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
+import { BOOKING_KEY, BOOKING_PAYMENT_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 import type { PreorderFailedReason } from "@web/lib/preorder-failed-flag";
 
@@ -708,6 +709,28 @@ export function usePreorder(bookingId: string | undefined): UseQueryResult<Preor
     queryFn: () => {
       if (!bookingId) throw new Error("Missing booking id");
       return repository.getPreorder(bookingId);
+    },
+    enabled: isApiConfigured && Boolean(bookingId) && signedIn && !isLoading,
+    retry: 1,
+  });
+}
+
+/**
+ * «Живой» платёж брони (`GET /bookings/:id/payment`) — блок «Оплата
+ * предзаказа» на билете. Ручка отдаёт только уже АВТОРИЗОВАННЫЙ/списанный
+ * платёж (404 → `null` для остального, включая только что созданный, ещё не
+ * оплаченный счёт) — этого достаточно, чтобы билет, открытый заново, сразу
+ * показал «оплачено», не создавая счёт по новой.
+ *
+ * Отказ не рушит билет — так же, как у `usePreorder`.
+ */
+export function useBookingPayment(bookingId: string | undefined): UseQueryResult<BookingPayment | null> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: [...BOOKING_PAYMENT_KEY, bookingId],
+    queryFn: () => {
+      if (!bookingId) throw new Error("Missing booking id");
+      return repository.getBookingPayment(bookingId);
     },
     enabled: isApiConfigured && Boolean(bookingId) && signedIn && !isLoading,
     retry: 1,
