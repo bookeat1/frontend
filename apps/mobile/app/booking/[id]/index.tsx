@@ -242,13 +242,17 @@ export default function ReservationScreen() {
   }
 
   const data = booking.data;
-  // undefined = we could not find out (the request failed); null = there is
-  // none. The dialog says something different for each.
-  const paymentValue = payment.isError ? undefined : payment.data;
+  // undefined = we could not find out (the request failed, or it hasn't
+  // answered yet); null = there is none. The dialog says something different
+  // for each. A slow/stuck `GET /bookings/:id/payment` used to leave the
+  // guest unable to even OPEN the cancel dialog — `payment.isPending` can
+  // stay true for the life of the screen (a disabled-then-hung query never
+  // settles), which made the whole cancel button look dead. The cost line
+  // already has an honest "unknown" fallback for a failed check (below); it
+  // covers a slow/pending one the same way, so cancelling itself is never
+  // blocked on it.
+  const paymentValue = payment.isError || payment.isPending ? undefined : payment.data;
   const { text: consequence } = describeCancellationCost({ booking: data, payment: paymentValue });
-  // Don't offer a decision the guest can't yet make honestly: while the
-  // payment check is still running there is no money sentence to show.
-  const cancelReady = !canCancel || !payment.isPending;
   // Меню у заведения есть, если деталка принесла хотя бы одно блюдо.
   const hasMenu = (restaurant.data?.menuHighlights.length ?? 0) > 0;
   // Бронь, из которой уже никуда не перейти: визит прошёл, гость не пришёл
@@ -523,7 +527,7 @@ export default function ReservationScreen() {
               variant="secondary"
               size="lg"
               icon={XCircle}
-              disabled={!canCancel || !cancelReady || cancel.isPending}
+              disabled={!canCancel || cancel.isPending}
               onPress={() => {
                 setCancelError(null);
                 setDialogOpen(true);
