@@ -3329,6 +3329,27 @@ export const kk: LocaleOverride<Dictionary> = {
         cancelUntilTime: string,
       ) =>
         `Үстелді ${bookingTime}-дан кейін ${holdMinutes} минут ұстап тұрамыз. ${lateArrivalText} Тегін бас тарту — ${cancelUntilTime} дейін.`,
+      payment: {
+        sectionTitle: "Алдын ала тапсырысты төлеу",
+        intro: "Алдын ала төлеңіз — ас үй сіз келгенге дейін дайындай бастайды.",
+        payWithKaspi: "Kaspi арқылы төлеу",
+        payWithKaspiAmount: (amount: string) => `Kaspi арқылы ${amount} төлеу`,
+        awaitingTitle: "Төлемді күтудеміз",
+        countdown: (left: string) => `Сілтеме тағы ${left} жарамды`,
+        openAgain: "Төлемді қайта ашу",
+        checkAgain: "Төледім, тексеру",
+        settlingTitle: "Төлем өтті, растап жатырмыз",
+        deadTitle: "Бұл төлем сілтемесі енді жарамсыз",
+        deadHint:
+          "Төлем өтпесе немесе тым көп уақыт өтсе осылай болады. Сома өзгермейді — жаңа сілтеме жасаңыз.",
+        renew: "Жаңа сілтеме жасау",
+        paidTitle: "Алдын ала тапсырыс төленді",
+        paidHint: (amount: string) => `${amount} төленді. Мекеме тапсырысыңызды көреді.`,
+        errorOffline: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
+        errorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
+        errorUnavailable: "Қазір төлем жасалмады. Кейінірек көріңіз немесе мекемеге хабарласыңыз.",
+        errorAlreadyActive: "Бұл броньда төлем бар. Бетті жаңартыңыз.",
+      },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */
