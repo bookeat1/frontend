@@ -198,6 +198,22 @@ export interface RestaurantPricePatch {
   price_category?: string | null;
   price_min?: number | null;
   price_max?: number | null;
+  /** Kwaaka POS restaurant/warehouse id (superadmin-only, mirrors is_premium/
+   * display_order: the backend strips this key for a non-admin caller). An
+   * explicit `null` unlinks; an omitted key leaves the binding alone. */
+  kwaaka_restaurant_id?: string | null;
+}
+
+/**
+ * The venue's Kwaaka POS link (admin restaurant read, `GET
+ * /admin/restaurants/:id`, `kwaaka_restaurant_id`) — the warehouse/menu id
+ * used to sync this venue's menu and stop-list from Kwaaka. `null` means the
+ * venue is not linked. Like `price_range`, this is a narrow slice of the same
+ * cabinet read `getRestaurantPricing` already uses; kept as its own type
+ * because it is an unrelated concern, not a pricing field.
+ */
+export interface RestaurantKwaakaLink {
+  kwaaka_restaurant_id: string | null;
 }
 
 // ---- Telegram notification settings ----------------------------------------
