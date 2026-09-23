@@ -1,10 +1,13 @@
 /**
  * Сохранение заведения, у которого часть данных пишется ОТДЕЛЬНЫМИ ручками.
  *
- * Таких наборов уже два — кухни (`PUT /restaurants/:id/cuisines`) и удобства
- * (`PUT /restaurants/:id/features`), — и оба замещаются целиком. Значит одно
- * нажатие «Сохранить» это три записи подряд, а три записи подряд не бывают
- * атомарными. Поэтому здесь не «получилось/не получилось», а КАКАЯ половина
+ * Таких наборов уже три — кухни (`PUT /restaurants/:id/cuisines`), удобства
+ * (`PUT /restaurants/:id/features`) и денежное окно бесплатной отмены
+ * (`PUT /admin/restaurants/:id/payment-settings/free-cancel-window`) — первые
+ * два замещаются целиком, третье — одно число, но общая причина шага та же:
+ * ручка требует уже существующего id заведения. Значит одно нажатие
+ * «Сохранить» — это четыре записи подряд, а четыре записи подряд не бывают
+ * атомарными. Поэтому здесь не «получилось/не получилось», а КАКАЯ часть
  * легла: у каждого исхода своё сообщение и своя кнопка повтора.
  */
 
@@ -13,17 +16,24 @@ export type VenueSaveOutcome<V> =
   | { status: "saved"; venue: V }
   | { status: "venue_failed"; error: unknown }
   | { status: "cuisines_failed"; venue: V; error: unknown }
-  | { status: "features_failed"; venue: V; error: unknown };
+  | { status: "features_failed"; venue: V; error: unknown }
+  | { status: "free_cancel_window_failed"; venue: V; error: unknown };
 
-/** Шаги сохранения. `null` в любом наборе значит «не трогаем»: набор либо не
- * прочитан, либо не менялся, а PUT замещает его целиком — отправить вслепую
- * значит стереть то, чего форма не показывала. */
+/** Шаги сохранения. `null` в любом наборе/значении значит «не трогаем»: оно
+ * либо не прочитано, либо не менялось, а кухни/удобства PUT замещает целиком
+ * — отправить вслепую значит стереть то, чего форма не показывала. Денежное
+ * окно `null`-ом не «сбрасывается на дефолт» (в отличие от `hold_minutes`
+ * PATCH-заведения) — это просто «шаг пропускаем», вызывающая сторона уже
+ * разрешила пустое поле формы в конкретное число (см. `free-cancel-window.ts`
+ * и `VenuesView.tsx`). */
 export interface VenueSaveSteps<V extends { id: string }> {
   saveVenue: () => Promise<V>;
   cuisineIds?: readonly string[] | null;
   saveCuisines?: (venueId: string, ids: readonly string[]) => Promise<unknown>;
   featureIds?: readonly string[] | null;
   saveFeatures?: (venueId: string, ids: readonly string[]) => Promise<unknown>;
+  freeCancelWindowMinutes?: number | null;
+  saveFreeCancelWindow?: (venueId: string, minutes: number) => Promise<unknown>;
 }
 
 /**
@@ -39,8 +49,10 @@ export interface VenueSaveSteps<V extends { id: string }> {
  *     не легли они, всё остальное уже на месте и повторять надо только их.
  *
  * Не легло заведение — наборы даже не пробуем: писать их некуда. Не легли
- * кухни — удобства НЕ пробуем тоже: два разных «частично сохранилось» в одном
- * сообщении человек не разберёт, а повторить первый шаг он всё равно должен.
+ * кухни — удобства и денежное окно НЕ пробуем тоже: два-три разных «частично
+ * сохранилось» в одном сообщении человек не разберёт, а повторить первый шаг
+ * он всё равно должен. Денежное окно — ПОСЛЕДНИЙ шаг: он ни от чего не
+ * зависит, как и удобства, а порядок между собой у удобств и окна неважен.
  */
 export async function saveVenueWithDictionaries<V extends { id: string }>(
   steps: VenueSaveSteps<V>,
@@ -67,6 +79,15 @@ export async function saveVenueWithDictionaries<V extends { id: string }>(
       await steps.saveFeatures(venue.id, featureIds);
     } catch (error) {
       return { status: "features_failed", venue, error };
+    }
+  }
+
+  const freeCancelWindowMinutes = steps.freeCancelWindowMinutes ?? null;
+  if (freeCancelWindowMinutes !== null && steps.saveFreeCancelWindow) {
+    try {
+      await steps.saveFreeCancelWindow(venue.id, freeCancelWindowMinutes);
+    } catch (error) {
+      return { status: "free_cancel_window_failed", venue, error };
     }
   }
 

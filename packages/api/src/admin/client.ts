@@ -31,6 +31,7 @@ import type {
   FeedItemState,
   AcquirerAccount,
   AcquirerAccountInput,
+  FreeCancelWindowResponse,
   AdminPromoCode,
   CreatePromoCodeInput,
   PatchPromoCodeInput,
@@ -1409,6 +1410,23 @@ export class AdminApiClient {
       "PUT",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/acquirer-account`,
       { body: input },
+    );
+  }
+
+  /**
+   * PUT /admin/restaurants/:id/payment-settings/free-cancel-window — денежное
+   * окно бесплатной отмены, В МИНУТАХ (не округлённые `free_cancel_hours`
+   * детального чтения заведения). Своей ручки ЧТЕНИЯ у этого адреса нет —
+   * `VenuesView` вызывает это отдельным шагом ПОСЛЕ сохранения самого
+   * заведения (`saveVenueWithDictionaries`), как кухни/удобства: id заведения
+   * нужен заранее. owner/manager (RequireRestaurantManager), не только
+   * суперадмин.
+   */
+  setFreeCancelWindow(restaurantId: string, minutes: number): Promise<FreeCancelWindowResponse> {
+    return this.request<FreeCancelWindowResponse>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/free-cancel-window`,
+      { body: { free_cancel_window_minutes: minutes } },
     );
   }
 
