@@ -6,6 +6,7 @@ import {
   effectiveFreeCancelHours,
   effectiveHoldMinutes,
   effectiveLateArrivalText,
+  isCancellableBookingStatus,
   type Booking,
   type BookingStatus,
   type Preorder,
@@ -16,6 +17,7 @@ import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
+import { PreorderPaymentCard } from "@web/components/booking/PreorderPaymentCard";
 import { QrCode } from "@web/components/ui/QrCode";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { bookingCode, bookingQrPayload } from "@web/lib/booking-code";
@@ -23,11 +25,13 @@ import { bookingHref, menuBookingHref } from "@web/lib/booking-link";
 import { isNotFoundError } from "@web/lib/booking-submit";
 import { useAuth } from "@web/lib/auth";
 import { bookingDateLabel, formatMoneyMinor, venueWallClock } from "@web/lib/format";
+import { preorderPaymentGate } from "@web/lib/kaspi-payment";
 import { useLocale } from "@web/lib/locale";
 import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
 import { consumePreorderFailedFlag, type PreorderFailedReason } from "@web/lib/preorder-failed-flag";
-import { useBooking, usePreorder, useVenue } from "@web/lib/queries";
+import { useBooking, useBookingPayment, usePreorder, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
+import { useKaspiPaymentFlow } from "@web/lib/use-kaspi-payment";
 
 /**
  * Блок «Код брони» (QR + `BE-XXXX-XXXX`) на билете временно скрыт по решению
@@ -206,6 +210,26 @@ function Ticket({ booking }: { booking: Booking }) {
   // что и у блока «Предзаказ» чуть выше), кнопки/текста нет вовсе.
   const editState = preorderEditState(booking, preorder.data);
 
+  // Оплата предзаказа через Kaspi — веб-версия того же блока на мобилке
+  // (`apps/mobile/app/booking/[id]/index.tsx`). ОДНО решение про блок целиком
+  // в чистой функции `preorderPaymentGate`: предлагать оплату только там, где
+  // заведение реально подключено (`Restaurant.acceptsOnlinePayment`), но уже
+  // оплаченный предзаказ показывать всегда, даже если заведение отключили от
+  // приёма оплаты позже.
+  const bookingPayment = useBookingPayment(booking.id);
+  const preorderItemsCount = preorder.data?.items.length ?? 0;
+  const paymentGate = preorderPaymentGate({
+    bookingIsLive: isCancellableBookingStatus(booking.status),
+    preorderItemsCount,
+    venueAcceptsOnlinePayment: venue.data?.acceptsOnlinePayment === true,
+    existingPayment: bookingPayment.isError ? null : bookingPayment.data,
+  });
+  const paymentFlow = useKaspiPaymentFlow({
+    bookingId: booking.id,
+    existing: bookingPayment.isError ? null : bookingPayment.data,
+    enabled: paymentGate.visible,
+  });
+
   // A14: уведомление читается ОДИН раз, из sessionStorage, а не из URL —
   // ссылку на эту страницу можно переслать, и «предзаказ не прикрепился» не
   // должно всплывать у КАЖДОГО, кто её откроет (в т.ч. у самого гостя при
@@ -317,6 +341,17 @@ function Ticket({ booking }: { booking: Booking }) {
                 </p>
               </div>
             </>
+          ) : null}
+
+          {/* Блок «Оплата предзаказа» — своего узла в макете сайта нет
+              (несверено с Figma, первый функциональный проход). Между суммой
+              предзаказа и кнопкой «Изменить предзаказ»: платить и менять
+              состав — соседние решения гостя. */}
+          {paymentGate.visible ? (
+            <PreorderPaymentCard
+              flow={paymentFlow}
+              fallbackAmountMinor={preorder.data?.totalMinor ?? null}
+            />
           ) : null}
 
           {/* ТЗ `web-preorder-menu-20260908`, C-WEB-2 (C1-C2): своего узла в
