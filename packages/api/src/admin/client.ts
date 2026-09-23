@@ -76,6 +76,7 @@ import type {
   PlatformUser,
   PushSubscriptionInput,
   RestaurantManager,
+  RestaurantKwaakaLink,
   RestaurantPricePatch,
   RestaurantPricing,
   RestaurantProfile,
@@ -1287,12 +1288,33 @@ export class AdminApiClient {
     return restaurant.social_links ?? [];
   }
 
+  // ---- Kwaaka POS link (superadmin-only) -------------------------------------
+  //
+  // Same GET /admin/restaurants/:id and the same PATCH /restaurants/:id as
+  // pricing above — kwaaka_restaurant_id lives on the same restaurant row.
+  // Reuses `patchRestaurant`/`RestaurantPricePatch` for the write; the read
+  // gets its own narrow slice (mirrors `getRestaurantSocialLinks`), because the
+  // field is an unrelated concern, not a pricing one.
+
   /**
-   * PATCH /restaurants/:id — updates the venue's pricing. `price_min`/
-   * `price_max` are whole tenge and the backend validates the MERGED row
-   * (both-null-or-both-set, 0 <= min <= max), so the caller sends the pair
-   * together or omits both. Answers the full updated restaurant; typed as the
-   * pricing slice the card reads back.
+   * GET /admin/restaurants/:id → `kwaaka_restaurant_id`. Backend strips this
+   * key for a non-admin caller (like is_premium/display_order), so it is
+   * always `null` for a venue manager even when a link exists — the card that
+   * reads this is gated to superadmins by its mount point (see SettingsView).
+   */
+  getRestaurantKwaakaLink(restaurantId: string): Promise<RestaurantKwaakaLink> {
+    return this.request<RestaurantKwaakaLink>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}`,
+    );
+  }
+
+  /**
+   * PATCH /restaurants/:id — updates the venue's pricing, and (shared body)
+   * the Kwaaka POS link below. `price_min`/`price_max` are whole tenge and the
+   * backend validates the MERGED row (both-null-or-both-set, 0 <= min <= max),
+   * so the caller sends the pair together or omits both. Answers the full
+   * updated restaurant; typed as the pricing slice the card reads back.
    */
   patchRestaurant(restaurantId: string, input: RestaurantPricePatch): Promise<RestaurantPricing> {
     return this.request<RestaurantPricing>(
