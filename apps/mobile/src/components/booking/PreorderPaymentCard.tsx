@@ -107,11 +107,7 @@ export function PreorderPaymentCard({
         <>
           <Text style={styles.hint}>{t.booking.paymentIntro}</Text>
           <KaspiPayButton
-            label={
-              amount
-                ? t.booking.paymentPayWithKaspiAmount(amount)
-                : t.booking.paymentPayWithKaspi
-            }
+            label={amount ? t.booking.paymentPayAmount(amount) : t.booking.paymentPay}
             busy={creating}
             onPress={flow.pay}
             accessibilityHint={t.booking.paymentOpensExternally}

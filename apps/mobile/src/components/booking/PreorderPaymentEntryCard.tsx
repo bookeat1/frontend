@@ -30,7 +30,7 @@ export function PreorderPaymentEntryCard({
     <BookingCard title={t.booking.paymentSectionTitle}>
       <Text style={styles.hint}>{t.booking.paymentIntro}</Text>
       <PrimaryButton
-        label={amount ? t.booking.paymentEntryCta(amount) : t.booking.paymentPayWithKaspi}
+        label={amount ? t.booking.paymentEntryCta(amount) : t.booking.paymentPay}
         size="lg"
         onPress={onPress}
       />

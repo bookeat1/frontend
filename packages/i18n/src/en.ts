@@ -2266,8 +2266,8 @@ export const en: LocaleOverride<Dictionary> = {
 
     paymentSectionTitle: "Pre-order payment",
     paymentIntro: "Pay in advance and the kitchen starts cooking for your arrival.",
-    paymentPayWithKaspi: "Pay with Kaspi",
-    paymentPayWithKaspiAmount: (amount: string) => `Pay ${amount} with Kaspi`,
+    paymentPay: "Pay",
+    paymentPayAmount: (amount: string) => `Pay ${amount}`,
     paymentOpensExternally: "Opens the Kaspi app or a browser",
     paymentAwaitingTitle: "Waiting for the payment",
     paymentCountdown: (left: string) => `The link is valid for another ${left}`,
@@ -2290,8 +2290,6 @@ export const en: LocaleOverride<Dictionary> = {
     /* --- Full-screen pre-order payment (see ru.ts for the design/reasoning
        comments) --- */
     paymentEntryCta: (amount: string) => `Pay ${amount}`,
-    paymentMethodLabel: "Payment method",
-    paymentMethodValue: "Kaspi Pay",
     paymentCheckoutNote:
       "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",
     paymentSuccessSubtitle:
@@ -3360,8 +3358,8 @@ export const en: LocaleOverride<Dictionary> = {
       payment: {
         sectionTitle: "Pre-order payment",
         intro: "Pay in advance and the kitchen starts cooking for your arrival.",
-        payWithKaspi: "Pay with Kaspi",
-        payWithKaspiAmount: (amount: string) => `Pay ${amount} with Kaspi`,
+        payWithKaspi: "Pay",
+        payWithKaspiAmount: (amount: string) => `Pay ${amount}`,
         awaitingTitle: "Waiting for the payment",
         countdown: (left: string) => `The link is valid for another ${left}`,
         openAgain: "Open the payment again",
@@ -3380,8 +3378,6 @@ export const en: LocaleOverride<Dictionary> = {
       },
       paymentScreen: {
         entryCta: (amount: string) => `Pay ${amount}`,
-        methodLabel: "Payment method",
-        methodValue: "Kaspi Pay",
         checkoutNote:
           "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",
         successSubtitle:
