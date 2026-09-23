@@ -18,6 +18,7 @@ import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
 import { PreorderPaymentCard } from "@web/components/booking/PreorderPaymentCard";
+import { PreorderPaymentEntryCard } from "@web/components/booking/PreorderPaymentEntryCard";
 import { QrCode } from "@web/components/ui/QrCode";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { bookingCode, bookingQrPayload } from "@web/lib/booking-code";
@@ -343,15 +344,33 @@ function Ticket({ booking }: { booking: Booking }) {
             </>
           ) : null}
 
-          {/* Блок «Оплата предзаказа» — своего узла в макете сайта нет
-              (несверено с Figma, первый функциональный проход). Между суммой
-              предзаказа и кнопкой «Изменить предзаказ»: платить и менять
-              состав — соседние решения гостя. */}
+          {/* Блок «Оплата предзаказа». Между суммой предзаказа и кнопкой
+              «Изменить предзаказ»: платить и менять состав — соседние решения
+              гостя.
+
+              Полноэкранная оплата (Figma qmMsg4jO1ggmyEHNIAD2ll, узел
+              5390:8967) — новый счёт и его отсчёт больше НЕ рисуются здесь
+              инлайн: пока платёж можно (пере)начать, билет — это только точка
+              входа на `/bookings/[id]/payment`. Инлайн-карточка остаётся, но
+              уже как ЧЕК для оплаченного/дожимаемого предзаказа.
+
+              Решение НЕ только по `paymentGate.payable` (см. тот же
+              комментарий в mobile `booking/[id]/index.tsx`): она читает
+              отдельный запрос `useBookingPayment`, который может на секунды
+              отстать от `paymentFlow.phase`, опрашивающей ту же бронь
+              напрямую. */}
           {paymentGate.visible ? (
-            <PreorderPaymentCard
-              flow={paymentFlow}
-              fallbackAmountMinor={preorder.data?.totalMinor ?? null}
-            />
+            paymentGate.payable && paymentFlow.phase !== "settling" && paymentFlow.phase !== "paid" ? (
+              <PreorderPaymentEntryCard
+                amountMinor={paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null}
+                href={`/bookings/${booking.id}/payment`}
+              />
+            ) : (
+              <PreorderPaymentCard
+                flow={paymentFlow}
+                fallbackAmountMinor={preorder.data?.totalMinor ?? null}
+              />
+            )
           ) : null}
 
           {/* ТЗ `web-preorder-menu-20260908`, C-WEB-2 (C1-C2): своего узла в

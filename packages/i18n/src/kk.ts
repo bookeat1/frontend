@@ -2272,6 +2272,21 @@ export const kk: LocaleOverride<Dictionary> = {
     paymentErrorAlreadyActive: "Бұл броньда төлем бар. Экранды жаңартыңыз.",
     paymentErrorCannotOpen:
       "Kaspi ашылмады. Kaspi.kz қосымшасын орнатыңыз немесе сілтемені браузерде ашыңыз.",
+
+    /* --- Алдын ала тапсырысты толық экранда төлеу (себебі — ru.ts) --- */
+    paymentEntryCta: (amount: string) => `${amount} төлеу`,
+    paymentMethodLabel: "Төлем тәсілі",
+    paymentMethodValue: "Kaspi Pay",
+    paymentCheckoutNote:
+      "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
+    paymentSuccessSubtitle:
+      "Брон расталды. Тапсырыс мекемеге жіберілді және келуіңізге дайын болады.",
+    paymentSuccessAction: "Бронды көру",
+    paymentFailedTitle: "Төлем өтпеді",
+    paymentFailedText:
+      "Бірдеңе дұрыс болмады. Тапсырысты қайта төлеп көріңіз немесе басқа төлем тәсілін таңдаңыз.",
+    paymentFailedRetry: "Қайталап көру",
+    paymentFailedBackToBooking: "Бронға оралу",
     cancelSectionTitle: "Болдырмағыңыз келе ме?",
     cancelBooking: "Бронды бас тарту",
     cancelDialogTitle: "Бронды бас тарту керек пе?",
@@ -3349,6 +3364,21 @@ export const kk: LocaleOverride<Dictionary> = {
         errorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
         errorUnavailable: "Қазір төлем жасалмады. Кейінірек көріңіз немесе мекемеге хабарласыңыз.",
         errorAlreadyActive: "Бұл броньда төлем бар. Бетті жаңартыңыз.",
+      },
+      paymentScreen: {
+        entryCta: (amount: string) => `${amount} төлеу`,
+        methodLabel: "Төлем тәсілі",
+        methodValue: "Kaspi Pay",
+        checkoutNote:
+          "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
+        successSubtitle:
+          "Брон расталды. Тапсырыс мекемеге жіберілді және келуіңізге дайын болады.",
+        successAction: "Бронды көру",
+        failedTitle: "Төлем өтпеді",
+        failedText:
+          "Бірдеңе дұрыс болмады. Тапсырысты қайта төлеп көріңіз немесе басқа төлем тәсілін таңдаңыз.",
+        failedRetry: "Қайталап көру",
+        failedBackToBooking: "Бронға оралу",
       },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка

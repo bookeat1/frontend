@@ -215,7 +215,11 @@ export function useKaspiPaymentFlow(input: {
     create.mutate(
       {
         bookingId: input.bookingId,
-        returnUrl: `${window.location.origin}/bookings/${encodeURIComponent(input.bookingId)}`,
+        // Возврат — на ПОЛНОЭКРАННУЮ страницу оплаты
+        // (`app/bookings/[id]/payment`), не на сам билет: она же держит
+        // отсчёт и «я оплатил, проверить» после того, как Kaspi полностью
+        // перезагрузит вкладку на этот адрес.
+        returnUrl: `${window.location.origin}/bookings/${encodeURIComponent(input.bookingId)}/payment`,
         idempotencyKey: idempotencyKey.current,
       },
       {

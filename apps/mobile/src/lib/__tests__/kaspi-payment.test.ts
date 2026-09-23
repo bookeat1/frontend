@@ -274,11 +274,11 @@ describe("ключ идемпотентности", () => {
 });
 
 describe("return_url", () => {
-  it("схема приложения и маршрут экрана брони", () => {
-    expect(paymentReturnUrl("b-1")).toBe("bookeat://booking/b-1");
+  it("схема приложения и маршрут полноэкранной оплаты", () => {
+    expect(paymentReturnUrl("b-1")).toBe("bookeat://booking/b-1/payment");
   });
 
   it("id экранируется — он попадает в адрес", () => {
-    expect(paymentReturnUrl("a/b")).toBe("bookeat://booking/a%2Fb");
+    expect(paymentReturnUrl("a/b")).toBe("bookeat://booking/a%2Fb/payment");
   });
 });

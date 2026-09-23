@@ -5,14 +5,20 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReservationScreen from "../booking/[id]/index";
 import { formatMoneyMinor } from "../../src/lib/format";
-import { formatCountdown } from "../../src/lib/kaspi-payment";
 
 /**
- * Блок оплаты предзаказа через Kaspi на экране брони.
+ * Блок оплаты предзаказа на экране брони — теперь ТОЛЬКО точка входа
+ * (Figma qmMsg4jO1ggmyEHNIAD2ll, узел 5390:8875): счёт, отсчёт, «я оплатил»
+ * и уход в Kaspi переехали на `app/booking/[id]/payment.tsx` и проверяются
+ * в `booking-payment-screen.test.tsx`. Этот файл проверяет только то, что
+ * действительно рисует ЭТОТ экран:
  *
- * ⚠️ У Kaspi НЕТ ПЕСОЧНИЦЫ: живой счёт создать «на попробовать» нельзя, и
- * поэтому экран проверяется здесь целиком на моках — какая фаза что рисует,
- * и, главное, ЧЕГО в каждой фазе на экране быть не должно.
+ *   1. когда блок оплаты вообще есть (гейт «подключено/пусто/терминально»);
+ *   2. пока платёж можно (пере)начать — кнопка ведёт на полный экран, а не
+ *      создаёт счёт сама;
+ *   3. когда платёж уже settled (`paid`/`settling`) — вместо кнопки виден
+ *      ЧЕК (`PreorderPaymentCard`), и на нём нет ни одной кнопки, способной
+ *      создать второй счёт.
  *
  * Ломается это тихо и дорого: кнопка оплаты, оставшаяся после оплаты, — это
  * второй счёт на те же деньги.
@@ -20,8 +26,10 @@ import { formatCountdown } from "../../src/lib/kaspi-payment";
 
 const t = getDictionary("ru");
 
+const push = vi.fn();
+
 vi.mock("expo-router", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), canGoBack: () => false }),
+  useRouter: () => ({ push, replace: vi.fn(), back: vi.fn(), canGoBack: () => false }),
   useLocalSearchParams: () => ({ id: "b-1" }),
   usePathname: () => "/booking/b-1",
 }));
@@ -43,8 +51,8 @@ vi.mock("../../src/lib/repository", () => ({
   useRepository: () => ({ getMapPreviewUrl: () => "https://cdn.example/map.png" }),
 }));
 
-/** Заведение подменяется по тесту: подключение к приёму оплаты — это теперь
- * то, от чего блок оплаты и зависит. `undefined` = деталка ещё не приехала. */
+/** Заведение подменяется по тесту: подключение к приёму оплаты — это то, от
+ * чего блок оплаты и зависит. `undefined` = деталка ещё не приехала. */
 vi.mock("../../src/hooks/useRestaurant", () => ({
   useRestaurant: () => ({ data: restaurant, isLoading: false, isError: false }),
 }));
@@ -86,15 +94,6 @@ vi.mock("../../src/hooks/useKaspiPayment", () => ({
   },
 }));
 
-/** Открытие внешней ссылки — единственное место, где экран уводит гостя из
- * приложения. В jsdom `window.open` не реализован, поэтому подменяем: иначе
- * тест шумит в stderr и ничего не проверяет. */
-const openWebsite = vi.fn(async (_url: string) => true);
-vi.mock("../../src/lib/external-links", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/lib/external-links")>()),
-  openWebsite: (url: string) => openWebsite(url),
-}));
-
 let restaurant: Restaurant | undefined;
 
 function venue(acceptsOnlinePayment: boolean): Restaurant {
@@ -121,8 +120,8 @@ const RESTAURANT: Restaurant = {
   description: "",
   acceptsOnlineBookings: true,
   // Подключено к приёму оплаты. Значение по умолчанию фикстуры — «да»,
-  // потому что остальные тесты файла разбирают ФАЗЫ оплаты, а фазы бывают
-  // только у заведения, которому вообще разрешено платить.
+  // потому что остальные тесты файла разбирают гейт, а он бывает только у
+  // заведения, которому вообще разрешено платить.
   acceptsOnlinePayment: true,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
@@ -192,16 +191,16 @@ beforeEach(() => {
   pay.mockClear();
   renew.mockClear();
   check.mockClear();
-  openWebsite.mockClear();
+  push.mockClear();
 });
 
 describe("когда блок оплаты вообще есть", () => {
-  it("живая бронь с предзаказом — кнопка Kaspi на месте, с суммой", async () => {
+  it("живая бронь с предзаказом — точка входа в оплату на месте, с суммой", async () => {
     render(<ReservationScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
     expect(
       screen.getByRole("button", {
-        name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
+        name: t.booking.paymentEntryCta(formatMoneyMinor(998_000)),
       }),
     ).toBeTruthy();
   });
@@ -224,24 +223,38 @@ describe("когда блок оплаты вообще есть", () => {
   );
 });
 
-describe("оплата видна только там, где заведение к ней подключено", () => {
-  /** Все кнопки, которые могут привести к созданию счёта. Ни одной из них не
-   * должно быть у заведения, которое оплату не принимает. */
-  function paymentButtons() {
-    return [
-      screen.queryByRole("button", { name: t.booking.paymentPayWithKaspi }),
-      screen.queryByRole("button", {
-        name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
-      }),
-      screen.queryByRole("button", { name: t.booking.paymentRenew }),
-    ].filter(Boolean);
-  }
+describe("точка входа ведёт на полный экран, а не создаёт счёт сама", () => {
+  it.each<"idle" | "awaiting" | "dead">(["idle", "awaiting", "dead"])(
+    "фаза %s — кнопка одна, и она про навигацию",
+    async (phase) => {
+      flowState.phase = phase;
+      if (phase !== "idle") flowState.payment = paymentWith({ status: phase === "dead" ? "expired" : "created" });
 
-  it("заведение принимает оплату — блок на месте, кнопка Kaspi есть", async () => {
+      render(<ReservationScreen />);
+      const button = await screen.findByRole("button", {
+        name: t.booking.paymentEntryCta(formatMoneyMinor(998_000)),
+      });
+      button.click();
+      expect(push).toHaveBeenCalledWith({
+        pathname: "/booking/[id]/payment",
+        params: { id: "b-1" },
+      });
+      // Счёт отсюда не создаётся и не обновляется вовсе — это дело полного
+      // экрана оплаты.
+      expect(pay).not.toHaveBeenCalled();
+      expect(renew).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("оплата видна только там, где заведение к ней подключено", () => {
+  it("заведение принимает оплату — блок на месте, точка входа есть", async () => {
     restaurant = venue(true);
     render(<ReservationScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
-    expect(paymentButtons()).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: t.booking.paymentEntryCta(formatMoneyMinor(998_000)) }),
+    ).toBeTruthy();
     expect(flowEnabled.every((v) => v === true)).toBe(true);
   });
 
@@ -252,8 +265,6 @@ describe("оплата видна только там, где заведение
     // что мы измерили пустую страницу.
     await waitFor(() => expect(screen.getByText(t.booking.preorderSectionTitle)).toBeTruthy());
     expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
-    expect(paymentButtons()).toHaveLength(0);
-    // И счёт не создаётся: поток выключён, а не просто спрятан.
     expect(flowEnabled.every((v) => v === false)).toBe(true);
   });
 
@@ -275,45 +286,11 @@ describe("оплата видна только там, где заведение
 
     render(<ReservationScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentPaidTitle)).toBeTruthy());
-    expect(paymentButtons()).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
   });
 });
 
-describe("фазы оплаты", () => {
-  it("ссылка жива — отсчёт по expires_at сервера, а не по нашей выдумке", async () => {
-    const now = Date.parse("2026-08-29T12:00:00.000Z");
-    flowState.now = now;
-    flowState.phase = "awaiting";
-    flowState.payment = paymentWith({
-      expiresAt: new Date(now + 4 * 60_000 + 30_000).toISOString(),
-    });
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentAwaitingTitle)).toBeTruthy());
-    expect(screen.getByText(t.booking.paymentCountdown(formatCountdown(270_000)))).toBeTruthy();
-    expect(screen.getByText(t.booking.paymentCountdown("04:30"))).toBeTruthy();
-  });
-
-  it("сервер не прислал срок — отсчёта нет вовсе, ничего не выдумываем", async () => {
-    flowState.phase = "awaiting";
-    flowState.payment = paymentWith({ expiresAt: null });
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentAwaitingTitle)).toBeTruthy());
-    expect(screen.queryByText(/Ссылка действует ещё/)).toBeNull();
-  });
-
-  it("ссылка истекла — объяснение и кнопка НОВОЙ ссылки", async () => {
-    flowState.phase = "dead";
-    flowState.payment = paymentWith({ status: "expired" });
-
-    render(<ReservationScreen />);
-    const button = await screen.findByRole("button", { name: t.booking.paymentRenew });
-    expect(screen.getByText(t.booking.paymentDeadTitle)).toBeTruthy();
-    button.click();
-    expect(renew).toHaveBeenCalledTimes(1);
-  });
-
+describe("оплаченный/дожимаемый предзаказ — чек, а не точка входа", () => {
   it("ОПЛАЧЕНО — сумма видна, а кнопки оплаты на экране НЕТ", async () => {
     flowState.phase = "paid";
     flowState.payment = paymentWith({ status: "captured" });
@@ -328,135 +305,19 @@ describe("фазы оплаты", () => {
         normalizer: (value) => value.trim(),
       }),
     ).toBeTruthy();
-    // Ни одной кнопки, которая может создать второй счёт.
-    expect(screen.queryByRole("button", { name: t.booking.paymentPayWithKaspi })).toBeNull();
-    expect(
-      screen.queryByRole("button", {
-        name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
-      }),
-    ).toBeNull();
+    // Ни одной кнопки, которая может создать второй счёт или уйти в Kaspi.
+    expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
     expect(screen.queryByRole("button", { name: t.booking.paymentRenew })).toBeNull();
     expect(screen.queryByRole("button", { name: t.booking.paymentOpenAgain })).toBeNull();
   });
 
-  it("деньги ушли, списание дожимается — «оплачено» ещё НЕ пишем", async () => {
+  it("деньги ушли, списание дожимается — «оплачено» ещё НЕ пишем, и точки входа нет", async () => {
     flowState.phase = "settling";
     flowState.payment = paymentWith({ status: "authorized" });
 
     render(<ReservationScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentSettlingTitle)).toBeTruthy());
     expect(screen.queryByText(t.booking.paymentPaidTitle)).toBeNull();
-  });
-});
-
-describe("уход в Kaspi", () => {
-  it("созданный счёт открывается сразу и РОВНО ОДИН РАЗ", async () => {
-    flowState.phase = "awaiting";
-    flowState.payment = paymentWith({ status: "created" });
-
-    const { rerender } = render(<ReservationScreen />);
-    await waitFor(() => expect(openWebsite).toHaveBeenCalledWith("https://pay.kaspi.kz/pay/abcdef"));
-
-    // Отсчёт перерисовывает экран раз в секунду. Если бы открытие висело на
-    // рендере, а не на id счёта, гостя выкидывало бы в Kaspi снова и снова.
-    flowState.now = flowState.now + 1_000;
-    rerender(<ReservationScreen />);
-    flowState.now = flowState.now + 1_000;
-    rerender(<ReservationScreen />);
-    expect(openWebsite).toHaveBeenCalledTimes(1);
-  });
-
-  it("оплаченный счёт никуда не уводит", async () => {
-    flowState.phase = "paid";
-    flowState.payment = paymentWith({ status: "captured" });
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentPaidTitle)).toBeTruthy());
-    expect(openWebsite).not.toHaveBeenCalled();
-  });
-
-  it("устройство не смогло открыть ссылку — говорим об этом", async () => {
-    openWebsite.mockResolvedValue(false);
-    flowState.phase = "awaiting";
-    flowState.payment = paymentWith({ status: "created" });
-
-    render(<ReservationScreen />);
-    await waitFor(() =>
-      expect(screen.getByText(t.booking.paymentErrorCannotOpen)).toBeTruthy(),
-    );
-    openWebsite.mockResolvedValue(true);
-  });
-
-  it("«открыть оплату снова» ведёт по той же ссылке", async () => {
-    flowState.phase = "awaiting";
-    // Статус не `created` — значит автооткрытия нет, и вызов будет ровно один:
-    // тот, который сделала кнопка.
-    flowState.payment = paymentWith({ status: "voiding" });
-
-    render(<ReservationScreen />);
-    const button = await screen.findByRole("button", { name: t.booking.paymentOpenAgain });
-    expect(openWebsite).not.toHaveBeenCalled();
-    button.click();
-    await waitFor(() =>
-      expect(openWebsite).toHaveBeenCalledWith("https://pay.kaspi.kz/pay/abcdef"),
-    );
-  });
-
-  it("«я оплатил, проверить» спрашивает сервер", async () => {
-    flowState.phase = "awaiting";
-    flowState.payment = paymentWith({ status: "voiding" });
-
-    render(<ReservationScreen />);
-    const button = await screen.findByRole("button", { name: t.booking.paymentCheckAgain });
-    button.click();
-    expect(check).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("отказы", () => {
-  it("нет сети — своя формулировка, английский текст сервера не показываем", async () => {
-    const { RepositoryError } = await import("@bookeat/api");
-    flowState.error = new RepositoryError(
-      "connection refused",
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      true,
-    );
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentErrorOffline)).toBeTruthy());
-    expect(screen.queryByText(/connection refused/)).toBeNull();
-  });
-
-  it("422 — «оплата у заведения не подключена»", async () => {
-    const { RepositoryError } = await import("@bookeat/api");
-    flowState.error = new RepositoryError("payments are not enabled", undefined, 422);
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentErrorUnavailable)).toBeTruthy());
-  });
-
-  it("409 — по броне уже есть платёж", async () => {
-    const { RepositoryError } = await import("@bookeat/api");
-    flowState.error = new RepositoryError("already active", undefined, 409);
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentErrorAlreadyActive)).toBeTruthy());
-  });
-
-  it("создание счёта идёт — кнопка заблокирована, второй счёт не создать", async () => {
-    flowState.creating = true;
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
-    const button = screen.getByRole("button", {
-      name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
-    });
-    expect(button.getAttribute("aria-disabled")).toBe("true");
-    button.click();
-    expect(pay).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
   });
 });
