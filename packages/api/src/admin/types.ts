@@ -474,6 +474,23 @@ export interface CatalogVenue {
    * а не с самим числом.
    */
   booking_rules?: CatalogVenueBookingRules | null;
+  /**
+   * EXACT `restaurants.free_cancel_window_minutes` (backend
+   * `restaurants/response.go`: `restaurantResponse.FreeCancelWindowMinutes`,
+   * `attachFreeCancelWindowMinutes`), unlike `booking_rules.free_cancel_hours`
+   * above which is rounded to the nearest hour for guest-facing copy. Cabinet
+   * routes only (GET /admin/restaurants(/:id), create, update) — same
+   * attach-only-for-cabinet rule as `kwaaka_restaurant_id`, so a `CatalogVenue`
+   * read through a public route never carries it.
+   *
+   * `undefined`/omitted means "not attached by this route OR an old server
+   * build" — the panel must fall back to `booking_rules.free_cancel_hours *
+   * 60` in that case (see `VenuesView`'s sync effect), never render a bare
+   * `0`. Distinguish from an explicit `null`, which this field never actually
+   * sends (the backend column is NOT NULL wherever it's loaded), but the type
+   * allows it defensively.
+   */
+  free_cancel_window_minutes?: number | null;
 }
 
 /** `booking_rules` в ответе на чтение заведения кабинетом — см. doc-комментарий
