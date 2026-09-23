@@ -1,5 +1,5 @@
 import type { Booking, BookingStatus } from "@bookeat/api/client";
-import { isCancellableBookingStatus } from "@bookeat/api/client";
+import { hasVisitStarted, isCancellableBookingStatus } from "@bookeat/api/client";
 
 /**
  * Правила страницы гостя для списка броней (узел 3525:15153).
@@ -102,11 +102,15 @@ export function canChange(booking: Booking, now: Date): boolean {
 }
 
 /**
- * «Отменить» решает ТОЛЬКО статус — так же, как `POST /bookings/:id/cancel`
- * на бэкенде; времени в правиле нет нарочно (см. `CANCELLABLE_BOOKING_STATUSES`).
+ * «Отменить» — статус остаётся отменяемым (см. `CANCELLABLE_BOOKING_STATUSES`,
+ * так же, как на `POST /bookings/:id/cancel`) И визит ещё не наступил
+ * (`hasVisitStarted`, общая с мобилкой проверка `packages/api`). Кнопку
+ * прячем целиком, а не просто выключаем: если время визита уже наступило, а
+ * статус остался, например, `confirmed`, отменять уже нечего — гостя либо
+ * ждут за столом сейчас, либо визит уже состоялся.
  */
-export function canCancel(booking: Booking): boolean {
-  return isCancellableBookingStatus(booking.status);
+export function canCancel(booking: Booking, now: Date): boolean {
+  return isCancellableBookingStatus(booking.status) && !hasVisitStarted(booking, now);
 }
 
 /** Визиты для статистики карточки гостя — только состоявшиеся. */

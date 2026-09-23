@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { booking } from "@web/test/harness";
-import { canChange, canShowCode, countVisits, splitBySegment, statusPill } from "@web/lib/profile-bookings";
+import { canCancel, canChange, canShowCode, countVisits, splitBySegment, statusPill } from "@web/lib/profile-bookings";
 
 const now = new Date("2026-08-20T12:00:00Z");
 
@@ -38,5 +38,24 @@ describe("сегменты броней профиля", () => {
 
   it("визиты — только состоявшиеся", () => {
     expect(countVisits([booking({ status: "completed" }), booking({ status: "arrived" }), booking({ status: "cancelled" }), booking()])).toBe(2);
+  });
+
+  it("«Отменить» пропадает, когда время визита уже наступило, даже у живого статуса", () => {
+    // Статус остаётся `confirmed`/`pending`/`waitlist`/`arrived` — сервер его
+    // не перевёл, но визит уже наступил, отменять нечего.
+    const started = booking({ status: "confirmed", startsAt: "2026-08-20T11:00:00Z" });
+    const arrivedStarted = booking({ status: "arrived", startsAt: "2026-08-20T11:00:00Z" });
+    expect(canCancel(started, now)).toBe(false);
+    expect(canCancel(arrivedStarted, now)).toBe(false);
+  });
+
+  it("«Отменить» показывается, пока визит ещё не наступил и статус отменяемый", () => {
+    const upcoming = booking({ status: "pending", startsAt: "2026-08-25T14:30:00Z" });
+    expect(canCancel(upcoming, now)).toBe(true);
+  });
+
+  it("«Отменить» не показывается у уже терминального статуса независимо от времени", () => {
+    const cancelled = booking({ status: "cancelled", startsAt: "2026-08-25T14:30:00Z" });
+    expect(canCancel(cancelled, now)).toBe(false);
   });
 });
