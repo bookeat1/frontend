@@ -2290,6 +2290,21 @@ export const kk: LocaleOverride<Dictionary> = {
     paymentErrorAlreadyActive: "Бұл броньда төлем бар. Экранды жаңартыңыз.",
     paymentErrorCannotOpen:
       "Kaspi ашылмады. Kaspi.kz қосымшасын орнатыңыз немесе сілтемені браузерде ашыңыз.",
+
+    /* --- Алдын ала тапсырысты толық экранда төлеу (себебі — ru.ts) --- */
+    paymentEntryCta: (amount: string) => `${amount} төлеу`,
+    paymentMethodLabel: "Төлем тәсілі",
+    paymentMethodValue: "Kaspi Pay",
+    paymentCheckoutNote:
+      "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
+    paymentSuccessSubtitle:
+      "Брон расталды. Тапсырыс мекемеге жіберілді және келуіңізге дайын болады.",
+    paymentSuccessAction: "Бронды көру",
+    paymentFailedTitle: "Төлем өтпеді",
+    paymentFailedText:
+      "Бірдеңе дұрыс болмады. Тапсырысты қайта төлеп көріңіз немесе басқа төлем тәсілін таңдаңыз.",
+    paymentFailedRetry: "Қайталап көру",
+    paymentFailedBackToBooking: "Бронға оралу",
     cancelSectionTitle: "Болдырмағыңыз келе ме?",
     cancelBooking: "Бронды бас тарту",
     cancelDialogTitle: "Бронды бас тарту керек пе?",
@@ -3347,6 +3362,42 @@ export const kk: LocaleOverride<Dictionary> = {
         cancelUntilTime: string,
       ) =>
         `Үстелді ${bookingTime}-дан кейін ${holdMinutes} минут ұстап тұрамыз. ${lateArrivalText} Тегін бас тарту — ${cancelUntilTime} дейін.`,
+      payment: {
+        sectionTitle: "Алдын ала тапсырысты төлеу",
+        intro: "Алдын ала төлеңіз — ас үй сіз келгенге дейін дайындай бастайды.",
+        payWithKaspi: "Kaspi арқылы төлеу",
+        payWithKaspiAmount: (amount: string) => `Kaspi арқылы ${amount} төлеу`,
+        awaitingTitle: "Төлемді күтудеміз",
+        countdown: (left: string) => `Сілтеме тағы ${left} жарамды`,
+        openAgain: "Төлемді қайта ашу",
+        checkAgain: "Төледім, тексеру",
+        settlingTitle: "Төлем өтті, растап жатырмыз",
+        deadTitle: "Бұл төлем сілтемесі енді жарамсыз",
+        deadHint:
+          "Төлем өтпесе немесе тым көп уақыт өтсе осылай болады. Сома өзгермейді — жаңа сілтеме жасаңыз.",
+        renew: "Жаңа сілтеме жасау",
+        paidTitle: "Алдын ала тапсырыс төленді",
+        paidHint: (amount: string) => `${amount} төленді. Мекеме тапсырысыңызды көреді.`,
+        errorOffline: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
+        errorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
+        errorUnavailable: "Қазір төлем жасалмады. Кейінірек көріңіз немесе мекемеге хабарласыңыз.",
+        errorAlreadyActive: "Бұл броньда төлем бар. Бетті жаңартыңыз.",
+      },
+      paymentScreen: {
+        entryCta: (amount: string) => `${amount} төлеу`,
+        methodLabel: "Төлем тәсілі",
+        methodValue: "Kaspi Pay",
+        checkoutNote:
+          "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
+        successSubtitle:
+          "Брон расталды. Тапсырыс мекемеге жіберілді және келуіңізге дайын болады.",
+        successAction: "Бронды көру",
+        failedTitle: "Төлем өтпеді",
+        failedText:
+          "Бірдеңе дұрыс болмады. Тапсырысты қайта төлеп көріңіз немесе басқа төлем тәсілін таңдаңыз.",
+        failedRetry: "Қайталап көру",
+        failedBackToBooking: "Бронға оралу",
+      },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */

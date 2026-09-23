@@ -243,9 +243,14 @@ function withinGrace(state: PollState): boolean {
  * `return_url` для `POST /bookings/:id/payment`.
  *
  * Собственная схема приложения (`"scheme": "bookeat"` в app.json), а не
- * https-адрес: единственное осмысленное «куда вернуть гостя» — это тот самый
- * экран брони, с которого он ушёл платить, и путь совпадает с маршрутом
- * expo-router `app/booking/[id]`.
+ * https-адрес: единственное осмысленное «куда вернуть гостя» — это ПОЛНЫЙ
+ * ЭКРАН оплаты (`app/booking/[id]/payment.tsx`), а не сам экран брони.
+ *
+ * БЫЛО `bookeat://booking/:id` (сам экран брони) — вело туда, когда карточка
+ * оплаты была инлайновым блоком на нём. Теперь у оплаты свой маршрут: отсчёт,
+ * «открыть снова» и «я оплатил, проверить» рисует он, а экран брони держит
+ * только точку входа и оплаченный чек. Путь совпадает с expo-router
+ * `app/booking/[id]/payment`.
  *
  * Kaspi этот адрес НЕ ИСПОЛЬЗУЕТ вовсе — его адаптер (`internal/
  * infrastructure/payment/kaspi`) не читает ReturnURL ни разу. Но ручка
@@ -253,7 +258,7 @@ function withinGrace(state: PollState): boolean {
  * пустышкой вроде "about:blank" незачем, когда есть честный адрес.
  */
 export function paymentReturnUrl(bookingId: string): string {
-  return `bookeat://booking/${encodeURIComponent(bookingId)}`;
+  return `bookeat://booking/${encodeURIComponent(bookingId)}/payment`;
 }
 
 export function newIdempotencyKey(): string {

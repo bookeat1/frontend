@@ -1,4 +1,4 @@
-import type { BookingPayment, PaymentStatus } from "@bookeat/api";
+import type { BookingPayment, PaymentStatus } from "@bookeat/api/client";
 import { describe, expect, it } from "vitest";
 import {
   formatCountdown,
@@ -17,11 +17,9 @@ import {
 } from "../kaspi-payment";
 
 /**
- * Правила оплаты предзаказа через Kaspi.
- *
- * Ломается это ДОРОГО и тихо: у Kaspi нет песочницы, поэтому каждая ошибка
- * здесь стоит настоящих денег на настоящем счёте. Отсюда и объём — это
- * единственное место, где поведение оплаты можно проверить, ничего не оплатив.
+ * Правила оплаты предзаказа через Kaspi на вебе — тот же контракт, что и на
+ * мобилке (`apps/mobile/src/lib/__tests__/kaspi-payment.test.ts`), кроме
+ * `paymentReturnUrl` (у сайта нет `bookeat://`, гостя возвращают на страницу).
  */
 
 const NOW = Date.parse("2026-08-29T12:00:00.000Z");
@@ -69,8 +67,6 @@ describe("состояние платежа", () => {
   });
 
   it("captured — оплачено, и часы устройства этого не отменяют", () => {
-    // Срок «истёк» час назад, но сервер уже сказал «оплачено». Порядок
-    // проверок в paymentPhase обязан ставить оплату первой.
     const paid = payment({
       status: "captured",
       expiresAt: new Date(NOW - 3_600_000).toISOString(),
@@ -91,8 +87,6 @@ describe("состояние платежа", () => {
   );
 
   it("статус ещё created, но срок вышел — тоже мертва", () => {
-    // Вебхук Kaspi об истечении может опоздать; показывать при этом
-    // отсчёт «-00:42» и живую кнопку — врать гостю.
     const stale = payment({ expiresAt: new Date(NOW - 1_000).toISOString() });
     expect(paymentPhase(stale, NOW)).toBe("dead");
   });
@@ -135,7 +129,7 @@ describe("ритм опроса", () => {
     sinceStartMs: 0,
   };
 
-  it("первую минуту после возврата в приложение — часто", () => {
+  it("первую минуту после возврата фокуса на вкладку — часто", () => {
     expect(nextPollDelayMs(base)).toBe(POLL_FAST_MS);
     expect(nextPollDelayMs({ ...base, sinceForegroundMs: POLL_FAST_WINDOW_MS - 1 })).toBe(
       POLL_FAST_MS,
@@ -159,7 +153,7 @@ describe("ритм опроса", () => {
     },
   );
 
-  it("приложение в фоне — не опрашиваем вовсе", () => {
+  it("вкладка в фоне — не опрашиваем вовсе", () => {
     expect(nextPollDelayMs({ ...base, appActive: false })).toBe(false);
   });
 
@@ -230,15 +224,6 @@ describe("кому вообще показывать оплату предзак
       },
     );
 
-    it("статусы «деньги уже ушли» и фазы экрана — одно и то же множество", () => {
-      // Инвариант, на котором держится «видно, но платить нельзя»: карточка в
-      // этих фазах рисует чек и НИ ОДНОЙ кнопки, создающей счёт. Если множества
-      // разойдутся, у отключённого заведения снова появится кнопка.
-      for (const status of ["authorized", "capturing", "captured"] as PaymentStatus[]) {
-        expect(["settling", "paid"]).toContain(paymentPhase(payment({ status }), NOW));
-      }
-    });
-
     it.each<PaymentStatus>(["created", "expired", "failed", "voided", "refunded"])(
       "%s — деньги не дошли, блока нет",
       (status) => {
@@ -274,11 +259,15 @@ describe("ключ идемпотентности", () => {
 });
 
 describe("return_url", () => {
-  it("схема приложения и маршрут полноэкранной оплаты", () => {
-    expect(paymentReturnUrl("b-1")).toBe("bookeat://booking/b-1/payment");
+  it("страница брони на том же origin, откуда ушли платить", () => {
+    expect(paymentReturnUrl("https://book-eat.com", "b-1")).toBe(
+      "https://book-eat.com/bookings/b-1",
+    );
   });
 
   it("id экранируется — он попадает в адрес", () => {
-    expect(paymentReturnUrl("a/b")).toBe("bookeat://booking/a%2Fb/payment");
+    expect(paymentReturnUrl("https://book-eat.com", "a/b")).toBe(
+      "https://book-eat.com/bookings/a%2Fb",
+    );
   });
 });

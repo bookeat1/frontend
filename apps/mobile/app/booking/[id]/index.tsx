@@ -22,6 +22,7 @@ import { describeCancellationCost } from "../../../src/components/booking/cancel
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
 import { PreorderPaymentCard } from "../../../src/components/booking/PreorderPaymentCard";
+import { PreorderPaymentEntryCard } from "../../../src/components/booking/PreorderPaymentEntryCard";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
@@ -39,7 +40,6 @@ import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { useKaspiPaymentFlow } from "../../../src/hooks/useKaspiPayment";
 import { trackEvent } from "../../../src/lib/analytics";
 import { useAuth } from "../../../src/lib/auth";
-import { openWebsite } from "../../../src/lib/external-links";
 import { formatMoneyMinor, formatRelativeDay, formatTime } from "../../../src/lib/format";
 import { paymentReturnUrl, preorderPaymentGate } from "../../../src/lib/kaspi-payment";
 
@@ -115,40 +115,21 @@ export default function ReservationScreen() {
     existingPayment: payment.isError ? null : payment.data,
   });
 
+  // Создание счёта и открытие ссылки Kaspi переехали на полный экран оплаты
+  // (`app/booking/[id]/payment.tsx`) — этот экран больше сам счёт не создаёт
+  // и никуда не уводит гостя. `paymentFlow` здесь нужен ТОЛЬКО чтобы узнать
+  // текущую фазу и решить, что нарисовать: кнопку входа в оплату или уже
+  // готовый чек (см. `paymentGate.payable` ниже) — вот почему `pay`/`renew`
+  // из этого объекта здесь не вызываются.
   const paymentFlow = useKaspiPaymentFlow({
     bookingId: id ?? "",
     returnUrl: paymentReturnUrl(id ?? ""),
     existing: payment.isError ? null : payment.data,
-    // Создание счёта и опрос включены ровно тогда, когда блок на экране: при
-    // `visible && !payable` платёж уже сделан, фаза — «оплачено»/«дожимаем»,
-    // и ни одной кнопки, создающей счёт, карточка не рисует.
+    // Опрос идёт ровно тогда, когда блок на экране: при `visible && !payable`
+    // платёж уже сделан, фаза — «оплачено»/«дожимаем», и это единственный
+    // случай, где эту фазу вообще нужно знать здесь.
     enabled: paymentGate.visible && Boolean(id),
   });
-  const [openFailed, setOpenFailed] = React.useState(false);
-
-  const paymentUrl = paymentFlow.payment?.paymentUrl ?? null;
-  const openPaymentLink = React.useCallback(async () => {
-    if (!paymentUrl) return;
-    // `openWebsite` никогда не бросает: устройство без браузера и без Kaspi —
-    // это реальная конфигурация, и падать на ней экран брони не должен.
-    const opened = await openWebsite(paymentUrl);
-    setOpenFailed(!opened);
-  }, [paymentUrl]);
-
-  // Счёт создан — гостя надо сразу увести в Kaspi, а не заставлять нажимать
-  // вторую кнопку: он уже нажал «Оплатить». Открываем РОВНО ОДИН РАЗ на счёт
-  // (`autoOpened`), иначе любой повторный рендер (тик отсчёта — раз в секунду)
-  // выкидывал бы человека из приложения снова и снова.
-  const autoOpened = React.useRef<string | null>(null);
-  const paymentIdForOpen = paymentFlow.payment?.id ?? null;
-  const paymentStatus = paymentFlow.payment?.status ?? null;
-  React.useEffect(() => {
-    if (!paymentIdForOpen || !paymentUrl || paymentStatus !== "created") return;
-    if (autoOpened.current === paymentIdForOpen) return;
-    autoOpened.current = paymentIdForOpen;
-    setOpenFailed(false);
-    void openPaymentLink();
-  }, [paymentIdForOpen, paymentStatus, paymentUrl, openPaymentLink]);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
@@ -493,17 +474,44 @@ export default function ReservationScreen() {
             Блока нет и у заведения, которое оплату не принимает: кнопка,
             упирающаяся в отказ сервера, хуже отсутствующей кнопки.
 
+            Полноэкранная оплата (Figma qmMsg4jO1ggmyEHNIAD2ll, узел 5390:8875)
+            — новый счёт и его отсчёт больше НЕ рисуются здесь инлайн: пока
+            платёж можно (пере)начать, экран брони — только точка входа на
+            `app/booking/[id]/payment`. Инлайн-карточка остаётся, но уже как
+            ЧЕК — для оплаченного/дожимаемого предзаказа, где кнопки оплаты у
+            неё и так нет.
+
+            Решение НЕ только по `paymentGate.payable`: та читает отдельный,
+            более медленный запрос (`useBookingPayment`, `staleTime` минуту) и
+            может на секунды отстать от `paymentFlow.phase`, который эту же
+            бронь опрашивает напрямую (`GET /payments/:id`). Без проверки фазы
+            гость, только что оплативший (`settling`/`paid` по опросу), на
+            миг увидел бы точку входа в оплату — уже за оплаченный заказ.
+
             ⚠️ У Kaspi НЕТ ПЕСОЧНИЦЫ. Каждое успешное создание счёта — живая
-            ссылка на живые деньги, поэтому этот блок нельзя «просто потыкать»
-            на настоящем заведении. */}
+            ссылка на живые деньги, поэтому полный экран нельзя «просто
+            потыкать» на настоящем заведении. */}
         {paymentGate.visible ? (
-          <PreorderPaymentCard
-            flow={paymentFlow}
-            onOpenLink={() => void openPaymentLink()}
-            onCheck={paymentFlow.check}
-            fallbackAmountMinor={preorder.data?.totalMinor ?? null}
-            openFailed={openFailed}
-          />
+          paymentGate.payable && paymentFlow.phase !== "settling" && paymentFlow.phase !== "paid" ? (
+            <PreorderPaymentEntryCard
+              amountMinor={paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null}
+              onPress={() =>
+                router.push({ pathname: "/booking/[id]/payment", params: { id: data.id } })
+              }
+            />
+          ) : (
+            <PreorderPaymentCard
+              flow={paymentFlow}
+              // Ветка «ждём оплату» этой карточки здесь никогда не рисуется
+              // (`payable` было бы `true`), поэтому открывать ссылку отсюда
+              // нечем — колбэк оставлен пустым намеренно, а не выброшен из
+              // пропсов компонента, общего с полным экраном оплаты.
+              onOpenLink={() => {}}
+              onCheck={paymentFlow.check}
+              fallbackAmountMinor={preorder.data?.totalMinor ?? null}
+              openFailed={false}
+            />
+          )
         ) : null}
 
         {restaurant.data && hasAnyContact(restaurant.data) ? (

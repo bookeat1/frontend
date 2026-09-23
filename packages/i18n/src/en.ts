@@ -2286,6 +2286,22 @@ export const en: LocaleOverride<Dictionary> = {
     paymentErrorAlreadyActive: "This booking already has a payment. Refresh the screen.",
     paymentErrorCannotOpen:
       "Could not open Kaspi. Install the Kaspi.kz app or open the link in a browser.",
+
+    /* --- Full-screen pre-order payment (see ru.ts for the design/reasoning
+       comments) --- */
+    paymentEntryCta: (amount: string) => `Pay ${amount}`,
+    paymentMethodLabel: "Payment method",
+    paymentMethodValue: "Kaspi Pay",
+    paymentCheckoutNote:
+      "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",
+    paymentSuccessSubtitle:
+      "Booking confirmed. The order was sent to the restaurant and will be ready for your visit.",
+    paymentSuccessAction: "View booking",
+    paymentFailedTitle: "Payment failed",
+    paymentFailedText:
+      "Something went wrong. Try paying again or choose a different payment method.",
+    paymentFailedRetry: "Try again",
+    paymentFailedBackToBooking: "Back to booking",
     cancelSectionTitle: "Want to cancel?",
     cancelBooking: "Cancel",
     cancelDialogTitle: "Cancel booking?",
@@ -3341,6 +3357,42 @@ export const en: LocaleOverride<Dictionary> = {
         cancelUntilTime: string,
       ) =>
         `We hold the table for ${holdMinutes} minutes after ${bookingTime}. ${lateArrivalText} Free cancellation until ${cancelUntilTime}.`,
+      payment: {
+        sectionTitle: "Pre-order payment",
+        intro: "Pay in advance and the kitchen starts cooking for your arrival.",
+        payWithKaspi: "Pay with Kaspi",
+        payWithKaspiAmount: (amount: string) => `Pay ${amount} with Kaspi`,
+        awaitingTitle: "Waiting for the payment",
+        countdown: (left: string) => `The link is valid for another ${left}`,
+        openAgain: "Open the payment again",
+        checkAgain: "I have paid, check",
+        settlingTitle: "Payment went through, confirming",
+        deadTitle: "This payment link no longer works",
+        deadHint:
+          "That happens when a payment fails or too much time passes. The amount stays the same — create a new link.",
+        renew: "Create a new link",
+        paidTitle: "Pre-order paid",
+        paidHint: (amount: string) => `${amount} paid. The venue can see your order.`,
+        errorOffline: "No connection to the server. Check the internet and try again.",
+        errorServer: "Could not create the invoice. Try again a bit later.",
+        errorUnavailable: "Payment is not available right now. Try again later or contact the venue.",
+        errorAlreadyActive: "This booking already has a payment. Refresh the page.",
+      },
+      paymentScreen: {
+        entryCta: (amount: string) => `Pay ${amount}`,
+        methodLabel: "Payment method",
+        methodValue: "Kaspi Pay",
+        checkoutNote:
+          "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",
+        successSubtitle:
+          "Booking confirmed. The order was sent to the restaurant and will be ready for your visit.",
+        successAction: "View booking",
+        failedTitle: "Payment failed",
+        failedText:
+          "Something went wrong. Try paying again or choose a different payment method.",
+        failedRetry: "Try again",
+        failedBackToBooking: "Back to booking",
+      },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */
