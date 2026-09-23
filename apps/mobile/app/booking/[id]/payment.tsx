@@ -38,8 +38,10 @@ const t = getDictionary();
  *
  * НЕСОВПАДЕНИЕ С МАКЕТОМ, зафиксированное намеренно: узел рисует строку
  * «Способ оплаты» с выбором карты («Карта •••• 4242», «Изменить»). В бэкенде
- * нет сохранённых карт — есть только Kaspi Pay (редирект на pay.kaspi.kz),
- * поэтому строка нередактируема и называет реальный единственный способ.
+ * нет сохранённых карт и нет реального выбора способа — а провайдер зависит
+ * от заведения (не всегда Kaspi, например TipTopPay у Abay), так что называть
+ * конкретный бренд здесь было бы неверно. Строка убрана целиком, кнопка ниже
+ * называется просто «Оплатить» (правка владельца 2026-09-23).
  * Список блюд в макете — с фотографией на каждой строке; `PreorderLine` с
  * сервера фото не отдаёт (`packages/api/src/types.ts`), поэтому строки
  * текстовые, как и везде в приложении.
@@ -205,13 +207,6 @@ export default function PaymentScreen() {
           </View>
         </View>
 
-        <View style={styles.methodCard}>
-          <View>
-            <Text style={styles.methodLabel}>{t.booking.paymentMethodLabel}</Text>
-            <Text style={styles.methodValue}>{t.booking.paymentMethodValue}</Text>
-          </View>
-        </View>
-
         <Text style={styles.note}>{t.booking.paymentCheckoutNote}</Text>
 
         {phase === "settling" ? <Text style={styles.strong}>{t.booking.paymentSettlingTitle}</Text> : null}
@@ -241,7 +236,7 @@ export default function PaymentScreen() {
 
         {phase === "idle" ? (
           <KaspiPayButton
-            label={amount ? t.booking.paymentPayWithKaspiAmount(amount) : t.booking.paymentPayWithKaspi}
+            label={amount ? t.booking.paymentPayAmount(amount) : t.booking.paymentPay}
             busy={paymentFlow.creating}
             onPress={paymentFlow.pay}
             accessibilityHint={t.booking.paymentOpensExternally}
@@ -334,19 +329,6 @@ const styles = StyleSheet.create({
   },
   summaryRowPrice: {
     ...typography.body,
-    color: colors.text.primary,
-  },
-  methodCard: {
-    backgroundColor: colors.background.subtle,
-    borderRadius: radius.card,
-    padding: spacing.lg,
-  },
-  methodLabel: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  methodValue: {
-    ...typography.labelMedium,
     color: colors.text.primary,
   },
   note: {

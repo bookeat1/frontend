@@ -25,8 +25,10 @@ import { useKaspiPaymentFlow } from "@web/lib/use-kaspi-payment";
  *
  * НЕСОВПАДЕНИЯ С МАКЕТОМ, зафиксированные намеренно:
  *  - строка «Способ оплаты» в узле — выбор сохранённой карты («Карта ••••
- *    4242», «Изменить»). В бэкенде сохранённых карт нет — есть только Kaspi
- *    Pay (редирект на pay.kaspi.kz), поэтому строка нередактируема;
+ *    4242», «Изменить»). В бэкенде сохранённых карт нет и выбора способа
+ *    нет вовсе — а провайдер зависит от заведения (не всегда Kaspi, например
+ *    TipTopPay у Abay), поэтому строка убрана целиком, а кнопка ниже
+ *    называется просто «Оплатить» (правка владельца 2026-09-23);
  *  - строки предзаказа в макете — с фотографией; `PreorderLine` фото не
  *    отдаёт (`packages/api/src/types.ts`), строки текстовые, как на билете.
  */
@@ -151,11 +153,6 @@ function PaymentBody({
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="rounded-xl bg-subtle p-4">
-        <p className="text-bodyS text-ink-tertiary">{texts.methodLabel}</p>
-        <p className="text-bodyM font-medium text-ink">{texts.methodValue}</p>
       </div>
 
       <p className="text-bodyS text-ink-tertiary">{texts.checkoutNote}</p>

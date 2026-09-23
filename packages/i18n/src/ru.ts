@@ -3198,9 +3198,11 @@ export const ru = {
     /** Приглашение, когда счёт ещё не создан. */
     paymentIntro:
       "Оплатите предзаказ заранее — кухня начнёт готовить к вашему приходу.",
-    /** Подпись кнопки. Слово «Kaspi» — название банка, оно не переводится. */
-    paymentPayWithKaspi: "Оплатить через Kaspi",
-    paymentPayWithKaspiAmount: (amount: string) => `Оплатить ${amount} через Kaspi`,
+    /** Подпись кнопки. Провайдер не называется намеренно: он зависит от
+     * заведения (не всегда Kaspi, например TipTopPay у Abay), а выбора
+     * способа оплаты в приложении нет (правка владельца 2026-09-23). */
+    paymentPay: "Оплатить",
+    paymentPayAmount: (amount: string) => `Оплатить ${amount}`,
     /** Подсказка для скринридера: кнопка уводит из приложения. */
     paymentOpensExternally: "Откроется приложение Kaspi или браузер",
     /** Ссылка создана и ещё жива. */
@@ -3245,12 +3247,6 @@ export const ru = {
     paymentEntryCta: (amount: string) => `Оплатить ${amount}`,
     /** Подзаголовок экрана оплаты — под заголовком «Оплата предзаказа»,
      * само название заведения (Figma «Payment Subtitle»). */
-    /** Строка «Способ оплаты» на экране оплаты. В макете нарисован выбор
-     * карты («Карта •••• 4242», «Изменить») — в бэкенде нет сохранённых
-     * карт, есть только Kaspi Pay (редирект на pay.kaspi.kz), поэтому строка
-     * НЕ кликабельна и показывает единственный реальный способ. */
-    paymentMethodLabel: "Способ оплаты",
-    paymentMethodValue: "Kaspi Pay",
     /** Заметка под карточкой суммы (Figma «Checkout Note», текст в макете
      * обрезан на «...сохраняется на выбранное»; дописано по смыслу). */
     paymentCheckoutNote:
@@ -4916,8 +4912,8 @@ export const ru = {
       payment: {
         sectionTitle: "Оплата предзаказа",
         intro: "Оплатите предзаказ заранее — кухня начнёт готовить к вашему приходу.",
-        payWithKaspi: "Оплатить через Kaspi",
-        payWithKaspiAmount: (amount: string) => `Оплатить ${amount} через Kaspi`,
+        payWithKaspi: "Оплатить",
+        payWithKaspiAmount: (amount: string) => `Оплатить ${amount}`,
         awaitingTitle: "Ждём оплату",
         countdown: (left: string) => `Ссылка действует ещё ${left}`,
         openAgain: "Открыть оплату снова",
@@ -4941,8 +4937,6 @@ export const ru = {
        * выбора карты). */
       paymentScreen: {
         entryCta: (amount: string) => `Оплатить ${amount}`,
-        methodLabel: "Способ оплаты",
-        methodValue: "Kaspi Pay",
         checkoutNote:
           "После подтверждения заказ передаётся ресторану, а бронь сохраняется на выбранное время.",
         successSubtitle:

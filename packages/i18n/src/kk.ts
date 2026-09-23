@@ -2270,8 +2270,8 @@ export const kk: LocaleOverride<Dictionary> = {
 
     paymentSectionTitle: "Алдын ала тапсырысты төлеу",
     paymentIntro: "Алдын ала төлеңіз — ас үй сіз келгенге дейін дайындай бастайды.",
-    paymentPayWithKaspi: "Kaspi арқылы төлеу",
-    paymentPayWithKaspiAmount: (amount: string) => `Kaspi арқылы ${amount} төлеу`,
+    paymentPay: "Төлеу",
+    paymentPayAmount: (amount: string) => `${amount} төлеу`,
     paymentOpensExternally: "Kaspi қосымшасы немесе браузер ашылады",
     paymentAwaitingTitle: "Төлемді күтудеміз",
     paymentCountdown: (left: string) => `Сілтеме тағы ${left} жарамды`,
@@ -2293,8 +2293,6 @@ export const kk: LocaleOverride<Dictionary> = {
 
     /* --- Алдын ала тапсырысты толық экранда төлеу (себебі — ru.ts) --- */
     paymentEntryCta: (amount: string) => `${amount} төлеу`,
-    paymentMethodLabel: "Төлем тәсілі",
-    paymentMethodValue: "Kaspi Pay",
     paymentCheckoutNote:
       "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
     paymentSuccessSubtitle:
@@ -3365,8 +3363,8 @@ export const kk: LocaleOverride<Dictionary> = {
       payment: {
         sectionTitle: "Алдын ала тапсырысты төлеу",
         intro: "Алдын ала төлеңіз — ас үй сіз келгенге дейін дайындай бастайды.",
-        payWithKaspi: "Kaspi арқылы төлеу",
-        payWithKaspiAmount: (amount: string) => `Kaspi арқылы ${amount} төлеу`,
+        payWithKaspi: "Төлеу",
+        payWithKaspiAmount: (amount: string) => `${amount} төлеу`,
         awaitingTitle: "Төлемді күтудеміз",
         countdown: (left: string) => `Сілтеме тағы ${left} жарамды`,
         openAgain: "Төлемді қайта ашу",
@@ -3385,8 +3383,6 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       paymentScreen: {
         entryCta: (amount: string) => `${amount} төлеу`,
-        methodLabel: "Төлем тәсілі",
-        methodValue: "Kaspi Pay",
         checkoutNote:
           "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
         successSubtitle:

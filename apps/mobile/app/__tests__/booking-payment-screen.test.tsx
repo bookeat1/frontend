@@ -160,13 +160,13 @@ beforeEach(() => {
 });
 
 describe("фаза idle", () => {
-  it("рисует сумму, состав и кнопку «Оплатить через Kaspi»", async () => {
+  it("рисует сумму, состав и кнопку «Оплатить»", async () => {
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
     expect(screen.getByText("Mongol")).toBeTruthy();
     expect(screen.getByText(/Бешбармак/)).toBeTruthy();
     const button = screen.getByRole("button", {
-      name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
+      name: t.booking.paymentPayAmount(formatMoneyMinor(998_000)),
     });
     button.click();
     expect(pay).toHaveBeenCalledTimes(1);
@@ -265,7 +265,7 @@ describe("отказы создания счёта", () => {
 
     render(<PaymentScreen />);
     const button = await screen.findByRole("button", {
-      name: t.booking.paymentPayWithKaspiAmount(formatMoneyMinor(998_000)),
+      name: t.booking.paymentPayAmount(formatMoneyMinor(998_000)),
     });
     expect(button.getAttribute("aria-disabled")).toBe("true");
     button.click();
