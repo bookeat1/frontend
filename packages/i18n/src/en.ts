@@ -3323,6 +3323,27 @@ export const en: LocaleOverride<Dictionary> = {
         cancelUntilTime: string,
       ) =>
         `We hold the table for ${holdMinutes} minutes after ${bookingTime}. ${lateArrivalText} Free cancellation until ${cancelUntilTime}.`,
+      payment: {
+        sectionTitle: "Pre-order payment",
+        intro: "Pay in advance and the kitchen starts cooking for your arrival.",
+        payWithKaspi: "Pay with Kaspi",
+        payWithKaspiAmount: (amount: string) => `Pay ${amount} with Kaspi`,
+        awaitingTitle: "Waiting for the payment",
+        countdown: (left: string) => `The link is valid for another ${left}`,
+        openAgain: "Open the payment again",
+        checkAgain: "I have paid, check",
+        settlingTitle: "Payment went through, confirming",
+        deadTitle: "This payment link no longer works",
+        deadHint:
+          "That happens when a payment fails or too much time passes. The amount stays the same — create a new link.",
+        renew: "Create a new link",
+        paidTitle: "Pre-order paid",
+        paidHint: (amount: string) => `${amount} paid. The venue can see your order.`,
+        errorOffline: "No connection to the server. Check the internet and try again.",
+        errorServer: "Could not create the invoice. Try again a bit later.",
+        errorUnavailable: "Payment is not available right now. Try again later or contact the venue.",
+        errorAlreadyActive: "This booking already has a payment. Refresh the page.",
+      },
     },
     /** Страница гастрогида `/guide` — узел 5033:7096; заголовки секций и шапка
      * берутся из `articles.*`, здесь только то, чего у приложения нет. */
