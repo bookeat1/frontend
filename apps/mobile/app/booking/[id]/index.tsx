@@ -1,5 +1,6 @@
 import {
   canGuestCancel,
+  computePaymentBreakdown,
   hasVisitStarted,
   isCancellableBookingStatus,
   isRebookableBooking,
@@ -17,6 +18,8 @@ import { CancelBookingDialog } from "../../../src/components/booking/CancelBooki
 import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
+import { PreorderPaidBlock, PreorderPaidPill } from "../../../src/components/booking/PreorderPaidBlock";
+import { PreorderPayEntry } from "../../../src/components/booking/PreorderPayEntry";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
@@ -30,7 +33,9 @@ import {
   useCancelBooking,
   usePreorder,
 } from "../../../src/hooks/useBooking";
+import { useTickingNow } from "../../../src/hooks/useKaspiPayment";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
+import { isPaid, preorderPayEntry, preorderPaymentGate } from "../../../src/lib/kaspi-payment";
 import { trackEvent } from "../../../src/lib/analytics";
 import { useAuth } from "../../../src/lib/auth";
 import { formatRelativeDay, formatTime } from "../../../src/lib/format";
@@ -95,6 +100,28 @@ export default function ReservationScreen() {
   // потеряет свой чек, а диалог отмены — фразу про деньги.
   const payment = useBookingPayment(id, canCancel || preorderChargeable);
   const cancel = useCancelBooking();
+
+  // Вход обратно в шторку оплаты, если гость её закрыл (блока «Оплата
+  // предзаказа» на экране по макету нет, только эта одна строка).
+  const livePayment = payment.isError || payment.isPending ? null : payment.data ?? null;
+  const payGate = preorderPaymentGate({
+    bookingIsLive: cancellable,
+    preorderItemsCount,
+    venueAcceptsOnlinePayment: restaurant.data?.acceptsOnlinePayment === true,
+    existingPayment: livePayment,
+  });
+  const payNow = useTickingNow(payGate.payable && livePayment?.status === "created");
+  const payEntry = preorderPayEntry({ payable: payGate.payable, payment: livePayment, now: payNow });
+  // Деньги ушли: платёжная пометка и компактный блок «Предзаказ» (не статус брони).
+  const paidPayment =
+    livePayment && livePayment.purpose === "preorder" && isPaid(livePayment.status) && preorderItemsCount > 0
+      ? livePayment
+      : null;
+  const payBase = preorder.data?.totalMinor ?? null;
+  const payAmountMinor =
+    payEntry?.kind === "waiting"
+      ? payEntry.payment.amountMinor
+      : (computePaymentBreakdown(payBase, restaurant.data?.paymentFee)?.totalMinor ?? payBase);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
@@ -257,6 +284,7 @@ export default function ReservationScreen() {
         <ReservationHeaderCard
           booking={data}
           restaurant={restaurant.data}
+          paidPill={paidPayment ? <PreorderPaidPill /> : null}
           actions={
             // Ряд из «На главную» и «Меню» (макет 3059:11285, правка владельца
             // 2026-08-20). Отмена отсюда УШЛА вниз, отдельным блоком: держать
@@ -332,6 +360,17 @@ export default function ReservationScreen() {
             })
           }
         />
+
+        {paidPayment && preorder.data ? <PreorderPaidBlock preorder={preorder.data} payment={paidPayment} /> : null}
+
+        {payEntry ? (
+          <PreorderPayEntry
+            payment={payEntry.kind === "waiting" ? payEntry.payment : null}
+            amountMinor={payAmountMinor}
+            now={payNow}
+            onPay={() => router.push({ pathname: "/booking/[id]/payment", params: { id: data.id } })}
+          />
+        ) : null}
 
         <WhatHappensNextCard status={data.status} />
 

@@ -136,7 +136,7 @@ export interface KaspiPaymentFlow {
   now: number;
 }
 
-function useTickingNow(active: boolean): number {
+export function useTickingNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;

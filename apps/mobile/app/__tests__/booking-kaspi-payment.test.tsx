@@ -87,6 +87,7 @@ const check = vi.fn();
 const flowEnabled: boolean[] = [];
 
 vi.mock("../../src/hooks/useKaspiPayment", () => ({
+  useTickingNow: () => Date.now(),
   useKaspiPaymentFlow: (input: { enabled: boolean }) => {
     flowEnabled.push(input.enabled);
     return { ...flowState, pay, renew, check };
@@ -197,19 +198,22 @@ beforeEach(() => {
 /** Правка владельца 2026-09-24 (макет 3073:11428): с экрана брони убраны блоки
  * «Предзаказ», «Изменить предзаказ» и «Оплата предзаказа» — оплата теперь только
  * шторкой `booking/[id]/payment` (см. `booking-payment-screen.test.tsx`). */
-describe("экран брони не показывает ни предзаказ, ни оплату", () => {
-  it.each<[string, () => void]>([
-    ["живая бронь с предзаказом, заведение принимает оплату", () => {}],
+/** Большого блока «Оплата предзаказа» на экране брони нет (макет 3073:11428).
+ * Остаются только компактный вход в оплату (нет платежа) и компактный блок
+ * «Предзаказ» после оплаты (правка владельца 2026-09-24). */
+describe("экран брони не показывает большой блок предзаказа/оплаты", () => {
+  it.each<[string, () => void, { payButton: boolean; dishes: boolean }]>([
+    ["живая бронь с предзаказом, заведение принимает оплату", () => {}, { payButton: true, dishes: false }],
     ["предзаказ уже оплачен", () => {
       livePayment = paymentWith({ status: "captured" });
       flowState.phase = "paid";
       flowState.payment = paymentWith({ status: "captured" });
-    }],
+    }, { payButton: false, dishes: true }],
     ["платёж дожимается", () => {
       flowState.phase = "settling";
       flowState.payment = paymentWith({ status: "captured" });
-    }],
-  ])("%s", async (_name, arrange) => {
+    }, { payButton: true, dishes: false }],
+  ])("%s", async (_name, arrange, expected) => {
     arrange();
     render(<ReservationScreen />);
     await waitFor(() => expect(screen.getByText(/Что дальше/)).toBeTruthy());
@@ -217,8 +221,8 @@ describe("экран брони не показывает ни предзака�
     expect(screen.queryByText(t.booking.preorderEdit)).toBeNull();
     expect(screen.queryByText(t.booking.preorderAdd)).toBeNull();
     expect(screen.queryByText(t.booking.preorderSummaryTitle)).toBeNull();
-    expect(screen.queryByText(/Бешбармак/)).toBeNull();
-    expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
+    expect(screen.queryByText(/Бешбармак/) !== null).toBe(expected.dishes);
+    expect(screen.queryByRole("button", { name: /Оплатить/ }) !== null).toBe(expected.payButton);
     expect(screen.queryByText(/Стол держим/)).toBeNull();
   });
 });

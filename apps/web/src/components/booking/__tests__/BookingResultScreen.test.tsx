@@ -183,8 +183,8 @@ describe("страница брони — убранные блоки (прав�
     expect(screen.queryByText(/Оплата предзаказа/)).toBeNull();
     expect(screen.queryByRole("link", { name: "Изменить предзаказ" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Выбрать блюда" })).toBeNull();
-    // Сам запрос предзаказа со страницы тоже ушёл.
-    expect(repository.getPreorder).not.toHaveBeenCalled();
+    // Запрос предзаказа вернулся ради компактного входа в оплату (правка
+    // 2026-09-24, вечер): блока со списком блюд без оплаты по-прежнему нет.
   });
 });
 

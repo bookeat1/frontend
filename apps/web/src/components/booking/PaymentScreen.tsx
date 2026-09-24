@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RepositoryError, isCancellableBookingStatus, type Booking, type PaymentMethod } from "@bookeat/api/client";
+import { RepositoryError, computePaymentBreakdown, isCancellableBookingStatus, type Booking, type PaymentMethod } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -134,11 +134,22 @@ function PaymentBody({
     );
   }
 
-  const amountMinor = paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null;
+  // Есть платёж: цифры сервера. Платежа ещё нет: предпросмотр по
+  // `venue.paymentFee`, чтобы сбор был виден ДО «Оплатить». Нет конфигурации
+  // (старый бэкенд): строк сбора нет.
+  const serverPayment = paymentFlow.payment;
+  const breakdown =
+    serverPayment != null
+      ? (serverPayment.feeMinor ?? 0) > 0 && serverPayment.baseAmountMinor !== undefined
+        ? {
+            baseMinor: serverPayment.baseAmountMinor,
+            feeMinor: serverPayment.feeMinor ?? 0,
+            totalMinor: serverPayment.amountMinor,
+          }
+        : null
+      : computePaymentBreakdown(preorder.data?.totalMinor, venue.data?.paymentFee);
+  const amountMinor = breakdown?.totalMinor ?? serverPayment?.amountMinor ?? preorder.data?.totalMinor ?? null;
   const amount = amountMinor === null ? null : formatMoneyMinor(amountMinor);
-  const feeMinor = paymentFlow.payment?.feeMinor ?? 0;
-  const baseMinor = paymentFlow.payment?.baseAmountMinor;
-  const showBreakdown = feeMinor > 0 && baseMinor !== undefined && amountMinor !== null;
   const left = remainingMs(paymentFlow.payment?.expiresAt ?? null, paymentFlow.now);
   const failure = createFailureMessage(paymentFlow.error, t.web.bookingResult.payment);
   const items = preorder.data?.items ?? [];
@@ -175,15 +186,15 @@ function PaymentBody({
             ))}
           </ul>
         ) : null}
-        {showBreakdown ? (
+        {breakdown ? (
           <dl data-testid="payment-breakdown" className="flex flex-col gap-2 px-4 pb-4 text-bodyM text-ink">
             <div className="flex items-center justify-between gap-3">
               <dt>{texts.breakdownDishes}</dt>
-              <dd>{formatMoneyMinor(baseMinor)}</dd>
+              <dd>{formatMoneyMinor(breakdown.baseMinor)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt>{texts.breakdownFee}</dt>
-              <dd>{formatMoneyMinor(feeMinor)}</dd>
+              <dd>{formatMoneyMinor(breakdown.feeMinor)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 font-semibold">
               <dt>{texts.breakdownTotal}</dt>

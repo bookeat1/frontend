@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  computePaymentBreakdown,
+  isCancellableBookingStatus,
   type Booking,
   type BookingStatus,
   type Restaurant,
@@ -22,7 +24,10 @@ import { bookingDateLabel, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
 import { consumePreorderFailedFlag, type PreorderFailedReason } from "@web/lib/preorder-failed-flag";
-import { useBooking, useVenue } from "@web/lib/queries";
+import { isPaid, preorderPayEntry, preorderPaymentGate, remainingMs, formatCountdown } from "@web/lib/kaspi-payment";
+import { useBooking, useBookingPayment, usePreorder, useVenue } from "@web/lib/queries";
+import { useTickingNow } from "@web/lib/use-kaspi-payment";
+import { formatMoneyMinor } from "@web/lib/format";
 import { loginHref } from "@web/lib/return-to";
 
 /**
@@ -206,6 +211,8 @@ function Ticket({ booking }: { booking: Booking }) {
         </p>
       ) : null}
 
+      <PreorderPayEntry booking={booking} venue={venue.data} />
+
       {/* Узел 3525:15028: карточка-билет 720, радиус 24, обводка, тень. */}
       <article className="w-full overflow-hidden rounded-2xl border border-line-strong bg-canvas shadow-card">
         <VenueHeader venue={venue.data} />
@@ -267,6 +274,105 @@ function Ticket({ booking }: { booking: Booking }) {
           </div>
         </div>
       </article>
+    </div>
+  );
+}
+
+/**
+ * Компактная строка «оплатить предзаказ» — вход обратно на страницу оплаты,
+ * если гость её закрыл. Большой блок оплаты убран по макету намеренно.
+ * Видна только при живой брони с предзаказом у заведения с онлайн-оплатой и
+ * пока деньги не ушли.
+ */
+function PreorderPayEntry({ booking, venue }: { booking: Booking; venue: Restaurant | undefined }) {
+  const { t } = useLocale();
+  const texts = t.web.bookingResult.paymentScreen;
+  const preorder = usePreorder(booking.id);
+  const payment = useBookingPayment(booking.id);
+  const livePayment = payment.isError ? null : (payment.data ?? null);
+  const gate = preorderPaymentGate({
+    bookingIsLive: isCancellableBookingStatus(booking.status),
+    preorderItemsCount: preorder.data?.items.length ?? 0,
+    venueAcceptsOnlinePayment: venue?.acceptsOnlinePayment === true,
+    existingPayment: livePayment,
+  });
+  const now = useTickingNow(gate.payable && livePayment?.status === "created");
+  const entry = preorderPayEntry({ payable: gate.payable, payment: livePayment, now });
+
+  // Деньги ушли: платёжная пометка (не статус брони) и компактный блок «Предзаказ».
+  if (
+    livePayment &&
+    livePayment.purpose === "preorder" &&
+    isPaid(livePayment.status) &&
+    preorder.data &&
+    preorder.data.items.length > 0 &&
+    isCancellableBookingStatus(booking.status)
+  ) {
+    const fee = livePayment.feeMinor ?? 0;
+    const base = livePayment.baseAmountMinor;
+    return (
+      <div className="flex w-full flex-col items-center gap-3">
+        <span
+          data-testid="preorder-paid-pill"
+          className="rounded-full bg-success px-4 py-1 text-bodyS font-semibold text-success-text"
+        >
+          {t.web.bookingResult.payment.paidTitle}
+        </span>
+        <section
+          data-testid="preorder-paid-block"
+          className="flex w-full flex-col gap-2 rounded-2xl border border-line-strong bg-canvas px-4 py-3 text-bodyM text-ink"
+        >
+          <h2 className="font-semibold">{texts.paidBlockTitle}</h2>
+          <ul className="flex flex-col gap-2">
+            {preorder.data.items.map((item) => (
+              <li key={item.id} className="flex items-start justify-between gap-3">
+                <span className="min-w-0 break-words">
+                  {item.quantity} × {item.name}
+                </span>
+                <span>{formatMoneyMinor(item.totalMinor)}</span>
+              </li>
+            ))}
+          </ul>
+          {fee > 0 && base !== undefined ? (
+            <>
+              <div className="flex justify-between gap-3">
+                <span>{texts.breakdownDishes}</span>
+                <span>{formatMoneyMinor(base)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>{texts.breakdownFee}</span>
+                <span>{formatMoneyMinor(fee)}</span>
+              </div>
+            </>
+          ) : null}
+          <div className="flex justify-between gap-3 font-semibold">
+            <span>{texts.breakdownTotal}</span>
+            <span data-testid="preorder-paid-total">{formatMoneyMinor(livePayment.amountMinor)}</span>
+          </div>
+        </section>
+      </div>
+    );
+  }
+  if (!entry) return null;
+
+  const base = preorder.data?.totalMinor ?? null;
+  const amountMinor =
+    entry.kind === "waiting"
+      ? entry.payment.amountMinor
+      : (computePaymentBreakdown(base, venue?.paymentFee)?.totalMinor ?? base);
+  if (amountMinor === null) return null;
+  const left = entry.kind === "waiting" ? remainingMs(entry.payment.expiresAt, now) : null;
+  const title = entry.kind === "waiting" && left !== null ? texts.entryWaiting(formatCountdown(left)) : entry.kind === "waiting" ? t.web.bookingResult.payment.awaitingTitle : texts.entryUnpaid;
+
+  return (
+    <div
+      data-testid="preorder-pay-entry"
+      className="flex w-full flex-col gap-3 rounded-2xl border border-line-strong bg-canvas px-4 py-3 md:flex-row md:items-center md:justify-between"
+    >
+      <p className="text-bodyM text-ink">{title}</p>
+      <Button size="ticket" asLink href={`/bookings/${booking.id}/payment`}>
+        {texts.entryCta(formatMoneyMinor(amountMinor))}
+      </Button>
     </div>
   );
 }

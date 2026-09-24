@@ -3289,6 +3289,8 @@ export const ru = {
     paymentBreakdownDishes: "Блюда",
     paymentBreakdownFee: "Сервисный сбор",
     paymentBreakdownTotal: "Итого",
+    paymentEntryWaiting: (left: string) => `Ждём оплату предзаказа · осталось ${left}`,
+    paymentEntryUnpaid: "Предзаказ ещё не оплачен",
     paymentViewAll: "Посмотреть все",
     paymentHideAll: "Свернуть",
     paymentPayKaspiAmount: (amount: string) => `Оплатить Kaspi ${amount}`,
@@ -4970,6 +4972,9 @@ export const ru = {
         breakdownDishes: "Блюда",
         breakdownFee: "Сервисный сбор",
         breakdownTotal: "Итого",
+        entryWaiting: (left: string) => `Ждём оплату предзаказа · осталось ${left}`,
+        entryUnpaid: "Предзаказ ещё не оплачен",
+        paidBlockTitle: "Предзаказ",
         checkoutNote:
           "После подтверждения заказ передаётся ресторану, а бронь сохраняется на выбранное время.",
         successSubtitle:
