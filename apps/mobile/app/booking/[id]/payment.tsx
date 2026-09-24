@@ -11,7 +11,7 @@ import { useBooking, useBookingPayment, usePreorder } from "../../../src/hooks/u
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
 import { useKaspiPaymentFlow } from "../../../src/hooks/useKaspiPayment";
 import { useAuth } from "../../../src/lib/auth";
-import { openWebsite } from "../../../src/lib/external-links";
+import { openInAppBrowser, openWebsite } from "../../../src/lib/external-links";
 import { formatMoneyMinor } from "../../../src/lib/format";
 import {
   formatCountdown,
@@ -79,11 +79,27 @@ export default function PaymentScreen() {
   const paymentUrl = paymentFlow.payment?.paymentUrl ?? null;
   const paymentIdForOpen = paymentFlow.payment?.id ?? null;
   const paymentStatus = paymentFlow.payment?.status ?? null;
+  // Способ, выбранный гостем на этом экране. Карта открывается во встроенном
+  // браузере (после закрытия статус перепроверяется), Kaspi — как раньше во
+  // внешнем: ссылка уводит в приложение Kaspi. «Неизвестно» (старый бэкенд,
+  // повторный вход на экран) — внешний браузер, поведение не меняется.
+  const chosenMethod = React.useRef<PaymentMethod | undefined>(undefined);
+  const checkRef = React.useRef(paymentFlow.check);
+  checkRef.current = paymentFlow.check;
+  const onlyMethod = methodButtons.length === 1 ? methodButtons[0] : undefined;
   const openPaymentLink = React.useCallback(async () => {
     if (!paymentUrl) return;
+    if ((chosenMethod.current ?? onlyMethod) === "card") {
+      const result = await openInAppBrowser(paymentUrl);
+      setOpenFailed(result === "failed");
+      // Гость закрыл встроенный браузер: платёж мог пройти — проверяем сразу,
+      // а не ждём следующего опроса.
+      if (result === "in-app") checkRef.current();
+      return;
+    }
     const opened = await openWebsite(paymentUrl);
     setOpenFailed(!opened);
-  }, [paymentUrl]);
+  }, [paymentUrl, onlyMethod]);
   React.useEffect(() => {
     if (!paymentIdForOpen || !paymentUrl || paymentStatus !== "created") return;
     if (autoOpened.current === paymentIdForOpen) return;
@@ -178,6 +194,7 @@ export default function PaymentScreen() {
   const twoMethods = methodButtons.length >= 2;
   const singleMethod: PaymentMethod | undefined = methodButtons.length === 1 ? methodButtons[0] : undefined;
   const payAll = (method?: PaymentMethod) => {
+    chosenMethod.current = method;
     if (method) paymentFlow.pay(method);
     else paymentFlow.pay();
   };

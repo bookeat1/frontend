@@ -143,3 +143,37 @@ export function openStoreListing(url: string): Promise<boolean> {
   if (!raw) return Promise.resolve(false);
   return open(raw.includes("://") ? raw : toHttpUrl(raw));
 }
+
+/**
+ * Result of {@link openInAppBrowser}:
+ *  - `"in-app"`   the page was shown in the in-app browser and the guest has
+ *                 since closed it (the caller should re-check what happened);
+ *  - `"external"` the in-app browser is unavailable (old native binary without
+ *                 the module, web) and the system browser was opened instead;
+ *  - `"failed"`   nothing could be opened.
+ */
+export type InAppBrowserResult = "in-app" | "external" | "failed";
+
+/**
+ * Opens `url` inside the app (SFSafariViewController / Chrome Custom Tab) and
+ * resolves when the guest closes it.
+ *
+ * `expo-web-browser` is a NATIVE module: binaries built before it was added do
+ * not have it. It is therefore imported lazily inside the try block (never at
+ * module top level, see team-memory bugs/bookeat-mobile-static-native-import-
+ * over-ota) so a missing module degrades to the previous behaviour, the
+ * external browser, instead of breaking bundle load. Like the rest of this
+ * file it never throws.
+ */
+export async function openInAppBrowser(url: string): Promise<InAppBrowserResult> {
+  if (Platform.OS !== "web") {
+    try {
+      const WebBrowser = await import("expo-web-browser");
+      await WebBrowser.openBrowserAsync(url);
+      return "in-app";
+    } catch {
+      // fall through to the external browser
+    }
+  }
+  return (await open(url)) ? "external" : "failed";
+}
