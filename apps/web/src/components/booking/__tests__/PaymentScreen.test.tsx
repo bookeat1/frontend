@@ -119,3 +119,31 @@ describe("оплата: разбивка суммы", () => {
     expect(screen.queryByText("Сервисный сбор")).toBeNull();
   });
 });
+
+describe("оплата: предпросмотр сбора до создания платежа", () => {
+  function setupPreview(paymentFee: { rateBps: number; minFeeMinor: number } | undefined) {
+    repository.getBooking = vi.fn(async () => booking({ id: ID, status: "confirmed" }));
+    repository.getPreorder = vi.fn(async () => preorder({ totalMinor: 350000 }));
+    repository.getBookingPayment = vi.fn(async () => null);
+    repository.getRestaurant = vi.fn(async () =>
+      venueDetail({ acceptsOnlinePayment: true, ...(paymentFee ? { paymentFee } : {}) }),
+    );
+    renderScreen(<PaymentScreen id={ID} />);
+  }
+
+  it("есть payment_fee — блюда/сбор/итого и кнопка на полную сумму", async () => {
+    setupPreview({ rateBps: 350, minFeeMinor: 2500 });
+    expect(await screen.findByText("Сервисный сбор")).toBeTruthy();
+    const text = screen.getByTestId("payment-breakdown").textContent ?? "";
+    expect(text).toContain(formatMoneyMinor(350000));
+    expect(text).toContain(formatMoneyMinor(12695));
+    expect(text).toContain(formatMoneyMinor(362695));
+    expect(screen.getByRole("button", { name: `Оплатить ${formatMoneyMinor(362695)}` })).toBeTruthy();
+  });
+
+  it("payment_fee нет (старый бэкенд) — строк сбора нет", async () => {
+    setupPreview(undefined);
+    expect(await screen.findByRole("button", { name: `Оплатить ${formatMoneyMinor(350000)}` })).toBeTruthy();
+    expect(screen.queryByText("Сервисный сбор")).toBeNull();
+  });
+});

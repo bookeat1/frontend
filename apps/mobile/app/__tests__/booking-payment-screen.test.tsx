@@ -182,6 +182,30 @@ describe("фаза idle", () => {
   });
 });
 
+describe("предпросмотр сбора до создания платежа (фаза idle)", () => {
+  it("есть payment_fee — блюда/сбор/итого и кнопка на полную сумму", async () => {
+    restaurant = { ...RESTAURANT, paymentFee: { rateBps: 350, minFeeMinor: 2500 } };
+    preorder = preorderWith(350_000);
+    render(<PaymentScreen />);
+    await waitFor(() => expect(screen.getByText(t.booking.paymentBreakdownFee)).toBeTruthy());
+    const text = screen.getByTestId("payment-breakdown").textContent ?? "";
+    expect(text).toContain(formatMoneyMinor(350_000));
+    expect(text).toContain(formatMoneyMinor(12_695));
+    expect(text).toContain(formatMoneyMinor(362_695));
+    screen.getByRole("button", { name: t.booking.paymentPayAmount(formatMoneyMinor(362_695)) }).click();
+    expect(pay).toHaveBeenCalledTimes(1);
+  });
+
+  it("payment_fee нет (старый бэкенд) — строк сбора нет, кнопка на базу", async () => {
+    preorder = preorderWith(350_000);
+    render(<PaymentScreen />);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: t.booking.paymentPayAmount(formatMoneyMinor(350_000)) })).toBeTruthy(),
+    );
+    expect(screen.queryByText(t.booking.paymentBreakdownFee)).toBeNull();
+  });
+});
+
 describe("разбивка суммы: блюда / сервисный сбор / итого", () => {
   it("fee > 0 — три строки с суммами", async () => {
     flowState.phase = "awaiting";

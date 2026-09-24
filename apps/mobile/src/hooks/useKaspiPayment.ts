@@ -176,7 +176,7 @@ export interface KaspiPaymentFlow {
  * ничего не нажимает. Тикаем ТОЛЬКО пока есть незавершённый платёж — на
  * оплаченной и на пустой броне таймер не заводится вовсе.
  */
-function useTickingNow(active: boolean): number {
+export function useTickingNow(active: boolean): number {
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
     if (!active) return;

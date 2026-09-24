@@ -27,11 +27,14 @@ export function ReservationHeaderCard({
   booking,
   restaurant,
   actions,
+  paidPill,
 }: {
   booking: Booking;
   restaurant?: Restaurant;
   /** Ряд кнопок под статусом. Их рисует экран: он знает, можно ли отменить. */
   actions?: React.ReactNode;
+  /** Платёжная пометка рядом со статусом брони (не заменяет его). */
+  paidPill?: React.ReactNode;
 }) {
   const photoUri = restaurant?.coverPhoto?.uri;
   const summary = t.booking.reservationSummary(
@@ -54,6 +57,7 @@ export function ReservationHeaderCard({
           и так помнит. */}
       <View style={styles.statusSlot}>
         <BookingStatusPill status={booking.status} />
+        {paidPill}
       </View>
 
       <Text style={styles.summary}>{summary}</Text>
@@ -98,6 +102,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
   },
   statusSlot: {
+    alignItems: "center",
+    gap: spacing.xs,
     marginBottom: spacing.lg,
   },
   name: {

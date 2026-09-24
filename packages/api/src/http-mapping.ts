@@ -196,6 +196,8 @@ export interface ApiRestaurant {
    * фолбэк). См. `Restaurant.serviceFeeBps`.
    */
   service_fee_bps?: number | null;
+  /** Effective payment-fee parameters (minor units / bps). Absent on old builds. */
+  payment_fee?: { rate_bps?: number | null; min_fee_minor?: number | null } | null;
   /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
@@ -1401,6 +1403,11 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // `null`) — «показывать ли» решает `serviceFeeBps > 0` на стороне
     // экрана, ровно как с `preorderMinAmountMinor` выше.
     serviceFeeBps: typeof api.service_fee_bps === "number" ? api.service_fee_bps : null,
+    ...(api.payment_fee &&
+    typeof api.payment_fee.rate_bps === "number" &&
+    typeof api.payment_fee.min_fee_minor === "number"
+      ? { paymentFee: { rateBps: api.payment_fee.rate_bps, minFeeMinor: api.payment_fee.min_fee_minor } }
+      : {}),
     // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
     // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
     // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб

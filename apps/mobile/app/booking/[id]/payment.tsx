@@ -1,4 +1,4 @@
-import { isCancellableBookingStatus, RepositoryError, type PaymentMethod } from "@bookeat/api";
+import { computePaymentBreakdown, isCancellableBookingStatus, RepositoryError, type PaymentMethod } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -184,11 +184,22 @@ export default function PaymentScreen() {
     );
   }
 
-  const amountMinor = paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null;
+  // Разбивка «блюда / сбор / итого». Есть платёж: цифры сервера (PR #265). Платежа
+  // ещё нет: предпросмотр по `restaurant.paymentFee`, чтобы гость видел сбор ДО
+  // нажатия «Оплатить». Нет конфигурации (старый бэкенд): строк сбора нет.
+  const serverPayment = paymentFlow.payment;
+  const breakdown =
+    serverPayment != null
+      ? (serverPayment.feeMinor ?? 0) > 0 && serverPayment.baseAmountMinor !== undefined
+        ? {
+            baseMinor: serverPayment.baseAmountMinor,
+            feeMinor: serverPayment.feeMinor ?? 0,
+            totalMinor: serverPayment.amountMinor,
+          }
+        : null
+      : computePaymentBreakdown(preorder.data?.totalMinor, restaurant.data?.paymentFee);
+  const amountMinor = breakdown?.totalMinor ?? serverPayment?.amountMinor ?? preorder.data?.totalMinor ?? null;
   const amount = amountMinor === null ? null : formatMoneyMinor(amountMinor);
-  const feeMinor = paymentFlow.payment?.feeMinor ?? 0;
-  const baseMinor = paymentFlow.payment?.baseAmountMinor;
-  const showBreakdown = feeMinor > 0 && baseMinor !== undefined && amountMinor !== null;
   const left = remainingMs(paymentFlow.payment?.expiresAt ?? null, paymentFlow.now);
   const failure = createFailureMessage(paymentFlow.error);
   const items = preorder.data?.items ?? [];
@@ -271,15 +282,15 @@ export default function PaymentScreen() {
             ))}
           </View>
         ) : null}
-        {showBreakdown ? (
+        {breakdown ? (
           <View style={styles.summaryList} testID="payment-breakdown">
             <View style={styles.summaryRow}>
               <Text style={styles.summaryRowName}>{t.booking.paymentBreakdownDishes}</Text>
-              <Text style={styles.summaryRowPrice}>{formatMoneyMinor(baseMinor)}</Text>
+              <Text style={styles.summaryRowPrice}>{formatMoneyMinor(breakdown.baseMinor)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryRowName}>{t.booking.paymentBreakdownFee}</Text>
-              <Text style={styles.summaryRowPrice}>{formatMoneyMinor(feeMinor)}</Text>
+              <Text style={styles.summaryRowPrice}>{formatMoneyMinor(breakdown.feeMinor)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryRowName, styles.strong]}>{t.booking.paymentBreakdownTotal}</Text>

@@ -322,6 +322,13 @@ export interface Restaurant {
    */
   serviceFeeBps: number | null;
   /**
+   * Эффективные параметры сервисного сбора платежа (`payment_fee` в
+   * `GET /restaurants/:id`): для предпросмотра суммы ДО оплаты через
+   * `computePaymentBreakdown`. `undefined` — старый бэкенд: строки сбора не
+   * показываем, сумму называет сервер при создании платежа.
+   */
+  paymentFee?: { rateBps: number; minFeeMinor: number };
+  /**
    * Удобства заведения из справочника платформы — «Терраса», «Wi-Fi»,
    * «Бизнес-ланч». Приходят полем `features` ДЕТАЛЬНОГО ответа
    * (`GET /restaurants/:id`), в списке их нет.

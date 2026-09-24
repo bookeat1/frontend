@@ -2324,6 +2324,8 @@ export const en: LocaleOverride<Dictionary> = {
     paymentBreakdownDishes: "Dishes",
     paymentBreakdownFee: "Service fee",
     paymentBreakdownTotal: "Total",
+    paymentEntryWaiting: (left: string) => `Waiting for the pre-order payment · ${left} left`,
+    paymentEntryUnpaid: "The pre-order is not paid yet",
     paymentViewAll: "View all",
     paymentHideAll: "Collapse",
     paymentPayKaspiAmount: (amount: string) => `Pay with Kaspi ${amount}`,
@@ -3411,6 +3413,9 @@ export const en: LocaleOverride<Dictionary> = {
         breakdownDishes: "Dishes",
         breakdownFee: "Service fee",
         breakdownTotal: "Total",
+        entryWaiting: (left: string) => `Waiting for the pre-order payment · ${left} left`,
+        entryUnpaid: "The pre-order is not paid yet",
+        paidBlockTitle: "Pre-order",
         checkoutNote:
           "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",
         successSubtitle:
