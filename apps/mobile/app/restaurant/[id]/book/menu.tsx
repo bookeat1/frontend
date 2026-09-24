@@ -2,18 +2,20 @@ import type { MenuDish } from "@bookeat/api";
 import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, SectionList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { Minus, Plus } from "../../../../src/components/icons";
 import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
+import { SearchBar } from "../../../../src/components/SearchBar";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { useMenuSections } from "../../../../src/hooks/useBooking";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { usePreorderCart } from "../../../../src/lib/preorder-cart";
 import { formatMoneyMinor } from "../../../../src/lib/format";
+import { filterMenuSections } from "../../../../src/lib/menu-search";
 
 const t = getDictionary();
 
@@ -60,7 +62,7 @@ export default function PreorderMenuScreen() {
     [attached, cart.quantities, draft.preorder],
   );
 
-  const sections = useMemo<Section[]>(
+  const allSections = useMemo<Section[]>(
     () =>
       (menu.data ?? [])
         .map((section) => ({
@@ -70,6 +72,11 @@ export default function PreorderMenuScreen() {
         .filter((section) => section.data.length > 0),
     [menu.data],
   );
+
+  // Same local filter as the venue menu screen (name + description, ё=е,
+  // AND over words): the menu is already fully loaded, no request per keystroke.
+  const [search, setSearch] = useState("");
+  const sections = useMemo(() => filterMenuSections(allSections, search), [allSections, search]);
 
   const lines = attached ? cart.lines : draft.preorder;
   const total = estimatePreorderTotalMinor(lines);
@@ -124,13 +131,28 @@ export default function PreorderMenuScreen() {
           description={t.search.errorDescription}
           action={{ label: t.common.retry, onPress: () => void menu.refetch(), variant: "button" }}
         />
-      ) : sections.length === 0 ? (
+      ) : allSections.length === 0 ? (
         <EmptyState
           title={t.booking.preorderEmptyTitle}
           description={t.booking.preorderEmptyDescription}
         />
       ) : (
+        <>
+        <View style={styles.searchBlock}>
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t.restaurant.menuSearchPlaceholder}
+          />
+        </View>
+        {sections.length === 0 ? (
+          <EmptyState
+            title={t.restaurant.menuSearchEmptyTitle}
+            description={t.restaurant.menuSearchEmptyDescription}
+          />
+        ) : (
         <SectionList
+          keyboardShouldPersistTaps="handled"
           sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -151,6 +173,8 @@ export default function PreorderMenuScreen() {
           windowSize={7}
           removeClippedSubviews
         />
+        )}
+        </>
       )}
 
       <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
@@ -294,6 +318,11 @@ const styles = StyleSheet.create({
   clearLabel: {
     ...typography.labelMedium,
     color: colors.brand.primary,
+  },
+  searchBlock: {
+    backgroundColor: colors.background.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   listContent: {
     paddingBottom: spacing.xxxl,
