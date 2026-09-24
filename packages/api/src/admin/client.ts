@@ -31,6 +31,8 @@ import type {
   FeedItemState,
   AcquirerAccount,
   AcquirerAccountInput,
+  PaymentMethodsInput,
+  PaymentMethodsSettings,
   FreeCancelWindowResponse,
   AdminPromoCode,
   CreatePromoCodeInput,
@@ -1409,6 +1411,23 @@ export class AdminApiClient {
     return this.request<AcquirerAccount>(
       "PUT",
       `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/acquirer-account`,
+      { body: input },
+    );
+  }
+
+  /** GET /admin/restaurants/:id/payment-settings/methods — только superadmin. */
+  getPaymentMethods(restaurantId: string): Promise<PaymentMethodsSettings> {
+    return this.request<PaymentMethodsSettings>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/methods`,
+    );
+  }
+
+  /** PUT того же адреса. `methods` — ПОЛНЫЙ список включённых способов. */
+  setPaymentMethods(restaurantId: string, input: PaymentMethodsInput): Promise<PaymentMethodsSettings> {
+    return this.request<PaymentMethodsSettings>(
+      "PUT",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}/payment-settings/methods`,
       { body: input },
     );
   }

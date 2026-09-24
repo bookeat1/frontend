@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { BookingPayment } from "@bookeat/api/client";
+import type { BookingPayment, PaymentMethod } from "@bookeat/api/client";
 
 import { repository, isApiConfigured } from "@web/lib/api";
 import { useAuth } from "@web/lib/auth";
@@ -31,6 +31,7 @@ interface CreatePaymentVariables {
   bookingId: string;
   returnUrl: string;
   idempotencyKey: string;
+  method?: PaymentMethod;
 }
 
 /** Создаёт счёт (`POST /bookings/:id/payment`). Двойной клик защищён тем же
@@ -41,13 +42,13 @@ function useCreateBookingPayment() {
   const inFlight = useRef<Set<string>>(new Set());
 
   return useMutation<BookingPayment, unknown, CreatePaymentVariables>({
-    mutationFn: async ({ bookingId, returnUrl, idempotencyKey }) => {
+    mutationFn: async ({ bookingId, returnUrl, idempotencyKey, method }) => {
       if (inFlight.current.has(bookingId)) {
         throw new Error(`Payment already in flight for ${bookingId}`);
       }
       inFlight.current.add(bookingId);
       try {
-        return await repository.createBookingPayment(bookingId, { returnUrl }, idempotencyKey);
+        return await repository.createBookingPayment(bookingId, { returnUrl, method }, idempotencyKey);
       } finally {
         inFlight.current.delete(bookingId);
       }
@@ -123,7 +124,7 @@ export interface KaspiPaymentFlow {
    * вкладки, как настоящий переход на оплату — не `window.open`, у которого
    * блокировщики всплывающих окон вырезают вызов без прямого клика,
    * произошедшего асинхронно после ответа сервера). */
-  pay: () => void;
+  pay: (method?: PaymentMethod) => void;
   /** «Открыть оплату снова» — тот же СУЩЕСТВУЮЩИЙ счёт (`awaiting`), новый не
    * создаётся. `null`, если сервер не прислал (или уже не признаёт)
    * `paymentUrl` для текущего платежа — тогда кнопка неактивна. */
@@ -208,8 +209,17 @@ export function useKaspiPaymentFlow(input: {
 
   const requestInFlight = useRef(false);
 
-  const start = useCallback(() => {
+  // Ключ идемпотентности привязан к способу: тот же ключ с другим `method`
+  // сервер свёл бы к ПРЕЖНЕМУ счёту (например, Kaspi вместо выбранной карты).
+  const lastMethod = useRef<PaymentMethod | undefined>(undefined);
+
+  const start = useCallback((method?: PaymentMethod) => {
     if (!input.enabled || requestInFlight.current) return;
+    if (method !== lastMethod.current) {
+      idempotencyKey.current = newIdempotencyKey();
+      setPaymentId(null);
+      lastMethod.current = method;
+    }
     if (typeof window === "undefined") return;
     requestInFlight.current = true;
     create.mutate(
@@ -221,6 +231,7 @@ export function useKaspiPaymentFlow(input: {
         // перезагрузит вкладку на этот адрес.
         returnUrl: `${window.location.origin}/bookings/${encodeURIComponent(input.bookingId)}/payment`,
         idempotencyKey: idempotencyKey.current,
+        method,
       },
       {
         onSuccess: (created) => {
@@ -241,7 +252,7 @@ export function useKaspiPaymentFlow(input: {
     setPaymentId(null);
     clearKaspiPaymentAttempt(input.bookingId);
     create.reset();
-    start();
+    start(lastMethod.current);
   }, [create, input.bookingId, input.enabled, start]);
 
   return {

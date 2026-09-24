@@ -16,6 +16,7 @@
  * of a screen, never throw inside a mapper and blank the whole screen.
  */
 import type {
+  PaymentMethod,
   Amenity,
   AppUpdateAction,
   AppUpdateDecision,
@@ -162,6 +163,8 @@ export interface ApiRestaurant {
    * «оплату не предлагаем». См. Restaurant.acceptsOnlinePayment.
    */
   accepts_online_payment?: boolean;
+  /** Доступные способы оплаты (backend PR #150). Нет ключа — старый бэкенд. */
+  payment_methods?: string[] | null;
   /**
    * Минимальная сумма предзаказа заведения, в тиынах — `restaurants.preorder_min_amount_minor`
    * (D-BE-1, `bookeat-backend` PR #122, влито в `develop` 2026-09-08). Только
@@ -1380,6 +1383,7 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // кнопку у неподключённого заведения, получает 422 и остаётся с чувством,
     // что сломалось приложение.
     acceptsOnlinePayment: api.accepts_online_payment === true,
+    paymentMethods: mapPaymentMethods(api.payment_methods),
     // D-API-1 (ТЗ `web-preorder-menu-20260908`): `null`, а НЕ 0, когда поля
     // нет или оно `null` — минимум «не задан», а не «любая ненулевая сумма
     // запрещена». `typeof === "number"` вместо `??` — сервер шлёт целое
@@ -2181,4 +2185,10 @@ function localizedText(raw: Record<string, string> | null | undefined) {
     if (trimmed) out[locale] = trimmed;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** `null` = поле не пришло (старый бэкенд); неизвестные значения отбрасываются. */
+export function mapPaymentMethods(raw: unknown): PaymentMethod[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((m): m is PaymentMethod => m === "kaspi" || m === "card");
 }

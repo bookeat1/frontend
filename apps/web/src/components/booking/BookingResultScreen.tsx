@@ -3,13 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  effectiveFreeCancelHours,
-  effectiveHoldMinutes,
-  effectiveLateArrivalText,
-  isCancellableBookingStatus,
   type Booking,
   type BookingStatus,
-  type Preorder,
   type Restaurant,
 } from "@bookeat/api/client";
 
@@ -17,22 +12,18 @@ import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Button } from "@web/components/ui/Button";
-import { PreorderPaymentCard } from "@web/components/booking/PreorderPaymentCard";
-import { PreorderPaymentEntryCard } from "@web/components/booking/PreorderPaymentEntryCard";
 import { QrCode } from "@web/components/ui/QrCode";
 import { RemoteImage } from "@web/components/ui/RemoteImage";
 import { bookingCode, bookingQrPayload } from "@web/lib/booking-code";
-import { bookingHref, menuBookingHref } from "@web/lib/booking-link";
+import { bookingHref } from "@web/lib/booking-link";
 import { isNotFoundError } from "@web/lib/booking-submit";
 import { useAuth } from "@web/lib/auth";
-import { bookingDateLabel, formatMoneyMinor, venueWallClock } from "@web/lib/format";
-import { preorderPaymentGate } from "@web/lib/kaspi-payment";
+import { bookingDateLabel, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
 import { consumePreorderFailedFlag, type PreorderFailedReason } from "@web/lib/preorder-failed-flag";
-import { useBooking, useBookingPayment, usePreorder, useVenue } from "@web/lib/queries";
+import { useBooking, useVenue } from "@web/lib/queries";
 import { loginHref } from "@web/lib/return-to";
-import { useKaspiPaymentFlow } from "@web/lib/use-kaspi-payment";
 
 /**
  * Блок «Код брони» (QR + `BE-XXXX-XXXX`) на билете временно скрыт по решению
@@ -151,43 +142,6 @@ const STATUS_KEY: Record<BookingStatus, keyof typeof import("@bookeat/i18n").ru.
  * гость уже за столом. */
 const CHANGEABLE: readonly BookingStatus[] = ["pending", "waitlist", "confirmed"];
 
-/** Статусы, у которых менять предзаказ уже нечего (ТЗ
- * `web-preorder-menu-20260908`, C-WEB-2, C1: «у терминальных статусов —
- * ничего»). Та же четвёрка, что `preorder_booking_closed` на сервере
- * (`ADR-030`), сверена независимо: кнопки тут нет ещё ДО похода на сервер. */
-const PREORDER_EDIT_TERMINAL: readonly BookingStatus[] = ["arrived", "completed", "cancelled", "no_show"];
-
-/** Что показать вместо/вокруг кнопки «Выбрать блюда»/«Изменить предзаказ»
- * (C1-C2): либо действие (со счётом строк для подписи), либо один из двух
- * текстов «закрыто», либо ничего вовсе. `undefined` предзаказа (запрос ещё
- * летит или упал) — тоже «ничего»: показать кнопку на угад означало бы
- * соврать про пустоту/непустоту корзины. */
-type PreorderEditState =
-  | { kind: "hidden" }
-  | { kind: "locked"; reason: "confirmedLocked" | "manualLocked" }
-  | { kind: "action"; itemsCount: number };
-
-function preorderEditState(booking: Booking, preorder: Preorder | undefined): PreorderEditState {
-  if (PREORDER_EDIT_TERMINAL.includes(booking.status)) return { kind: "hidden" };
-  if (!preorder) return { kind: "hidden" };
-
-  // C2: строка без `menu_item_id` — заведение добавило её вручную в кабинете.
-  // Полная замена (`PUT`) стёрла бы её, поэтому редактирование с сайта здесь
-  // закрыто целиком, независимо от статуса брони.
-  const hasManualLine = preorder.items.some((item) => item.menuItemId === null);
-  if (hasManualLine) return { kind: "locked", reason: "manualLocked" };
-
-  // C1: `confirmed` с УЖЕ прикреплённым составом — гостю больше не открыто
-  // (ADR-030); пустой состав на `confirmed` — это ещё не «первое
-  // прикрепление», которое `Replace` пускает (см. дополнение 2026-09-06 к
-  // ADR-030), поэтому кнопка остаётся.
-  if (booking.status === "confirmed" && preorder.items.length > 0) {
-    return { kind: "locked", reason: "confirmedLocked" };
-  }
-
-  return { kind: "action", itemsCount: preorder.items.length };
-}
-
 /** `PreorderFailedReason` (snake_case, машинный код сервера) → ключ словаря
  * `web.bookingResult.preorder.failedNotice` (camelCase, стиль остальных
  * ключей i18n этого файла) — D-WEB-1, D5. */
@@ -205,32 +159,6 @@ function Ticket({ booking }: { booking: Booking }) {
   // билет уже стоит: время считается по запасной зоне и не меняется, когда
   // приедет казахстанское заведение (зона та же).
   const venue = useVenue(booking.restaurantId);
-  const preorder = usePreorder(booking.id);
-  // ТЗ `web-preorder-menu-20260908`, C-WEB-2 (C1-C2): пока `GET /preorder` не
-  // ответил (или упал — тот же `AsyncBlock`-принцип «неизвестно ≠ пусто»,
-  // что и у блока «Предзаказ» чуть выше), кнопки/текста нет вовсе.
-  const editState = preorderEditState(booking, preorder.data);
-
-  // Оплата предзаказа через Kaspi — веб-версия того же блока на мобилке
-  // (`apps/mobile/app/booking/[id]/index.tsx`). ОДНО решение про блок целиком
-  // в чистой функции `preorderPaymentGate`: предлагать оплату только там, где
-  // заведение реально подключено (`Restaurant.acceptsOnlinePayment`), но уже
-  // оплаченный предзаказ показывать всегда, даже если заведение отключили от
-  // приёма оплаты позже.
-  const bookingPayment = useBookingPayment(booking.id);
-  const preorderItemsCount = preorder.data?.items.length ?? 0;
-  const paymentGate = preorderPaymentGate({
-    bookingIsLive: isCancellableBookingStatus(booking.status),
-    preorderItemsCount,
-    venueAcceptsOnlinePayment: venue.data?.acceptsOnlinePayment === true,
-    existingPayment: bookingPayment.isError ? null : bookingPayment.data,
-  });
-  const paymentFlow = useKaspiPaymentFlow({
-    bookingId: booking.id,
-    existing: bookingPayment.isError ? null : bookingPayment.data,
-    enabled: paymentGate.visible,
-  });
-
   // A14: уведомление читается ОДИН раз, из sessionStorage, а не из URL —
   // ссылку на эту страницу можно переслать, и «предзаказ не прикрепился» не
   // должно всплывать у КАЖДОГО, кто её откроет (в т.ч. у самого гостя при
@@ -251,32 +179,6 @@ function Ticket({ booking }: { booking: Booking }) {
   const phone = displayPhone(booking.phone);
   const outcome = OUTCOME[booking.status];
   const code = bookingCode(booking.id);
-
-  // Явные правила брони (Trello BNjLdfSP, bookeat-backend PR #143) — короткий
-  // подвал билета. Только у живой брони (confirmed/pending): отменённой и
-  // прошедшей это уже не касается. Источник — САМА БРОНЬ (`booking.bookingRules`,
-  // `GET /bookings/:id`), не заведение: сервер специально положил
-  // разрешённые правила сюда же, «чтобы экрану подтверждения не нужен был
-  // второй запрос» (usecase/bookings/facade.go). Зона для перевода дедлайна
-  // отмены в стенные часы всё равно берётся с заведения, как и остальной
-  // билет (`venueWallClock` сама подставляет запасную зону, если заведение
-  // ещё не приехало — ждать его не нужно).
-  const cancelWall = venueWallClock(
-    new Date(
-      new Date(booking.startsAt).getTime() -
-        effectiveFreeCancelHours(booking.bookingRules) * 3_600_000,
-    ).toISOString(),
-    venue.data?.schedule?.timezone,
-  );
-  const rulesFooterText =
-    outcome === "confirmed" || outcome === "pending"
-      ? texts.rulesFooter(
-          effectiveHoldMinutes(booking.bookingRules),
-          time,
-          effectiveLateArrivalText(booking.bookingRules),
-          cancelWall?.time ?? "",
-        )
-      : null;
 
   const heading = {
     confirmed: [texts.confirmedTitle, texts.confirmedText(dateLong, time, phone)],
@@ -320,84 +222,6 @@ function Ticket({ booking }: { booking: Booking }) {
             <Detail label={texts.details.status} value={texts.status[STATUS_KEY[booking.status]]} />
           </dl>
 
-          {/* Блок «Предзаказ» (A13) — сумма ИЗ ОТВЕТА СЕРВЕРА (`totalMinor`),
-              не оценка клиентского черновика. Отказ `GET` не рушит билет:
-              `preorder.data` тогда просто `undefined`, и блока нет. */}
-          {preorder.data && preorder.data.items.length > 0 ? (
-            <>
-              <Divider />
-              <div className="flex flex-col gap-3">
-                <p className="text-ticket-detail-label tracking-[0.2px] text-ink-tertiary">
-                  {texts.preorder.title}
-                </p>
-                <ul className="flex flex-col gap-1.5">
-                  {preorder.data.items.map((item) => (
-                    <li key={item.id} className="flex items-center justify-between gap-3 text-bodyM text-ink">
-                      <span className="min-w-0 truncate">{texts.preorder.line(item.name, item.quantity)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-flow-summary-label text-ink">
-                  {texts.preorder.total(formatMoneyMinor(preorder.data.totalMinor))}
-                </p>
-              </div>
-            </>
-          ) : null}
-
-          {/* Блок «Оплата предзаказа». Между суммой предзаказа и кнопкой
-              «Изменить предзаказ»: платить и менять состав — соседние решения
-              гостя.
-
-              Полноэкранная оплата (Figma qmMsg4jO1ggmyEHNIAD2ll, узел
-              5390:8967) — новый счёт и его отсчёт больше НЕ рисуются здесь
-              инлайн: пока платёж можно (пере)начать, билет — это только точка
-              входа на `/bookings/[id]/payment`. Инлайн-карточка остаётся, но
-              уже как ЧЕК для оплаченного/дожимаемого предзаказа.
-
-              Решение НЕ только по `paymentGate.payable` (см. тот же
-              комментарий в mobile `booking/[id]/index.tsx`): она читает
-              отдельный запрос `useBookingPayment`, который может на секунды
-              отстать от `paymentFlow.phase`, опрашивающей ту же бронь
-              напрямую. */}
-          {paymentGate.visible ? (
-            paymentGate.payable && paymentFlow.phase !== "settling" && paymentFlow.phase !== "paid" ? (
-              <PreorderPaymentEntryCard
-                amountMinor={paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null}
-                href={`/bookings/${booking.id}/payment`}
-              />
-            ) : (
-              <PreorderPaymentCard
-                flow={paymentFlow}
-                fallbackAmountMinor={preorder.data?.totalMinor ?? null}
-              />
-            )
-          ) : null}
-
-          {/* ТЗ `web-preorder-menu-20260908`, C-WEB-2 (C1-C2): своего узла в
-              макете нет — ряд 3525:15104 рисует только «Изменить
-              бронь»/«На главную» (часть A+B этого же ТЗ). Кнопка/текст —
-              полноширинная строка над этим рядом, а не третья ячейка сетки
-              `md:grid-cols-2`: у трёх элементов на двух колонках последняя
-              съезжает в одинокую половину, что хуже честной отдельной строки
-              без макета под три кнопки (несверено с Figma). */}
-          {editState.kind === "action" ? (
-            <Button
-              size="ticket"
-              variant="outline"
-              block
-              asLink
-              href={menuBookingHref(booking.restaurantId, booking.id)}
-            >
-              {editState.itemsCount > 0 ? texts.preorder.edit : texts.preorder.choose}
-            </Button>
-          ) : editState.kind === "locked" ? (
-            <p className="text-bodyS text-ink-secondary">
-              {editState.reason === "confirmedLocked"
-                ? texts.preorder.confirmedLockedNotice
-                : texts.preorder.manualLockedNotice}
-            </p>
-          ) : null}
-
           {SHOW_BOOKING_QR_CODE ? (
             <>
               <Divider />
@@ -415,16 +239,6 @@ function Ticket({ booking }: { booking: Booking }) {
                   <p className="text-bodyS text-ink-secondary">{texts.codeHint}</p>
                 </div>
               </div>
-            </>
-          ) : null}
-
-          {/* Trello BNjLdfSP: держим стол/опоздание/бесплатная отмена одной
-              строкой. Нет узла в макете 3525:15019 — поля на заведении
-              появились позже; подвал у самого низа билета, над кнопками. */}
-          {rulesFooterText ? (
-            <>
-              <Divider />
-              <p className="text-bodyS text-ink-secondary">{rulesFooterText}</p>
             </>
           ) : null}
 

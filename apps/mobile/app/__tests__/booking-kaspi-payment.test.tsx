@@ -4,7 +4,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReservationScreen from "../booking/[id]/index";
-import { formatMoneyMinor } from "../../src/lib/format";
 
 /**
  * Блок оплаты предзаказа на экране брони — теперь ТОЛЬКО точка входа
@@ -123,6 +122,7 @@ const RESTAURANT: Restaurant = {
   // потому что остальные тесты файла разбирают гейт, а он бывает только у
   // заведения, которому вообще разрешено платить.
   acceptsOnlinePayment: true,
+  paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
 };
@@ -194,130 +194,31 @@ beforeEach(() => {
   push.mockClear();
 });
 
-describe("когда блок оплаты вообще есть", () => {
-  it("живая бронь с предзаказом — точка входа в оплату на месте, с суммой", async () => {
+/** Правка владельца 2026-09-24 (макет 3073:11428): с экрана брони убраны блоки
+ * «Предзаказ», «Изменить предзаказ» и «Оплата предзаказа» — оплата теперь только
+ * шторкой `booking/[id]/payment` (см. `booking-payment-screen.test.tsx`). */
+describe("экран брони не показывает ни предзаказ, ни оплату", () => {
+  it.each<[string, () => void]>([
+    ["живая бронь с предзаказом, заведение принимает оплату", () => {}],
+    ["предзаказ уже оплачен", () => {
+      livePayment = paymentWith({ status: "captured" });
+      flowState.phase = "paid";
+      flowState.payment = paymentWith({ status: "captured" });
+    }],
+    ["платёж дожимается", () => {
+      flowState.phase = "settling";
+      flowState.payment = paymentWith({ status: "captured" });
+    }],
+  ])("%s", async (_name, arrange) => {
+    arrange();
     render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
-    expect(
-      screen.getByRole("button", {
-        name: t.booking.paymentEntryCta(formatMoneyMinor(998_000)),
-      }),
-    ).toBeTruthy();
-  });
-
-  it("предзаказа нет — блока нет: платить не за что", async () => {
-    preorder = null;
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.preorderSectionTitle)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Что дальше/)).toBeTruthy());
     expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
-  });
-
-  it.each<BookingStatus>(["cancelled", "no_show", "completed"])(
-    "бронь %s — блока нет: сервер такой платёж всё равно не примет",
-    async (status) => {
-      booking = bookingWith(status);
-      render(<ReservationScreen />);
-      await waitFor(() => expect(screen.getByText(t.booking.title)).toBeTruthy());
-      expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
-    },
-  );
-});
-
-describe("точка входа ведёт на полный экран, а не создаёт счёт сама", () => {
-  it.each<"idle" | "awaiting" | "dead">(["idle", "awaiting", "dead"])(
-    "фаза %s — кнопка одна, и она про навигацию",
-    async (phase) => {
-      flowState.phase = phase;
-      if (phase !== "idle") flowState.payment = paymentWith({ status: phase === "dead" ? "expired" : "created" });
-
-      render(<ReservationScreen />);
-      const button = await screen.findByRole("button", {
-        name: t.booking.paymentEntryCta(formatMoneyMinor(998_000)),
-      });
-      button.click();
-      expect(push).toHaveBeenCalledWith({
-        pathname: "/booking/[id]/payment",
-        params: { id: "b-1" },
-      });
-      // Счёт отсюда не создаётся и не обновляется вовсе — это дело полного
-      // экрана оплаты.
-      expect(pay).not.toHaveBeenCalled();
-      expect(renew).not.toHaveBeenCalled();
-    },
-  );
-});
-
-describe("оплата видна только там, где заведение к ней подключено", () => {
-  it("заведение принимает оплату — блок на месте, точка входа есть", async () => {
-    restaurant = venue(true);
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
-    expect(
-      screen.getByRole("button", { name: t.booking.paymentEntryCta(formatMoneyMinor(998_000)) }),
-    ).toBeTruthy();
-    expect(flowEnabled.every((v) => v === true)).toBe(true);
-  });
-
-  it("заведение оплату НЕ принимает — блока нет вовсе", async () => {
-    restaurant = venue(false);
-    render(<ReservationScreen />);
-    // Экран отрисовался целиком: без этого «блока нет» доказывало бы лишь то,
-    // что мы измерили пустую страницу.
-    await waitFor(() => expect(screen.getByText(t.booking.preorderSectionTitle)).toBeTruthy());
-    expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
-    expect(flowEnabled.every((v) => v === false)).toBe(true);
-  });
-
-  it("деталка заведения ещё не приехала — оплату не предлагаем", async () => {
-    restaurant = undefined;
-    render(<ReservationScreen />);
-    // Без деталки заведения на экране нет и блока предзаказа (он живёт на
-    // меню), поэтому «экран отрисовался» доказывает заголовок брони.
-    await waitFor(() => expect(screen.getByText(t.booking.title)).toBeTruthy());
-    expect(screen.queryByText(t.booking.paymentSectionTitle)).toBeNull();
-    expect(flowEnabled.every((v) => v === false)).toBe(true);
-  });
-
-  it("уже оплачено, а заведение отключили — чек остаётся, кнопок оплаты нет", async () => {
-    restaurant = venue(false);
-    livePayment = paymentWith({ status: "captured" });
-    flowState.phase = "paid";
-    flowState.payment = livePayment;
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentPaidTitle)).toBeTruthy());
+    expect(screen.queryByText(t.booking.preorderEdit)).toBeNull();
+    expect(screen.queryByText(t.booking.preorderAdd)).toBeNull();
+    expect(screen.queryByText(t.booking.preorderSummaryTitle)).toBeNull();
+    expect(screen.queryByText(/Бешбармак/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
-  });
-});
-
-describe("оплаченный/дожимаемый предзаказ — чек, а не точка входа", () => {
-  it("ОПЛАЧЕНО — сумма видна, а кнопки оплаты на экране НЕТ", async () => {
-    flowState.phase = "paid";
-    flowState.payment = paymentWith({ status: "captured" });
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentPaidTitle)).toBeTruthy());
-    // `normalizer` оставляет НЕРАЗРЫВНЫЙ пробел как есть: по умолчанию
-    // testing-library схлопывает его в обычный, и сумма перестаёт совпадать
-    // с тем, что печатает formatMoneyMinor.
-    expect(
-      screen.getByText(t.booking.paymentPaidHint(formatMoneyMinor(998_000)), {
-        normalizer: (value) => value.trim(),
-      }),
-    ).toBeTruthy();
-    // Ни одной кнопки, которая может создать второй счёт или уйти в Kaspi.
-    expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: t.booking.paymentRenew })).toBeNull();
-    expect(screen.queryByRole("button", { name: t.booking.paymentOpenAgain })).toBeNull();
-  });
-
-  it("деньги ушли, списание дожимается — «оплачено» ещё НЕ пишем, и точки входа нет", async () => {
-    flowState.phase = "settling";
-    flowState.payment = paymentWith({ status: "authorized" });
-
-    render(<ReservationScreen />);
-    await waitFor(() => expect(screen.getByText(t.booking.paymentSettlingTitle)).toBeTruthy());
-    expect(screen.queryByText(t.booking.paymentPaidTitle)).toBeNull();
-    expect(screen.queryByRole("button", { name: /Оплатить/ })).toBeNull();
+    expect(screen.queryByText(/Стол держим/)).toBeNull();
   });
 });

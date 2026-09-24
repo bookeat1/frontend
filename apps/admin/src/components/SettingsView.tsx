@@ -9,6 +9,7 @@ import { PricingCard } from "./PricingCard";
 import { SocialLinksCard } from "./SocialLinksCard";
 import { VenueFeaturesCard } from "./VenueFeaturesCard";
 import { PaymentAcceptanceCard } from "./PaymentAcceptanceCard";
+import { PaymentMethodsCard } from "./PaymentMethodsCard";
 import { TelegramNotificationCard } from "./TelegramNotificationCard";
 import { WhatsAppNotificationCard } from "./WhatsAppNotificationCard";
 
@@ -40,6 +41,7 @@ export function SettingsView() {
       <VenueFeaturesCard restaurantId={restaurantId} />
       <SocialLinksCard restaurantId={restaurantId} />
       {isSuperadmin ? <PaymentAcceptanceCard restaurantId={restaurantId} /> : null}
+      {isSuperadmin ? <PaymentMethodsCard restaurantId={restaurantId} /> : null}
       {isSuperadmin ? <KwaakaLinkCard restaurantId={restaurantId} /> : null}
       <TelegramNotificationCard restaurantId={restaurantId} />
       <WhatsAppNotificationCard restaurantId={restaurantId} />

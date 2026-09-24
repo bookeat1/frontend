@@ -147,7 +147,21 @@ export default function RootLayout() {
                     headerShown: false,
                     contentStyle: { backgroundColor: colors.background.surface },
                   }}
-                />
+                >
+                  {/* Оплата предзаказа — нижние шторки поверх предыдущего экрана
+                      (Figma 5387:7782 / 5390:8698 / 5390:9142). */}
+                  {(["payment", "payment-success", "payment-error"] as const).map((name) => (
+                    <Stack.Screen
+                      key={name}
+                      name={`booking/[id]/${name}`}
+                      options={{
+                        presentation: "transparentModal",
+                        animation: "fade",
+                        contentStyle: { backgroundColor: "transparent" },
+                      }}
+                    />
+                  ))}
+                </Stack>
                 {/* «Доступна новая версия» — ПОСЛЕ Stack, чтобы окно легло
                     поверх любого экрана: жёсткий режим обязан накрывать и тот,
                     на который гость пришёл по пуш-уведомлению. Пока показывать

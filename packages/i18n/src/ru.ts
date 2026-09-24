@@ -2323,6 +2323,24 @@ export const ru = {
     },
     /** «Приём оплаты» — к какой компании в сервисе Kaspi привязано заведение,
      * то есть на чей счёт попадут деньги гостя. Только для суперадмина. */
+    paymentMethods: {
+      title: "Способы оплаты",
+      description: "Какими способами гости этого заведения могут оплатить предзаказ. Гость видит только доступные кнопки.",
+      loadingTitle: "Загружаем способы оплаты…",
+      masterLabel: "Онлайн-оплата включена",
+      masterHint: "Главный переключатель заведения. Выключите, чтобы не принимать онлайн-оплату совсем.",
+      inheritedHint: "Сейчас действует общая настройка платформы. Значение закрепится за заведением, когда вы измените переключатель.",
+      kaspiLabel: "Kaspi",
+      cardLabel: "Карта (FreedomPay, TipTop и др.)",
+      kaspiUnbound: "Kaspi включён, но заведение не привязано к компании в Kaspi, поэтому гостям он показан не будет. Привяжите компанию в карточке «Приём оплаты» ниже.",
+      save: "Сохранить",
+      saving: "Сохраняем…",
+      saved: "Способы оплаты сохранены",
+      loadFailed: "Не удалось загрузить способы оплаты",
+      retry: "Повторить",
+      saveFailed: "Не удалось сохранить. Попробуйте ещё раз",
+      saveForbidden: "Менять способы оплаты может только суперадмин",
+    },
     payments: {
       title: "Приём оплаты",
       description:
@@ -3203,6 +3221,8 @@ export const ru = {
      * способа оплаты в приложении нет (правка владельца 2026-09-23). */
     paymentPay: "Оплатить",
     paymentPayAmount: (amount: string) => `Оплатить ${amount}`,
+    paymentPayKaspi: "Оплатить Kaspi",
+    paymentPayCard: "Оплатить картой",
     /** Подсказка для скринридера: кнопка уводит из приложения. */
     paymentOpensExternally: "Откроется приложение Kaspi или браузер",
     /** Ссылка создана и ещё жива. */
@@ -3265,6 +3285,11 @@ export const ru = {
       "Что-то пошло не так. Попробуйте оплатить заказ ещё раз или выберите другой способ оплаты.",
     paymentFailedRetry: "Повторить попытку",
     paymentFailedBackToBooking: "Вернуться к брони",
+    paymentPreorderSummary: (count: number) => `Предзаказ · ${count} ${pluralRu(count, "блюдо", "блюда", "блюд")}`,
+    paymentViewAll: "Посмотреть все",
+    paymentHideAll: "Свернуть",
+    paymentPayKaspiAmount: (amount: string) => `Оплатить Kaspi ${amount}`,
+    paymentPayCardAmount: (amount: string) => `Оплатить картой ${amount}`,
     cancelSectionTitle: "Хотите отменить?",
     cancelBooking: "Отменить",
     cancelDialogTitle: "Отменить бронь?",
@@ -4914,6 +4939,8 @@ export const ru = {
         intro: "Оплатите предзаказ заранее — кухня начнёт готовить к вашему приходу.",
         payWithKaspi: "Оплатить",
         payWithKaspiAmount: (amount: string) => `Оплатить ${amount}`,
+        payKaspi: "Оплатить Kaspi",
+        payCard: "Оплатить картой",
         awaitingTitle: "Ждём оплату",
         countdown: (left: string) => `Ссылка действует ещё ${left}`,
         openAgain: "Открыть оплату снова",
@@ -4947,6 +4974,11 @@ export const ru = {
           "Что-то пошло не так. Попробуйте оплатить заказ ещё раз или выберите другой способ оплаты.",
         failedRetry: "Повторить попытку",
         failedBackToBooking: "Вернуться к брони",
+        preorderSummary: (count: number) => `Предзаказ · ${count} ${pluralRu(count, "блюдо", "блюда", "блюд")}`,
+        viewAll: "Посмотреть все",
+        hideAll: "Свернуть",
+        payKaspiAmount: (amount: string) => `Оплатить Kaspi ${amount}`,
+        payCardAmount: (amount: string) => `Оплатить картой ${amount}`,
       },
     },
     /** Страница гостя — узлы 3525:15153 и 3525:15365. */

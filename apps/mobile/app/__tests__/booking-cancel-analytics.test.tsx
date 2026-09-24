@@ -85,6 +85,7 @@ const RESTAURANT: Restaurant = {
   acceptsOnlineBookings: true,
   // Оплата к этим тестам отношения не имеет — см. booking-kaspi-payment.
   acceptsOnlinePayment: false,
+  paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
 };
