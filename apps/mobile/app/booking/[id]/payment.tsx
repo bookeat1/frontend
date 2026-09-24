@@ -3,10 +3,8 @@ import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { FlowHeader } from "../../../src/components/FlowHeader";
-import { KaspiPayButton } from "../../../src/components/booking/KaspiPayButton";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { RouteSheet } from "../../../src/components/booking/RouteSheet";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { EmptyState, ErrorState, LoadingState } from "../../../src/components/StateViews";
 import { useBooking, useBookingPayment, usePreorder } from "../../../src/hooks/useBooking";
@@ -27,8 +25,8 @@ const t = getDictionary();
 /**
  * Полноэкранная оплата предзаказа — Figma qmMsg4jO1ggmyEHNIAD2ll, узел
  * 5390:8875 («Pre-order / Payment», мобильный кадр со статус-баром: в макете
- * это модальная шторка ПОВЕРХ экрана «Confirmation», здесь — отдельный
- * маршрут: задача просит именно полноэкранные экраны, а не шторку).
+ * это модальная шторка ПОВЕРХ предыдущего экрана. С 2026-09-24 так и
+ * есть: маршрут `transparentModal` (`app/_layout.tsx`) + `RouteSheet`).
  *
  * Экран держит ТРИ фазы существующей машины состояний Kaspi (idle/awaiting/
  * settling) — `paid` и `dead` уводят гостя на отдельные экраны-развязки
@@ -73,7 +71,6 @@ export default function PaymentScreen() {
   // `null` — старый бэкенд без `payment_methods`: одна кнопка «Оплатить» без
   // `method`, как раньше.
   const methodButtons: PaymentMethod[] = restaurant.data?.paymentMethods ?? [];
-  const [pickedMethod, setPickedMethod] = React.useState<PaymentMethod | null>(null);
   const [openFailed, setOpenFailed] = React.useState(false);
 
   // Тот же приём, что раньше жил на экране брони: счёт создан — гостя сразу
@@ -126,27 +123,24 @@ export default function PaymentScreen() {
     router.replace({ pathname: "/booking/[id]", params: { id: id ?? "" } });
   }, [router, id]);
 
-  const header = (
-    <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-      <FlowHeader title={t.booking.paymentSectionTitle} onClose={leave} />
-    </SafeAreaView>
-  );
+  const [showAll, setShowAll] = React.useState(false);
 
+  // Шторка (Figma 5387:7782): весь экран — прозрачный маршрут, панель снизу.
+  // Состояния загрузки/ошибки/«платить нечего» рисуются ВНУТРИ той же панели,
+  // а не отдельным экраном: гость видит один и тот же слой поверх брони.
   if (authStatus !== "signed-in" || booking.isPending) {
     return (
-      <View style={styles.root}>
-        {header}
+      <RouteSheet onClose={leave} closeLabel={t.common.close}>
         <View style={styles.stateBody}>
           <LoadingState title={t.booking.bookingLoading} />
         </View>
-      </View>
+      </RouteSheet>
     );
   }
 
   if (booking.isError || !booking.data) {
     return (
-      <View style={styles.root}>
-        {header}
+      <RouteSheet onClose={leave} closeLabel={t.common.close}>
         <View style={styles.stateBody}>
           <ErrorState
             title={t.booking.bookingErrorTitle}
@@ -154,17 +148,15 @@ export default function PaymentScreen() {
             action={{ label: t.common.retry, onPress: () => void booking.refetch(), variant: "button" }}
           />
         </View>
-      </View>
+      </RouteSheet>
     );
   }
 
-  // Сюда попадают только по кнопке входа со страницы брони, но прямая
-  // ссылка/возврат по устаревшему deep link на уже неплатёжеспособную бронь
-  // должны показать честное «платить нечего», а не пустой экран.
+  // Прямая ссылка/возврат по устаревшему deep link на уже неплатёжеспособную
+  // бронь должны показать честное «платить нечего», а не пустую шторку.
   if (!paymentGate.payable && phase !== "settling") {
     return (
-      <View style={styles.root}>
-        {header}
+      <RouteSheet onClose={leave} closeLabel={t.common.close}>
         <View style={styles.stateBody}>
           <EmptyState
             title={t.booking.paymentErrorUnavailable}
@@ -172,7 +164,7 @@ export default function PaymentScreen() {
             action={{ label: t.booking.backToHome, onPress: leave, variant: "button" }}
           />
         </View>
-      </View>
+      </RouteSheet>
     );
   }
 
@@ -180,27 +172,76 @@ export default function PaymentScreen() {
   const amount = amountMinor === null ? null : formatMoneyMinor(amountMinor);
   const left = remainingMs(paymentFlow.payment?.expiresAt ?? null, paymentFlow.now);
   const failure = createFailureMessage(paymentFlow.error);
+  const items = preorder.data?.items ?? [];
+  // Две кнопки «по способу» — только когда заведение подключило ОБА способа;
+  // один способ или «неизвестно» (старый бэкенд) — одна кнопка «Оплатить N».
+  const twoMethods = methodButtons.length >= 2;
+  const singleMethod: PaymentMethod | undefined = methodButtons.length === 1 ? methodButtons[0] : undefined;
+  const payAll = (method?: PaymentMethod) => {
+    if (method) paymentFlow.pay(method);
+    else paymentFlow.pay();
+  };
+
+  const idleButtons =
+    phase === "idle" ? (
+      twoMethods ? (
+        methodButtons.map((method) => {
+          const label = amount
+            ? method === "kaspi"
+              ? t.booking.paymentPayKaspiAmount(amount)
+              : t.booking.paymentPayCardAmount(amount)
+            : method === "kaspi"
+              ? t.booking.paymentPayKaspi
+              : t.booking.paymentPayCard;
+          return (
+            <PrimaryButton
+              key={method}
+              label={label}
+              size="lg"
+              disabled={paymentFlow.creating}
+              onPress={() => payAll(method)}
+              accessibilityHint={t.booking.paymentOpensExternally}
+            />
+          );
+        })
+      ) : (
+        <PrimaryButton
+          label={amount ? t.booking.paymentPayAmount(amount) : t.booking.paymentPay}
+          size="lg"
+          disabled={paymentFlow.creating}
+          onPress={() => payAll(singleMethod)}
+          accessibilityHint={t.booking.paymentOpensExternally}
+        />
+      )
+    ) : null;
 
   return (
-    <View style={styles.root}>
-      {header}
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Заголовок «Оплата предзаказа» уже несёт `FlowHeader` выше — как на
-            остальных экранах брони (см. `booking/[id]/index.tsx`), здесь он
-            не повторяется вторым H1, только название заведения. */}
-        {restaurant.data ? (
-          <Text style={styles.subtitle} accessibilityRole="header">
-            {restaurant.data.name}
-          </Text>
-        ) : null}
+    <RouteSheet onClose={leave} closeLabel={t.common.close} footer={idleButtons}>
+      <View style={styles.titleBlock}>
+        <Text style={styles.title} accessibilityRole="header">
+          {t.booking.paymentSectionTitle}
+        </Text>
+        {restaurant.data ? <Text style={styles.subtitle}>{restaurant.data.name}</Text> : null}
+      </View>
 
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryHeaderLabel}>{t.booking.preorderSummaryTitle}</Text>
-            {amount ? <Text style={styles.summaryHeaderAmount}>{amount}</Text> : null}
-          </View>
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryHeader}>
+          <Text style={styles.summaryHeaderLabel}>{t.booking.paymentPreorderSummary(items.length)}</Text>
+          {amount ? <Text style={styles.summaryHeaderAmount}>{amount}</Text> : null}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAll }}
+          onPress={() => setShowAll((v) => !v)}
+          style={styles.viewAll}
+        >
+          <Text style={styles.viewAllLabel}>
+            {showAll ? t.booking.paymentHideAll : t.booking.paymentViewAll}
+          </Text>
+        </Pressable>
+        {showAll ? (
           <View style={styles.summaryList}>
-            {(preorder.data?.items ?? []).map((item) => (
+            {items.map((item) => (
               <View key={item.id} style={styles.summaryRow}>
                 <Text style={styles.summaryRowName} numberOfLines={2}>
                   {item.quantity} × {item.name}
@@ -209,88 +250,47 @@ export default function PaymentScreen() {
               </View>
             ))}
           </View>
+        ) : null}
+      </View>
+
+      <Text style={styles.note}>{t.booking.paymentCheckoutNote}</Text>
+
+      {phase === "settling" ? <Text style={styles.strong}>{t.booking.paymentSettlingTitle}</Text> : null}
+
+      {phase === "awaiting" ? (
+        <View style={styles.awaitingBlock}>
+          <Text style={styles.strong}>{t.booking.paymentAwaitingTitle}</Text>
+          {left !== null ? (
+            <Text style={styles.countdown} accessibilityRole="text">
+              {t.booking.paymentCountdown(formatCountdown(left))}
+            </Text>
+          ) : null}
+          <PrimaryButton
+            label={t.booking.paymentOpenAgain}
+            size="lg"
+            onPress={() => void openPaymentLink()}
+            accessibilityHint={t.booking.paymentOpensExternally}
+          />
+          <PrimaryButton
+            label={t.booking.paymentCheckAgain}
+            variant="secondary"
+            size="lg"
+            onPress={paymentFlow.check}
+          />
         </View>
+      ) : null}
 
-        <Text style={styles.note}>{t.booking.paymentCheckoutNote}</Text>
-
-        {phase === "settling" ? <Text style={styles.strong}>{t.booking.paymentSettlingTitle}</Text> : null}
-
-        {phase === "awaiting" ? (
-          <View style={styles.awaitingBlock}>
-            <Text style={styles.strong}>{t.booking.paymentAwaitingTitle}</Text>
-            {left !== null ? (
-              <Text style={styles.countdown} accessibilityRole="text">
-                {t.booking.paymentCountdown(formatCountdown(left))}
-              </Text>
-            ) : null}
-            <PrimaryButton
-              label={t.booking.paymentOpenAgain}
-              size="lg"
-              onPress={() => void openPaymentLink()}
-              accessibilityHint={t.booking.paymentOpensExternally}
-            />
-            <PrimaryButton
-              label={t.booking.paymentCheckAgain}
-              variant="secondary"
-              size="lg"
-              onPress={paymentFlow.check}
-            />
-          </View>
-        ) : null}
-
-        {phase === "idle" ? (
-          methodButtons.length > 0 ? (
-            <View style={styles.methodButtons}>
-              {methodButtons.map((method) =>
-                method === "kaspi" ? (
-                  <KaspiPayButton
-                    key={method}
-                    label={t.booking.paymentPayKaspi}
-                    busy={paymentFlow.creating && pickedMethod === method}
-                    disabled={paymentFlow.creating}
-                    onPress={() => {
-                      setPickedMethod(method);
-                      paymentFlow.pay(method);
-                    }}
-                    accessibilityHint={t.booking.paymentOpensExternally}
-                  />
-                ) : (
-                  <PrimaryButton
-                    key={method}
-                    label={t.booking.paymentPayCard}
-                    size="lg"
-                    disabled={paymentFlow.creating}
-                    onPress={() => {
-                      setPickedMethod(method);
-                      paymentFlow.pay(method);
-                    }}
-                    accessibilityHint={t.booking.paymentOpensExternally}
-                  />
-                ),
-              )}
-            </View>
-          ) : (
-            <KaspiPayButton
-              label={amount ? t.booking.paymentPayAmount(amount) : t.booking.paymentPay}
-              busy={paymentFlow.creating}
-              onPress={() => paymentFlow.pay()}
-              accessibilityHint={t.booking.paymentOpensExternally}
-            />
-          )
-        ) : null}
-
-        {failure ? (
-          <Text style={styles.error} accessibilityRole="alert">
-            {failure}
-          </Text>
-        ) : null}
-        {openFailed ? (
-          <Text style={styles.error} accessibilityRole="alert">
-            {t.booking.paymentErrorCannotOpen}
-          </Text>
-        ) : null}
-      </ScrollView>
-    </View>
+      {failure ? (
+        <Text style={styles.error} accessibilityRole="alert">
+          {failure}
+        </Text>
+      ) : null}
+      {openFailed ? (
+        <Text style={styles.error} accessibilityRole="alert">
+          {t.booking.paymentErrorCannotOpen}
+        </Text>
+      ) : null}
+    </RouteSheet>
   );
 }
 
@@ -306,29 +306,24 @@ function createFailureMessage(error: unknown): string | null {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background.surface,
-  },
-  headerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
   stateBody: {
-    flex: 1,
+    minHeight: 240,
   },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.xxl,
+  titleBlock: {
+    gap: spacing.xs,
   },
-  subtitle: {
+  title: {
     ...typography.titleLg,
     color: colors.text.primary,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.text.muted,
   },
   summaryCard: {
     backgroundColor: colors.background.chipAlt,
     borderRadius: radius.card,
-    padding: spacing.md,
-    gap: spacing.md,
+    overflow: "hidden",
   },
   summaryHeader: {
     backgroundColor: colors.brand.primary,
@@ -341,7 +336,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   summaryHeaderLabel: {
-    ...typography.body,
+    ...typography.labelSemiBold,
     color: colors.text.onDark,
     flex: 1,
   },
@@ -349,8 +344,18 @@ const styles = StyleSheet.create({
     ...typography.titleMd,
     color: colors.text.onDark,
   },
+  viewAll: {
+    paddingVertical: spacing.md,
+    alignItems: "center",
+  },
+  viewAllLabel: {
+    ...typography.labelSemiBold,
+    color: colors.text.primary,
+  },
   summaryList: {
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
   summaryRow: {
     flexDirection: "row",
@@ -370,13 +375,11 @@ const styles = StyleSheet.create({
   note: {
     ...typography.caption,
     color: colors.text.muted,
+    textAlign: "center",
   },
   strong: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
-  },
-  methodButtons: {
-    gap: spacing.md,
   },
   awaitingBlock: {
     gap: spacing.md,

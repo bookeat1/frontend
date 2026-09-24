@@ -165,7 +165,11 @@ describe("фаза idle", () => {
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
     expect(screen.getByText("Mongol")).toBeTruthy();
-    expect(screen.getByText(/Бешбармак/)).toBeTruthy();
+    expect(screen.getByText(t.booking.paymentPreorderSummary(1))).toBeTruthy();
+    // Состав свёрнут за «Посмотреть все» (Figma 5387:7782).
+    expect(screen.queryByText(/Бешбармак/)).toBeNull();
+    screen.getByRole("button", { name: t.booking.paymentViewAll }).click();
+    await waitFor(() => expect(screen.getByText(/Бешбармак/)).toBeTruthy());
     const button = screen.getByRole("button", {
       name: t.booking.paymentPayAmount(formatMoneyMinor(998_000)),
     });
@@ -180,17 +184,21 @@ describe("выбор способа оплаты (payment_methods)", () => {
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
     expect(screen.queryByRole("button", { name: t.booking.paymentPayAmount(formatMoneyMinor(998_000)) })).toBeNull();
-    screen.getByRole("button", { name: "Оплатить Kaspi" }).click();
+    screen.getByRole("button", { name: t.booking.paymentPayKaspiAmount(formatMoneyMinor(998_000)) }).click();
     expect(pay).toHaveBeenLastCalledWith("kaspi");
-    screen.getByRole("button", { name: "Оплатить картой" }).click();
+    screen.getByRole("button", { name: t.booking.paymentPayCardAmount(formatMoneyMinor(998_000)) }).click();
     expect(pay).toHaveBeenLastCalledWith("card");
   });
 
-  it("только карта — одна кнопка «Оплатить картой»", async () => {
+  it("только карта — одна кнопка «Оплатить N», уходит с method=card", async () => {
     restaurant = { ...RESTAURANT, paymentMethods: ["card"] };
     render(<PaymentScreen />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Оплатить картой" })).toBeTruthy());
-    expect(screen.queryByRole("button", { name: "Оплатить Kaspi" })).toBeNull();
+    const single = await screen.findByRole("button", {
+      name: t.booking.paymentPayAmount(formatMoneyMinor(998_000)),
+    });
+    expect(screen.queryByRole("button", { name: /Kaspi/ })).toBeNull();
+    single.click();
+    expect(pay).toHaveBeenLastCalledWith("card");
   });
 
   it("старый бэкенд (поля нет) — прежняя «Оплатить» без method", async () => {

@@ -117,35 +117,13 @@ beforeEach(() => {
   restaurant = BASE_RESTAURANT;
 });
 
-describe("подвал «Явные правила брони» (Trello BNjLdfSP)", () => {
-  it("бронь без booking_rules (старый сервер/резолвер не сработал) — клиент подставляет платформенные дефолты", async () => {
-    renderScreen("confirmed", null);
-
-    expect(
-      await screen.findByText(
-        "Стол держим 15 минут после 19:30. Опаздываете — позвоните в заведение. Бесплатная отмена — до 17:30.",
-      ),
-    ).toBeTruthy();
-  });
-
-  it("сервер прислал разрешённые правила — экран показывает их, не платформенный дефолт", async () => {
-    renderScreen("confirmed", {
-      holdMinutes: 30,
-      freeCancelHours: 4,
-      lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
-    });
-
-    expect(
-      await screen.findByText(
-        "Стол держим 30 минут после 19:30. Задерживаетесь — напишите нам в WhatsApp. Бесплатная отмена — до 15:30.",
-      ),
-    ).toBeTruthy();
-  });
-
-  it.each<BookingStatus>(["cancelled", "no_show", "completed"])(
-    "у брони со статусом %s подвала нет: держать стол уже нечего",
+/** Правка владельца 2026-09-24 (макет 3073:11428): строку «Стол держим N минут
+ * после …» с экрана брони убрали — ни у живой, ни у прошедшей брони. */
+describe("подвал «Явные правила брони» убран с экрана брони", () => {
+  it.each<BookingStatus>(["confirmed", "pending", "cancelled", "no_show", "completed"])(
+    "у брони со статусом %s строки «Стол держим» нет",
     async (status) => {
-      renderScreen(status);
+      renderScreen(status, { holdMinutes: 30, freeCancelHours: 4, lateArrivalText: "Позвоните." });
 
       await screen.findByText(/Что дальше/);
       expect(screen.queryByText(/Стол держим/)).toBeNull();

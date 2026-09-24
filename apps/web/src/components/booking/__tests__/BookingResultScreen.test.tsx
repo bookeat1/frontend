@@ -160,80 +160,16 @@ describe("страница брони — билет", () => {
   });
 });
 
-/**
- * Trello BNjLdfSP (bookeat-backend PR #143): подвал с правилами удержания
- * стола/отмены/опоздания. Источник — `booking.bookingRules` (вложенный
- * `booking_rules` на `GET /bookings/:id`), НЕ заведение — сервер специально
- * кладёт уже разрешённые правила прямо в бронь. `booking()` даёт
- * `startsAt: "2026-08-25T14:30:00Z"` → 19:30 по Алматы.
- */
-describe("подвал «Явные правила брони» (Trello BNjLdfSP)", () => {
-  it("бронь без booking_rules (старый сервер/резолвер не сработал) — клиент подставляет платформенные дефолты", async () => {
-    repository.getBooking = vi.fn(async () =>
-      booking({ id: ID, status: "confirmed", bookingRules: null }),
-    );
-
-    renderResult();
-
-    await screen.findByText("Столик забронирован");
-    expect(
-      await screen.findByText(
-        "Стол держим 15 минут после 19:30. Опаздываете — позвоните в заведение. Бесплатная отмена — до 17:30.",
-      ),
-    ).toBeTruthy();
-  });
-
-  it("сервер прислал разрешённые правила — экран показывает их, не платформенный дефолт", async () => {
-    repository.getBooking = vi.fn(async () =>
-      booking({
-        id: ID,
-        status: "confirmed",
-        bookingRules: {
-          holdMinutes: 30,
-          freeCancelHours: 4,
-          lateArrivalText: "Задерживаетесь — напишите нам в WhatsApp.",
-        },
-      }),
-    );
-
-    renderResult();
-
-    await screen.findByText("Столик забронирован");
-    expect(
-      await screen.findByText(
-        "Стол держим 30 минут после 19:30. Задерживаетесь — напишите нам в WhatsApp. Бесплатная отмена — до 15:30.",
-      ),
-    ).toBeTruthy();
-  });
-
-  it("отменённая бронь — подвала нет: держать стол уже нечего", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, status: "cancelled" }));
-
-    renderResult();
-
-    await screen.findByText("Бронь отменена");
-    expect(screen.queryByText(/Стол держим/)).toBeNull();
-  });
-});
-
-describe("блок «Предзаказ» на билете (A13, A14)", () => {
-  beforeEach(() => {
-    window.sessionStorage.clear();
-  });
-
-  it("items.length > 0 — строки и серверный итог, не оценка черновика", async () => {
+/** Правка владельца 2026-09-24 (макет 3073:11428): строки «Стол держим N минут
+ * после …», блока предзаказа, «Изменить предзаказ» и оплаты на странице брони
+ * больше нет. */
+describe("страница брони — убранные блоки (правка 2026-09-24)", () => {
+  it("ни подвала «Стол держим», ни предзаказа, ни оплаты, ни кнопок правки предзаказа", async () => {
+    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "confirmed" }));
     repository.getPreorder = vi.fn(async () =>
       preorder({
         items: [
-          {
-            id: "item-1",
-            menuItemId: "dish-1",
-            name: "Стейк рибай",
-            priceMinor: 899000,
-            quantity: 2,
-            totalMinor: 1798000,
-            comment: null,
-          },
+          { id: "item-1", menuItemId: "dish-1", name: "Стейк рибай", priceMinor: 899000, quantity: 2, totalMinor: 1798000, comment: null },
         ],
         totalMinor: 1798000,
       }),
@@ -241,28 +177,20 @@ describe("блок «Предзаказ» на билете (A13, A14)", () => {
 
     renderResult();
 
-    expect(await screen.findByText("Стейк рибай × 2")).toBeTruthy();
-    expect(screen.getByText("Итого: 17 980 ₸")).toBeTruthy();
-  });
-
-  it("items.length === 0 — блока нет вовсе", async () => {
-    repository.getPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
-
-    renderResult();
-
     await screen.findByText("Столик забронирован");
-    expect(screen.queryByText("Предзаказ")).toBeNull();
+    expect(screen.queryByText(/Стол держим/)).toBeNull();
+    expect(screen.queryByText(/Стейк рибай/)).toBeNull();
+    expect(screen.queryByText(/Оплата предзаказа/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Изменить предзаказ" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Выбрать блюда" })).toBeNull();
+    // Сам запрос предзаказа со страницы тоже ушёл.
+    expect(repository.getPreorder).not.toHaveBeenCalled();
   });
+});
 
-  it("GET /preorder упал — билет остаётся, страница не рушится", async () => {
-    repository.getPreorder = vi.fn(async () => {
-      throw new RepositoryError("offline", undefined, undefined, undefined, undefined, undefined, true);
-    });
-
-    renderResult();
-
-    expect(await screen.findByText("Столик забронирован")).toBeTruthy();
-    expect(screen.queryByText("Предзаказ")).toBeNull();
+describe("блок «Предзаказ» на билете (A13, A14)", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
   });
 
   it("уведомление о непрекреплённом предзаказе — один раз, не при повторном открытии", async () => {
@@ -309,105 +237,5 @@ describe("блок «Предзаказ» на билете (A13, A14)", () => {
     renderResult();
 
     expect(await screen.findByText(expectedText)).toBeTruthy();
-  });
-});
-
-/**
- * Кнопка «Выбрать блюда»/«Изменить предзаказ» на билете — ТЗ
- * `web-preorder-menu-20260908`, C-WEB-2, критерии C1-C2.
- */
-describe("билет — вход в правку предзаказа (C-WEB-2)", () => {
-  it("pending, предзаказа нет — «Выбрать блюда» ведёт в режим ?booking=", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "pending" }));
-    repository.getPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
-
-    renderResult();
-
-    const link = await screen.findByRole("link", { name: "Выбрать блюда" });
-    expect(link.getAttribute("href")).toBe(menuBookingHref("venue-1", ID));
-    expect(screen.queryByText("Изменить предзаказ")).toBeNull();
-  });
-
-  it("pending, предзаказ есть — «Изменить предзаказ»", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "pending" }));
-    repository.getPreorder = vi.fn(async () => preorder());
-
-    renderResult();
-
-    const link = await screen.findByRole("link", { name: "Изменить предзаказ" });
-    expect(link.getAttribute("href")).toBe(menuBookingHref("venue-1", ID));
-  });
-
-  it("confirmed, предзаказа нет — первое прикрепление, кнопка есть (ADR-030, исключение)", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "confirmed" }));
-    repository.getPreorder = vi.fn(async () => preorder({ items: [], totalMinor: 0 }));
-
-    renderResult();
-
-    expect(await screen.findByRole("link", { name: "Выбрать блюда" })).toBeTruthy();
-  });
-
-  it("confirmed, предзаказ уже есть — кнопки нет, текст про заведение (C1)", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "confirmed" }));
-    repository.getPreorder = vi.fn(async () => preorder());
-
-    renderResult();
-
-    expect(await screen.findByText("Состав подтверждённой брони меняет заведение")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Выбрать блюда" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Изменить предзаказ" })).toBeNull();
-  });
-
-  it("строка без menu_item_id (ручная позиция кабинета) — кнопки нет ни при каком статусе (C2)", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "pending" }));
-    repository.getPreorder = vi.fn(async () =>
-      preorder({
-        items: [
-          {
-            id: "item-manual",
-            menuItemId: null,
-            name: "Торт на заказ",
-            priceMinor: 500000,
-            quantity: 1,
-            totalMinor: 500000,
-            comment: null,
-          },
-        ],
-        totalMinor: 500000,
-      }),
-    );
-
-    renderResult();
-
-    expect(await screen.findByText("Состав менял ресторан — изменения через заведение")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Изменить предзаказ" })).toBeNull();
-  });
-
-  it.each(["arrived", "completed", "cancelled", "no_show"] as const)(
-    "статус %s — ни кнопки, ни текста (терминальная бронь)",
-    async (status) => {
-      repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status }));
-      repository.getPreorder = vi.fn(async () => preorder());
-
-      renderResult();
-
-      await screen.findByRole("article");
-      expect(screen.queryByRole("link", { name: "Выбрать блюда" })).toBeNull();
-      expect(screen.queryByRole("link", { name: "Изменить предзаказ" })).toBeNull();
-      expect(screen.queryByText("Состав подтверждённой брони меняет заведение")).toBeNull();
-      expect(screen.queryByText("Состав менял ресторан — изменения через заведение")).toBeNull();
-    },
-  );
-
-  it("GET /preorder упал — ни кнопки, ни текста, билет цел", async () => {
-    repository.getBooking = vi.fn(async () => booking({ id: ID, restaurantId: "venue-1", status: "pending" }));
-    repository.getPreorder = vi.fn(async () => {
-      throw new RepositoryError("offline", undefined, undefined, undefined, undefined, undefined, true);
-    });
-
-    renderResult();
-
-    expect(await screen.findByText("Бронь отправлена")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Выбрать блюда" })).toBeNull();
   });
 });

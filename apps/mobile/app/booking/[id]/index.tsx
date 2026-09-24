@@ -1,10 +1,5 @@
 import {
   canGuestCancel,
-  effectiveFreeCancelHours,
-  effectiveHoldMinutes,
-  effectiveLateArrivalText,
-  formatServiceFeePercent,
-  hasVisibleServiceFee,
   hasVisitStarted,
   isCancellableBookingStatus,
   isRebookableBooking,
@@ -22,8 +17,6 @@ import { CancelBookingDialog } from "../../../src/components/booking/CancelBooki
 import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
-import { PreorderPaymentCard } from "../../../src/components/booking/PreorderPaymentCard";
-import { PreorderPaymentEntryCard } from "../../../src/components/booking/PreorderPaymentEntryCard";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
 import { WhatHappensNextCard } from "../../../src/components/booking/WhatHappensNextCard";
@@ -38,11 +31,9 @@ import {
   usePreorder,
 } from "../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../src/hooks/useRestaurant";
-import { useKaspiPaymentFlow } from "../../../src/hooks/useKaspiPayment";
 import { trackEvent } from "../../../src/lib/analytics";
 import { useAuth } from "../../../src/lib/auth";
-import { formatMoneyMinor, formatRelativeDay, formatTime } from "../../../src/lib/format";
-import { paymentReturnUrl, preorderPaymentGate } from "../../../src/lib/kaspi-payment";
+import { formatRelativeDay, formatTime } from "../../../src/lib/format";
 
 const t = getDictionary();
 
@@ -90,9 +81,8 @@ export default function ReservationScreen() {
   // корзина. У отменённой и прошедшей брони сервер платёж всё равно не примет
   // (`CreateForBooking` отказывает всему, что не pending/confirmed).
   //
-  // Это ещё НЕ разрешение показывать оплату — только «деньги на столе есть».
-  // Разрешение считает `preorderPaymentGate` ниже, и в него входит главное:
-  // подключено ли заведение к приёму оплаты.
+  // Нужен только чтобы узнать про оплату для диалога отмены (блоков предзаказа
+  // и оплаты на этом экране больше нет — макет 3073:11428).
   const preorderItemsCount = preorder.data?.items.length ?? 0;
   const preorderChargeable = cancellable && preorderItemsCount > 0;
   // Та же ручка, что кормит диалог отмены (`GET /bookings/:id/payment`), и
@@ -105,32 +95,6 @@ export default function ReservationScreen() {
   // потеряет свой чек, а диалог отмены — фразу про деньги.
   const payment = useBookingPayment(id, canCancel || preorderChargeable);
   const cancel = useCancelBooking();
-
-  // ОДНО решение про блок оплаты, целиком в чистой функции (см. её
-  // комментарий): предлагать оплату только там, где заведение реально
-  // подключено, но уже оплаченный предзаказ показывать всегда.
-  const paymentGate = preorderPaymentGate({
-    bookingIsLive: cancellable,
-    preorderItemsCount,
-    venueAcceptsOnlinePayment: restaurant.data?.acceptsOnlinePayment === true,
-    existingPayment: payment.isError ? null : payment.data,
-  });
-
-  // Создание счёта и открытие ссылки Kaspi переехали на полный экран оплаты
-  // (`app/booking/[id]/payment.tsx`) — этот экран больше сам счёт не создаёт
-  // и никуда не уводит гостя. `paymentFlow` здесь нужен ТОЛЬКО чтобы узнать
-  // текущую фазу и решить, что нарисовать: кнопку входа в оплату или уже
-  // готовый чек (см. `paymentGate.payable` ниже) — вот почему `pay`/`renew`
-  // из этого объекта здесь не вызываются.
-  const paymentFlow = useKaspiPaymentFlow({
-    bookingId: id ?? "",
-    returnUrl: paymentReturnUrl(id ?? ""),
-    existing: payment.isError ? null : payment.data,
-    // Опрос идёт ровно тогда, когда блок на экране: при `visible && !payable`
-    // платёж уже сделан, фаза — «оплачено»/«дожимаем», и это единственный
-    // случай, где эту фазу вообще нужно знать здесь.
-    enabled: paymentGate.visible && Boolean(id),
-  });
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
@@ -253,26 +217,6 @@ export default function ReservationScreen() {
   // `canCancel`/двухчасового окна — то решает, работает ли кнопка ДО визита.
   const visitStarted = hasVisitStarted(data);
 
-  // Явные правила брони (Trello BNjLdfSP, bookeat-backend PR #143) — короткий
-  // подвал сразу под «Что дальше?». Только у живой брони: отменённая и
-  // прошедшая уже не держат стол. Источник — САМА БРОНЬ (`data.bookingRules`,
-  // `GET /bookings/:id`), не заведение: сервер специально положил
-  // разрешённые правила сюда же, чтобы экрану подтверждения не был нужен
-  // второй запрос — поэтому подвал больше не ждёт `restaurant.data`.
-  const rulesFooterText = cancellable
-    ? t.booking.rulesFooter(
-        effectiveHoldMinutes(data.bookingRules),
-        formatTime(data.startsAt),
-        effectiveLateArrivalText(data.bookingRules),
-        formatTime(
-          new Date(
-            new Date(data.startsAt).getTime() -
-              effectiveFreeCancelHours(data.bookingRules) * 3_600_000,
-          ).toISOString(),
-        ),
-      )
-    : null;
-
   const onConfirmCancel = () => {
     setCancelError(null);
     cancel.mutate(
@@ -391,16 +335,6 @@ export default function ReservationScreen() {
 
         <WhatHappensNextCard status={data.status} />
 
-        {/* Trello BNjLdfSP: держим стол/опоздание/бесплатная отмена одной
-            строкой, сразу под «Что дальше?». Нет узла в макете — поля на
-            заведении появились позже; блок молчит, пока заведение не
-            загрузилось или бронь уже не живая. */}
-        {rulesFooterText ? (
-          <BookingCard>
-            <Text style={styles.rulesFooterText}>{rulesFooterText}</Text>
-          </BookingCard>
-        ) : null}
-
         {/* The permission ask, and the only one in the app. Shown just after
             the booking was created, where «сообщим, когда подтвердят» answers
             a question the guest already has — see the reasoning in
@@ -418,106 +352,6 @@ export default function ReservationScreen() {
               {t.booking.preorderSaveFailed}
             </Text>
           </BookingCard>
-        ) : null}
-
-        {/* Предзаказ можно собрать И ПОСЛЕ брони (правка владельца 2026-08-24).
-            Блок показывается у любой живой брони: пустой — с приглашением
-            выбрать блюда, заполненный — со списком и правкой. У отменённой и
-            прошедшей брони его нет: менять там нечего. */}
-        {cancellable && restaurant.data && (restaurant.data.menuHighlights.length > 0 ||
-          (preorder.data?.items.length ?? 0) > 0) ? (
-          <BookingCard title={t.booking.preorderSectionTitle}>
-            {(preorder.data?.items.length ?? 0) === 0 ? (
-              <Text style={styles.preorderHint}>{t.booking.preorderOptional}</Text>
-            ) : null}
-            <PrimaryButton
-              label={
-                (preorder.data?.items.length ?? 0) > 0
-                  ? t.booking.preorderEdit
-                  : t.booking.preorderAdd
-              }
-              variant="secondary"
-              size="lg"
-              onPress={() =>
-                router.push({
-                  pathname: "/restaurant/[id]/book/menu",
-                  params: { id: data.restaurantId, booking: data.id },
-                })
-              }
-            />
-          </BookingCard>
-        ) : null}
-
-        {preorder.data && preorder.data.items.length > 0 ? (
-          <BookingCard title={t.booking.preorderSummaryTitle}>
-            {preorder.data.items.map((item) => (
-              <View key={item.id} style={styles.preorderRow}>
-                <Text style={styles.preorderName} numberOfLines={2}>
-                  {item.quantity} × {item.name}
-                </Text>
-                <Text style={styles.preorderPrice}>{formatMoneyMinor(item.totalMinor)}</Text>
-              </View>
-            ))}
-            <View style={styles.preorderRow}>
-              <Text style={styles.preorderTotalLabel}>{t.booking.preorderTotalEstimate}</Text>
-              <Text style={styles.preorderTotalValue}>
-                {formatMoneyMinor(preorder.data.totalMinor)}
-              </Text>
-            </View>
-            {/* Сервисный сбор заведения рядом с суммой — Trello GvptXfr1,
-                скрыт целиком, когда `serviceFeeBps` пуст/0/не задан. */}
-            {restaurant.data && hasVisibleServiceFee(restaurant.data.serviceFeeBps) ? (
-              <Text style={styles.serviceFeeNote}>
-                {t.booking.preorderServiceFeeNote(formatServiceFeePercent(restaurant.data.serviceFeeBps))}
-              </Text>
-            ) : null}
-          </BookingCard>
-        ) : null}
-
-        {/* Оплата предзаказа через Kaspi. Стоит СРАЗУ под составом заказа —
-            человек только что увидел сумму, и следующий естественный вопрос
-            «как заплатить». Блока нет, пока предзаказ пуст: платить не за что.
-            Блока нет и у заведения, которое оплату не принимает: кнопка,
-            упирающаяся в отказ сервера, хуже отсутствующей кнопки.
-
-            Полноэкранная оплата (Figma qmMsg4jO1ggmyEHNIAD2ll, узел 5390:8875)
-            — новый счёт и его отсчёт больше НЕ рисуются здесь инлайн: пока
-            платёж можно (пере)начать, экран брони — только точка входа на
-            `app/booking/[id]/payment`. Инлайн-карточка остаётся, но уже как
-            ЧЕК — для оплаченного/дожимаемого предзаказа, где кнопки оплаты у
-            неё и так нет.
-
-            Решение НЕ только по `paymentGate.payable`: та читает отдельный,
-            более медленный запрос (`useBookingPayment`, `staleTime` минуту) и
-            может на секунды отстать от `paymentFlow.phase`, который эту же
-            бронь опрашивает напрямую (`GET /payments/:id`). Без проверки фазы
-            гость, только что оплативший (`settling`/`paid` по опросу), на
-            миг увидел бы точку входа в оплату — уже за оплаченный заказ.
-
-            ⚠️ У Kaspi НЕТ ПЕСОЧНИЦЫ. Каждое успешное создание счёта — живая
-            ссылка на живые деньги, поэтому полный экран нельзя «просто
-            потыкать» на настоящем заведении. */}
-        {paymentGate.visible ? (
-          paymentGate.payable && paymentFlow.phase !== "settling" && paymentFlow.phase !== "paid" ? (
-            <PreorderPaymentEntryCard
-              amountMinor={paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null}
-              onPress={() =>
-                router.push({ pathname: "/booking/[id]/payment", params: { id: data.id } })
-              }
-            />
-          ) : (
-            <PreorderPaymentCard
-              flow={paymentFlow}
-              // Ветка «ждём оплату» этой карточки здесь никогда не рисуется
-              // (`payable` было бы `true`), поэтому открывать ссылку отсюда
-              // нечем — колбэк оставлен пустым намеренно, а не выброшен из
-              // пропсов компонента, общего с полным экраном оплаты.
-              onOpenLink={() => {}}
-              onCheck={paymentFlow.check}
-              fallbackAmountMinor={preorder.data?.totalMinor ?? null}
-              openFailed={false}
-            />
-          )
         ) : null}
 
         {restaurant.data && hasAnyContact(restaurant.data) ? (
@@ -655,14 +489,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.muted,
   },
-  preorderHint: {
-    ...typography.body,
-    color: colors.text.muted,
-  },
-  rulesFooterText: {
-    ...typography.body,
-    color: colors.text.mutedStrong,
-  },
   notice: {
     borderWidth: 1,
     borderColor: colors.brand.primary,
@@ -670,44 +496,5 @@ const styles = StyleSheet.create({
   noticeText: {
     ...typography.body,
     color: colors.text.primary,
-  },
-  preorderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  preorderName: {
-    ...typography.body,
-    color: colors.text.primary,
-    flex: 1,
-  },
-  /**
-   * Сумма СТРОКИ состава заказа — тот же вид, что у цены в меню, в карточке
-   * блюда и на экране предзаказа: `typography.body` + `text.primary`.
-   *
-   * БЫЛО `labelMedium` (Medium 14/20): кегель тот же, начертание тяжелее, и
-   * на одном экране с меню цена читалась как другой элемент.
-   */
-  preorderPrice: {
-    ...typography.body,
-    color: colors.text.primary,
-  },
-  /**
-   * Строка «Итого примерно» — ОБА её конца намеренно остаются SemiBold. Это
-   * сумма к оплате, а не цена позиции; после облегчения строк выше она стала
-   * единственным выделенным числом в карточке, и это именно то, что нужно.
-   */
-  preorderTotalLabel: {
-    ...typography.labelSemiBold,
-    color: colors.text.primary,
-  },
-  preorderTotalValue: {
-    ...typography.labelSemiBold,
-    color: colors.text.primary,
-  },
-  serviceFeeNote: {
-    ...typography.caption,
-    color: colors.text.muted,
   },
 });

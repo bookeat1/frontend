@@ -68,17 +68,20 @@ beforeEach(() => {
 describe("оплата: выбор способа", () => {
   it("две кнопки; карта уходит на сервер с method=card", async () => {
     setup(["kaspi", "card"]);
-    expect(await screen.findByRole("button", { name: "Оплатить Kaspi" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Оплатить картой" }));
+    expect(await screen.findByRole("button", { name: /^Оплатить Kaspi \d/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Оплатить картой \d/ }));
     await waitFor(() => expect(repository.createBookingPayment).toHaveBeenCalledTimes(1));
     const [, input] = vi.mocked(repository.createBookingPayment).mock.calls[0]!;
     expect(input).toMatchObject({ method: "card" });
   });
 
-  it("только карта — Kaspi не показывается", async () => {
+  it("только карта — одна «Оплатить N», Kaspi не показывается", async () => {
     setup(["card"]);
-    expect(await screen.findByRole("button", { name: "Оплатить картой" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Оплатить Kaspi" })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: /^Оплатить \d/ }));
+    expect(screen.queryByRole("button", { name: /Kaspi/ })).toBeNull();
+    await waitFor(() => expect(repository.createBookingPayment).toHaveBeenCalledTimes(1));
+    const [, input] = vi.mocked(repository.createBookingPayment).mock.calls[0]!;
+    expect(input).toMatchObject({ method: "card" });
   });
 
   it("старый бэкенд без поля — одна «Оплатить», method не передаётся", async () => {
@@ -87,6 +90,6 @@ describe("оплата: выбор способа", () => {
     await waitFor(() => expect(repository.createBookingPayment).toHaveBeenCalledTimes(1));
     const [, input] = vi.mocked(repository.createBookingPayment).mock.calls[0]!;
     expect(input.method).toBeUndefined();
-    expect(screen.queryByRole("button", { name: "Оплатить картой" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /картой/ })).toBeNull();
   });
 });

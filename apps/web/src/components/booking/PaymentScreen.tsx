@@ -110,6 +110,7 @@ function PaymentBody({
 
   // Какая кнопка нажата — чтобы спиннер крутился только на ней.
   const [picked, setPicked] = useState<PaymentMethod | null>(null);
+  const [showAll, setShowAll] = useState(false);
   // `null` — старый бэкенд без `payment_methods`: одна кнопка «Оплатить» без
   // `method`, как раньше. Пустой список при `acceptsOnlinePayment` — то же.
   const methods = venue.data?.paymentMethods ?? null;
@@ -137,6 +138,7 @@ function PaymentBody({
   const amount = amountMinor === null ? null : formatMoneyMinor(amountMinor);
   const left = remainingMs(paymentFlow.payment?.expiresAt ?? null, paymentFlow.now);
   const failure = createFailureMessage(paymentFlow.error, t.web.bookingResult.payment);
+  const items = preorder.data?.items ?? [];
 
   return (
     <article className="flex w-full flex-col gap-6 rounded-2xl border border-line-strong bg-canvas p-ticket-body shadow-card">
@@ -145,21 +147,31 @@ function PaymentBody({
         {venue.data ? <p className="text-bodyM text-ink-secondary">{venue.data.name}</p> : null}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl bg-subtle p-3">
+      <div className="flex flex-col gap-3 rounded-xl bg-subtle">
         <div className="flex items-center justify-between gap-3 rounded-xl bg-brand px-4 py-3">
-          <p className="text-bodyM text-ink-on-brand">{t.web.bookingResult.preorder.title}</p>
+          <p className="text-bodyM text-ink-on-brand">{texts.preorderSummary(items.length)}</p>
           {amount ? <p className="text-bodyM font-semibold text-ink-on-brand">{amount}</p> : null}
         </div>
-        <ul className="flex flex-col gap-2">
-          {(preorder.data?.items ?? []).map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-3 text-bodyM text-ink">
-              <span className="min-w-0 truncate">
-                {item.quantity} × {item.name}
-              </span>
-              <span>{formatMoneyMinor(item.totalMinor)}</span>
-            </li>
-          ))}
-        </ul>
+        <button
+          type="button"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((v) => !v)}
+          className="rounded-xl px-4 pb-3 text-center text-bodyM font-semibold text-ink"
+        >
+          {showAll ? texts.hideAll : texts.viewAll}
+        </button>
+        {showAll ? (
+          <ul className="flex flex-col gap-2 px-4 pb-4">
+            {items.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-3 text-bodyM text-ink">
+                <span className="min-w-0 truncate">
+                  {item.quantity} × {item.name}
+                </span>
+                <span>{formatMoneyMinor(item.totalMinor)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <p className="text-bodyS text-ink-tertiary">{texts.checkoutNote}</p>
@@ -198,14 +210,14 @@ function PaymentBody({
       ) : null}
 
       {phase === "idle" ? (
-        methodButtons.length > 0 ? (
+        methodButtons.length >= 2 ? (
+          // Заведение подключило оба способа — две кнопки одного вида.
           <div className="flex flex-col gap-2">
             {methodButtons.map((method) => (
               <Button
                 key={method}
                 size="ticket"
                 block
-                variant={method === methodButtons[0] ? "primary" : "outline"}
                 loading={paymentFlow.creating && picked === method}
                 disabled={paymentFlow.creating}
                 onClick={() => {
@@ -213,19 +225,24 @@ function PaymentBody({
                   paymentFlow.pay(method);
                 }}
               >
-                {method === "kaspi"
-                  ? t.web.bookingResult.payment.payKaspi
-                  : t.web.bookingResult.payment.payCard}
+                {amount
+                  ? method === "kaspi"
+                    ? texts.payKaspiAmount(amount)
+                    : texts.payCardAmount(amount)
+                  : method === "kaspi"
+                    ? t.web.bookingResult.payment.payKaspi
+                    : t.web.bookingResult.payment.payCard}
               </Button>
             ))}
           </div>
         ) : (
+          // Один способ или «неизвестно» (старый бэкенд) — одна кнопка.
           <Button
             size="ticket"
             block
             loading={paymentFlow.creating}
             disabled={paymentFlow.creating}
-            onClick={() => paymentFlow.pay()}
+            onClick={() => (methodButtons[0] ? paymentFlow.pay(methodButtons[0]) : paymentFlow.pay())}
           >
             {amount
               ? t.web.bookingResult.payment.payWithKaspiAmount(amount)
@@ -238,6 +255,12 @@ function PaymentBody({
         <p role="alert" className="text-bodyS text-danger-text">
           {failure}
         </p>
+      ) : null}
+
+      {phase === "idle" ? (
+        <Button size="ticket" variant="outline" block asLink href={`/bookings/${bookingId}`}>
+          {texts.failedBackToBooking}
+        </Button>
       ) : null}
     </article>
   );

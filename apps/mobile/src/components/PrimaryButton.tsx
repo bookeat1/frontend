@@ -7,7 +7,7 @@ interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "outline";
   /** Optional glyph rendered before the label, e.g. the circled X on the
    * Reservation screen's "Отменить бронь" (node 488:9876). Decorative — the
    * label already carries the meaning, so it is never announced separately. */
@@ -39,7 +39,8 @@ interface PrimaryButtonProps {
  * The single button primitive for the app. Never build a bespoke
  * TouchableOpacity+Text button in a screen — extend this component instead.
  * `primary` matches "Забронировать стол" (brand red pill, white label);
- * `secondary` matches "Посмотреть меню" (neutral grey pill, dark label).
+ * `secondary` matches "Посмотреть меню" (neutral grey pill, dark label);
+ * `outline` is the red-outlined pill.
  */
 export function PrimaryButton({
   label,
@@ -53,7 +54,8 @@ export function PrimaryButton({
   accessibilityHint,
 }: PrimaryButtonProps) {
   const isSecondary = variant === "secondary";
-  const labelColor = isSecondary ? colors.text.primary : colors.text.onBrand;
+  const isOutline = variant === "outline";
+  const labelColor = isSecondary ? colors.text.primary : isOutline ? colors.brand.primary : colors.text.onBrand;
   return (
     <Pressable
       accessibilityRole="button"
@@ -65,7 +67,7 @@ export function PrimaryButton({
       style={({ pressed }) => [
         styles.base,
         size === "lg" && styles.large,
-        isSecondary ? styles.secondary : styles.primary,
+        isSecondary ? styles.secondary : isOutline ? styles.outline : styles.primary,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
       ]}
@@ -76,6 +78,7 @@ export function PrimaryButton({
           styles.label,
           labelSize === "lg" && styles.labelLarge,
           isSecondary && styles.labelSecondary,
+          isOutline && styles.labelOutline,
         ]}
       >
         {label}
@@ -104,6 +107,13 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.background.secondaryButton,
   },
+  /** Красная обводка на прозрачном фоне — «Вернуться к брони» на шторке
+   * «Оплата не прошла» (Figma 5390:9142). */
+  outline: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: colors.brand.primary,
+  },
   disabled: {
     opacity: 0.5,
   },
@@ -119,5 +129,8 @@ const styles = StyleSheet.create({
   },
   labelSecondary: {
     color: colors.text.primary,
+  },
+  labelOutline: {
+    color: colors.brand.primary,
   },
 });
