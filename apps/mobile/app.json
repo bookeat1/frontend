@@ -30,7 +30,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bookeatteam.bookeatapp",
-      "buildNumber": "34",
+      "buildNumber": "36",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
