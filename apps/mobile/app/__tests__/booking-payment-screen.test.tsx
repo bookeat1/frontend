@@ -182,6 +182,33 @@ describe("фаза idle", () => {
   });
 });
 
+describe("разбивка суммы: блюда / сервисный сбор / итого", () => {
+  it("fee > 0 — три строки с суммами", async () => {
+    flowState.phase = "awaiting";
+    flowState.payment = paymentWith({ baseAmountMinor: 998_000, feeMinor: 99_800, amountMinor: 1_097_800 });
+    render(<PaymentScreen />);
+    await waitFor(() => expect(screen.getByText(t.booking.paymentBreakdownFee)).toBeTruthy());
+    expect(screen.getByText(t.booking.paymentBreakdownDishes)).toBeTruthy();
+    expect(screen.getByText(t.booking.paymentBreakdownTotal)).toBeTruthy();
+    const text = screen.getByTestId("payment-breakdown").textContent ?? "";
+    expect(text).toContain(formatMoneyMinor(998_000));
+    expect(text).toContain(formatMoneyMinor(99_800));
+    expect(text).toContain(formatMoneyMinor(1_097_800));
+  });
+
+  it.each([
+    ["fee = 0", { baseAmountMinor: 998_000, feeMinor: 0 }],
+    ["поля нет (старый бэкенд)", {}],
+  ])("%s — строк нет", async (_name, extra) => {
+    flowState.phase = "awaiting";
+    flowState.payment = paymentWith(extra);
+    render(<PaymentScreen />);
+    await waitFor(() => expect(screen.getByText(t.booking.paymentSectionTitle)).toBeTruthy());
+    expect(screen.queryByText(t.booking.paymentBreakdownFee)).toBeNull();
+    expect(screen.queryByText(t.booking.paymentBreakdownTotal)).toBeNull();
+  });
+});
+
 describe("выбор способа оплаты (payment_methods)", () => {
   it("две кнопки, нажатие передаёт method; общей «Оплатить» нет", async () => {
     restaurant = { ...RESTAURANT, paymentMethods: ["kaspi", "card"] };

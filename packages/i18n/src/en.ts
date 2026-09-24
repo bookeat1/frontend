@@ -2321,6 +2321,9 @@ export const en: LocaleOverride<Dictionary> = {
     paymentFailedRetry: "Try again",
     paymentFailedBackToBooking: "Back to booking",
     paymentPreorderSummary: (count: number) => `Pre-order · ${count} ${count === 1 ? "dish" : "dishes"}`,
+    paymentBreakdownDishes: "Dishes",
+    paymentBreakdownFee: "Service fee",
+    paymentBreakdownTotal: "Total",
     paymentViewAll: "View all",
     paymentHideAll: "Collapse",
     paymentPayKaspiAmount: (amount: string) => `Pay with Kaspi ${amount}`,
@@ -3405,6 +3408,9 @@ export const en: LocaleOverride<Dictionary> = {
       },
       paymentScreen: {
         entryCta: (amount: string) => `Pay ${amount}`,
+        breakdownDishes: "Dishes",
+        breakdownFee: "Service fee",
+        breakdownTotal: "Total",
         checkoutNote:
           "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",
         successSubtitle:

@@ -898,6 +898,10 @@ export interface BookingPayment {
   status: PaymentStatus;
   /** Minor units (tiyn). Never a float, never formatted server-side. */
   amountMinor: number;
+  /** Dishes part of `amountMinor`; `undefined` from an old backend. */
+  baseAmountMinor?: number;
+  /** Service fee part of `amountMinor`; `undefined` from an old backend. */
+  feeMinor?: number;
   currency: string;
   /**
    * The acquirer's hosted payment page (`https://pay.kaspi.kz/pay/…` for

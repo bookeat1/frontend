@@ -2324,6 +2324,9 @@ export const kk: LocaleOverride<Dictionary> = {
     paymentFailedRetry: "Қайталап көру",
     paymentFailedBackToBooking: "Бронға оралу",
     paymentPreorderSummary: (count: number) => `Алдын ала тапсырыс · ${count} тағам`,
+    paymentBreakdownDishes: "Тағамдар",
+    paymentBreakdownFee: "Қызмет көрсету алымы",
+    paymentBreakdownTotal: "Барлығы",
     paymentViewAll: "Барлығын көру",
     paymentHideAll: "Жасыру",
     paymentPayKaspiAmount: (amount: string) => `Kaspi арқылы төлеу ${amount}`,
@@ -3410,6 +3413,9 @@ export const kk: LocaleOverride<Dictionary> = {
       },
       paymentScreen: {
         entryCta: (amount: string) => `${amount} төлеу`,
+        breakdownDishes: "Тағамдар",
+        breakdownFee: "Қызмет көрсету алымы",
+        breakdownTotal: "Барлығы",
         checkoutNote:
           "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
         successSubtitle:

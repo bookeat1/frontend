@@ -186,6 +186,9 @@ export default function PaymentScreen() {
 
   const amountMinor = paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null;
   const amount = amountMinor === null ? null : formatMoneyMinor(amountMinor);
+  const feeMinor = paymentFlow.payment?.feeMinor ?? 0;
+  const baseMinor = paymentFlow.payment?.baseAmountMinor;
+  const showBreakdown = feeMinor > 0 && baseMinor !== undefined && amountMinor !== null;
   const left = remainingMs(paymentFlow.payment?.expiresAt ?? null, paymentFlow.now);
   const failure = createFailureMessage(paymentFlow.error);
   const items = preorder.data?.items ?? [];
@@ -266,6 +269,22 @@ export default function PaymentScreen() {
                 <Text style={styles.summaryRowPrice}>{formatMoneyMinor(item.totalMinor)}</Text>
               </View>
             ))}
+          </View>
+        ) : null}
+        {showBreakdown ? (
+          <View style={styles.summaryList} testID="payment-breakdown">
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowName}>{t.booking.paymentBreakdownDishes}</Text>
+              <Text style={styles.summaryRowPrice}>{formatMoneyMinor(baseMinor)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryRowName}>{t.booking.paymentBreakdownFee}</Text>
+              <Text style={styles.summaryRowPrice}>{formatMoneyMinor(feeMinor)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={[styles.summaryRowName, styles.strong]}>{t.booking.paymentBreakdownTotal}</Text>
+              <Text style={[styles.summaryRowPrice, styles.strong]}>{amount}</Text>
+            </View>
           </View>
         ) : null}
       </View>
