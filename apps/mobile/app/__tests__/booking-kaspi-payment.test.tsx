@@ -123,6 +123,7 @@ const RESTAURANT: Restaurant = {
   // потому что остальные тесты файла разбирают гейт, а он бывает только у
   // заведения, которому вообще разрешено платить.
   acceptsOnlinePayment: true,
+  paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
 };

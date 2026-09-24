@@ -1002,7 +1002,7 @@ export class HttpRestaurantRepository implements RestaurantRepository {
   ): Promise<BookingPayment> {
     const api = await this.client.post<ApiPayment>(
       `/bookings/${encodeURIComponent(bookingId)}/payment`,
-      { return_url: input.returnUrl },
+      { return_url: input.returnUrl, ...(input.method ? { method: input.method } : {}) },
       { auth: true, headers: { "Idempotency-Key": idempotencyKey } },
     );
     return mapPayment(api);

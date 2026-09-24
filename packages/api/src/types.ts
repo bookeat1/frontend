@@ -290,6 +290,13 @@ export interface Restaurant {
    */
   acceptsOnlinePayment: boolean;
   /**
+   * Способы оплаты, доступные гостю прямо сейчас (`payment_methods` в
+   * `GET /restaurants/:id`, backend PR #150). `null` — сервер поля не прислал
+   * (старый бэкенд): экран показывает одну кнопку «Оплатить» без `method`,
+   * как раньше. `[]` — способов нет.
+   */
+  paymentMethods: PaymentMethod[] | null;
+  /**
    * Минимальная сумма предзаказа заведения, в тиынах
    * (`restaurants.preorder_min_amount_minor`, D-API-1, ТЗ
    * `web-preorder-menu-20260908`, D-BE-1 влито в `bookeat-backend` 2026-09-08).
@@ -917,7 +924,11 @@ export interface BookingPayment {
  * validated server-side; the acquirer webhook URL is built by the backend and
  * is deliberately not accepted from a client.
  */
+export type PaymentMethod = "kaspi" | "card";
+
 export interface CreateBookingPaymentInput {
+  /** Способ, выбранный гостем. Не задан — сервер выбирает сам (legacy). */
+  method?: PaymentMethod;
   /** Where the guest lands after the hosted payment page — our own deep link
    * back into the booking screen. Kaspi ignores it (its adapter never reads
    * ReturnURL), but the endpoint refuses an empty one. */

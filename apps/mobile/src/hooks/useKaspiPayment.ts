@@ -1,4 +1,4 @@
-import type { BookingPayment } from "@bookeat/api";
+import type { BookingPayment, PaymentMethod } from "@bookeat/api";
 import { RepositoryError } from "@bookeat/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React from "react";
@@ -31,6 +31,8 @@ export interface CreatePaymentVariables {
   returnUrl: string;
   /** Ключ идемпотентности. Один ключ = одна попытка; см. `newIdempotencyKey`. */
   idempotencyKey: string;
+  /** Способ, выбранный гостем; не задан — сервер выбирает сам. */
+  method?: PaymentMethod;
 }
 
 /**
@@ -60,13 +62,13 @@ export function useCreateBookingPayment() {
   const inFlight = React.useRef<Set<string>>(new Set());
 
   return useMutation<BookingPayment, unknown, CreatePaymentVariables>({
-    mutationFn: async ({ bookingId, returnUrl, idempotencyKey }) => {
+    mutationFn: async ({ bookingId, returnUrl, idempotencyKey, method }) => {
       if (inFlight.current.has(bookingId)) {
         throw new RepositoryError(`Payment already in flight for ${bookingId}`, undefined, 409);
       }
       inFlight.current.add(bookingId);
       try {
-        return await repository.createBookingPayment(bookingId, { returnUrl }, idempotencyKey);
+        return await repository.createBookingPayment(bookingId, { returnUrl, method }, idempotencyKey);
       } finally {
         inFlight.current.delete(bookingId);
       }
@@ -155,7 +157,7 @@ export interface KaspiPaymentFlow {
   /** Отказ последнего создания счёта; `null`, если всё в порядке. */
   error: unknown;
   /** Создать счёт. Повторные вызовы во время полёта запроса безвредны. */
-  pay: () => void;
+  pay: (method?: PaymentMethod) => void;
   /** Запросить НОВУЮ ссылку взамен мёртвой: новый ключ идемпотентности. */
   renew: () => void;
   /** Спросить сервер прямо сейчас — кнопка «я оплатил, проверить». Нужна
@@ -236,14 +238,24 @@ export function useKaspiPaymentFlow(input: {
   // ошибке: гость не сделал ничего плохого, он просто нажал дважды.
   const requestInFlight = React.useRef(false);
 
-  const start = React.useCallback(() => {
+  // Ключ идемпотентности привязан к способу: тот же ключ с другим `method`
+  // сервер свёл бы к ПРЕЖНЕМУ счёту (Kaspi вместо выбранной карты).
+  const lastMethod = React.useRef<PaymentMethod | undefined>(undefined);
+
+  const start = React.useCallback((method?: PaymentMethod) => {
     if (!input.enabled || requestInFlight.current) return;
+    if (method !== lastMethod.current) {
+      idempotencyKey.current = newIdempotencyKey();
+      setPaymentId(null);
+      lastMethod.current = method;
+    }
     requestInFlight.current = true;
     create.mutate(
       {
         bookingId: input.bookingId,
         returnUrl: input.returnUrl,
         idempotencyKey: idempotencyKey.current,
+        method,
       },
       { onSettled: () => { requestInFlight.current = false; } },
     );
@@ -259,7 +271,7 @@ export function useKaspiPaymentFlow(input: {
     idempotencyKey.current = newIdempotencyKey();
     setPaymentId(null);
     create.reset();
-    start();
+    start(lastMethod.current);
   }, [create, input.enabled, start]);
 
   return {

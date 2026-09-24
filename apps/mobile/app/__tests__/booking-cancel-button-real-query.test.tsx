@@ -97,6 +97,7 @@ const RESTAURANT: Restaurant = {
   description: "",
   acceptsOnlineBookings: true,
   acceptsOnlinePayment: false,
+  paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
 };

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RepositoryError, isCancellableBookingStatus, type Booking } from "@bookeat/api/client";
+import { RepositoryError, isCancellableBookingStatus, type Booking, type PaymentMethod } from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -108,6 +108,13 @@ function PaymentBody({
     enabled: true,
   });
 
+  // Какая кнопка нажата — чтобы спиннер крутился только на ней.
+  const [picked, setPicked] = useState<PaymentMethod | null>(null);
+  // `null` — старый бэкенд без `payment_methods`: одна кнопка «Оплатить» без
+  // `method`, как раньше. Пустой список при `acceptsOnlinePayment` — то же.
+  const methods = venue.data?.paymentMethods ?? null;
+  const methodButtons: PaymentMethod[] = methods && methods.length > 0 ? methods : [];
+
   // Платёж решён — страница оплаты больше не нужна. `replace`, чтобы «назад»
   // с развязки не возвращал на уже решённый счёт.
   const phase = paymentFlow.phase;
@@ -191,17 +198,40 @@ function PaymentBody({
       ) : null}
 
       {phase === "idle" ? (
-        <Button
-          size="ticket"
-          block
-          loading={paymentFlow.creating}
-          disabled={paymentFlow.creating}
-          onClick={paymentFlow.pay}
-        >
-          {amount
-            ? t.web.bookingResult.payment.payWithKaspiAmount(amount)
-            : t.web.bookingResult.payment.payWithKaspi}
-        </Button>
+        methodButtons.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {methodButtons.map((method) => (
+              <Button
+                key={method}
+                size="ticket"
+                block
+                variant={method === methodButtons[0] ? "primary" : "outline"}
+                loading={paymentFlow.creating && picked === method}
+                disabled={paymentFlow.creating}
+                onClick={() => {
+                  setPicked(method);
+                  paymentFlow.pay(method);
+                }}
+              >
+                {method === "kaspi"
+                  ? t.web.bookingResult.payment.payKaspi
+                  : t.web.bookingResult.payment.payCard}
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <Button
+            size="ticket"
+            block
+            loading={paymentFlow.creating}
+            disabled={paymentFlow.creating}
+            onClick={() => paymentFlow.pay()}
+          >
+            {amount
+              ? t.web.bookingResult.payment.payWithKaspiAmount(amount)
+              : t.web.bookingResult.payment.payWithKaspi}
+          </Button>
+        )
       ) : null}
 
       {failure ? (

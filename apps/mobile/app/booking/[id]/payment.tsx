@@ -1,4 +1,4 @@
-import { isCancellableBookingStatus, RepositoryError } from "@bookeat/api";
+import { isCancellableBookingStatus, RepositoryError, type PaymentMethod } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -70,6 +70,10 @@ export default function PaymentScreen() {
     existing: payment.isError ? null : payment.data,
     enabled: Boolean(id) && Boolean(booking.data),
   });
+  // `null` — старый бэкенд без `payment_methods`: одна кнопка «Оплатить» без
+  // `method`, как раньше.
+  const methodButtons: PaymentMethod[] = restaurant.data?.paymentMethods ?? [];
+  const [pickedMethod, setPickedMethod] = React.useState<PaymentMethod | null>(null);
   const [openFailed, setOpenFailed] = React.useState(false);
 
   // Тот же приём, что раньше жил на экране брони: счёт создан — гостя сразу
@@ -235,12 +239,44 @@ export default function PaymentScreen() {
         ) : null}
 
         {phase === "idle" ? (
-          <KaspiPayButton
-            label={amount ? t.booking.paymentPayAmount(amount) : t.booking.paymentPay}
-            busy={paymentFlow.creating}
-            onPress={paymentFlow.pay}
-            accessibilityHint={t.booking.paymentOpensExternally}
-          />
+          methodButtons.length > 0 ? (
+            <View style={styles.methodButtons}>
+              {methodButtons.map((method) =>
+                method === "kaspi" ? (
+                  <KaspiPayButton
+                    key={method}
+                    label={t.booking.paymentPayKaspi}
+                    busy={paymentFlow.creating && pickedMethod === method}
+                    disabled={paymentFlow.creating}
+                    onPress={() => {
+                      setPickedMethod(method);
+                      paymentFlow.pay(method);
+                    }}
+                    accessibilityHint={t.booking.paymentOpensExternally}
+                  />
+                ) : (
+                  <PrimaryButton
+                    key={method}
+                    label={t.booking.paymentPayCard}
+                    size="lg"
+                    disabled={paymentFlow.creating}
+                    onPress={() => {
+                      setPickedMethod(method);
+                      paymentFlow.pay(method);
+                    }}
+                    accessibilityHint={t.booking.paymentOpensExternally}
+                  />
+                ),
+              )}
+            </View>
+          ) : (
+            <KaspiPayButton
+              label={amount ? t.booking.paymentPayAmount(amount) : t.booking.paymentPay}
+              busy={paymentFlow.creating}
+              onPress={() => paymentFlow.pay()}
+              accessibilityHint={t.booking.paymentOpensExternally}
+            />
+          )
         ) : null}
 
         {failure ? (
@@ -338,6 +374,9 @@ const styles = StyleSheet.create({
   strong: {
     ...typography.labelSemiBold,
     color: colors.text.primary,
+  },
+  methodButtons: {
+    gap: spacing.md,
   },
   awaitingBlock: {
     gap: spacing.md,
