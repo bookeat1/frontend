@@ -50,6 +50,8 @@ import { CitySelectField, cityOptionsFor } from "./ui/CitySelectField";
 import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
 import { VenueFeaturePicker } from "./ui/VenueFeaturePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
+import { KwaakaLinkCard } from "./KwaakaLinkCard";
+import { PaymentAcceptanceCard } from "./PaymentAcceptanceCard";
 import { Modal } from "./ui/Modal";
 import {
   SOCIAL_LINK_ERROR_COPY,
@@ -376,6 +378,7 @@ function VenueFormModal({
   // клиент) — см. эффект синхронизации ниже.
   const [freeCancelMinutes, setFreeCancelMinutes] = useState("");
   // Черновики переводов. Русский текст остаётся в обычных полях выше.
+  const [nameI18n, setNameI18n] = useState(translationDraftFrom());
   const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
   const [addressI18n, setAddressI18n] = useState(translationDraftFrom());
   const [openingHoursI18n, setOpeningHoursI18n] = useState(translationDraftFrom());
@@ -440,6 +443,7 @@ function VenueFormModal({
     if (!data || syncedDetailRef.current === data) return;
     syncedDetailRef.current = data;
     setOpeningHours(data.opening_hours ?? "");
+    setNameI18n(translationDraftFrom(data.name_i18n));
     setDescriptionI18n(translationDraftFrom(data.description_i18n));
     setAddressI18n(translationDraftFrom(data.address_i18n));
     setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
@@ -569,6 +573,7 @@ function VenueFormModal({
     // сервер оставляет как есть, и правка коллеги не затирается.
     if (detailLoaded) {
       input.opening_hours = openingHours.trim();
+      input.name_i18n = buildTranslationPatch(nameI18n, detail?.name_i18n);
       input.description_i18n = buildTranslationPatch(descriptionI18n, detail?.description_i18n);
       input.address_i18n = buildTranslationPatch(addressI18n, detail?.address_i18n);
       input.opening_hours_i18n = buildTranslationPatch(
@@ -723,9 +728,17 @@ function VenueFormModal({
   return (
     <Modal title={title} onClose={onClose}>
       <div className="flex flex-col gap-md">
-        <Field label="Название" required>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
+        <TranslatedField
+          id="venue-name"
+          label="Название"
+          required
+          base={name}
+          onBaseChange={setName}
+          translations={nameI18n}
+          onTranslationsChange={setNameI18n}
+          stored={detail?.name_i18n}
+          disabled={busy}
+        />
 
         {venue && detailQuery.isPending ? (
           <p className="text-sm text-text-muted" role="status">
@@ -739,6 +752,7 @@ function VenueFormModal({
         ) : (
           <TranslationCoverageNote
             fields={[
+              { label: "Название", translations: nameI18n },
               { label: "Описание", translations: descriptionI18n },
               { label: "Адрес", translations: addressI18n },
               { label: "Часы работы", translations: openingHoursI18n },
@@ -961,6 +975,13 @@ function VenueFormModal({
               </Button>
             </div>
           </div>
+        ) : null}
+
+        {venue?.id ?? createdId ? (
+          <>
+            <PaymentAcceptanceCard restaurantId={(venue?.id ?? createdId)!} />
+            <KwaakaLinkCard restaurantId={(venue?.id ?? createdId)!} />
+          </>
         ) : null}
 
         {failure === "features" ? (
