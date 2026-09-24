@@ -1,6 +1,7 @@
 import {
   canGuestCancel,
   computePaymentBreakdown,
+  guestPreorderEditAction,
   hasVisitStarted,
   isCancellableBookingStatus,
   isRebookableBooking,
@@ -18,6 +19,7 @@ import { CancelBookingDialog } from "../../../src/components/booking/CancelBooki
 import { describeCancellationCost } from "../../../src/components/booking/cancellation-cost";
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
+import { AddPreorderRow } from "../../../src/components/booking/AddPreorderRow";
 import { PreorderPaidBlock, PreorderPaidPill } from "../../../src/components/booking/PreorderPaidBlock";
 import { PreorderPayEntry } from "../../../src/components/booking/PreorderPayEntry";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
@@ -98,7 +100,7 @@ export default function ReservationScreen() {
   // Условие запроса НЕ зависит от подключения заведения нарочно: узнать, что
   // за бронь уже заплачено, надо и у отключённого заведения — иначе гость
   // потеряет свой чек, а диалог отмены — фразу про деньги.
-  const payment = useBookingPayment(id, canCancel || preorderChargeable);
+  const payment = useBookingPayment(id, canCancel || cancellable || preorderChargeable);
   const cancel = useCancelBooking();
 
   // Вход обратно в шторку оплаты, если гость её закрыл (блока «Оплата
@@ -117,6 +119,16 @@ export default function ReservationScreen() {
     livePayment && livePayment.purpose === "preorder" && isPaid(livePayment.status) && preorderItemsCount > 0
       ? livePayment
       : null;
+  // Вход «Добавить/Изменить предзаказ»: правила совпадают с бэкендом
+  // (usecase/preorder.Replace), см. guestPreorderEditAction.
+  const editAction = booking.data
+    ? guestPreorderEditAction({
+        status: booking.data.status,
+        itemsCount: preorderItemsCount,
+        // Пока платёж или состав не загрузились — вход скрыт.
+        payment: payment.isError || payment.isPending || preorder.isPending ? undefined : (payment.data ?? null),
+      })
+    : null;
   const payBase = preorder.data?.totalMinor ?? null;
   const payAmountMinor =
     payEntry?.kind === "waiting"
@@ -369,6 +381,13 @@ export default function ReservationScreen() {
             amountMinor={payAmountMinor}
             now={payNow}
             onPay={() => router.push({ pathname: "/booking/[id]/payment", params: { id: data.id } })}
+          />
+        ) : null}
+
+        {editAction ? (
+          <AddPreorderRow
+            label={editAction === "add" ? t.booking.preorderAddEntry : t.booking.preorderEdit}
+            onPress={() => router.push(`/restaurant/${data.restaurantId}/book/menu?booking=${data.id}`)}
           />
         ) : null}
 

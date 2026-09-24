@@ -2998,6 +2998,11 @@ export const ru = {
     preorderOptional: "Необязательно — блюда можно выбрать и на месте",
     preorderAdd: "Выбрать блюда",
     preorderEdit: "Изменить предзаказ",
+    preorderAddEntry: "Добавить предзаказ",
+    preorderEditLocked:
+      "Предзаказ подтверждённой брони можно изменить только через заведение — свяжитесь с рестораном",
+    preorderEditInFlight:
+      "Предзаказ уже оплачивается или оплачен, менять его нельзя. Дождитесь завершения оплаты",
     preorderSummary: (count: number, total: string) => `${count} поз. · ${total}`,
     preorderSummaryTitle: "Ваш заказ",
     preorderTitle: "Предзаказ",
@@ -4974,6 +4979,8 @@ export const ru = {
         breakdownTotal: "Итого",
         entryWaiting: (left: string) => `Ждём оплату предзаказа · осталось ${left}`,
         entryUnpaid: "Предзаказ ещё не оплачен",
+        addEntry: "Добавить предзаказ",
+        editEntry: "Изменить предзаказ",
         paidBlockTitle: "Предзаказ",
         checkoutNote:
           "После подтверждения заказ передаётся ресторану, а бронь сохраняется на выбранное время.",

@@ -9,10 +9,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, Minus, Plus, User } from "../../../../src/components/icons";
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
+import { AddPreorderRow } from "../../../../src/components/booking/AddPreorderRow";
 import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCampaignAttribution } from "../../../../src/hooks/useCampaignAttribution";
-import { useCreateBooking } from "../../../../src/hooks/useBooking";
+import { useCreateBooking, useMenuSections } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../../src/lib/analytics";
 import { confirmErrorReason } from "../../../../src/lib/booking-error-analytics";
@@ -70,6 +71,10 @@ export default function ConfirmBookingScreen() {
   // черновик, который экран показывает списком выше. Бронь ещё не создана —
   // предзаказ здесь правится степперами, поэтому и добавить в него можно.
   const addDishToPreorder = useAddDishToPreorder();
+  // «Добавить предзаказ» — только если у заведения есть что заказать. Тот же
+  // запрос (и кэш), что открывает экран выбора блюд.
+  const menu = useMenuSections(id);
+  const canAddPreorder = draft.preorder.length === 0 && (menu.data ?? []).some((s) => s.dishes.length > 0);
 
   // Defences against arriving here in a state that cannot be submitted. Neither
   // should happen through the flow (the gate is on «Продолжить», and Continue is
@@ -337,6 +342,13 @@ export default function ConfirmBookingScreen() {
               </Text>
             ) : null}
           </View>
+        ) : null}
+
+        {canAddPreorder ? (
+          <AddPreorderRow
+            label={t.booking.preorderAddEntry}
+            onPress={() => router.push(`/restaurant/${id}/book/menu`)}
+          />
         ) : null}
 
         {/* Особые пожелания (node 918:12120) — ПОСЛЕ предзаказа (правка

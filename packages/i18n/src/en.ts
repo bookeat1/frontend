@@ -2145,6 +2145,11 @@ export const en: LocaleOverride<Dictionary> = {
     preorderOptional: "Optional — you can also choose dishes on the spot",
     preorderAdd: "Choose dishes",
     preorderEdit: "Edit pre-order",
+    preorderAddEntry: "Add pre-order",
+    preorderEditLocked:
+      "A confirmed booking's pre-order can only be changed through the venue — please contact the restaurant",
+    preorderEditInFlight:
+      "The pre-order is being paid or is already paid and can no longer be changed. Wait for the payment to finish",
     preorderSummary: (count: number, total: string) =>
       `${count} ${count === 1 ? "item" : "items"} · ${total}`,
     preorderSummaryTitle: "Your order",
@@ -3415,6 +3420,8 @@ export const en: LocaleOverride<Dictionary> = {
         breakdownTotal: "Total",
         entryWaiting: (left: string) => `Waiting for the pre-order payment · ${left} left`,
         entryUnpaid: "The pre-order is not paid yet",
+        addEntry: "Add pre-order",
+        editEntry: "Edit pre-order",
         paidBlockTitle: "Pre-order",
         checkoutNote:
           "Once confirmed, the order goes to the restaurant and the booking is kept for the chosen time.",

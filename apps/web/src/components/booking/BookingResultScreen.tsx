@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   computePaymentBreakdown,
+  guestPreorderEditAction,
   isCancellableBookingStatus,
   type Booking,
   type BookingStatus,
@@ -24,6 +25,7 @@ import { bookingDateLabel, venueWallClock } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
 import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
 import { consumePreorderFailedFlag, type PreorderFailedReason } from "@web/lib/preorder-failed-flag";
+import { menuBookingHref } from "@web/lib/booking-link";
 import { isPaid, preorderPayEntry, preorderPaymentGate, remainingMs, formatCountdown } from "@web/lib/kaspi-payment";
 import { useBooking, useBookingPayment, usePreorder, useVenue } from "@web/lib/queries";
 import { useTickingNow } from "@web/lib/use-kaspi-payment";
@@ -212,6 +214,7 @@ function Ticket({ booking }: { booking: Booking }) {
       ) : null}
 
       <PreorderPayEntry booking={booking} venue={venue.data} />
+      <PreorderEditEntry booking={booking} />
 
       {/* Узел 3525:15028: карточка-билет 720, радиус 24, обводка, тень. */}
       <article className="w-full overflow-hidden rounded-2xl border border-line-strong bg-canvas shadow-card">
@@ -372,6 +375,32 @@ function PreorderPayEntry({ booking, venue }: { booking: Booking; venue: Restaur
       <p className="text-bodyM text-ink">{title}</p>
       <Button size="ticket" asLink href={`/bookings/${booking.id}/payment`}>
         {texts.entryCta(formatMoneyMinor(amountMinor))}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * «Добавить/Изменить предзаказ» (C-WEB-2 ТЗ `web-preorder-menu-20260908`):
+ * ссылка на меню в режиме правки брони. Видимость — общее с мобилкой правило
+ * `guestPreorderEditAction` (статус, платёж, состав); пока платёж или состав
+ * не загрузились, ссылки нет.
+ */
+function PreorderEditEntry({ booking }: { booking: Booking }) {
+  const { t } = useLocale();
+  const texts = t.web.bookingResult.paymentScreen;
+  const preorder = usePreorder(booking.id);
+  const payment = useBookingPayment(booking.id);
+  const action = guestPreorderEditAction({
+    status: booking.status,
+    itemsCount: preorder.data?.items.length ?? 0,
+    payment: payment.isError || payment.isPending || preorder.isPending ? undefined : (payment.data ?? null),
+  });
+  if (!action) return null;
+  return (
+    <div data-testid="preorder-edit-entry" className="w-full">
+      <Button size="m" variant="outline" block asLink href={menuBookingHref(booking.restaurantId, booking.id)}>
+        {action === "add" ? texts.addEntry : texts.editEntry}
       </Button>
     </div>
   );
