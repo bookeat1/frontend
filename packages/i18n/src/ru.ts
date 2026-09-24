@@ -3286,6 +3286,9 @@ export const ru = {
     paymentFailedRetry: "Повторить попытку",
     paymentFailedBackToBooking: "Вернуться к брони",
     paymentPreorderSummary: (count: number) => `Предзаказ · ${count} ${pluralRu(count, "блюдо", "блюда", "блюд")}`,
+    paymentBreakdownDishes: "Блюда",
+    paymentBreakdownFee: "Сервисный сбор",
+    paymentBreakdownTotal: "Итого",
     paymentViewAll: "Посмотреть все",
     paymentHideAll: "Свернуть",
     paymentPayKaspiAmount: (amount: string) => `Оплатить Kaspi ${amount}`,
@@ -4964,6 +4967,9 @@ export const ru = {
        * выбора карты). */
       paymentScreen: {
         entryCta: (amount: string) => `Оплатить ${amount}`,
+        breakdownDishes: "Блюда",
+        breakdownFee: "Сервисный сбор",
+        breakdownTotal: "Итого",
         checkoutNote:
           "После подтверждения заказ передаётся ресторану, а бронь сохраняется на выбранное время.",
         successSubtitle:

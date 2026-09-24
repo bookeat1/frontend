@@ -714,6 +714,10 @@ export interface ApiPayment {
   purpose: string;
   status: string;
   amount_minor: number;
+  /** Dishes part of `amount_minor`. Absent on an old server build. */
+  base_amount_minor?: number | null;
+  /** Restaurant service fee added on top of the base. Absent on old builds. */
+  fee_minor?: number | null;
   currency: string;
   /** Optional in the Go struct (`*string` / `*time.Time`) and therefore
    * nullable here: a payment can exist without a link (never normally
@@ -749,6 +753,8 @@ export function mapPayment(api: ApiPayment): BookingPayment {
     purpose: PAYMENT_PURPOSES.find((p) => p === purpose) ?? "deposit",
     status: PAYMENT_STATUSES.find((s) => s === status) ?? "created",
     amountMinor: typeof api.amount_minor === "number" ? api.amount_minor : 0,
+    ...(typeof api.base_amount_minor === "number" ? { baseAmountMinor: api.base_amount_minor } : {}),
+    ...(typeof api.fee_minor === "number" ? { feeMinor: api.fee_minor } : {}),
     currency: text(api.currency) || "KZT",
     // A blank string is the same as absent: an empty href would render a
     // tappable button that opens nothing.

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import type { BookingPayment } from "@bookeat/api/client";
 
+import { formatMoneyMinor } from "@web/lib/format";
 import { booking, preorder, renderScreen, repositoryStub, venueDetail } from "@web/test/harness";
 
 /**
@@ -91,5 +92,30 @@ describe("оплата: выбор способа", () => {
     const [, input] = vi.mocked(repository.createBookingPayment).mock.calls[0]!;
     expect(input.method).toBeUndefined();
     expect(screen.queryByRole("button", { name: /картой/ })).toBeNull();
+  });
+});
+
+describe("оплата: разбивка суммы", () => {
+  const withFee = { ...created, baseAmountMinor: 1798000, feeMinor: 179800, amountMinor: 1977800 };
+
+  async function setupExisting(payment: BookingPayment) {
+    setup(["card"]);
+    repository.getBookingPayment = vi.fn(async () => payment);
+  }
+
+  it("fee > 0 — блюда, сервисный сбор, итого", async () => {
+    await setupExisting(withFee);
+    expect(await screen.findByText("Сервисный сбор")).toBeTruthy();
+    expect(screen.getByText("Блюда")).toBeTruthy();
+    expect(screen.getByText("Итого")).toBeTruthy();
+    const text = screen.getByTestId("payment-breakdown").textContent ?? "";
+    expect(text).toContain(formatMoneyMinor(179800));
+    expect(text).toContain(formatMoneyMinor(1977800));
+  });
+
+  it("fee = 0 — строк нет", async () => {
+    await setupExisting({ ...created, baseAmountMinor: 1798000, feeMinor: 0 });
+    await screen.findByText(/^Предзаказ/);
+    expect(screen.queryByText("Сервисный сбор")).toBeNull();
   });
 });

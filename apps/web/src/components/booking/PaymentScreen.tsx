@@ -136,6 +136,9 @@ function PaymentBody({
 
   const amountMinor = paymentFlow.payment?.amountMinor ?? preorder.data?.totalMinor ?? null;
   const amount = amountMinor === null ? null : formatMoneyMinor(amountMinor);
+  const feeMinor = paymentFlow.payment?.feeMinor ?? 0;
+  const baseMinor = paymentFlow.payment?.baseAmountMinor;
+  const showBreakdown = feeMinor > 0 && baseMinor !== undefined && amountMinor !== null;
   const left = remainingMs(paymentFlow.payment?.expiresAt ?? null, paymentFlow.now);
   const failure = createFailureMessage(paymentFlow.error, t.web.bookingResult.payment);
   const items = preorder.data?.items ?? [];
@@ -171,6 +174,22 @@ function PaymentBody({
               </li>
             ))}
           </ul>
+        ) : null}
+        {showBreakdown ? (
+          <dl data-testid="payment-breakdown" className="flex flex-col gap-2 px-4 pb-4 text-bodyM text-ink">
+            <div className="flex items-center justify-between gap-3">
+              <dt>{texts.breakdownDishes}</dt>
+              <dd>{formatMoneyMinor(baseMinor)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt>{texts.breakdownFee}</dt>
+              <dd>{formatMoneyMinor(feeMinor)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 font-semibold">
+              <dt>{texts.breakdownTotal}</dt>
+              <dd>{amount}</dd>
+            </div>
+          </dl>
         ) : null}
       </div>
 
