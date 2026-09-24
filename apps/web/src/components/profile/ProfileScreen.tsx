@@ -373,7 +373,7 @@ function BookingCard({ booking }: { booking: Booking }) {
               {texts.actions.change}
             </Button>
           ) : null}
-          {canCancel(booking) ? (
+          {canCancel(booking, now) ? (
             <Button variant="secondary" size="m" onClick={() => setCancelOpen(true)}>
               {texts.actions.cancel}
             </Button>
