@@ -65,9 +65,11 @@ vi.mock("../../src/hooks/useKaspiPayment", () => ({
 /** В jsdom `window.open`/переход по внешней ссылке не реализован — подменяем,
  * иначе тест шумит в stderr и ничего не проверяет. */
 const openWebsite = vi.fn(async (_url: string) => true);
+const openInAppBrowser = vi.fn(async (_url: string): Promise<"in-app" | "external" | "failed"> => "in-app");
 vi.mock("../../src/lib/external-links", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../src/lib/external-links")>()),
   openWebsite: (url: string) => openWebsite(url),
+  openInAppBrowser: (url: string) => openInAppBrowser(url),
 }));
 
 let restaurant: Restaurant | undefined;
@@ -158,6 +160,8 @@ beforeEach(() => {
   check.mockClear();
   replace.mockClear();
   openWebsite.mockClear();
+  openInAppBrowser.mockClear();
+  openInAppBrowser.mockResolvedValue("in-app");
 });
 
 describe("фаза idle", () => {
@@ -315,5 +319,39 @@ describe("отказы создания счёта", () => {
 
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentErrorCannotOpen)).toBeTruthy());
+  });
+});
+
+describe("оплата картой во встроенном браузере", () => {
+  it("карта: ссылка открывается во встроенном браузере, после закрытия статус перепроверяется", async () => {
+    restaurant = { ...RESTAURANT, paymentMethods: ["card"] };
+    flowState.phase = "awaiting";
+    flowState.payment = paymentWith({ status: "created", paymentUrl: "https://pay.example/card/1" });
+
+    render(<PaymentScreen />);
+    await waitFor(() => expect(openInAppBrowser).toHaveBeenCalledWith("https://pay.example/card/1"));
+    await waitFor(() => expect(check).toHaveBeenCalledTimes(1));
+    expect(openWebsite).not.toHaveBeenCalled();
+  });
+
+  it("карта, встроенный браузер недоступен: откат во внешний, перепроверки нет", async () => {
+    restaurant = { ...RESTAURANT, paymentMethods: ["card"] };
+    openInAppBrowser.mockResolvedValue("external");
+    flowState.phase = "awaiting";
+    flowState.payment = paymentWith({ status: "created", paymentUrl: "https://pay.example/card/1" });
+
+    render(<PaymentScreen />);
+    await waitFor(() => expect(openInAppBrowser).toHaveBeenCalledTimes(1));
+    expect(check).not.toHaveBeenCalled();
+  });
+
+  it("Kaspi остаётся во внешнем браузере", async () => {
+    restaurant = { ...RESTAURANT, paymentMethods: ["kaspi"] };
+    flowState.phase = "awaiting";
+    flowState.payment = paymentWith({ status: "created" });
+
+    render(<PaymentScreen />);
+    await waitFor(() => expect(openWebsite).toHaveBeenCalledWith("https://pay.kaspi.kz/pay/abcdef"));
+    expect(openInAppBrowser).not.toHaveBeenCalled();
   });
 });
