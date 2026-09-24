@@ -15,6 +15,7 @@ import { useMenuSections } from "../../../../src/hooks/useBooking";
 import { estimatePreorderTotalMinor, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { usePreorderCart } from "../../../../src/lib/preorder-cart";
 import { formatMoneyMinor } from "../../../../src/lib/format";
+import { preorderSaveErrorMessage } from "../../../../src/lib/preorder-save-error";
 import { filterMenuSections } from "../../../../src/lib/menu-search";
 
 const t = getDictionary();
@@ -210,7 +211,7 @@ export default function PreorderMenuScreen() {
           />
           {attached && cart.save.isError ? (
             <Text style={styles.saveError} accessibilityRole="alert">
-              {t.booking.preorderSaveFailed}
+              {preorderSaveErrorMessage(cart.save.error)}
             </Text>
           ) : null}
         </View>

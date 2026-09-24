@@ -2150,6 +2150,11 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderOptional: "Міндетті емес — тағамдарды жерде де таңдауға болады",
     preorderAdd: "Тағам таңдау",
     preorderEdit: "Тапсырысты өзгерту",
+    preorderAddEntry: "Алдын ала тапсырыс қосу",
+    preorderEditLocked:
+      "Расталған брондаудың тапсырысын тек мекеме арқылы өзгертуге болады — мекемемен байланысыңыз",
+    preorderEditInFlight:
+      "Тапсырыс төленіп жатыр немесе төленген, енді өзгертуге болмайды. Төлем аяқталғанша күтіңіз",
     preorderSummary: (count: number, total: string) => `${count} поз. · ${total}`,
     preorderSummaryTitle: "Сіздің тапсырысыңыз",
     preorderTitle: "Алдын ала тапсырыс",
@@ -3420,6 +3425,8 @@ export const kk: LocaleOverride<Dictionary> = {
         breakdownTotal: "Барлығы",
         entryWaiting: (left: string) => `Алдын ала тапсырыс төлемін күтудеміз · қалды ${left}`,
         entryUnpaid: "Алдын ала тапсырыс әлі төленбеген",
+        addEntry: "Алдын ала тапсырыс қосу",
+        editEntry: "Тапсырысты өзгерту",
         paidBlockTitle: "Алдын ала тапсырыс",
         checkoutNote:
           "Растағаннан кейін тапсырыс мекемеге беріледі, ал брон таңдалған уақытқа сақталады.",
