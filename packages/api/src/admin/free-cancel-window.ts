@@ -33,3 +33,35 @@ export function parseFreeCancelWindowMinutes(raw: string): number | null {
   if (!Number.isFinite(parsed)) return null;
   return Math.min(FREE_CANCEL_WINDOW_MAX_MINUTES, Math.max(FREE_CANCEL_WINDOW_MIN_MINUTES, parsed));
 }
+
+/**
+ * The slice of `CatalogVenue` this module's display helper needs — kept
+ * narrow (not imported from `./types`) so a fixture only has to supply the
+ * two fields that matter, same reasoning as `VenueBookingRulesSource` in
+ * `../booking-rules.ts`.
+ */
+export interface FreeCancelWindowDisplaySource {
+  free_cancel_window_minutes?: number | null;
+  booking_rules?: { free_cancel_hours?: number } | null;
+}
+
+/**
+ * What `VenuesView`'s edit form should show on load: the EXACT stored
+ * minutes when the cabinet read carries them (backend
+ * `attachFreeCancelWindowMinutes`, added alongside the fix for the "1 minute
+ * saved, reloads as 0" bug — `free_cancel_hours` rounds to the nearest
+ * hour). Falls back to `hours * 60` only when the exact field is absent —
+ * an old server build or a stale cached client — which is lossy for a
+ * non-hour-aligned window but was already the previous behaviour, so it is
+ * kept as a compatibility floor, not the primary path. Empty string means
+ * neither is available (no data to prefill at all).
+ */
+export function initialFreeCancelMinutesField(detail: FreeCancelWindowDisplaySource): string {
+  if (typeof detail.free_cancel_window_minutes === "number") {
+    return String(detail.free_cancel_window_minutes);
+  }
+  if (typeof detail.booking_rules?.free_cancel_hours === "number") {
+    return String(detail.booking_rules.free_cancel_hours * 60);
+  }
+  return "";
+}

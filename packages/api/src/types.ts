@@ -770,6 +770,25 @@ export function canGuestCancel(booking: Booking, now: Date = new Date()): boolea
   return startsAt - now.getTime() > CANCEL_WINDOW_MS;
 }
 
+/**
+ * Начался ли уже визит по этой брони.
+ *
+ * Независимо от статуса: бронь, которая осталась `pending`/`waitlist`/
+ * `confirmed`/`arrived` дольше времени визита, всё ещё формально
+ * «отменяемая» (см. `CANCELLABLE_BOOKING_STATUSES`), но отменять уже нечего
+ * — гостя либо ждут прямо сейчас, либо визит уже идёт или закончился, а
+ * статус просто никто не перевёл. Это НЕ то же самое, что двухчасовое окно
+ * `canGuestCancel`: то окно — про «поздно отменять, звоните в заведение», а
+ * это — про «отменять сам факт визита, который уже наступил, бессмысленно».
+ * Используется, чтобы СКРЫТЬ саму кнопку/блок отмены, а не только выключить
+ * её (mobile: `app/booking/[id]/index.tsx`, web: `profile-bookings.ts`).
+ */
+export function hasVisitStarted(booking: Booking, now: Date = new Date()): boolean {
+  const startsAt = Date.parse(booking.startsAt);
+  if (Number.isNaN(startsAt)) return false; // время не разобрали — не прячем кнопку
+  return startsAt <= now.getTime();
+}
+
 export interface Booking {
   id: string;
   restaurantId: string;

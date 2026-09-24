@@ -6,6 +6,7 @@ import {
   activeVenueFeatures,
   buildTranslationPatch,
   cuisineIdsOf,
+  initialFreeCancelMinutesField,
   mergeVenueFeatureOptions,
   parseFreeCancelWindowMinutes,
   parseSocialLinkRows,
@@ -364,12 +365,15 @@ function VenueFormModal({
   // Денежное окно бесплатной отмены, В МИНУТАХ — своей ручки записи у него в
   // ЭТОМ PATCH нет (см. комментарий у `CatalogVenueInput.hold_minutes` в
   // admin/types.ts), пишется отдельно (`AdminApiClient.setFreeCancelWindow`,
-  // шаг `free_cancel_window` в `saveVenueWithDictionaries` ниже). Своей ручки
-  // ЧТЕНИЯ точных минут тоже нет — единственное чтение отдаёт округлённые
-  // ЧАСЫ (`booking_rules.free_cancel_hours`), поэтому при загрузке в поле
-  // подставляется `часы × 60` (см. эффект синхронизации ниже): значение
-  // честное только пока управляющий его не менял, после первого сохранения
-  // поле переписывается точным числом, которое эхом вернула ручка.
+  // шаг `free_cancel_window` в `saveVenueWithDictionaries` ниже). Чтение —
+  // `CatalogVenue.free_cancel_window_minutes`, ТОЧНОЕ значение колонки
+  // (backend `attachFreeCancelWindowMinutes`, тот же кабинетный запрос
+  // `getCatalogVenue`). Раньше здесь не было своей ручки чтения и в поле при
+  // загрузке подставлялось `часы × 60` от округлённого `free_cancel_hours` —
+  // это теряло точность для нечасовых значений (1 минута читалась назад как
+  // «0», продовый баг 23.09.2026). Округлённые часы остаются фолбэком ТОЛЬКО
+  // если точное поле отсутствует (старая сборка сервера/закэшированный
+  // клиент) — см. эффект синхронизации ниже.
   const [freeCancelMinutes, setFreeCancelMinutes] = useState("");
   // Черновики переводов. Русский текст остаётся в обычных полях выше.
   const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
@@ -441,13 +445,10 @@ function VenueFormModal({
     setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
     setHoldMinutes(data.booking_rules?.hold_minutes != null ? String(data.booking_rules.hold_minutes) : "");
     setLateArrivalText(data.booking_rules?.late_arrival_text ?? "");
-    // См. комментарий у useState freeCancelMinutes: единственное чтение отдаёт
-    // округлённые часы, минуты приблизительные до первого сохранения.
-    setFreeCancelMinutes(
-      data.booking_rules?.free_cancel_hours != null
-        ? String(data.booking_rules.free_cancel_hours * 60)
-        : "",
-    );
+    // См. комментарий у useState freeCancelMinutes и у
+    // initialFreeCancelMinutesField: точное поле предпочтительно, часы × 60 —
+    // только фолбэк.
+    setFreeCancelMinutes(initialFreeCancelMinutesField(data));
   }, [detailQuery.data]);
 
   // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
