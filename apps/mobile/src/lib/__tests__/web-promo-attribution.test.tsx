@@ -17,12 +17,22 @@ import { __store as secureStoreMemory } from "../../../../../test/stubs/expo-sec
  *     `app/_layout.tsx` gates this component on `Platform.OS === "web"`, but
  *     the component's own effect is exercised here directly to prove it does
  *     not write on non-web platforms either, in case that gate is ever lost.
+ *
+ * 27.09.2026: added the channel-tag JSON-tail-segment path
+ * (`{"source":"box"}`/`{"source":"tshirt"}` in `pathname`, not `?source=`) —
+ * mirrors the native `resolveSourcePathSegment` contract, and asserts BOTH
+ * the attribution write AND the `router.replace` redirect off the unmatched
+ * pathname onto `/`.
  */
 
 let searchParams: Record<string, string | string[] | undefined> = {};
+let pathname = "/";
+const replace = vi.fn();
 
 vi.mock("expo-router", () => ({
   useGlobalSearchParams: () => searchParams,
+  usePathname: () => pathname,
+  useRouter: () => ({ replace }),
 }));
 
 const PROMO_UUID = "6a3736b9-d4e5-4ec6-9ed2-7233476184fd";
@@ -43,6 +53,8 @@ function pretendPlatform(os: "ios" | "android" | "web") {
 
 beforeEach(() => {
   searchParams = {};
+  pathname = "/";
+  replace.mockClear();
   secureStoreMemory.clear();
   pretendPlatform("web");
 });
@@ -107,6 +119,67 @@ describe("WebPromoAttribution: атрибуция кампании на моби
     render(<WebPromoAttribution />);
     await flush();
 
+    expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
+  });
+
+  it("?source= известного формата пишет метку канала", async () => {
+    searchParams = { source: "box" };
+
+    render(<WebPromoAttribution />);
+    await flush();
+
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(JSON.parse(stored!)).toMatchObject({ source: "box" });
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("JSON-хвост {\"source\":\"box\"} в pathname — пишет метку и уводит с несматченного маршрута на /", async () => {
+    pathname = `/${encodeURIComponent(JSON.stringify({ source: "box" }))}`;
+    searchParams = {};
+
+    render(<WebPromoAttribution />);
+    await flush();
+
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(JSON.parse(stored!)).toMatchObject({ source: "box" });
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith({ pathname: "/", params: { source: "box" } });
+  });
+
+  it("JSON-хвост {\"promo\":...} в pathname сохраняет старое поведение — promo побеждает, ведёт на /promotion/<id>", async () => {
+    pathname = `/${encodeURIComponent(JSON.stringify({ promo: PROMO_UUID }))}`;
+    searchParams = {};
+
+    render(<WebPromoAttribution />);
+    await flush();
+
+    const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
+    expect(JSON.parse(stored!)).toMatchObject({ campaignId: PROMO_UUID });
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith({
+      pathname: `/promotion/${PROMO_UUID}`,
+      params: { promo: PROMO_UUID },
+    });
+  });
+
+  it("pathname уже совпадает с резолвнутым (/) — без лишнего replace", async () => {
+    pathname = "/";
+    searchParams = { source: "box" };
+
+    render(<WebPromoAttribution />);
+    await flush();
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("нативная платформа: JSON-хвост в pathname не уводит с маршрута и не пишет метку", async () => {
+    pretendPlatform("android");
+    pathname = `/${encodeURIComponent(JSON.stringify({ source: "box" }))}`;
+
+    render(<WebPromoAttribution />);
+    await flush();
+
+    expect(replace).not.toHaveBeenCalled();
     expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
   });
 });
