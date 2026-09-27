@@ -71,7 +71,6 @@ export function WebPromoAttribution(): null {
     promo?: string | string[];
     campaignId?: string | string[];
     campaign_id?: string | string[];
-    source?: string | string[];
   }>();
   const pathname = usePathname();
   const router = useRouter();
@@ -79,7 +78,6 @@ export function WebPromoAttribution(): null {
   const promo = firstValue(params.promo);
   const campaignId = firstValue(params.campaignId);
   const campaignIdSnake = firstValue(params.campaign_id);
-  const source = firstValue(params.source);
 
   // Guards against re-writing the identical tag on every re-render this
   // effect's own dependencies happen to produce (e.g. an unrelated
@@ -107,7 +105,6 @@ export function WebPromoAttribution(): null {
     if (promo !== undefined) linkParams.promo = promo;
     if (campaignId !== undefined) linkParams.campaignId = campaignId;
     if (campaignIdSnake !== undefined) linkParams.campaign_id = campaignIdSnake;
-    if (source !== undefined) linkParams.source = source;
 
     if (resolved && resolved.pathname !== pathname && lastRedirectedFrom.current !== pathname) {
       lastRedirectedFrom.current = pathname;
@@ -124,7 +121,7 @@ export function WebPromoAttribution(): null {
       url: typeof window !== "undefined" ? window.location.href : "",
       params: linkParams,
     });
-  }, [promo, campaignId, campaignIdSnake, source, pathname, router]);
+  }, [promo, campaignId, campaignIdSnake, pathname, router]);
 
   return null;
 }

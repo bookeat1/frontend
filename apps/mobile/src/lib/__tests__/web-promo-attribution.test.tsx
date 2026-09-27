@@ -122,14 +122,25 @@ describe("WebPromoAttribution: атрибуция кампании на моби
     expect(secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY)).toBeUndefined();
   });
 
-  it("?source= известного формата пишет метку канала", async () => {
-    searchParams = { source: "box" };
+  it("?source= в query — это персонализационная метка (for_you/search/cuisine), а не канал атрибуции: не пишет и не перетирает существующую", async () => {
+    // `?source=for_you`/`search`/`cuisine` — параметр аналитики персонализации
+    // на карточках ресторанов (app/index.tsx, app/search.tsx), омонимичный
+    // channel-tag'у, но семантически другой. Читать его тут глобально нельзя:
+    // открытие любой карточки ресторана перетёрло бы уже сохранённую
+    // атрибуцию промо/бокса. Channel-tag `source` приходит ТОЛЬКО через
+    // JSON-хвостовой сегмент пути (см. тест ниже), никогда через query.
+    secureStoreMemory.set(
+      CAMPAIGN_ATTRIBUTION_KEY,
+      JSON.stringify({ campaignId: PROMO_UUID }),
+    );
+    searchParams = { source: "for_you" };
+    pathname = "/restaurant/abc";
 
     render(<WebPromoAttribution />);
     await flush();
 
     const stored = secureStoreMemory.get(CAMPAIGN_ATTRIBUTION_KEY);
-    expect(JSON.parse(stored!)).toMatchObject({ source: "box" });
+    expect(JSON.parse(stored!)).toMatchObject({ campaignId: PROMO_UUID });
     expect(replace).not.toHaveBeenCalled();
   });
 
@@ -164,7 +175,7 @@ describe("WebPromoAttribution: атрибуция кампании на моби
 
   it("pathname уже совпадает с резолвнутым (/) — без лишнего replace", async () => {
     pathname = "/";
-    searchParams = { source: "box" };
+    searchParams = {};
 
     render(<WebPromoAttribution />);
     await flush();
