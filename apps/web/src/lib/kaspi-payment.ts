@@ -81,6 +81,34 @@ export function preorderPaymentGate(input: {
   return { visible: payable || settled, payable };
 }
 
+/** Что показывает компактная строка оплаты на экране брони. */
+export type PreorderPayEntry =
+  /** Ссылка жива: «Ждём оплату · осталось мм:сс» + «Оплатить N». */
+  | { kind: "waiting"; payment: BookingPayment }
+  /** Платить можно, живого платежа нет (шторку закрыли до создания или
+   * ссылка истекла): «Предзаказ ещё не оплачен» + «Оплатить N». */
+  | { kind: "unpaid" };
+
+/**
+ * Показывать ли на экране брони строку «оплатить предзаказ» — вход обратно в
+ * шторку оплаты после её закрытия. `null`: платить нечего/нельзя, либо деньги
+ * уже ушли (settling/paid): там строка была бы предложением заплатить дважды.
+ */
+export function preorderPayEntry(input: {
+  /** `preorderPaymentGate(...).payable`. */
+  payable: boolean;
+  /** Живой платёж из `GET /bookings/:id/payment` (`null`/`undefined` — нет). */
+  payment: BookingPayment | null | undefined;
+  now: number;
+}): PreorderPayEntry | null {
+  if (!input.payable) return null;
+  const payment = input.payment?.purpose === "preorder" ? input.payment : null;
+  const phase = paymentPhase(payment, input.now);
+  if (phase === "awaiting" && payment) return { kind: "waiting", payment };
+  if (phase === "idle" || phase === "dead") return { kind: "unpaid" };
+  return null;
+}
+
 /** Сколько миллисекунд осталось до `expiresAt`. `0` — срок вышел, `null` —
  * срока НЕТ. */
 export function remainingMs(expiresAt: string | null, now: number): number | null {

@@ -266,6 +266,22 @@ export interface AcquirerAccount {
   is_active: boolean;
 }
 
+/** Способы оплаты заведения (`/payment-settings/methods`, backend PR #150). */
+export interface PaymentMethodsSettings {
+  /** `null` — наследует глобальный `PAYMENTS_ENABLED`. */
+  payments_enabled: boolean | null;
+  /** Полный список ВКЛЮЧЁННЫХ способов. */
+  methods: Array<"kaspi" | "card">;
+  /** Есть активный счёт Kaspi с непустой ссылкой; без него Kaspi гостю не
+   * предлагается, даже будучи включённым. */
+  kaspi_account_bound: boolean;
+}
+
+export interface PaymentMethodsInput {
+  payments_enabled: boolean | null;
+  methods: Array<"kaspi" | "card">;
+}
+
 /** Что отправляем в PUT: провайдер, адрес счёта и включена ли привязка. */
 export interface AcquirerAccountInput {
   provider: string;

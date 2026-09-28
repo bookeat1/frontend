@@ -3,27 +3,23 @@ import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { XCircle } from "../../../src/components/icons";
+import { RouteSheet } from "../../../src/components/booking/RouteSheet";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 
 const t = getDictionary();
 
-/** См. `payment-success.tsx` про происхождение размера/цвета — тот же
- * замер того же файла, узел 5390:9217 («Error», веб-кадр). Глиф там красный
- * #FF383C, почти совпадает с `status.negativeTextOnSurface` (#B33036 —
- * версия для белого листа, см. её же комментарий в colors.ts), эта роль и
- * переиспользована вместо нового неподтверждённого токена. */
+/** Диаметр кружка-иконки — Figma 5390:9142/9217 («Error»). Глиф красный,
+ * почти совпадает с `status.negativeTextOnSurface` (версия для белого листа) —
+ * переиспользована существующая роль вместо нового неподтверждённого токена. */
 const ICON_SIZE = 64;
 
 /**
- * «Оплата не прошла» — Figma узел 5390:9142 (мобильный) / 5390:9217 (веб).
- * Терминальная (`dead`) фаза `useKaspiPaymentFlow`, но со СВОИМ набором
- * кнопок: в отличие от инлайн-карточки (`paymentDeadTitle` → одна кнопка
- * «Создать новую ссылку», которая молча создаёт следующий счёт), макет даёт
- * ДВЕ — «Повторить попытку» ведёт назад на экран оплаты (там `renew()`
- * заведёт новый счёт по нажатию, а не автоматически), «Вернуться к брони» —
- * на бронь без новой попытки.
+ * Шторка «Оплата не прошла» — Figma узел 5390:9142 (шторка поверх экрана,
+ * с 2026-09-24; раньше — полный экран). Терминальная (`dead`) фаза
+ * `useKaspiPaymentFlow`: «Повторить попытку» ведёт назад на шторку оплаты
+ * (там `pay()` заведёт новый счёт по нажатию, а не автоматически),
+ * «Вернуться к брони» — на бронь без новой попытки.
  */
 export default function PaymentErrorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,8 +34,22 @@ export default function PaymentErrorScreen() {
   }, [router, id]);
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView edges={["top"]} style={styles.body}>
+    <RouteSheet
+      onClose={backToBooking}
+      closeLabel={t.common.close}
+      footer={
+        <>
+          <PrimaryButton label={t.booking.paymentFailedRetry} size="lg" onPress={retry} />
+          <PrimaryButton
+            label={t.booking.paymentFailedBackToBooking}
+            variant="outline"
+            size="lg"
+            onPress={backToBooking}
+          />
+        </>
+      }
+    >
+      <View style={styles.body}>
         <View style={styles.iconCircle} accessibilityElementsHidden>
           <XCircle size={40} color={colors.status.negativeTextOnSurface} weight="fill" />
         </View>
@@ -49,32 +59,16 @@ export default function PaymentErrorScreen() {
         <Text style={styles.subtitle} accessibilityRole="alert">
           {t.booking.paymentFailedText}
         </Text>
-      </SafeAreaView>
-
-      <View style={styles.footer}>
-        <PrimaryButton label={t.booking.paymentFailedRetry} size="lg" onPress={retry} />
-        <PrimaryButton
-          label={t.booking.paymentFailedBackToBooking}
-          variant="secondary"
-          size="lg"
-          onPress={backToBooking}
-        />
       </View>
-    </View>
+    </RouteSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background.surface,
-  },
   body: {
-    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
     gap: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   iconCircle: {
     width: ICON_SIZE,
@@ -93,9 +87,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.muted,
     textAlign: "center",
-  },
-  footer: {
-    padding: spacing.lg,
-    gap: spacing.sm,
   },
 });

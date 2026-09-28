@@ -16,6 +16,7 @@
  * of a screen, never throw inside a mapper and blank the whole screen.
  */
 import type {
+  PaymentMethod,
   Amenity,
   AppUpdateAction,
   AppUpdateDecision,
@@ -162,6 +163,8 @@ export interface ApiRestaurant {
    * «оплату не предлагаем». См. Restaurant.acceptsOnlinePayment.
    */
   accepts_online_payment?: boolean;
+  /** Доступные способы оплаты (backend PR #150). Нет ключа — старый бэкенд. */
+  payment_methods?: string[] | null;
   /**
    * Минимальная сумма предзаказа заведения, в тиынах — `restaurants.preorder_min_amount_minor`
    * (D-BE-1, `bookeat-backend` PR #122, влито в `develop` 2026-09-08). Только
@@ -193,6 +196,8 @@ export interface ApiRestaurant {
    * фолбэк). См. `Restaurant.serviceFeeBps`.
    */
   service_fee_bps?: number | null;
+  /** Effective payment-fee parameters (minor units / bps). Absent on old builds. */
+  payment_fee?: { rate_bps?: number | null; min_fee_minor?: number | null } | null;
   /**
    * Блюдо, по которому заведение нашлось. Присылает ТОЛЬКО поиск
    * (`GET /restaurants/search`) и только при совпадении по меню — при поиске
@@ -711,6 +716,10 @@ export interface ApiPayment {
   purpose: string;
   status: string;
   amount_minor: number;
+  /** Dishes part of `amount_minor`. Absent on an old server build. */
+  base_amount_minor?: number | null;
+  /** Restaurant service fee added on top of the base. Absent on old builds. */
+  fee_minor?: number | null;
   currency: string;
   /** Optional in the Go struct (`*string` / `*time.Time`) and therefore
    * nullable here: a payment can exist without a link (never normally
@@ -746,6 +755,8 @@ export function mapPayment(api: ApiPayment): BookingPayment {
     purpose: PAYMENT_PURPOSES.find((p) => p === purpose) ?? "deposit",
     status: PAYMENT_STATUSES.find((s) => s === status) ?? "created",
     amountMinor: typeof api.amount_minor === "number" ? api.amount_minor : 0,
+    ...(typeof api.base_amount_minor === "number" ? { baseAmountMinor: api.base_amount_minor } : {}),
+    ...(typeof api.fee_minor === "number" ? { feeMinor: api.fee_minor } : {}),
     currency: text(api.currency) || "KZT",
     // A blank string is the same as absent: an empty href would render a
     // tappable button that opens nothing.
@@ -1380,6 +1391,7 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // кнопку у неподключённого заведения, получает 422 и остаётся с чувством,
     // что сломалось приложение.
     acceptsOnlinePayment: api.accepts_online_payment === true,
+    paymentMethods: mapPaymentMethods(api.payment_methods),
     // D-API-1 (ТЗ `web-preorder-menu-20260908`): `null`, а НЕ 0, когда поля
     // нет или оно `null` — минимум «не задан», а не «любая ненулевая сумма
     // запрещена». `typeof === "number"` вместо `??` — сервер шлёт целое
@@ -1391,6 +1403,11 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // `null`) — «показывать ли» решает `serviceFeeBps > 0` на стороне
     // экрана, ровно как с `preorderMinAmountMinor` выше.
     serviceFeeBps: typeof api.service_fee_bps === "number" ? api.service_fee_bps : null,
+    ...(api.payment_fee &&
+    typeof api.payment_fee.rate_bps === "number" &&
+    typeof api.payment_fee.min_fee_minor === "number"
+      ? { paymentFee: { rateBps: api.payment_fee.rate_bps, minFeeMinor: api.payment_fee.min_fee_minor } }
+      : {}),
     // Удобства заведения — РЕАЛЬНОЕ поле `features` детального ответа
     // (проверено curl'ом на тестовом бэкенде 31.08.2026: у Aiza Esentai три
     // записи, у Guinness Pub две). Раньше сюда ничего не мапилось, и веб
@@ -2181,4 +2198,10 @@ function localizedText(raw: Record<string, string> | null | undefined) {
     if (trimmed) out[locale] = trimmed;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** `null` = поле не пришло (старый бэкенд); неизвестные значения отбрасываются. */
+export function mapPaymentMethods(raw: unknown): PaymentMethod[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((m): m is PaymentMethod => m === "kaspi" || m === "card");
 }

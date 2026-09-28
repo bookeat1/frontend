@@ -18,6 +18,8 @@ export * from "./time-of-day";
 export * from "./schedule";
 export * from "./static-map";
 export * from "./service-fee";
+export * from "./payment-fee";
+export * from "./preorder-edit";
 export * from "./repository";
 export * from "./http-repository";
 export type { TokenProvider, UnauthorizedHandler, LanguageProvider, ApiPage } from "./http-client";

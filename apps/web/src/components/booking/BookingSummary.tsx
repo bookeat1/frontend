@@ -81,6 +81,7 @@ export function BookingSummary({
   failure,
   action,
   preorder,
+  wishes = null,
 }: {
   venue: Restaurant;
   rows: SummaryRow[];
@@ -90,6 +91,8 @@ export function BookingSummary({
   action: SummaryAction;
   /** `null` — блока «Предзаказ» нет вовсе (режим переноса брони). */
   preorder: PreorderSummary | null;
+  /** Строка «Особые пожелания» — под блоком «Предзаказ». `null` — в режиме переноса. */
+  wishes?: SummaryRow | null;
 }) {
   const { t } = useLocale();
   const texts = t.web.booking.summary;
@@ -177,6 +180,26 @@ export function BookingSummary({
         <>
           <Divider />
           <PreorderBlock preorder={preorder} />
+        </>
+      ) : null}
+
+      {wishes ? (
+        <>
+          <Divider />
+          <dl>
+            <div className="flex items-start justify-between gap-3">
+              <dt className="shrink-0 text-flow-summary-label text-ink-secondary">{wishes.label}</dt>
+              <dd
+                className={
+                  wishes.value
+                    ? "min-w-0 break-words text-right text-flow-summary-value text-ink"
+                    : "min-w-0 text-right text-flow-summary-label text-ink-tertiary"
+                }
+              >
+                {wishes.value ?? texts.notChosen}
+              </dd>
+            </div>
+          </dl>
         </>
       ) : null}
       </div>

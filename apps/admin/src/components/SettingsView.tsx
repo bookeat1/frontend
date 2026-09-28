@@ -7,6 +7,7 @@ import { CuisinesCard } from "./CuisinesCard";
 import { PricingCard } from "./PricingCard";
 import { SocialLinksCard } from "./SocialLinksCard";
 import { VenueFeaturesCard } from "./VenueFeaturesCard";
+import { PaymentMethodsCard } from "./PaymentMethodsCard";
 import { TelegramNotificationCard } from "./TelegramNotificationCard";
 import { WhatsAppNotificationCard } from "./WhatsAppNotificationCard";
 
@@ -21,8 +22,11 @@ import { WhatsAppNotificationCard } from "./WhatsAppNotificationCard";
  * it is not faked here.
  */
 export function SettingsView() {
-  const { restaurant } = useAuth();
+  const { restaurant, user } = useAuth();
   const restaurantId = restaurant!.id;
+  // «Способы оплаты» показываем только суперадмину: бэкенд отвечает 403
+  // остальным (см. PaymentMethodsCard).
+  const isSuperadmin = user?.role === "admin";
 
   return (
     <section className="mx-auto flex max-w-[900px] flex-col gap-xl">
@@ -32,6 +36,7 @@ export function SettingsView() {
       <CuisinesCard restaurantId={restaurantId} />
       <VenueFeaturesCard restaurantId={restaurantId} />
       <SocialLinksCard restaurantId={restaurantId} />
+      {isSuperadmin ? <PaymentMethodsCard restaurantId={restaurantId} /> : null}
       <TelegramNotificationCard restaurantId={restaurantId} />
       <WhatsAppNotificationCard restaurantId={restaurantId} />
     </section>

@@ -331,25 +331,6 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          {/* "Special Requests" is its own card in the design (node 471:3946 /
-              918:11747): a titled card with one bare rounded box, no field
-              label. It stays editable here; Confirmation shows it read-only. */}
-          <View style={[styles.section, styles.sectionRounded]}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.specialRequestsTitle}</Text>
-            </View>
-            <View style={styles.sectionBody}>
-              <TextField
-                label={t.booking.specialRequestsTitle}
-                labelHidden
-                placeholder={t.booking.notesPlaceholder}
-                value={draft.notes}
-                onChangeText={draft.setNotes}
-                multiline
-              />
-            </View>
-          </View>
-
           <View style={[styles.section, styles.sectionRounded]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.preorderSectionTitle}</Text>
@@ -372,6 +353,25 @@ export default function ReservationScreen() {
                 placeholder={t.booking.preorderOptional}
                 caption={preorderCount > 0 ? t.booking.preorderTotalEstimateNote : undefined}
                 onPress={() => router.push(`/restaurant/${id}/book/menu`)}
+              />
+            </View>
+          </View>
+
+          {/* "Special Requests" is its own card in the design (node 471:3946 /
+              918:11747): a titled card with one bare rounded box, no field
+              label. It stays editable here; Confirmation shows it read-only. */}
+          <View style={[styles.section, styles.sectionRounded]}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t.booking.specialRequestsTitle}</Text>
+            </View>
+            <View style={styles.sectionBody}>
+              <TextField
+                label={t.booking.specialRequestsTitle}
+                labelHidden
+                placeholder={t.booking.notesPlaceholder}
+                value={draft.notes}
+                onChangeText={draft.setNotes}
+                multiline
               />
             </View>
           </View>
