@@ -1870,12 +1870,17 @@ export const en: LocaleOverride<Dictionary> = {
       title: "Payment methods",
       description: "How this restaurant's guests can pay for a pre-order. Guests only see the buttons that are available.",
       loadingTitle: "Loading payment methods…",
-      masterLabel: "Online payments enabled",
-      masterHint: "The restaurant's master switch. Turn it off to stop accepting online payments entirely.",
-      inheritedHint: "The platform-wide setting currently applies. It is pinned for this restaurant only if you change the switch.",
+      masterLabel: "Online payments",
+      masterHint: "The restaurant's master switch. “Like the platform” follows the platform-wide setting, which can only be changed platform-wide, not here.",
+      masterOptionInherit: (globalEnabled?: boolean) =>
+        globalEnabled === undefined
+          ? "Like the platform"
+          : `Like the platform (currently: ${globalEnabled ? "on" : "off"})`,
+      masterOptionEnabled: "Enabled",
+      masterOptionDisabled: "Disabled",
       kaspiLabel: "Kaspi",
       cardLabel: "Card (FreedomPay, TipTop, etc.)",
-      kaspiUnbound: "Kaspi is on, but the restaurant isn't linked to a Kaspi company, so guests won't see it. Link a company in the «Accepting payments» card below.",
+      kaspiUnbound: "Kaspi is on, but the restaurant isn't linked to a Kaspi company, so guests won't see it. Link a company in the «Accepting payments» card above.",
       save: "Save",
       saving: "Saving…",
       saved: "Payment methods saved",

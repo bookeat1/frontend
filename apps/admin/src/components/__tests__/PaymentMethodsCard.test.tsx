@@ -55,4 +55,52 @@ describe("PaymentMethodsCard", () => {
     expect(await screen.findByText(/только суперадмин/)).toBeTruthy();
     expect((screen.getByLabelText("Kaspi") as HTMLInputElement).checked).toBe(true);
   });
+
+  it("мастер на три состояния: null → «Как на платформе» выбрано, в подписи значение глобального флага", async () => {
+    setup({ payments_enabled: null, methods: [], kaspi_account_bound: true, payments_enabled_global: true });
+    const select = (await screen.findByLabelText(/^Онлайн-оплата/)) as HTMLSelectElement;
+    expect(select.value).toBe("inherit");
+    expect(screen.getByText(/Как на платформе \(сейчас: включено\)/)).toBeTruthy();
+  });
+
+  it("мастер на три состояния: без payments_enabled_global подпись без значения, не падает", async () => {
+    setup({ payments_enabled: null, methods: [], kaspi_account_bound: true });
+    const select = (await screen.findByLabelText(/^Онлайн-оплата/)) as HTMLSelectElement;
+    expect(select.value).toBe("inherit");
+    expect(screen.getByText("Как на платформе")).toBeTruthy();
+  });
+
+  it("явное значение переводится обратно в «Как на платформе» и сохраняет null", async () => {
+    const client = setup({ payments_enabled: true, methods: ["card"], kaspi_account_bound: true });
+    const select = (await screen.findByLabelText(/^Онлайн-оплата/)) as HTMLSelectElement;
+    expect(select.value).toBe("enabled");
+    fireEvent.change(select, { target: { value: "inherit" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() =>
+      expect(client.setPaymentMethods).toHaveBeenCalledWith("r-1", {
+        payments_enabled: null,
+        methods: ["card"],
+      }),
+    );
+  });
+
+  it("выбор «Выключена» сохраняет payments_enabled: false", async () => {
+    const client = setup({ payments_enabled: null, methods: [], kaspi_account_bound: true });
+    const select = (await screen.findByLabelText(/^Онлайн-оплата/)) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "disabled" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() =>
+      expect(client.setPaymentMethods).toHaveBeenCalledWith("r-1", {
+        payments_enabled: false,
+        methods: [],
+      }),
+    );
+  });
+
+  it("F2: подсказка про Kaspi без привязки говорит «выше», не «ниже»", async () => {
+    setup({ payments_enabled: true, methods: ["kaspi"], kaspi_account_bound: false });
+    const hint = await screen.findByText(/не привязано|не привязан|байланбаған/);
+    expect(hint.textContent).toMatch(/выше/);
+    expect(hint.textContent).not.toMatch(/ниже/);
+  });
 });
