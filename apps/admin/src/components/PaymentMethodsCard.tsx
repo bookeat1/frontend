@@ -7,7 +7,7 @@ import type { PaymentMethodsInput, PaymentMethodsSettings } from "@bookeat/api/a
 import { apiClient } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { Button } from "./ui/Button";
-import { CheckboxRow } from "./ui/FormControls";
+import { CheckboxRow, Field, Select } from "./ui/FormControls";
 import { ErrorState, LoadingState } from "./StateViews";
 
 /**
@@ -112,12 +112,19 @@ function PaymentMethodsForm({
       <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
 
       <fieldset className="mt-lg flex flex-col gap-md border-0 p-0" disabled={busy}>
-        <CheckboxRow
-          label={copy.masterLabel}
-          hint={enabled === null ? `${copy.masterHint} ${copy.inheritedHint}` : copy.masterHint}
-          checked={enabled === true}
-          onChange={touch(setEnabled)}
-        />
+        <Field label={copy.masterLabel} hint={copy.masterHint}>
+          <Select
+            value={enabled === null ? "inherit" : enabled ? "enabled" : "disabled"}
+            onChange={(e) => {
+              const v = e.target.value;
+              touch(setEnabled)(v === "inherit" ? null : v === "enabled");
+            }}
+          >
+            <option value="inherit">{copy.masterOptionInherit(settings.payments_enabled_global)}</option>
+            <option value="enabled">{copy.masterOptionEnabled}</option>
+            <option value="disabled">{copy.masterOptionDisabled}</option>
+          </Select>
+        </Field>
         <CheckboxRow label={copy.kaspiLabel} checked={kaspi} onChange={touch(setKaspi)} />
         {kaspi && !settings.kaspi_account_bound ? (
           <p role="alert" className="max-w-prose text-[12px] text-brand">
