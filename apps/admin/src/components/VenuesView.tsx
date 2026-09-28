@@ -567,6 +567,21 @@ export function VenueFormModal({
     onClose();
   };
 
+  // Общая точка выхода после ЛЮБОГО успешного сохранения — «Сохранить» И все
+  // три retry* ниже. Обход был в том, что retry* звали `onSaved()` напрямую,
+  // в обход `requestClose`: удавшийся повтор кухонь/удобств/окна закрывал
+  // форму, даже когда в карточке оплаты/Kwaaka лежала несохранённая правка
+  // (ревью PR #268, второй круг). Те же правила, что и у «Отмена»/крестика:
+  //   • несохранённая карточка блокирует закрытие;
+  //   • новое заведение никогда не закрывается само — есть только этот
+  //     единственный удобный момент увидеть карточки оплаты/Kwaaka с уже
+  //     появившимся id.
+  const finishAfterSave = () => {
+    if (!venue) return;
+    if (providerCardsDirty) return;
+    onSaved();
+  };
+
   // Пустое/нечисловое поле — платформенный дефолт: у денежного окна нет
   // сентинела «сбросить» (колонка `free_cancel_window_minutes` NOT NULL),
   // поэтому дефолт подставляется здесь же, а не на сервере. `null`, пока не
@@ -687,14 +702,10 @@ export function VenueFormModal({
     // `venue?.id ?? createdId`) не увидят id вовсе, потому что при полном
     // успехе он раньше не выставлялся.
     setCreatedId(outcome.venue.id);
-    if (!venue) {
-      // Заведение только что создано: НЕ закрываем форму. Закрыть сейчас —
-      // значит унести единственный удобный момент настроить приём оплаты и
-      // Kwaaka, пока карточка уже открыта, и заставить админа искать заведение
-      // заново в списке ради того же самого.
-      return;
-    }
-    onSaved();
+    // Оба правила — «новое заведение не закрывается само» и «несохранённая
+    // карточка оплаты/Kwaaka блокирует закрытие» — теперь в одном месте,
+    // см. `finishAfterSave`.
+    finishAfterSave();
   };
 
   /** Повтор ТОЛЬКО кухонь: заведение уже сохранено, второй раз его писать
@@ -732,7 +743,7 @@ export function VenueFormModal({
     }
     setFailure(null);
     setBusy(false);
-    onSaved();
+    finishAfterSave();
   };
 
   /** Повтор ТОЛЬКО удобств: заведение и кухни уже легли, денежное окно после
@@ -760,7 +771,7 @@ export function VenueFormModal({
     }
     setFailure(null);
     setBusy(false);
-    onSaved();
+    finishAfterSave();
   };
 
   /** Повтор ТОЛЬКО денежного окна: заведение, кухни и удобства уже легли —
@@ -773,7 +784,7 @@ export function VenueFormModal({
       await apiClient.setFreeCancelWindow(targetId, freeCancelWindowMinutesToSave);
       setFailure(null);
       setBusy(false);
-      onSaved();
+      finishAfterSave();
     } catch {
       setBusy(false);
       setFailure("freeCancelWindow");

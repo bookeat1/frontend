@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { AcquirerAccount, CatalogVenue, KaspiCompany } from "@bookeat/api/admin";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,13 +9,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * СВОЕЙ кнопкой, отдельно от общей формы заведения. Раньше форма закрывалась
  * по общему «Сохранить»/«Отмена», даже если в карточке висела несохранённая
  * правка — деньги гостей молча продолжали идти на старого провайдера, без
- * единого предупреждения. Тесты ниже держат две вещи:
+ * единого предупреждения. Тесты ниже держат три вещи:
  *
  *  1. пока в карточке есть несохранённый ввод, форма не закрывается ни по
  *     «Сохранить», ни по «Отмена» — и говорит вслух, почему;
  *  2. у НОВОГО заведения полный успех «Сохранить» не закрывает форму: карточкам
  *     просто негде было взять id заведения раньше этого момента, и молчаливое
- *     закрытие стоило бы админу второго захода в тот же диалог.
+ *     закрытие стоило бы админу второго захода в тот же диалог;
+ *  3. (2-й круг ревью) кнопки «Повторить кухни/удобства/бесплатную отмену»
+ *     раньше звали `onSaved()` напрямую, в обход `requestClose`/
+ *     `providerCardsDirty` и в обход правила «новое заведение не закрывается
+ *     само» — удавшийся повтор закрывал форму, даже когда карточка оплаты/
+ *     Kwaaka стояла несохранённой. Оба сценария закрыты `finishAfterSave`.
  */
 
 let storedAccount: AcquirerAccount = {
@@ -26,9 +31,17 @@ let storedAccount: AcquirerAccount = {
 };
 let storedKwaakaId: string | null = null;
 
+let freeCancelWindowShouldFailOnce = false;
+
 vi.mock("@/lib/api", () => ({
   apiClient: {
-    setFreeCancelWindow: vi.fn(async () => undefined),
+    setFreeCancelWindow: vi.fn(async () => {
+      if (freeCancelWindowShouldFailOnce) {
+        freeCancelWindowShouldFailOnce = false;
+        throw new Error("network");
+      }
+      return undefined;
+    }),
     getAcquirerAccount: vi.fn(async () => storedAccount),
     listKaspiCompanies: vi.fn(async (): Promise<KaspiCompany[]> => [
       { id: "2", name: "ИП САРКУЛИН ДАМИР", status: "active", has_active_session: true, active_cashiers: 1 },
@@ -42,6 +55,10 @@ vi.mock("@/lib/api", () => ({
       storedKwaakaId = patch.kwaaka_restaurant_id;
       return {};
     }),
+    getRestaurantSocialLinks: vi.fn(async () => []),
+    getCatalogVenue: vi.fn(async (id: string) => newVenue({ id })),
+    getRestaurantCuisines: vi.fn(async () => []),
+    getRestaurantFeatures: vi.fn(async () => []),
   },
 }));
 
@@ -149,5 +166,73 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("у нового заведения успешный «Повторить бесплатную отмену» тоже не закрывает форму (2-й круг ревью)", async () => {
+    freeCancelWindowShouldFailOnce = true;
+    const { onSaved, onClose } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    // Заведение создалось, а денежное окно — нет: появилась кнопка повтора.
+    const retryButton = await screen.findByRole("button", {
+      name: "Повторить бесплатную отмену",
+    });
+    await screen.findByText("Приём оплаты");
+
+    fireEvent.click(retryButton);
+
+    // Повтор проходит успешно на этот раз (мок больше не бросает) — кнопка и
+    // текст ошибки исчезают, — но форма не должна закрыться сама: у карточек
+    // оплаты/Kwaaka это единственный удобный момент их настроить.
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Повторить бесплатную отмену" })).toBeNull();
+    });
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("несохранённая карточка блокирует закрытие и через «Повторить бесплатную отмену» у существующего заведения (обход requestClose)", async () => {
+    freeCancelWindowShouldFailOnce = true;
+    const existingVenue = newVenue({ id: "v-existing" });
+    const { onSaved, onClose } = renderModal({ venue: existingVenue });
+
+    // Ждём кабинетное чтение — иначе денежное окно вообще не участвует в
+    // сохранении (см. `detailLoaded`/`freeCancelWindowMinutesToSave`). Поле —
+    // подпись-`<span>` + хинт внутри одного `<label>` без `htmlFor`, поэтому
+    // доступное имя включает текст хинта: матчим по началу, не строкой целиком.
+    await waitFor(() => {
+      const field = screen.getByLabelText(
+        /^Бесплатная отмена, минут до брони/,
+      ) as HTMLInputElement;
+      expect(field.disabled).toBe(false);
+    });
+
+    // Кнопок «Сохранить» тут три (форма + карточка оплаты + Kwaaka) — нужна
+    // самая последняя в разметке, кнопка футера формы (после «Отмена»).
+    const formSaveButtons = screen.getAllByRole("button", { name: "Сохранить" });
+    fireEvent.click(formSaveButtons[formSaveButtons.length - 1]);
+    const retryButton = await screen.findByRole("button", {
+      name: "Повторить бесплатную отмену",
+    });
+
+    // Трогаем карточку оплаты, НЕ сохраняя её собственной кнопкой.
+    fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), {
+      target: { value: "2" },
+    });
+    await screen.findByText(/несохранённая правка в приёме оплаты или Kwaaka/i);
+
+    fireEvent.click(retryButton);
+
+    // Обход был именно тут: `retryFreeCancelWindow` звал `onSaved()` напрямую
+    // в обход `providerCardsDirty`. Повтор проходит успешно, но форма обязана
+    // остаться открытой, пока карточка не сохранена.
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Повторить бесплатную отмену" })).toBeNull();
+    });
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText(/несохранённая правка в приёме оплаты или Kwaaka/i)).toBeTruthy();
   });
 });
