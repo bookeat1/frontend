@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AcquirerAccount, KaspiCompany } from "@bookeat/api/admin";
 
@@ -49,9 +49,14 @@ export interface PaymentAcceptanceClient {
 export function PaymentAcceptanceCard({
   restaurantId,
   client = apiClient,
+  onDirtyChange,
 }: {
   restaurantId: string;
   client?: PaymentAcceptanceClient;
+  /** Карточка сохраняется своей кнопкой, отдельно от формы заведения (см.
+   * VenuesView). Родитель должен знать, есть ли тут несохранённый ввод, чтобы
+   * не дать форме молча закрыться с чужой привязкой на счету. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const accountKey = useMemo(
@@ -88,6 +93,7 @@ export function PaymentAcceptanceCard({
       companiesFailed={companiesQuery.isError}
       onRetryCompanies={() => void companiesQuery.refetch()}
       onSaved={() => queryClient.invalidateQueries({ queryKey: accountKey })}
+      onDirtyChange={onDirtyChange}
     />
   );
 }
@@ -101,6 +107,7 @@ function PaymentAcceptanceForm({
   companiesFailed,
   onRetryCompanies,
   onSaved,
+  onDirtyChange,
 }: {
   restaurantId: string;
   client: PaymentAcceptanceClient;
@@ -110,6 +117,7 @@ function PaymentAcceptanceForm({
   companiesFailed: boolean;
   onRetryCompanies: () => void;
   onSaved: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [accountRef, setAccountRef] = useState(account.account_ref ?? "");
   const [isActive, setIsActive] = useState(account.is_active);
@@ -156,10 +164,20 @@ function PaymentAcceptanceForm({
   const dirty = accountRef.trim() !== (account.account_ref ?? "") || isActive !== account.is_active;
   const busy = save.isPending;
 
+  // Родитель (форма заведения) не должен закрыться, пока тут висит несохранённый
+  // выбор компании: общая кнопка «Сохранить» формы эту карточку не трогает.
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
+
   return (
     <div className="rounded-card bg-surface p-lg">
       <h2 className="text-base font-semibold text-text">{copy.title}</h2>
       <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
+      <p className="mt-xs max-w-prose text-[12px] text-text-muted">{copy.separateSaveHint}</p>
 
       <p className="mt-sm text-[13px] text-text">
         {account.connected ? copy.currentBinding(boundName, account.account_ref) : copy.notBound}
