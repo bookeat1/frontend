@@ -275,6 +275,10 @@ export interface PaymentMethodsSettings {
   /** Есть активный счёт Kaspi с непустой ссылкой; без него Kaspi гостю не
    * предлагается, даже будучи включённым. */
   kaspi_account_bound: boolean;
+  /** Текущее значение глобального `PAYMENTS_ENABLED`, только для чтения.
+   * Опционально: бэкенд может ещё не отдавать это поле (backend PR B1),
+   * тогда UI не показывает подсказку про факт наследования, но не падает. */
+  payments_enabled_global?: boolean;
 }
 
 export interface PaymentMethodsInput {
