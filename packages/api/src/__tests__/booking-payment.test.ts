@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { HttpRestaurantRepository } from "../http-repository";
+import { mapPayment } from "../http-mapping";
 import { RepositoryError } from "../repository";
 
 /**
@@ -156,5 +157,20 @@ describe("GET /payments/:id", () => {
     // mapPayment сводит незнакомое к "created" — состоянию, которое НИЧЕГО не
     // обещает гостю про деньги.
     expect(payment?.status).toBe("created");
+  });
+});
+
+describe("mapPayment: разбивка base/fee", () => {
+  it("переносит base_amount_minor и fee_minor", () => {
+    const m = mapPayment({ ...CREATED_PAYMENT, base_amount_minor: 900_000, fee_minor: 98_000 });
+    expect(m.baseAmountMinor).toBe(900_000);
+    expect(m.feeMinor).toBe(98_000);
+    expect(m.amountMinor).toBe(998_000);
+  });
+
+  it("старый бэкенд без полей — undefined, без ключей", () => {
+    const m = mapPayment(CREATED_PAYMENT);
+    expect(m.baseAmountMinor).toBeUndefined();
+    expect(m.feeMinor).toBeUndefined();
   });
 });

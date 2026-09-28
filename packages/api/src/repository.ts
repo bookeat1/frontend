@@ -845,6 +845,18 @@ export class RepositoryError extends Error {
     return this.status === 422 && (this.serverMessage ?? "").toLowerCase().includes("invalid status");
   }
 
+  /** Booking is confirmed: the guest may no longer edit the preorder
+   * (`preorder_locked`); the venue can. Permanent for this booking. */
+  get isPreorderLocked(): boolean {
+    return this.code === "preorder_locked";
+  }
+
+  /** A non-terminal payment exists (`preorder_payment_in_flight`). Temporary:
+   * editable again once the payment reaches a terminal state. */
+  get isPreorderPaymentInFlight(): boolean {
+    return this.code === "preorder_payment_in_flight";
+  }
+
   /** The resource does not exist (or is not visible to this session). */
   get isNotFound(): boolean {
     return this.status === 404;

@@ -9,10 +9,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, Minus, Plus, User } from "../../../../src/components/icons";
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
+import { AddPreorderRow } from "../../../../src/components/booking/AddPreorderRow";
 import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCampaignAttribution } from "../../../../src/hooks/useCampaignAttribution";
-import { useCreateBooking } from "../../../../src/hooks/useBooking";
+import { useCreateBooking, useMenuSections } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../../src/lib/analytics";
 import { confirmErrorReason } from "../../../../src/lib/booking-error-analytics";
@@ -70,6 +71,10 @@ export default function ConfirmBookingScreen() {
   // черновик, который экран показывает списком выше. Бронь ещё не создана —
   // предзаказ здесь правится степперами, поэтому и добавить в него можно.
   const addDishToPreorder = useAddDishToPreorder();
+  // «Добавить предзаказ» — только если у заведения есть что заказать. Тот же
+  // запрос (и кэш), что открывает экран выбора блюд.
+  const menu = useMenuSections(id);
+  const canAddPreorder = draft.preorder.length === 0 && (menu.data ?? []).some((s) => s.dishes.length > 0);
 
   // Defences against arriving here in a state that cannot be submitted. Neither
   // should happen through the flow (the gate is on «Продолжить», and Continue is
@@ -195,6 +200,13 @@ export default function ConfirmBookingScreen() {
               created: "1",
             },
           });
+          // Предзаказ прикреплён и заведение принимает оплату — сразу шторка
+          // «Оплата предзаказа» поверх брони (Figma 5387:7782). Со страницы
+          // брони блок оплаты убран (макет 3073:11428), так что это единственный
+          // путь к оплате; закрыв шторку, гость остаётся на брони.
+          if (draft.preorder.length > 0 && !preorderFailed && restaurant?.acceptsOnlinePayment === true) {
+            router.push({ pathname: "/booking/[id]/payment", params: { id: booking.id } });
+          }
         },
         onError: (error) => {
           // Провал подтверждения виден в аналитике ровно так же, как успех:
@@ -298,17 +310,6 @@ export default function ConfirmBookingScreen() {
           />
         </View>
 
-        {/* Особые пожелания (node 918:12120) — read-only here; edited on the
-            reservation step. Hidden when empty: nothing to review. */}
-        {draft.notes.trim() ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t.booking.specialRequestsTitle}</Text>
-            <View style={styles.notesBox}>
-              <Text style={styles.notesText}>{draft.notes.trim()}</Text>
-            </View>
-          </View>
-        ) : null}
-
         {/* Предзаказ (node 918:12124) with ± steppers. Editing here writes
             straight to the draft; a line dropped to zero is removed. */}
         {draft.preorder.length > 0 ? (
@@ -340,6 +341,25 @@ export default function ConfirmBookingScreen() {
                 {t.booking.preorderServiceFeeNote(formatServiceFeePercent(restaurant.serviceFeeBps))}
               </Text>
             ) : null}
+          </View>
+        ) : null}
+
+        {canAddPreorder ? (
+          <AddPreorderRow
+            label={t.booking.preorderAddEntry}
+            onPress={() => router.push(`/restaurant/${id}/book/menu`)}
+          />
+        ) : null}
+
+        {/* Особые пожелания (node 918:12120) — ПОСЛЕ предзаказа (правка
+            владельца 2026-09-24); read-only here; edited on the
+            reservation step. Hidden when empty: nothing to review. */}
+        {draft.notes.trim() ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t.booking.specialRequestsTitle}</Text>
+            <View style={styles.notesBox}>
+              <Text style={styles.notesText}>{draft.notes.trim()}</Text>
+            </View>
           </View>
         ) : null}
 

@@ -352,10 +352,13 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
     notes,
   );
 
-  function onSuccess(bookingId: string) {
+  function onSuccess(bookingId: string, payNow = false) {
     clearBookingFormDraft(venue.id);
     clearBookingDraft(venue.id);
-    router.push(bookingResultPath(bookingId));
+    // Предзаказ прикреплён и заведение принимает оплату — сразу на оплату:
+    // со страницы брони блок оплаты убран (макет 3073:11428), и это
+    // единственный путь к ней. Со страницы оплаты есть «Вернуться к брони».
+    router.push(payNow ? `${bookingResultPath(bookingId)}/payment` : bookingResultPath(bookingId));
   }
 
   function submit() {
@@ -418,7 +421,10 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
             // мобилки: `null`, а не отсутствие ключа, когда метки нет.
             campaign_id: readCampaignAttribution() ?? null,
           });
-          onSuccess(booking.id);
+          onSuccess(
+            booking.id,
+            !preorderFailed && preorderDraft.draft.lines.length > 0 && venue.acceptsOnlinePayment === true,
+          );
         },
         onError: (error) => {
           setFailure(describeBookingFailure(error, t, () => setSlot(null)));
@@ -447,10 +453,12 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
     },
     { label: t.web.booking.summary.timeLabel, value: chosen ? slotTimeLabel(chosen.startsAt) : null },
     { label: t.web.booking.summary.guestsLabel, value: t.web.format.guests(guests) },
-    ...(rescheduleId
-      ? []
-      : [{ label: t.web.booking.summary.wishesLabel, value: composedNotes || null }]),
   ];
+  // «Особые пожелания» — ПОСЛЕ блока «Предзаказ» (правка владельца 2026-09-24):
+  // порядок в сводке — Детали, Предзаказ, Особые пожелания.
+  const wishesRow: SummaryRow | null = rescheduleId
+    ? null
+    : { label: t.web.booking.summary.wishesLabel, value: composedNotes || null };
 
   /** `null` в режиме переноса: правка предзаказа существующей брони на сайте
    * не сделана (спека `web-preorder-menu-20260908`, часть C, отдельная
@@ -535,6 +543,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           failure={failure}
           action={action}
           preorder={preorderSummary}
+          wishes={wishesRow}
         />
       </aside>
     </div>
