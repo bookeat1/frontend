@@ -1710,6 +1710,8 @@ export const en: LocaleOverride<Dictionary> = {
       fieldLabel: "Kwaaka restaurant ID",
       fieldHint: "The warehouse/venue id in Kwaaka POS. To unlink, clear the field and save.",
       fieldPlaceholder: "e.g. 3f2a1c9e-2b7a-4c1d-9e0a-1234567890ab",
+      separateSaveHint:
+        "Saved with its own button below — the venue form's general Save doesn't send this field.",
       notLinked: "not linked",
       currentBinding: (id: string) => `Currently linked: ${id}`,
       loadingTitle: "Loading the Kwaaka link…",
@@ -1894,6 +1896,8 @@ export const en: LocaleOverride<Dictionary> = {
       description:
         "The Kaspi company whose account receives payments from this restaurant's guests. The list comes from our Kaspi service; nothing has to be typed in by hand.",
       loadingTitle: "Loading payment settings…",
+      separateSaveHint:
+        "Saved with its own button below — the venue form's general Save doesn't send this field.",
       currentBinding: (name: string, id: string) => `Currently linked: ${name} (ID ${id})`,
       notBound: "The restaurant isn't linked to any company, so payments can't be accepted",
       selectLabel: "Kaspi company",

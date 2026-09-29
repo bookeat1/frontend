@@ -57,13 +57,13 @@ function fakeClient(options: {
   };
 }
 
-function renderCard(client: PaymentAcceptanceClient) {
+function renderCard(client: PaymentAcceptanceClient, onDirtyChange?: (dirty: boolean) => void) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <PaymentAcceptanceCard restaurantId={RESTAURANT_ID} client={client} />
+      <PaymentAcceptanceCard restaurantId={RESTAURANT_ID} client={client} onDirtyChange={onDirtyChange} />
     </QueryClientProvider>,
   );
 }
@@ -172,5 +172,35 @@ describe("PaymentAcceptanceCard", () => {
 
     expect(await screen.findByText("Менять привязку может только суперадмин")).toBeTruthy();
     expect((screen.getByLabelText(/Компания в Kaspi/) as HTMLSelectElement).value).toBe("2");
+  });
+
+  it("сообщает родителю о несохранённом вводе и снимает флаг после сохранения (PR #268 fix)", async () => {
+    // Стейтфул, а не статичный `account()`: реальный сервер после сохранения
+    // отдаёт то, что реально сохранил, и именно это возвращение (через
+    // инвалидацию запроса) переводит карточку обратно в «не грязно».
+    let stored = account();
+    const client: PaymentAcceptanceClient = {
+      getAcquirerAccount: vi.fn(async () => stored),
+      listKaspiCompanies: vi.fn(async () => [company(), company({ id: "3", name: "ТОО «Вторая»" })]),
+      setAcquirerAccount: vi.fn(async (_r, input) => {
+        stored = account({ connected: true, account_ref: input.account_ref, is_active: input.is_active });
+        return stored;
+      }),
+    };
+    const onDirtyChange = vi.fn();
+    renderCard(client, onDirtyChange);
+
+    const select = (await screen.findByLabelText(/Компания в Kaspi/)) as HTMLSelectElement;
+    // Начальное состояние — «не грязно»: форма-родитель не обязана ждать
+    // ничего, пока карточка ничего не тронула.
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    fireEvent.change(select, { target: { value: "3" } });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await screen.findByText("Привязка сохранена");
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 });

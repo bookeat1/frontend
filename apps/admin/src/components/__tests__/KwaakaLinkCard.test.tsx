@@ -17,13 +17,13 @@ import { KwaakaLinkCard, type KwaakaLinkClient } from "../KwaakaLinkCard";
 
 const RESTAURANT_ID = "r-1";
 
-function renderCard(client: KwaakaLinkClient) {
+function renderCard(client: KwaakaLinkClient, onDirtyChange?: (dirty: boolean) => void) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <KwaakaLinkCard restaurantId={RESTAURANT_ID} client={client} />
+      <KwaakaLinkCard restaurantId={RESTAURANT_ID} client={client} onDirtyChange={onDirtyChange} />
     </QueryClientProvider>,
   );
 }
@@ -134,5 +134,34 @@ describe("KwaakaLinkCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /^сохранить$/i }));
 
     expect(await screen.findByText("Менять привязку может только суперадмин")).toBeTruthy();
+  });
+
+  it("сообщает родителю о несохранённом вводе и снимает флаг после сохранения (PR #268 fix)", async () => {
+    // Стейтфул, а не статичный mockResolvedValue: реальный сервер после PATCH
+    // отдаёт то, что реально сохранил, и именно это возвращение (через
+    // инвалидацию запроса) переводит карточку обратно в «не грязно».
+    let stored: string | null = null;
+    const client: KwaakaLinkClient = {
+      getRestaurantKwaakaLink: vi.fn(async () => ({ kwaaka_restaurant_id: stored })),
+      patchRestaurant: vi.fn(async (_id, patch) => {
+        stored = patch.kwaaka_restaurant_id;
+        return {};
+      }),
+    };
+    const onDirtyChange = vi.fn();
+    renderCard(client, onDirtyChange);
+
+    const input = await screen.findByLabelText(/^ID заведения в Kwaaka/);
+    // Начальное состояние — «не грязно»: форма-родитель не обязана ждать
+    // ничего, пока карточка ничего не тронула.
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    fireEvent.change(input, { target: { value: "kw-99" } });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(screen.getByRole("button", { name: /^сохранить$/i }));
+    await screen.findByText("Сохранено");
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
   });
 });
