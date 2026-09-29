@@ -119,16 +119,6 @@ export default function ReservationScreen() {
     livePayment && livePayment.purpose === "preorder" && isPaid(livePayment.status) && preorderItemsCount > 0
       ? livePayment
       : null;
-  // Вход «Добавить/Изменить предзаказ»: правила совпадают с бэкендом
-  // (usecase/preorder.Replace), см. guestPreorderEditAction.
-  const editAction = booking.data
-    ? guestPreorderEditAction({
-        status: booking.data.status,
-        itemsCount: preorderItemsCount,
-        // Пока платёж или состав не загрузились — вход скрыт.
-        payment: payment.isError || payment.isPending || preorder.isPending ? undefined : (payment.data ?? null),
-      })
-    : null;
   const payBase = preorder.data?.totalMinor ?? null;
   const payAmountMinor =
     payEntry?.kind === "waiting"
@@ -357,24 +347,14 @@ export default function ReservationScreen() {
           }
         />
 
-        <BookingDetailsCard
-          booking={data}
-          dateTimeLabel={`${formatRelativeDay(data.startsAt)}, ${formatTime(data.startsAt)}`}
-          guestsLabel={t.booking.guestsCount(data.guests)}
-          editable={canCancel}
-          onEditDateTime={() =>
-            router.push({
-              pathname: "/booking/[id]/reschedule",
-              params: { id: data.id, focus: "date" },
-            })
-          }
-          onEditGuests={() =>
-            router.push({
-              pathname: "/booking/[id]/reschedule",
-              params: { id: data.id, focus: "guests" },
-            })
-          }
-        />
+        {/* «Детали» (дата/гости с «Изменить») здесь БОЛЬШЕ НЕТ: ни у
+            состояния «ждёт подтверждения» (макет 3073:11428), ни у
+            «подтверждено + предзаказ» (макет 5504:7508) в дереве этого блока
+            нет вовсе — сразу после шапки с фото идёт «Что дальше». Дата,
+            время и число гостей и так видны в пилюлях на фото; перенос даты
+            остаётся доступен с экрана `reschedule`, просто без входа отсюда
+            (правка 29.09.2026). */}
+        <WhatHappensNextCard status={data.status} />
 
         {/* Список предзаказа виден ВСЕГДА, когда в брони есть хоть одна
             позиция, — бронь с предзаказом уже состоявшийся факт независимо от
@@ -393,15 +373,6 @@ export default function ReservationScreen() {
             onPay={() => router.push({ pathname: "/booking/[id]/payment", params: { id: data.id } })}
           />
         ) : null}
-
-        {editAction ? (
-          <AddPreorderRow
-            label={editAction === "add" ? t.booking.preorderAddEntry : t.booking.preorderEdit}
-            onPress={() => router.push(`/restaurant/${data.restaurantId}/book/menu?booking=${data.id}`)}
-          />
-        ) : null}
-
-        <WhatHappensNextCard status={data.status} />
 
         {/* The permission ask, and the only one in the app. Shown just after
             the booking was created, where «сообщим, когда подтвердят» answers
