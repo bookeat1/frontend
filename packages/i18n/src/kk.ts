@@ -2,6 +2,22 @@ import type { Dictionary } from "./ru";
 import type { LocaleOverride } from "./index";
 
 /**
+ * Латинское написание города ЗАГЛАВНЫМИ для брендовых надписей гастрогида
+ * («VISIT ALMATY», «BOOKEAT GUIDE · ALMATY») — макет 3192:6251/6254 рисует
+ * их латиницей всегда, независимо от языка интерфейса. См. тот же хелпер в
+ * ru.ts за подробностями (правка 29.09.2026): `city` приезжает кириллицей
+ * («Алматы»/«Астана»), и `.toUpperCase()` её не транслитерирует.
+ */
+function cityLatinUpper(city: string): string {
+  const known: Record<string, string> = {
+    Алматы: "ALMATY",
+    Астана: "ASTANA",
+    Шымкент: "SHYMKENT",
+  };
+  return known[city.trim()] ?? city.toUpperCase();
+}
+
+/**
  * Kazakh has no separate plural noun form after a numeral — the noun stays in
  * its base (singular) shape, so "1 қонақ" and "5 қонақ" both use "қонақ".
  * Pluralisation still lives in the dictionary, not the markup; these helpers
@@ -154,8 +170,8 @@ export const kk: LocaleOverride<Dictionary> = {
     notFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Тізімге оралып, басқасын таңдаңыз.",
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
-    guideBrandTitle: (city: string) => `VISIT ${city.toUpperCase()} × BOOKEAT`,
-    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${city.toUpperCase()}`,
+    guideBrandTitle: (city: string) => `VISIT ${cityLatinUpper(city)} × BOOKEAT`,
+    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${cityLatinUpper(city)}`,
     guideHeadline: (city: string) => `Salém, ${city}.`,
     guideSubheadline: "Тамақтанамыз, серуендейміз және қаланы ашамыз.",
     rubricsTitle: "Айдарлар",
@@ -179,7 +195,7 @@ export const kk: LocaleOverride<Dictionary> = {
     /** Мақала мәтіні блогының тақырыбы. */
     articleAboutTitle: "Мақала туралы",
     rubricHeaderTitle: "Гастрогид",
-    rubricEyebrow: (city: string) => `ГАСТРОГИД · VISIT ${city.toUpperCase()}`,
+    rubricEyebrow: (city: string) => `ГАСТРОГИД · VISIT ${cityLatinUpper(city)}`,
     rubricEditorialTitle: "Редакция таңдағаны",
     rubricLoading: "Айдарды жүктеп жатырмыз…",
     rubricEmptyTitle: "Айдар әзірге бос",
