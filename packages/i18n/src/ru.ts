@@ -3141,7 +3141,7 @@ export const ru = {
     cancelledSubtitle: "Эта бронь больше не действует",
     statusLabel: "Статус",
     status: {
-      pending: "Ждёт подтверждения",
+      pending: "Ожидает подтверждения",
       confirmed: "Подтверждена",
       waitlist: "В листе ожидания",
       arrived: "Вы на месте",

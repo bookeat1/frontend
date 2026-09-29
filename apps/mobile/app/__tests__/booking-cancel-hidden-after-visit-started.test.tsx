@@ -140,7 +140,10 @@ describe("блок отмены на экране брони пропадает 
     expect(screen.queryByText(t.booking.cancelSectionTitle)).toBeNull();
   });
 
-  it("статус pending, но до визита остаётся минута: блок ещё есть (кнопка выключена окном)", async () => {
+  it("статус pending, до визита остаётся минута: блок есть, кнопка активна — жёсткого окна больше нет", async () => {
+    // Правка 29.09.2026 («объединение окна»): сервер разрешает отмену в
+    // любой момент, пока статус брони живой, поэтому близость визита саму
+    // кнопку больше не выключает — это раньше проверял `cancelWindowClosed`.
     booking = {
       ...booking,
       status: "pending",
@@ -151,7 +154,6 @@ describe("блок отмены на экране брони пропадает 
 
     expect(await screen.findByText(t.booking.cancelSectionTitle)).toBeTruthy();
     const button = screen.getByRole("button", { name: t.booking.cancelBooking });
-    expect(button.getAttribute("aria-disabled")).toBe("true");
-    expect(screen.getByText(t.booking.cancelWindowClosed)).toBeTruthy();
+    expect(button.getAttribute("aria-disabled")).not.toBe("true");
   });
 });

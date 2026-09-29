@@ -154,7 +154,7 @@ describe("экран брони: кнопка «Меню»", () => {
     },
   );
 
-  it.each<BookingStatus>(["pending", "confirmed", "waitlist", "arrived"])(
+  it.each<BookingStatus>(["confirmed", "waitlist", "arrived"])(
     "оставляет «Меню» живой брони со статусом %s",
     async (status) => {
       renderScreen(status);
@@ -164,6 +164,18 @@ describe("экран брони: кнопка «Меню»", () => {
       );
     },
   );
+
+  // Правка 29.09.2026: «ожидает подтверждения» без предзаказа — самый
+  // распространённый случай в этом файле (мок `usePreorder` выше отдаёт
+  // `data: null`) — «Меню» теперь СКРЫТО: звать гостя делать предзаказ в
+  // бронь, которую заведение ещё даже не подтвердило, преждевременно (см.
+  // `showMenuAction` в booking/[id]/index.tsx).
+  it("прячет «Меню» у брони со статусом pending без предзаказа", async () => {
+    renderScreen("pending");
+
+    await waitFor(() => expect(screen.getByText(RESTAURANT.name)).toBeTruthy());
+    expect(screen.queryByRole("button", { name: t.booking.openMenu })).toBeNull();
+  });
 
   it("единственная кнопка ряда занимает его целиком", async () => {
     renderScreen("no_show");
