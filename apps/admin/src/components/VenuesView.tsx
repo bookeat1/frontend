@@ -427,6 +427,15 @@ export function VenueFormModal({
   const [paymentDirty, setPaymentDirty] = useState(false);
   const [kwaakaDirty, setKwaakaDirty] = useState(false);
   const providerCardsDirty = paymentDirty || kwaakaDirty;
+  // `finishAfterSave` выполняется ПОСЛЕ ответа сервера (submit/retryCuisines/
+  // retryFeatures/retryFreeCancelWindow — все async), то есть в замыкании,
+  // взятом на момент нажатия кнопки. Пока идёт запрос, карточки оплаты/Kwaaka
+  // остаются доступны для правки: если человек успеет поменять там что-то до
+  // ответа, `providerCardsDirty` из замыкания всё ещё «чистый», и форма молча
+  // закроется, потеряв эту правку (ревью PR #268, четвёртый круг). Ref
+  // обновляется на каждом рендере и всегда читает актуальное значение.
+  const providerCardsDirtyRef = useRef(providerCardsDirty);
+  providerCardsDirtyRef.current = providerCardsDirty;
 
   // Ссылки на соцсети приходят ТОЛЬКО в детальном ответе: листинг каталога
   // (GET /admin/restaurants) их не отдаёт вообще. Поэтому при правке они
@@ -578,7 +587,10 @@ export function VenueFormModal({
   //     появившимся id.
   const finishAfterSave = () => {
     if (!venue) return;
-    if (providerCardsDirty) return;
+    // Читаем ref, а не `providerCardsDirty` из замыкания: эта функция всегда
+    // зовётся после `await`, и к тому моменту снаружи мог поменяться дирти-флаг
+    // карточек оплаты/Kwaaka (см. комментарий у `providerCardsDirtyRef` выше).
+    if (providerCardsDirtyRef.current) return;
     onSaved();
   };
 

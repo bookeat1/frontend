@@ -235,4 +235,45 @@ describe("VenueFormModal — провайдерские карточки не с
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText(/несохранённая правка в приёме оплаты или Kwaaka/i)).toBeTruthy();
   });
+
+  it("гонка (4-й круг ревью): смена карточки оплаты, ПОКА ответ «Сохранить» ещё в пути, не должна закрыть форму молча", async () => {
+    // `finishAfterSave` зовётся уже ПОСЛЕ `await saveVenueWithDictionaries(...)`
+    // внутри `submit`, то есть читает `providerCardsDirty` из замыкания на
+    // момент клика — старое (чистое) значение. Пока ответ сервера придерживается,
+    // трогаем карточку оплаты — она должна успеть стать "грязной" ДО того, как
+    // `finishAfterSave` решит, закрывать форму или нет.
+    const existingVenue = newVenue({ id: "v-existing" });
+    let resolveSave: ((v: CatalogVenue) => void) | undefined;
+    const saveVenue = vi.fn(
+      () =>
+        new Promise<CatalogVenue>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const { onSaved, onClose } = renderModal({ venue: existingVenue, saveVenue });
+
+    // Кнопок «Сохранить» тут три (форма + карточка оплаты + Kwaaka) — нужна
+    // самая последняя в разметке, кнопка футера формы.
+    const formSaveButtons = screen.getAllByRole("button", { name: "Сохранить" });
+    fireEvent.click(formSaveButtons[formSaveButtons.length - 1]);
+    await waitFor(() => expect(saveVenue).toHaveBeenCalled());
+
+    // Ответ ещё придерживается — меняем компанию в Kaspi, не сохраняя карточку
+    // её собственной кнопкой.
+    fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), {
+      target: { value: "2" },
+    });
+    await screen.findByText(/несохранённая правка в приёме оплаты или Kwaaka/i);
+
+    // Теперь отпускаем ответ «Сохранить».
+    resolveSave!(newVenue({ id: "v-existing" }));
+
+    // Форма обязана остаться открытой: правка карточки случилась уже после
+    // клика, но до того, как сервер ответил.
+    await waitFor(() => {
+      expect(screen.getByText(/несохранённая правка в приёме оплаты или Kwaaka/i)).toBeTruthy();
+    });
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
