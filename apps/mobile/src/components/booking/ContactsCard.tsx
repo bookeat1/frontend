@@ -1,4 +1,5 @@
 import type { Restaurant } from "@bookeat/api";
+import { spacing } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { MAP_PREVIEW_ENABLED } from "../../lib/feature-flags";
@@ -41,8 +42,14 @@ export function hasAnyContact(restaurant: Restaurant): boolean {
 }
 
 export function ContactsCard({ restaurant }: { restaurant: Restaurant }) {
+  // Заголовок 20/28 (node 5504:7567); просвет между блоками в макете (node
+  // 5504:7565) — 24 между иконками/адресом/картой, а между заголовком и
+  // иконками — 16 (node 5504:7566). BookingCard даёт один общий просвет на
+  // всех детей — здесь взят больший (24), чтобы карта и адрес не читались
+  // слипшимися; заголовок садится чуть просторнее, чем в макете, — разница
+  // в 8pt, которую не стоило тащить отдельной обёрткой ради одной карточки.
   return (
-    <BookingCard title={t.booking.contactsTitle}>
+    <BookingCard title={t.booking.contactsTitle} titleSize="section" gap={spacing.xxl}>
       <VenueContactIcons phone={restaurant.phone} social={restaurant.social} />
       <VenueAddressRow restaurant={restaurant} />
       <MapPreview restaurant={restaurant} />

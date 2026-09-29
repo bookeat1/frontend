@@ -2242,6 +2242,9 @@ export const kk: LocaleOverride<Dictionary> = {
       cancelled: "Бас тартылған",
       no_show: "Келмедіңіз",
     },
+    /** Бронь расталған ЖӘНЕ оған алдын ала тапсырыс тіркелген кездегі фото
+     * шапкасының үстіндегі белгі (Figma node 5504:7635). */
+    confirmedPreorderBadge: "Алдын ала тапсырыс расталды",
     whenLabel: "Қашан",
     whoLabel: "Кімге",
     freeCancelUntil: (when: string) => `${when} дейін тегін бас тарту`,

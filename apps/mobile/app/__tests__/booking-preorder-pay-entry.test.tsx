@@ -1,7 +1,7 @@
 import type { Booking, BookingPayment, Preorder, Restaurant } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReservationScreen from "../booking/[id]/index";
@@ -150,7 +150,12 @@ describe("экран брони: оплата предзаказа", () => {
     await waitFor(() => expect(screen.getByTestId("preorder-paid-pill")).toBeTruthy());
     // Статус брони остаётся про подтверждение рестораном.
     expect(screen.getByText(t.booking.status.pending)).toBeTruthy();
-    expect(screen.getByTestId("preorder-paid-block").textContent).toContain("2 × Бешбармак");
+    // Редизайн (Figma node 5504:7538 и соседние): название блюда и число
+    // порций теперь два отдельных узла — название слева, число в круглой
+    // пилюле на фото справа, — а не одна строка «2 × Бешбармак».
+    const block = screen.getByTestId("preorder-paid-block");
+    expect(within(block).getByText("Бешбармак")).toBeTruthy();
+    expect(within(block).getByText("2")).toBeTruthy();
     expect(screen.getByTestId("preorder-paid-total").textContent).toBe(formatMoneyMinor(362_695));
     expect(screen.getByText(t.booking.paymentBreakdownFee)).toBeTruthy();
     expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
