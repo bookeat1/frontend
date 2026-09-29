@@ -10,21 +10,6 @@ import { BookingCard } from "./BookingCard";
 const t = getDictionary();
 
 /**
- * Платёжная пометка «Предзаказ оплачен» рядом со статусом брони. Это НЕ статус
- * брони (тот про подтверждение рестораном): отдельная зелёная пилюля, тон и
- * размеры те же, что у `BookingStatusPill`.
- */
-export function PreorderPaidPill() {
-  return (
-    <View style={styles.pill} testID="preorder-paid-pill">
-      <Text style={styles.pillLabel} numberOfLines={2}>
-        {t.booking.paymentPaidTitle}
-      </Text>
-    </View>
-  );
-}
-
-/**
  * «Предзаказ» на экране брони (Figma «BookEat (Copy) (Copy)», страница
  * «🟢 Готово к разработке», node `5504:7535`/`5504:7536`/`5504:7537`).
  *
@@ -32,9 +17,16 @@ export function PreorderPaidPill() {
  * требовался). По новому макету бронь с предзаказом — уже состоявшийся факт
  * сама по себе, платёж отдельная история: список блюд теперь виден ВСЕГДА,
  * когда у брони есть хоть одна позиция предзаказа, а `payment` стал
- * необязательным — платёжная пометка и разбивка суммы дорисовываются, только
- * если он есть. Экран решает, звать ли компонент, по
- * `preorder.data.items.length > 0`, а не по факту оплаты.
+ * необязательным — разбивка суммы дорисовывается, только если он есть. Экран
+ * решает, звать ли компонент, по `preorder.data.items.length > 0`, а не по
+ * факту оплаты.
+ *
+ * Зелёной пилюли «Предзаказ оплачен» НАД списком блюд здесь БОЛЬШЕ НЕТ
+ * (правка 29.09.2026) — в актуальном дереве макета её тут нет вовсе, а факт
+ * оплаты предзаказа заведение подтверждённой брони уже видно по зелёному
+ * бейджу «Предзаказ подтверждён» в шапке (`ReservationHeaderCard`, узел
+ * `5504:7634`) — дублировать его второй зелёной пилюлей внутри карточки
+ * «Предзаказ» было лишним.
  *
  * ФОТО БЛЮДА В СПИСКЕ НЕТ В ОТВЕТЕ СЕРВЕРА: макет рисует снимок 140×100 и
  * описание у каждой позиции, но `PreorderLine` (`GET /bookings/:id/preorder`)
@@ -55,7 +47,6 @@ export function PreorderCard({ preorder, payment }: { preorder: Preorder; paymen
   const showBreakdown = Boolean(payment) && fee > 0 && base !== undefined;
   return (
     <BookingCard title={t.booking.preorderSectionTitle} titleSize="section" gap={spacing.lg}>
-      {payment ? <PreorderPaidPill /> : null}
       <View style={styles.list} testID="preorder-paid-block">
         {preorder.items.map((item) => (
           <PreorderItemRow key={item.id} item={item} />
@@ -116,17 +107,6 @@ function PreorderItemRow({ item }: { item: PreorderLine }) {
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    minHeight: controlHeight.statusPill,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    backgroundColor: colors.status.positiveSurface,
-  },
-  pillLabel: { ...typography.labelSemiBold, color: colors.status.positiveText, textAlign: "center" },
   // 24 между позициями (узел 5504:7537: gap 24).
   list: { gap: spacing.xxl },
   totals: { gap: spacing.sm },

@@ -227,14 +227,23 @@ export default function ReservationScreen() {
   // covers a slow/pending one the same way, so cancelling itself is never
   // blocked on it.
   const paymentValue = payment.isError || payment.isPending ? undefined : payment.data;
-  const { text: consequence } = describeCancellationCost({ booking: data, payment: paymentValue });
+  const { cost: cancellationCost, text: consequence } = describeCancellationCost({
+    booking: data,
+    payment: paymentValue,
+  });
   // Меню у заведения есть, если деталка принесла хотя бы одно блюдо.
   const hasMenu = (restaurant.data?.menuHighlights.length ?? 0) > 0;
   // Бронь, из которой уже никуда не перейти: визит прошёл, гость не пришёл
   // или бронь отменена. Предзаказывать в неё нечего.
   const terminal = isTerminalBookingStatus(data.status);
-  // «Меню» показываем только живой брони с меню у заведения.
-  const showMenuAction = hasMenu && !terminal;
+  // «Меню» показываем только живой брони с меню у заведения — и НЕ показываем
+  // на брони, которая ещё «ожидает подтверждения» заведением, если гость ещё
+  // не сделал предзаказ (правка 29.09.2026): звать делать предзаказ в бронь,
+  // которую заведение ещё даже не подтвердило, преждевременно. Если предзаказ
+  // уже есть (гость успел его сделать раньше, статус ещё не подтверждён) —
+  // кнопка остаётся, ей всё ещё можно изменить состав.
+  const showMenuAction =
+    hasMenu && !terminal && !(data.status === "pending" && preorderItemsCount === 0);
   // Бронь, которой уже не будет (отменена, «не пришёл», или время визита
   // прошло, а подтверждения так и не случилось): вместо «На главную» —
   // «Забронировать снова» в то же заведение. Отправлять человека на главную
@@ -243,7 +252,7 @@ export default function ReservationScreen() {
   // Визит уже наступил (или прошёл), а статус всё ещё «живой» — блок отмены
   // прячем целиком: отменять уже нечего, гостя либо ждут за столом сейчас,
   // либо визит уже состоялся, а статус просто никто не перевёл. Отдельно от
-  // `canCancel`/двухчасового окна — то решает, работает ли кнопка ДО визита.
+  // `canCancel` — та смотрит только на статус брони, не на время визита.
   const visitStarted = hasVisitStarted(data);
 
   const onConfirmCancel = () => {
@@ -269,7 +278,12 @@ export default function ReservationScreen() {
             hours_since_created: hoursBetween(cancelled.createdAt, Date.now()),
             hours_before_visit: hoursBetween(Date.now(), cancelled.startsAt),
             // Была ли отмена платной — это про деньги, не про человека.
-            was_free: canGuestCancel(data),
+            // БЫЛО `canGuestCancel(data)` — та функция про доступность
+            // кнопки (статус брони), не про деньги; после «объединения окна»
+            // (29.09.2026) она вообще перестала иметь отношение к оплате.
+            // Настоящий источник — `describeCancellationCost`, та же
+            // логика, что показывает гостю текст в диалоге подтверждения.
+            was_free: cancellationCost.kind === "free" || cancellationCost.kind === "free-until",
           });
         },
         onError: (error) => setCancelError(cancelErrorMessage(error)),
@@ -398,17 +412,15 @@ export default function ReservationScreen() {
         ) : null}
 
         {/* Отмена брони — САМЫЙ ПОСЛЕДНИЙ блок экрана (макет 3073:11402).
-            Блок стоит на месте у любой живой брони ДО начала визита, даже
-            когда кнопка уже не работает: за два часа до визита заведение
-            держит стол, и отмена уходит в разговор с рестораном (правило от
-            18.08.2026). Раньше в этом случае блок исчезал целиком, и человек
-            видел экран, где отмены просто нет, — это читается как потерянная
-            кнопка, а не как правило. Теперь правило написано словами.
+            Блок стоит на месте у любой живой брони ДО начала визита — жёсткого
+            временного окна на отмену больше нет (решение владельца
+            «объединение окна», 29.09.2026: сервер разрешает отмену в любой
+            момент, доступность кнопки решает только статус брони, деньги —
+            отдельно, через `free_cancel_window_minutes`/диалог подтверждения).
 
-            А вот когда время визита уже НАСТУПИЛО (`visitStarted`), блок
-            прячется целиком, а не просто выключает кнопку: гостя либо ждут
-            за столом прямо сейчас, либо визит уже состоялся, и предлагать
-            отмену — не то же самое, что напоминать про закрытое окно.
+            Когда время визита уже НАСТУПИЛО (`visitStarted`), блок прячется
+            целиком, а не просто выключает кнопку: гостя либо ждут за столом
+            прямо сейчас, либо визит уже состоялся.
 
             У отменённой и прошедшей по статусу брони блока тоже нет вовсе:
             отменять там нечего. */}
@@ -419,15 +431,12 @@ export default function ReservationScreen() {
               variant="secondary"
               size="lg"
               icon={XCircle}
-              disabled={!canCancel || cancel.isPending}
+              disabled={cancel.isPending}
               onPress={() => {
                 setCancelError(null);
                 setDialogOpen(true);
               }}
             />
-            {!canCancel ? (
-              <Text style={styles.cancelHint}>{t.booking.cancelWindowClosed}</Text>
-            ) : null}
           </BookingCard>
         ) : null}
         {/* Белый хвост под последним блоком. Это отдельный элемент, а не
@@ -522,11 +531,6 @@ const styles = StyleSheet.create({
   },
   actionCell: {
     flex: 1,
-  },
-  // Пояснение под неактивной кнопкой отмены.
-  cancelHint: {
-    ...typography.caption,
-    color: colors.text.muted,
   },
   notice: {
     borderWidth: 1,

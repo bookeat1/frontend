@@ -773,25 +773,30 @@ export function isRebookableBooking(booking: Booking, now: Date = new Date()): b
   return Number.isFinite(endsAt) && endsAt < now.getTime();
 }
 
-/** За сколько до начала визита гость ещё может отменить бронь сам. */
-export const CANCEL_WINDOW_MS = 2 * 60 * 60 * 1000;
-
 /**
  * Можно ли гостю отменить ЭТУ бронь прямо сейчас.
  *
- * Кроме статуса смотрит на время: за два часа до визита заведение уже держит
- * стол и готовится, поэтому поздняя отмена — разговор с рестораном, а не кнопка
- * в приложении (решение владельца 18.08.2026).
+ * БЫЛО (решение владельца 18.08.2026): дополнительно к статусу смотрело на
+ * время — за два часа до визита кнопка выключалась, а поздняя отмена уходила
+ * в разговор с рестороном. Это правило снято (решение владельца,
+ * «объединение окна», 29.09.2026): бэкенд-объединение окна убрало жёсткий
+ * серверный запрет на позднюю отмену вовсе — гость может отменить бронь в
+ * ЛЮБОЙ момент (см. `usecase/bookings/status.go` `authorizeTransition`
+ * бэкенда), а `restaurants.free_cancel_window_minutes` решает ТОЛЬКО вопрос
+ * денег (вернут депозит/предзаказ или нет — `describeCancellationCost`,
+ * `booking.freeCancelDeadline`), не доступность самой кнопки. Клиентский
+ * 2-часовой гейт после этого стал самостоятельным, более строгим правилом,
+ * которое расходилось с тем, что реально решает сервер, — отсюда и вопрос
+ * владельца, почему выставленный в 0 `free_cancel_window_minutes` не
+ * разблокировал кнопку. Теперь `canGuestCancel` смотрит только на статус,
+ * как и сервер.
  *
- * Сервер остаётся последней инстанцией: он может отказать и раньше этого срока.
- * Здесь решается только то, показывать ли кнопку — чтобы она не обещала того,
- * чего не сделает.
+ * Сервер остаётся последней инстанцией: он может отказать по другим причинам
+ * (гонка, уже отменено). Здесь решается только то, показывать ли кнопку —
+ * чтобы она не обещала того, чего не сделает.
  */
-export function canGuestCancel(booking: Booking, now: Date = new Date()): boolean {
-  if (!isCancellableBookingStatus(booking.status)) return false;
-  const startsAt = Date.parse(booking.startsAt);
-  if (Number.isNaN(startsAt)) return true; // время не разобрали — решает сервер
-  return startsAt - now.getTime() > CANCEL_WINDOW_MS;
+export function canGuestCancel(booking: Booking): boolean {
+  return isCancellableBookingStatus(booking.status);
 }
 
 /**
@@ -801,11 +806,11 @@ export function canGuestCancel(booking: Booking, now: Date = new Date()): boolea
  * `confirmed`/`arrived` дольше времени визита, всё ещё формально
  * «отменяемая» (см. `CANCELLABLE_BOOKING_STATUSES`), но отменять уже нечего
  * — гостя либо ждут прямо сейчас, либо визит уже идёт или закончился, а
- * статус просто никто не перевёл. Это НЕ то же самое, что двухчасовое окно
- * `canGuestCancel`: то окно — про «поздно отменять, звоните в заведение», а
- * это — про «отменять сам факт визита, который уже наступил, бессмысленно».
- * Используется, чтобы СКРЫТЬ саму кнопку/блок отмены, а не только выключить
- * её (mobile: `app/booking/[id]/index.tsx`, web: `profile-bookings.ts`).
+ * статус просто никто не перевёл. Это отдельная причина от `canGuestCancel`
+ * (та смотрит только на статус): эта — про «отменять сам факт визита,
+ * который уже наступил, бессмысленно», а не про время до него. Используется,
+ * чтобы СКРЫТЬ саму кнопку/блок отмены целиком (mobile:
+ * `app/booking/[id]/index.tsx`, web: `profile-bookings.ts`).
  */
 export function hasVisitStarted(booking: Booking, now: Date = new Date()): boolean {
   const startsAt = Date.parse(booking.startsAt);

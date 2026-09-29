@@ -125,7 +125,7 @@ describe("BookingListCard — статус", () => {
     render(<BookingListCard booking={BOOKING} onPress={vi.fn()} />);
 
     const label = screen.getByRole("button").getAttribute("aria-label") ?? "";
-    expect(label).toContain("Статус: Ждёт подтверждения");
+    expect(label).toContain("Статус: Ожидает подтверждения");
   });
 
   it("отменённая бронь не выдаёт себя за ожидающую", () => {
@@ -133,7 +133,7 @@ describe("BookingListCard — статус", () => {
 
     const label = screen.getByRole("button").getAttribute("aria-label") ?? "";
     expect(label).toContain("Статус: Отменена");
-    expect(label).not.toContain("Ждёт подтверждения");
+    expect(label).not.toContain("Ожидает подтверждения");
   });
 
   it("красит полосу под карточкой в жёлтый у ожидающей и в зелёный у подтверждённой", () => {

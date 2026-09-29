@@ -145,12 +145,15 @@ describe("экран брони: оплата предзаказа", () => {
     expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
   });
 
-  it("оплачено — пометка рядом со статусом брони и блок «Предзаказ», входа на оплату нет", async () => {
+  it("оплачено — блок «Предзаказ» с разбивкой суммы, входа на оплату нет", async () => {
     payment = livePayment({ status: "captured", baseAmountMinor: 350_000, feeMinor: 12_695 });
     renderScreen();
-    await waitFor(() => expect(screen.getByTestId("preorder-paid-pill")).toBeTruthy());
-    // Статус брони остаётся про подтверждение рестораном.
+    await waitFor(() => expect(screen.getByTestId("preorder-paid-block")).toBeTruthy());
+    // Статус брони остаётся про подтверждение рестораном. Зелёной пилюли
+    // «Предзаказ оплачен» над списком блюд больше нет (правка 29.09.2026) —
+    // факт оплаты уже виден по бейджу в шапке экрана, не в этой карточке.
     expect(screen.getByText(t.booking.status.pending)).toBeTruthy();
+    expect(screen.queryByTestId("preorder-paid-pill")).toBeNull();
     // Редизайн (Figma node 5504:7538 и соседние): название блюда и число
     // порций теперь два отдельных узла — название слева, число в круглой
     // пилюле на фото справа, — а не одна строка «2 × Бешбармак».
