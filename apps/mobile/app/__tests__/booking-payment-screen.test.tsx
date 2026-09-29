@@ -95,6 +95,7 @@ const RESTAURANT: Restaurant = {
   paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
+  loyaltyEnabled: false,
 };
 
 function bookingWith(status: Booking["status"]): Booking {

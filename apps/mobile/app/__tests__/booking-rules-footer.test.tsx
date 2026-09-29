@@ -77,6 +77,7 @@ const BASE_RESTAURANT: Restaurant = {
   paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
+  loyaltyEnabled: false,
 };
 
 function bookingWith(

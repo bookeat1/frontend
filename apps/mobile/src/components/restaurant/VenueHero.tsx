@@ -40,6 +40,13 @@ const t = getDictionary();
  * группе, перед сердечком — порядок «QR → нравится → поделиться» ровно как в
  * макете. Открывает `LoyaltyQrSheet` — ВИЗУАЛЬНУЮ ЗАГЛУШКУ без реального
  * бэкенда лояльности, подробности в комментарии того компонента.
+ *
+ * ВИДИМОСТЬ КНОПКИ QR (2026-09-29, суперадмин-переключатель «Лояльность» в
+ * кабинете): `restaurant.loyaltyEnabled` решает платформа, не заведение — у
+ * него нет своей системы лояльности. Кнопка рендерится, только когда родитель
+ * передал `onOpenLoyaltyQr` (см. `app/restaurant/[id]/index.tsx`, которая
+ * подставляет колбэк ТОЛЬКО при `loyaltyEnabled === true`); без колбэка
+ * кнопки нет вовсе, а не есть-но-выключена.
  */
 export function VenueHero({
   restaurant,
@@ -54,7 +61,9 @@ export function VenueHero({
   onToggleFavorite: () => void;
   onBack: () => void;
   onShare: () => void;
-  onOpenLoyaltyQr: () => void;
+  /** Не передан — кнопки QR-кода лояльности нет вовсе (заведение отключено
+   * суперадмином в кабинете). */
+  onOpenLoyaltyQr?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   // Цена в подписи — символьной СТУПЕНЬЮ «₸/₸₸/₸₸₸» (правка владельца
@@ -97,11 +106,13 @@ export function VenueHero({
         <View style={styles.controls}>
           <HeroButton icon={ArrowLeft} label={t.a11y.backButton} onPress={onBack} />
           <View style={styles.controlsRight}>
-            <HeroButton
-              icon={QrCode}
-              label={t.a11y.loyaltyQrButton}
-              onPress={onOpenLoyaltyQr}
-            />
+            {onOpenLoyaltyQr ? (
+              <HeroButton
+                icon={QrCode}
+                label={t.a11y.loyaltyQrButton}
+                onPress={onOpenLoyaltyQr}
+              />
+            ) : null}
             <HeroButton
               icon={Heart}
               label={
