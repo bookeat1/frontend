@@ -473,6 +473,11 @@ export const kk: LocaleOverride<Dictionary> = {
     socialWhatsapp: "WhatsApp-та жазу",
     socialInstagram: "Instagram ашу",
     favoriteFailed: "Сақтау мүмкін болмады — қайталап көріңіз",
+    loyaltyQr: {
+      title: "Сіздің QR-кодыңыз",
+      instruction: "Бұл QR-кодты қызметкерге көрсетіңіз",
+      note: "Код бір реттік және әр келген сайын жаңарады",
+    },
   },
   nav: {
     overview: "Басты бет",
@@ -2723,6 +2728,7 @@ export const kk: LocaleOverride<Dictionary> = {
     openFiltersWithCount: (count: number) => `Сүзгілерді ашу, таңдалды: ${count}`,
     removeFilter: (name: string) => `${name} сүзгісін алып тастау`,
     shareButton: "Бөлісу",
+    loyaltyQrButton: "Адалдық QR-коды",
   },
   states: {
     offlineTitle: "Интернет байланысы жоқ",

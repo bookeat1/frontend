@@ -13,8 +13,9 @@ export const typography = {
     fontSize: 24,
     lineHeight: 32,
   },
-  /** Venue name on the Reservation detail screen (node 488:9876) — the one
-   * place the design goes above 20pt. */
+  /** Venue name on the Reservation detail screen (node 488:9876). Also the
+   * placeholder loyalty code digits in `LoyaltyQrSheet` (node 5455:6737,
+   * loyalty backend does not exist yet) — same bold weight above 20pt. */
   titleXl: {
     fontFamily: fontFamilies.notoSansBold,
     fontSize: 22,
