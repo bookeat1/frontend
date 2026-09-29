@@ -125,7 +125,10 @@ describe("страница гастрогида", () => {
     stub.getGuideRoutes = vi.fn(async () => []);
     await loadScreen();
     expect(screen.getByRole("heading", { level: 1, name: "Salém, Алматы." })).toBeTruthy();
-    expect(screen.getByText("BOOKEAT GUIDE · АЛМАТЫ")).toBeTruthy();
+    // Латиницей ЗАГЛАВНЫМИ (макет 3192:6254) — было «АЛМАТЫ» кириллицей до
+    // правки 29.09.2026: `.toUpperCase()` меняет регистр, а не алфавит,
+    // город из шапки сайта приезжает кириллицей («Алматы»).
+    expect(screen.getByText("BOOKEAT GUIDE · ALMATY")).toBeTruthy();
   });
 
   it("пусто: сообщение в первой секции, «Выбор редакции» и прогулки не рисуются", async () => {

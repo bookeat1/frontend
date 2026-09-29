@@ -1,4 +1,26 @@
 /**
+ * Латинское написание города ЗАГЛАВНЫМИ для брендовых надписей гастрогида
+ * («VISIT ALMATY», «BOOKEAT GUIDE · ALMATY») — макет 3192:6251/6254 рисует
+ * их латиницей всегда, а не переводом текущего языка.
+ *
+ * `city` приезжает от `useGuestCity()`/API как есть — «Алматы»/«Астана» на
+ * кириллице (см. `RestaurantFilter.city` в packages/api) — и до этой правки
+ * (29.09.2026) просто уходил в `.toUpperCase()`, что даёт «АЛМАТЫ» кириллицей,
+ * а не «ALMATY»: `toUpperCase` меняет регистр, а не алфавит. Список — три
+ * города, которые сейчас реально есть в каталоге (Алматы/Астана/Шымкент);
+ * незнакомое имя падает назад на `.toUpperCase()`, чтобы новый город не
+ * пропадал с надписи, если про него забыли здесь.
+ */
+function cityLatinUpper(city: string): string {
+  const known: Record<string, string> = {
+    Алматы: "ALMATY",
+    Астана: "ASTANA",
+    Шымкент: "SHYMKENT",
+  };
+  return known[city.trim()] ?? city.toUpperCase();
+}
+
+/**
  * Русская форма слова «гость» для числа. Живёт здесь, а не в компоненте:
  * склонение — часть словаря, а не разметки.
  */
@@ -344,14 +366,14 @@ export const ru = {
      * в приложении переключается, поэтому он подставляется, а не зашит:
      * гость, выбравший Астану, увидит свой город, а не чужой.
      */
-    guideBrandTitle: (city: string) => `VISIT ${city.toUpperCase()} × BOOKEAT`,
+    guideBrandTitle: (city: string) => `VISIT ${cityLatinUpper(city)} × BOOKEAT`,
     /**
      * Золотая надпись над слоганом (node 3192:6254). В макете
      * «BOOKEAT GUIDE · ALMATY 2026»; год ОТБРОШЕН намеренно — взять его
      * неоткуда (в данных его нет), а зашитый год протухает молча и никто
      * этого не заметит до следующего января.
      */
-    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${city.toUpperCase()}`,
+    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${cityLatinUpper(city)}`,
     /**
      * Крупный слоган поверх фотографии (node 3192:6255) — «Salém, Almaty.».
      * «Salém» («привет» по-казахски) остаётся во всех языках: это фирменное
@@ -437,7 +459,7 @@ export const ru = {
      * «ГАСТРОГИД · VISIT ALMATY»; город подставляется по той же причине, что
      * и в шапке корня вкладки, — гость, выбравший Астану, увидит свой город.
      */
-    rubricEyebrow: (city: string) => `ГАСТРОГИД · VISIT ${city.toUpperCase()}`,
+    rubricEyebrow: (city: string) => `ГАСТРОГИД · VISIT ${cityLatinUpper(city)}`,
     /** Заголовок списка заведений (node 3492:13743). */
     rubricEditorialTitle: "Избранное редакции",
     rubricLoading: "Загружаем рубрику…",

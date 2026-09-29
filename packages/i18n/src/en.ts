@@ -2,6 +2,28 @@ import type { Dictionary } from "./ru";
 import type { LocaleOverride } from "./index";
 
 /**
+ * Latin, all-caps city name for the guide's brand copy ("VISIT ALMATY",
+ * "BOOKEAT GUIDE · ALMATY") — the design (node 3192:6251/6254) always spells
+ * these in Latin, regardless of UI language.
+ *
+ * `city` arrives from `useGuestCity()`/the API as-is — Cyrillic "Алматы"/
+ * "Астана" (see `RestaurantFilter.city` in packages/api) — and used to go
+ * straight into `.toUpperCase()`, which upper-cases Cyrillic letters rather
+ * than transliterating them (fixed 29.09.2026). The list covers the three
+ * cities the catalog actually has today (Алматы/Астана/Шымкент); an unknown
+ * name falls back to `.toUpperCase()` so a new city does not vanish from the
+ * copy just because it is missing here.
+ */
+function cityLatinUpper(city: string): string {
+  const known: Record<string, string> = {
+    Алматы: "ALMATY",
+    Астана: "ASTANA",
+    Шымкент: "SHYMKENT",
+  };
+  return known[city.trim()] ?? city.toUpperCase();
+}
+
+/**
  * English plural of "guest": 1 guest / 2 guests. Lives here, not in the
  * component — pluralisation is part of the dictionary, not the markup.
  */
@@ -150,8 +172,8 @@ export const en: LocaleOverride<Dictionary> = {
     notFoundTitle: "Collection not found",
     notFoundDescription: "It may have been unpublished. Go back to the list and pick another.",
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
-    guideBrandTitle: (city: string) => `VISIT ${city.toUpperCase()} × BOOKEAT`,
-    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${city.toUpperCase()}`,
+    guideBrandTitle: (city: string) => `VISIT ${cityLatinUpper(city)} × BOOKEAT`,
+    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${cityLatinUpper(city)}`,
     guideHeadline: (city: string) => `Salém, ${city}.`,
     guideSubheadline: "We eat, we walk, we discover the city.",
     rubricsTitle: "Sections",
@@ -175,7 +197,7 @@ export const en: LocaleOverride<Dictionary> = {
     /** Heading of the article's text block — same shape as «About the event». */
     articleAboutTitle: "About the article",
     rubricHeaderTitle: "Gastro guide",
-    rubricEyebrow: (city: string) => `GASTRO GUIDE · VISIT ${city.toUpperCase()}`,
+    rubricEyebrow: (city: string) => `GASTRO GUIDE · VISIT ${cityLatinUpper(city)}`,
     rubricEditorialTitle: "Editor's picks",
     rubricLoading: "Loading the section…",
     rubricEmptyTitle: "Nothing in this section yet",
