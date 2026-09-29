@@ -105,7 +105,7 @@ export default function PreorderMenuScreen() {
 
   const setQuantity = useCallback(
     (dish: MenuDish, quantity: number) => {
-      const line = { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor };
+      const line = { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor, imageUrl: dish.imageUrl };
       if (attached) cart.setQuantity(line, quantity);
       else draft.setPreorderQuantity(line, quantity);
     },
@@ -127,7 +127,10 @@ export default function PreorderMenuScreen() {
     <View style={styles.root}>
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <FlowHeader
-          title={t.booking.preorderTitle}
+          // Заголовок — «Меню» (Figma 918:12180), не «Предзаказ»: экран сам
+          // по себе показывает меню заведения, предзаказ — то, что из него
+          // складывается кнопкой внизу.
+          title={t.restaurant.menuTitle}
           onBack={() => router.back()}
           onClose={closeFlow}
           trailing={
@@ -213,7 +216,15 @@ export default function PreorderMenuScreen() {
               просто закрывает экран: иначе человек уйдёт назад, будучи уверен,
               что блюда сохранены. Заход с «Продолжить» (skipToConfirm) ведёт
               дальше по флоу брони, а не назад — этот экран для него шаг
-              вперёд, не правка. */}
+              вперёд, не правка.
+
+              Пока в корзине пусто, кнопка честно предлагает «Пропустить
+              предзаказ» (Figma 918:12180) — идти дальше нечего добавлять.
+              Как только гость положил хотя бы одно блюдо (`count > 0`), та
+              же кнопка становится «Продолжить»: он уже не пропускает
+              предзаказ, он его сделал, и слово «Skip» здесь было бы неверным
+              (правка 29.09.2026). Переход и так один и тот же — на
+              подтверждение брони, меняется только подпись. */}
           <PrimaryButton
             size="lg"
             label={
@@ -222,7 +233,9 @@ export default function PreorderMenuScreen() {
                   ? t.booking.preorderSaving
                   : t.booking.preorderSave
                 : skipToConfirm
-                  ? t.booking.preorderSkip
+                  ? count > 0
+                    ? t.booking.continueToConfirm
+                    : t.booking.preorderSkip
                   : t.booking.preorderDone
             }
             disabled={attached && cart.save.isPending}

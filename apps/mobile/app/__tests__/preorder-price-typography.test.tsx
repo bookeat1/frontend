@@ -107,6 +107,7 @@ const DRAFT_LINE = {
   menuItemId: RIBEYE.id,
   name: RIBEYE.name,
   priceMinor: RIBEYE.priceMinor,
+  imageUrl: RIBEYE.imageUrl,
   quantity: 2,
 };
 

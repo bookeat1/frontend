@@ -29,6 +29,10 @@ export interface PreorderDraftLine extends PreorderLineInput {
    * cart survives leaving the menu screen without refetching it. */
   name: string;
   priceMinor: number | null;
+  /** Same source as `MenuDish`/`DishCardItem.imageUrl` — kept so the review
+   * step (Figma 918:13021) can show the dish photo without re-fetching the
+   * menu. `null` when the dish has none; nothing is invented. */
+  imageUrl: string | null;
 }
 
 interface BookingDraft {
@@ -216,7 +220,13 @@ export function BookingDraftProvider({
     const seed = prefill?.preorderSeed;
     if (!seed?.menuItemId || !seed.name) return [];
     const quantity = Math.max(1, Math.floor(seed.quantity ?? 1));
-    return [{ menuItemId: seed.menuItemId, name: seed.name, priceMinor: seed.priceMinor, quantity }];
+    // Сид приезжает URL-параметрами с экрана меню заведения (`addItemId` и
+    // соседи, book/_layout.tsx) — фото туда пока не прокинуто, `null` честен:
+    // строка предзаказа сразу дорисуется декоративным плейсхолдером, не
+    // выдуманной картинкой.
+    return [
+      { menuItemId: seed.menuItemId, name: seed.name, priceMinor: seed.priceMinor, imageUrl: null, quantity },
+    ];
   });
   const [idempotencyKey, setIdempotencyKey] = useState(randomKey);
 
@@ -459,7 +469,13 @@ export function useBookingDraft(): BookingDraftValue {
 /** Client-side total of the pre-order cart, in minor units. Undefined when any
  * chosen dish has no price — the screen then says so instead of quoting a
  * total that silently omits a dish. */
-export function estimatePreorderTotalMinor(lines: PreorderDraftLine[]): number | undefined {
+// Тип параметра — только то, что реально нужно для арифметики, не полный
+// `PreorderDraftLine[]`: вызывающая сторона (menu.tsx) в режиме `attached`
+// считает итог по `PreorderCartLine[]` — своему типу без `imageUrl`, который
+// этой функции всё равно не нужен.
+export function estimatePreorderTotalMinor(
+  lines: Array<Pick<PreorderDraftLine, "priceMinor" | "quantity">>,
+): number | undefined {
   let total = 0;
   for (const line of lines) {
     if (line.priceMinor === null) return undefined;
@@ -486,7 +502,7 @@ export function useAddDishToPreorder(): (dish: DishCardItem, quantity: number) =
     (dish: DishCardItem, quantity: number) => {
       if (dish.priceMinor === null) return;
       addPreorderQuantity(
-        { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor },
+        { menuItemId: dish.id, name: dish.name, priceMinor: dish.priceMinor, imageUrl: dish.imageUrl },
         quantity,
       );
     },

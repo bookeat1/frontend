@@ -15,12 +15,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
-import { CalendarBlank, CaretRight, ForkKnife, User } from "../../../../src/components/icons";
+import { CalendarBlank, CaretRight, User } from "../../../../src/components/icons";
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../../src/components/SegmentedTabs";
-import { SelectRow } from "../../../../src/components/SelectRow";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { WheelSheet } from "../../../../src/components/search/WheelSheet";
 import { TextField } from "../../../../src/components/TextField";
@@ -31,13 +30,9 @@ import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import { dateChoices } from "../../../../src/lib/availability-label";
 import { guestOptions } from "../../../../src/lib/availability-options";
-import {
-  estimatePreorderTotalMinor,
-  useAddDishToPreorder,
-  useBookingDraft,
-} from "../../../../src/lib/booking-draft";
+import { useAddDishToPreorder, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
-import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
+import { formatDayMonth, fromDateKey, isSameDay } from "../../../../src/lib/format";
 import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
 
 const t = getDictionary();
@@ -180,9 +175,6 @@ export default function ReservationScreen() {
     if (!day.opensAt || !day.closesAt) return null;
     return t.booking.slotsClosedSchedule(dayHoursLabel(day));
   }, [restaurant?.schedule, draft.date]);
-
-  const preorderTotal = estimatePreorderTotalMinor(draft.preorder);
-  const preorderCount = draft.preorder.reduce((sum, line) => sum + line.quantity, 0);
 
   // «Добавить» с карточки блюда в ленте «Лучшие позиции» пишет в ЭТОТ же
   // черновик — тот, что наполняет экран меню. Общий хук, один и тот же на
@@ -356,31 +348,14 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          <View style={[styles.section, styles.sectionRounded]}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.preorderSectionTitle}</Text>
-              <Text style={styles.sectionCaption}>{t.booking.preorderOptional}</Text>
-            </View>
-            <View style={styles.sectionBody}>
-              <SelectRow
-                icon={ForkKnife}
-                label={preorderCount > 0 ? t.booking.preorderEdit : t.booking.preorderAdd}
-                value={
-                  preorderCount > 0
-                    ? t.booking.preorderSummary(
-                        preorderCount,
-                        preorderTotal === undefined
-                          ? t.booking.preorderNoPrice
-                          : formatMoneyMinor(preorderTotal),
-                      )
-                    : ""
-                }
-                placeholder={t.booking.preorderOptional}
-                caption={preorderCount > 0 ? t.booking.preorderTotalEstimateNote : undefined}
-                onPress={() => router.push(`/restaurant/${id}/book/menu`)}
-              />
-            </View>
-          </View>
+          {/* «Выбрать/изменить блюда» здесь БОЛЬШЕ НЕТ (макет 918:11747 в
+              актуальном дереве не рисует такую карточку между сеткой времени
+              и «Пожеланиями» вовсе) — она дублировала уже появившийся флоу
+              «Продолжить → меню» (handleContinue выше) и до правки от
+              29.09.2026 держала блоки на этом экране в неверном по макету
+              порядке. Добавить/изменить предзаказ теперь можно только через
+              «Продолжить» (когда у заведения есть меню) или с ленты
+              «Топ блюда» ниже. */}
 
           {/* "Special Requests" is its own card in the design (node 471:3946 /
               918:11813): a titled card with one bare rounded box, no field
