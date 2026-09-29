@@ -36,6 +36,7 @@ export function MenuHighlightsStrip({
   items,
   contentContainerStyle,
   onAdd,
+  showAddAffordance = false,
 }: {
   items: MenuHighlight[];
   /** Отступы ряда задаёт экран: в брони и в подтверждении они разные. */
@@ -48,6 +49,14 @@ export function MenuHighlightsStrip({
    * «Добавить» с ленты означало на них одно и то же.
    */
   onAdd?: (dish: DishCardItem, quantity: number) => void;
+  /**
+   * Белый круглый «+» поверх фото карточки (Figma node 5459:7411/7436) — чисто
+   * визуальная подсказка «сюда можно добавить», а не отдельная кнопка: тап
+   * всё так же открывает карточку блюда на весь экран, где и живёт реальное
+   * добавление. По умолчанию выключен — старый вид (без «+») на других
+   * экранах, использующих ту же ленту, менять не просили.
+   */
+  showAddAffordance?: boolean;
 }) {
   const [openedDish, setOpenedDish] = useState<DishCardItem | null>(null);
 
@@ -67,6 +76,7 @@ export function MenuHighlightsStrip({
             key={item.id}
             item={item}
             onPress={() => setOpenedDish(dishCardFromHighlight(item))}
+            showAddAffordance={showAddAffordance}
           />
         ))}
       </ScrollView>

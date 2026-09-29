@@ -17,12 +17,17 @@ import ReservationScreen from "../restaurant/[id]/book/index";
  * другого экрана в дизайне нет; поведение должно быть таким же, как на
  * главной, — колесо в шторке поверх текущего экрана.
  *
+ * Ряда быстрых плиток дней (`DateStrip`) на этом экране больше нет —
+ * обновлённый макет (Figma 918:11747, узел 918:11766) рисует под именем и
+ * адресом заведения сразу две пилюли, без ленты дат. Единственный источник
+ * выбранной даты теперь сам пилл, и тест это и проверяет — было «шторка не
+ * должна разойтись с плиткой», стало «пилл показывает то, что выбрали в
+ * шторке».
+ *
  * Проверяем три вещи, и вторая — главная:
  *   1. тап поднимает ШТОРКУ и НИКУДА не переходит (`push` не вызывается);
- *   2. выбранное шторкой попадает в ТО ЖЕ состояние, которым управляет ряд
- *      быстрых плиток дней сверху: после «Готово» подсвечена плитка
- *      выбранного дня. Если шторка заведёт своё состояние, два контрола на
- *      одном экране начнут показывать разные дни;
+ *   2. выбранное шторкой попадает в пилл — единственный контрол даты на
+ *      экране;
  *   3. потолок числа гостей и предупреждение про банкет, которые жили на
  *      удалённом экране, из шторки не пропали.
  */
@@ -78,6 +83,9 @@ vi.mock("../../src/hooks/useBooking", () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  // Пустое меню — «Продолжить» ведёт сразу на подтверждение, дате/гостям это
+  // не мешает.
+  useMenuSections: () => ({ data: [], isPending: false, isError: false }),
 }));
 
 function renderBooking() {
@@ -92,15 +100,9 @@ const datePill = (value: string) =>
   screen.getByRole("button", { name: `${t.booking.dateSectionTitle}: ${value}` });
 const guestsPill = (value: string) =>
   screen.getByRole("button", { name: `${t.booking.guestsSectionTitle}: ${value}` });
-/** Плитка дня в быстром ряду сверху: «Завтра, 27». */
-const dayTile = (caption: string, date: Date) =>
-  screen.getByRole("tab", { name: `${caption}, ${date.getDate()}` });
 
-// Плитки «Сегодня, N»/«Завтра, N» экран строит от системных часов
-// (`DateStrip`: `useMemo(() => new Date(), [])`), а тест считал «завтра» от
-// своего `new Date()`. Окно между ними — миллисекунды до рендера, но полночь
-// Алматы в него попадает, и плитка «Завтра, 2» ищется как «Завтра, 3».
-// Момент прибит для обоих.
+// Момент прибит, чтобы «Сегодня»/«Завтра» в пилле не зависели от того, когда
+// именно тест выполнится относительно полуночи Алматы.
 const FIXED_NOW = new Date("2026-09-01T12:00:00+05:00");
 
 // beforeEach, а не beforeAll: общий vitest.setup.ts делает vi.useRealTimers()
@@ -124,27 +126,20 @@ describe("выбор даты и гостей на экране брони", () 
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("выбранная в шторке дата попадает в то же состояние, что и быстрые плитки", async () => {
+  it("выбранная в шторке дата попадает в пилл", async () => {
     renderBooking();
     const user = userEvent.setup();
     const tomorrow = addDays(FIXED_NOW, 1);
 
-    // Исходно подсвечен сегодняшний день — плиткой, а не шторкой.
-    expect(dayTile(t.booking.today, FIXED_NOW).getAttribute("aria-selected")).toBe("true");
-    expect(dayTile(t.booking.tomorrow, tomorrow).getAttribute("aria-selected")).toBe("false");
+    // Исходно пилл показывает сегодня.
+    expect(datePill(t.booking.today)).toBeTruthy();
 
     await user.click(datePill(t.booking.today));
     await screen.findByText(t.booking.pickDateTitle);
-    // Строка колеса «Завтра» — не плитка: у плитки в подписи есть ещё число.
     await user.click(screen.getByRole("button", { name: t.booking.tomorrow }));
     await user.click(screen.getByRole("button", { name: t.search.availabilityDone }));
 
-    await waitFor(() =>
-      expect(dayTile(t.booking.tomorrow, tomorrow).getAttribute("aria-selected")).toBe("true"),
-    );
-    expect(dayTile(t.booking.today, FIXED_NOW).getAttribute("aria-selected")).toBe("false");
-    // И сам пилл показывает то же самое — один источник на оба контрола.
-    expect(datePill(t.booking.tomorrow)).toBeTruthy();
+    await waitFor(() => expect(datePill(t.booking.tomorrow)).toBeTruthy());
     expect(push).not.toHaveBeenCalled();
     // Дата в черновике — ключ завтрашнего дня, а не что-то своё у шторки.
     expect(toDateKey(tomorrow)).not.toBe(toDateKey(FIXED_NOW));

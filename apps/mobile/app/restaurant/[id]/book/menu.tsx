@@ -48,12 +48,32 @@ interface Section {
  * сумму считает сервер по меню заведения.
  */
 export default function PreorderMenuScreen() {
-  const { id, booking } = useLocalSearchParams<{ id: string; booking?: string }>();
+  const { id, booking, next } = useLocalSearchParams<{
+    id: string;
+    booking?: string;
+    /**
+     * `"confirm"` — этот заход пришёл с «Продолжить» на экране брони (Figma
+     * 918:11820), а не через `AddPreorderRow`/`PreorderEditEntry`. Только
+     * тогда кнопка внизу становится «Skip Pre-order» и ведёт на
+     * подтверждение — во ВСЕХ остальных случаях (включая `attached`,
+     * которому нельзя мешать) поведение прежнее, `preorderDone` + `back()`.
+     */
+    next?: string;
+  }>();
   const router = useRouter();
   const draft = useBookingDraft();
   const cart = usePreorderCart(booking);
   const menu = useMenuSections(id);
   const attached = Boolean(booking);
+  const skipToConfirm = !attached && next === "confirm";
+
+  /** Тот же «выйти из всего флоу» паттерн, что у Confirmation (`leaveFlow`):
+   * если этот экран лежит поверх стека брони — закрыть весь стек, а не
+   * вернуться на шаг назад. */
+  const closeFlow = () => {
+    if (router.canDismiss()) router.dismissAll();
+    else router.back();
+  };
 
   const quantities = useMemo(
     () =>
@@ -109,6 +129,7 @@ export default function PreorderMenuScreen() {
         <FlowHeader
           title={t.booking.preorderTitle}
           onBack={() => router.back()}
+          onClose={closeFlow}
           trailing={
             count > 0 ? (
               <Pressable
@@ -190,7 +211,9 @@ export default function PreorderMenuScreen() {
           ) : null}
           {/* В режиме правки существующей брони кнопка ОТПРАВЛЯЕТ состав, а не
               просто закрывает экран: иначе человек уйдёт назад, будучи уверен,
-              что блюда сохранены. */}
+              что блюда сохранены. Заход с «Продолжить» (skipToConfirm) ведёт
+              дальше по флоу брони, а не назад — этот экран для него шаг
+              вперёд, не правка. */}
           <PrimaryButton
             size="lg"
             label={
@@ -198,15 +221,21 @@ export default function PreorderMenuScreen() {
                 ? cart.save.isPending
                   ? t.booking.preorderSaving
                   : t.booking.preorderSave
-                : t.booking.preorderDone
+                : skipToConfirm
+                  ? t.booking.preorderSkip
+                  : t.booking.preorderDone
             }
             disabled={attached && cart.save.isPending}
             onPress={() => {
-              if (!attached) {
-                router.back();
+              if (attached) {
+                cart.save.mutate(undefined, { onSuccess: () => router.back() });
                 return;
               }
-              cart.save.mutate(undefined, { onSuccess: () => router.back() });
+              if (skipToConfirm) {
+                router.push(`/restaurant/${id}/book/confirm`);
+                return;
+              }
+              router.back();
             }}
           />
           {attached && cart.save.isError ? (

@@ -2170,6 +2170,7 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderSave: "Тапсырысты сақтау",
     preorderSaving: "Сақталуда…",
     preorderDone: "Дайын",
+    preorderSkip: "Алдын ала тапсырысты өткізіп жіберу",
     preorderClear: "Тазалау",
     preorderEmptyTitle: "Орында әзірге мәзір жоқ",
     preorderEmptyDescription: "Орын мәзірді жүктегенде тағамдар осында пайда болады",
