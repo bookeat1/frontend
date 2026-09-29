@@ -30,6 +30,7 @@ let storedAccount: AcquirerAccount = {
   is_active: false,
 };
 let storedKwaakaId: string | null = null;
+let storedLoyaltyEnabled = false;
 
 let freeCancelWindowShouldFailOnce = false;
 
@@ -51,10 +52,17 @@ vi.mock("@/lib/api", () => ({
       return storedAccount;
     }),
     getRestaurantKwaakaLink: vi.fn(async () => ({ kwaaka_restaurant_id: storedKwaakaId })),
-    patchRestaurant: vi.fn(async (_id: string, patch: { kwaaka_restaurant_id: string | null }) => {
-      storedKwaakaId = patch.kwaaka_restaurant_id;
-      return {};
-    }),
+    getRestaurantLoyalty: vi.fn(async () => ({ loyalty_enabled: storedLoyaltyEnabled })),
+    patchRestaurant: vi.fn(
+      async (
+        _id: string,
+        patch: { kwaaka_restaurant_id?: string | null; loyalty_enabled?: boolean },
+      ) => {
+        if ("kwaaka_restaurant_id" in patch) storedKwaakaId = patch.kwaaka_restaurant_id ?? null;
+        if ("loyalty_enabled" in patch) storedLoyaltyEnabled = patch.loyalty_enabled === true;
+        return {};
+      },
+    ),
     getRestaurantSocialLinks: vi.fn(async () => []),
     getCatalogVenue: vi.fn(async (id: string) => newVenue({ id })),
     getRestaurantCuisines: vi.fn(async () => []),
@@ -142,7 +150,7 @@ describe("VenueFormModal — провайдерские карточки не с
 
     // Трогаем карточку, НЕ нажимая её собственную кнопку.
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), { target: { value: "2" } });
-    await screen.findByText(/несохранённая правка в приёме оплаты или Kwaaka/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
 
     const cancelButton = screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement;
     const saveButtons = screen.getAllByRole("button", { name: "Сохранить" }) as HTMLButtonElement[];
@@ -221,7 +229,7 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), {
       target: { value: "2" },
     });
-    await screen.findByText(/несохранённая правка в приёме оплаты или Kwaaka/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
 
     fireEvent.click(retryButton);
 
@@ -233,7 +241,7 @@ describe("VenueFormModal — провайдерские карточки не с
     });
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText(/несохранённая правка в приёме оплаты или Kwaaka/i)).toBeTruthy();
+    expect(screen.getByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i)).toBeTruthy();
   });
 
   it("гонка (4-й круг ревью): смена карточки оплаты, ПОКА ответ «Сохранить» ещё в пути, не должна закрыть форму молча", async () => {
@@ -263,7 +271,7 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), {
       target: { value: "2" },
     });
-    await screen.findByText(/несохранённая правка в приёме оплаты или Kwaaka/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
 
     // Теперь отпускаем ответ «Сохранить».
     resolveSave!(newVenue({ id: "v-existing" }));
@@ -271,7 +279,7 @@ describe("VenueFormModal — провайдерские карточки не с
     // Форма обязана остаться открытой: правка карточки случилась уже после
     // клика, но до того, как сервер ответил.
     await waitFor(() => {
-      expect(screen.getByText(/несохранённая правка в приёме оплаты или Kwaaka/i)).toBeTruthy();
+      expect(screen.getByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i)).toBeTruthy();
     });
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();

@@ -70,6 +70,7 @@ const RESTAURANT: Restaurant = {
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
   paymentFee: { rateBps: 350, minFeeMinor: 2500 },
+  loyaltyEnabled: false,
 };
 
 const livePayment = (over: Partial<BookingPayment> = {}): BookingPayment => ({

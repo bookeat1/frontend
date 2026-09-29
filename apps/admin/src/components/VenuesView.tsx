@@ -51,6 +51,7 @@ import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
 import { VenueFeaturePicker } from "./ui/VenueFeaturePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { KwaakaLinkCard } from "./KwaakaLinkCard";
+import { LoyaltyCard } from "./LoyaltyCard";
 import { PaymentAcceptanceCard } from "./PaymentAcceptanceCard";
 import { Modal } from "./ui/Modal";
 import {
@@ -310,11 +311,12 @@ export function VenuesView() {
  *   • повторное «Сохранить» после уже созданного заведения не создаёт второе —
  *     оно правит созданное (id запомнен).
  *
- * ТРЕТЬЯ ПАРА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Приём оплаты (Kaspi) и Kwaaka
- * POS рисуются здесь же, но сохраняются каждая своей кнопкой прямо в карточке
- * (см. `PaymentAcceptanceCard`/`KwaakaLinkCard`) — общее «Сохранить» ниже их не
- * трогает вовсе. Поэтому, пока в одной из них есть несохранённый ввод
- * (`providerCardsDirty`), форма не закрывается ни по «Отмена», ни по крестику/
+ * ТРЕТЬЯ ГРУППА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Приём оплаты (Kaspi), Kwaaka
+ * POS и переключатель лояльности рисуются здесь же, но сохраняются каждая
+ * своей кнопкой прямо в карточке (см. `PaymentAcceptanceCard`/`KwaakaLinkCard`/
+ * `LoyaltyCard`) — общее «Сохранить» ниже их не трогает вовсе. Поэтому, пока в
+ * одной из них есть несохранённый ввод (`providerCardsDirty`), форма не
+ * закрывается ни по «Отмена», ни по крестику/
  * Escape: иначе смена Kaspi-компании молча терялась бы, а деньги гостей
  * продолжали идти на старого провайдера без единого предупреждения (блокер
  * ревью PR #268). Для НОВОГО заведения полный успех «Сохранить» тоже не
@@ -419,14 +421,16 @@ export function VenueFormModal({
   >(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
-  // Карточки оплаты и Kwaaka сохраняются СВОЕЙ кнопкой, отдельно от этой формы
-  // (см. render ниже и review PR #268: без этой развязки общее «Сохранить»
-  // молча закрывало форму, а несохранённая смена Kaspi-компании терялась —
-  // деньги гостей продолжали идти на старого провайдера, без единого
-  // предупреждения). Пока хоть одна из них не сохранена, форма не закрывается.
+  // Карточки оплаты, Kwaaka и лояльности сохраняются СВОЕЙ кнопкой, отдельно
+  // от этой формы (см. render ниже и review PR #268: без этой развязки общее
+  // «Сохранить» молча закрывало форму, а несохранённая смена Kaspi-компании
+  // терялась — деньги гостей продолжали идти на старого провайдера, без
+  // единого предупреждения). Пока хоть одна из них не сохранена, форма не
+  // закрывается.
   const [paymentDirty, setPaymentDirty] = useState(false);
   const [kwaakaDirty, setKwaakaDirty] = useState(false);
-  const providerCardsDirty = paymentDirty || kwaakaDirty;
+  const [loyaltyDirty, setLoyaltyDirty] = useState(false);
+  const providerCardsDirty = paymentDirty || kwaakaDirty || loyaltyDirty;
   // `finishAfterSave` выполняется ПОСЛЕ ответа сервера (submit/retryCuisines/
   // retryFeatures/retryFreeCancelWindow — все async), то есть в замыкании,
   // взятом на момент нажатия кнопки. Пока идёт запрос, карточки оплаты/Kwaaka
@@ -1059,7 +1063,8 @@ export function VenueFormModal({
           <>
             {!venue && createdId ? (
               <p className="text-sm text-text" role="status">
-                Заведение создано. Настройте приём оплаты и Kwaaka ниже своими кнопками —
+                Заведение создано. Настройте приём оплаты, Kwaaka и лояльность ниже своими
+                кнопками —
                 форма закроется по «Отмена», когда с этим будет покончено.
               </p>
             ) : null}
@@ -1071,14 +1076,19 @@ export function VenueFormModal({
               restaurantId={(venue?.id ?? createdId)!}
               onDirtyChange={setKwaakaDirty}
             />
+            <LoyaltyCard
+              restaurantId={(venue?.id ?? createdId)!}
+              onDirtyChange={setLoyaltyDirty}
+            />
           </>
         ) : null}
 
         {providerCardsDirty ? (
           <p className="text-sm text-brand" role="alert">
-            Есть несохранённая правка в приёме оплаты или Kwaaka выше — сохраните её кнопкой в
-            самой карточке (или верните прежнее значение). Пока это не сделано, форма не
-            закрывается, чтобы деньги гостей случайно не остались привязаны не к тому.
+            Есть несохранённая правка в приёме оплаты, Kwaaka или лояльности выше — сохраните её
+            кнопкой в самой карточке (или верните прежнее значение). Пока это не сделано, форма
+            не закрывается, чтобы деньги гостей или настройка лояльности случайно не остались
+            привязаны не к тому.
           </p>
         ) : null}
 

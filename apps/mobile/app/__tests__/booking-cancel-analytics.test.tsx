@@ -88,6 +88,7 @@ const RESTAURANT: Restaurant = {
   paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
+  loyaltyEnabled: false,
 };
 
 const HOUR = 60 * 60 * 1000;

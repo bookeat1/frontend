@@ -100,6 +100,7 @@ const RESTAURANT: Restaurant = {
   paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
+  loyaltyEnabled: false,
 };
 
 let booking: Booking;

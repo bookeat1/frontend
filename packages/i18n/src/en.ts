@@ -1728,6 +1728,23 @@ export const en: LocaleOverride<Dictionary> = {
       saveFailed: "Couldn't save. Please try again",
       saveForbidden: "Only a superadmin can change the link",
     },
+    loyalty: {
+      title: "Loyalty program",
+      description:
+        "Whether the guest sees the loyalty QR-code button on this venue's screen in the app. Only a superadmin can see and change it.",
+      toggleLabel: "Loyalty enabled",
+      toggleHintOn: "Guests see the loyalty QR-code button on the venue screen.",
+      toggleHintOff: "The loyalty QR-code button is hidden from guests.",
+      separateSaveHint:
+        "Saved with its own button below — the venue form's general Save doesn't send this field.",
+      loadingTitle: "Loading the loyalty setting…",
+      save: "Save",
+      saving: "Saving…",
+      saved: "Saved",
+      noChanges: "Nothing has changed, there's nothing to save",
+      saveFailed: "Couldn't save. Please try again",
+      saveForbidden: "Only a superadmin can change this setting",
+    },
     venueFilters: {
       searchLabel: "Search by name",
       searchPlaceholder: "For example: Yurta",

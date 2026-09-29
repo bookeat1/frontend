@@ -202,6 +202,13 @@ export interface RestaurantPricePatch {
    * display_order: the backend strips this key for a non-admin caller). An
    * explicit `null` unlinks; an omitted key leaves the binding alone. */
   kwaaka_restaurant_id?: string | null;
+  /** Whether the guest app shows the loyalty QR-code button on this venue's
+   * screen (`apps/mobile` `VenueHero`, `onOpenLoyaltyQr`). Superadmin-only,
+   * mirrors `kwaaka_restaurant_id`/`is_premium`: the backend strips this key
+   * for a non-admin caller. Unlike the marketing flags above, this is a plain
+   * boolean the UI always sends explicitly (no per-key "leave alone" meaning
+   * for the panel — the card always mutates the whole current value). */
+  loyalty_enabled?: boolean;
 }
 
 /**
@@ -214,6 +221,19 @@ export interface RestaurantPricePatch {
  */
 export interface RestaurantKwaakaLink {
   kwaaka_restaurant_id: string | null;
+}
+
+/**
+ * Whether the guest app's loyalty QR-code button is enabled for this venue
+ * (admin restaurant read, `GET /admin/restaurants/:id`, `loyalty_enabled`).
+ * Unlike `kwaaka_restaurant_id`, the backend field is NOT `omitempty` — it is
+ * present (and `false` is a real, explicit value) on every restaurant
+ * response, not just the admin one, so `getRestaurantLoyalty` below reads the
+ * same admin detail read purely for consistency with the other superadmin
+ * cards, not because the field is admin-exclusive to read.
+ */
+export interface RestaurantLoyaltySettings {
+  loyalty_enabled: boolean;
 }
 
 // ---- Telegram notification settings ----------------------------------------

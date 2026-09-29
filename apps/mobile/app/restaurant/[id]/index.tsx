@@ -122,7 +122,12 @@ export default function RestaurantDetailScreen() {
               onToggleFavorite={favorite.toggle}
               onBack={() => router.back()}
               onShare={() => void share(restaurant.name, restaurant.address)}
-              onOpenLoyaltyQr={() => setLoyaltyQrVisible(true)}
+              // Кнопку включает/выключает суперадмин в кабинете, отдельно на
+              // каждое заведение (`loyalty_enabled`, PATCH /restaurants/:id,
+              // admin-only) — у заведения нет своей системы лояльности.
+              onOpenLoyaltyQr={
+                restaurant.loyaltyEnabled ? () => setLoyaltyQrVisible(true) : undefined
+              }
             />
             {favorite.failed ? (
               <Text style={styles.favoriteFailed} accessibilityRole="alert">

@@ -12,6 +12,11 @@ import { VenueHero } from "../VenueHero";
  * Здесь проверяется только сама кнопка шапки — что она есть, с a11y-подписью,
  * и что нажатие зовёт колбэк, а не рисует шторку внутри VenueHero (шторка
  * открывается экраном, а не самим компонентом шапки).
+ *
+ * Видимость (2026-09-29, суперадмин-переключатель «Лояльность» в кабинете):
+ * `restaurant.loyaltyEnabled` решает экран заведения, а не сам VenueHero —
+ * компонент лишь рендерит кнопку тогда и только тогда, когда родитель передал
+ * `onOpenLoyaltyQr` (см. тест ниже «кнопки нет без onOpenLoyaltyQr»).
  */
 
 const METRICS: Metrics = {
@@ -56,5 +61,11 @@ describe("VenueHero — кнопка QR-код лояльности", () => {
 
     expect(qrIndex).toBeGreaterThanOrEqual(0);
     expect(qrIndex).toBeLessThan(shareIndex);
+  });
+
+  it("кнопки нет без onOpenLoyaltyQr — не есть-но-выключена, а отсутствует", () => {
+    renderHero({ onOpenLoyaltyQr: undefined });
+
+    expect(screen.queryByRole("button", { name: "QR-код лояльности" })).toBeNull();
   });
 });

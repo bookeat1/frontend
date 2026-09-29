@@ -369,6 +369,16 @@ export interface Restaurant {
    * платформенный дефолт, см. `effectiveLateArrivalText`.
    */
   lateArrivalText?: string;
+  /**
+   * Показывать ли кнопку «QR-код лояльности» на экране заведения
+   * (`VenueHero`, prop `onOpenLoyaltyQr`, PR #275). Управляется только из
+   * админки суперадминистратором (`restaurants.loyalty_enabled`, `PATCH
+   * /restaurants/:id`, admin-only) — у заведения нет своей системы лояльности,
+   * это платформенный декоративный виджет. Backend field is NOT omitempty
+   * (`false` is a real explicit value), so default `false` here means "the
+   * server said no", not "server didn't say".
+   */
+  loyaltyEnabled: boolean;
 }
 
 /**
