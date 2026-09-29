@@ -6,11 +6,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, Minus, Plus, User } from "../../../../src/components/icons";
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { AddPreorderRow } from "../../../../src/components/booking/AddPreorderRow";
-import { PhotoView } from "../../../../src/components/PhotoView";
+import { ConfirmationHero } from "../../../../src/components/booking/ConfirmationHero";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCampaignAttribution } from "../../../../src/hooks/useCampaignAttribution";
 import { useCreateBooking, useMenuSections } from "../../../../src/hooks/useBooking";
@@ -269,25 +268,22 @@ export default function ConfirmBookingScreen() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        <FlowHeader title={t.booking.confirmTitle} onBack={() => router.back()} onClose={leaveFlow} />
-      </SafeAreaView>
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Venue header, centred (node 918:12098): a 64pt photo over the name
-            and address. */}
-        {restaurant ? (
-          <View style={styles.venueHeader}>
-            <PhotoView
-              uri={restaurant.coverPhoto?.uri}
-              alt={restaurant.coverPhoto?.alt}
-              style={styles.venuePhoto}
-              size="tile"
-              decorative
-            />
-            <Text style={styles.venueName}>{restaurant.name}</Text>
-            <Text style={styles.venueAddress}>{restaurant.address}</Text>
-          </View>
+        {/* Шапка «Confirmation» (node 918:13021, кадр 5482:13902): фото
+            заведения во весь экран, «назад»/капсула-заголовок/закрыть и, у
+            нижнего края, имя, адрес и пилюли «гости · дата · время» — всё
+            поверх снимка. Рендерится только когда есть и заведение, и слот:
+            без слота эффект выше уводит гостя назад, а с пустыми пилюлями
+            («гости · · время») шапка выглядела бы сломанной. */}
+        {restaurant && draft.slot ? (
+          <ConfirmationHero
+            restaurant={restaurant}
+            guestsLabel={t.booking.guestsCount(draft.guests)}
+            dateLabel={dateLabel}
+            timeLabel={formatTime(draft.slot.startsAt)}
+            onBack={() => router.back()}
+            onClose={leaveFlow}
+          />
         ) : null}
 
         {/* Details (node 918:12103): date & time and guests, each with an Edit. */}
@@ -516,36 +512,9 @@ const styles = StyleSheet.create({
     // менять под ними фон на середине пути незачем.
     backgroundColor: colors.background.screen,
   },
-  headerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
   content: {
     paddingBottom: spacing.xxxl,
     gap: spacing.sm,
-  },
-  venueHeader: {
-    backgroundColor: colors.background.surface,
-    alignItems: "center",
-    paddingVertical: spacing.lg,
-    gap: spacing.xs,
-    borderBottomLeftRadius: radius.card,
-    borderBottomRightRadius: radius.card,
-  },
-  venuePhoto: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
-  },
-  venueName: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-    textAlign: "center",
-  },
-  venueAddress: {
-    ...typography.body,
-    color: colors.text.muted,
-    textAlign: "center",
   },
   card: {
     backgroundColor: colors.background.surface,
