@@ -572,6 +572,19 @@ export const typography = {
     fontSize: 12,
     lineHeight: 16,
   },
+  /**
+   * Капсула-заголовок «Подтверждение» в шапке экрана «Подтверждение брони» —
+   * Noto Sans Medium 16/24 (Figma BookEat (Copy) (Copy), node 5482:13909).
+   *
+   * Не `titleMd` (16/24, тот же размер): там SemiBold — вес заголовков
+   * экранов, а здесь макет рисует Medium, потому что подпись стоит внутри
+   * стеклянной капсулы поверх фотографии, а не в обычной шапке.
+   */
+  heroCapsuleLabel: {
+    fontFamily: fontFamilies.notoSansMedium,
+    fontSize: 16,
+    lineHeight: 24,
+  },
 } as const;
 
 export type TypographyToken = typeof typography;
