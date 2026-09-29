@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AdminApiError,
@@ -41,9 +41,14 @@ export interface KwaakaLinkClient {
 export function KwaakaLinkCard({
   restaurantId,
   client = apiClient,
+  onDirtyChange,
 }: {
   restaurantId: string;
   client?: KwaakaLinkClient;
+  /** Карточка сохраняется своей кнопкой, отдельно от формы заведения (см.
+   * VenuesView). Родитель должен знать, есть ли тут несохранённый ввод, чтобы
+   * не дать форме молча закрыться с непривязанным/чужим id склада. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const auth = useOptionalAuth();
@@ -68,6 +73,7 @@ export function KwaakaLinkCard({
       client={client}
       link={linkQuery.data}
       onChanged={() => queryClient.invalidateQueries({ queryKey })}
+      onDirtyChange={onDirtyChange}
     />
   );
 }
@@ -77,11 +83,13 @@ function KwaakaLinkForm({
   client,
   link,
   onChanged,
+  onDirtyChange,
 }: {
   restaurantId: string;
   client: KwaakaLinkClient;
   link: RestaurantKwaakaLink;
   onChanged: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const current = link.kwaaka_restaurant_id;
 
@@ -121,11 +129,22 @@ function KwaakaLinkForm({
   }
 
   const busy = mutation.isPending;
+  const dirty = value.trim() !== (current ?? "");
+
+  // Родитель (форма заведения) не должен закрыться, пока тут висит несохранённый
+  // ввод: общая кнопка «Сохранить» формы эту карточку не трогает.
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
   return (
     <div className="rounded-card bg-surface p-lg">
       <h2 className="text-base font-semibold text-text">{copy.title}</h2>
       <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
+      <p className="mt-xs max-w-prose text-[12px] text-text-muted">{copy.separateSaveHint}</p>
 
       <p className="mt-sm text-[13px] text-text">
         {current ? copy.currentBinding(current) : copy.notLinked}

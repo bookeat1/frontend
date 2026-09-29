@@ -1716,6 +1716,8 @@ export const kk: LocaleOverride<Dictionary> = {
       fieldLabel: "Kwaaka ішіндегі мекеме ID",
       fieldHint: "Kwaaka POS ішіндегі қойма/нүкте идентификаторы. Айыру үшін өрісті бос қалдырып сақтаңыз.",
       fieldPlaceholder: "мысалы, 3f2a1c9e-2b7a-4c1d-9e0a-1234567890ab",
+      separateSaveHint:
+        "Төменде өз батырмасымен сақталады — мекеме нысанының жалпы «Сақтау» батырмасы бұл өрісті жібермейді.",
       notLinked: "байланыспаған",
       currentBinding: (id: string) => `Қазір байланысқан: ${id}`,
       loadingTitle: "Kwaaka байланысын жүктеп жатырмыз…",
@@ -1899,6 +1901,8 @@ export const kk: LocaleOverride<Dictionary> = {
       description:
         "Осы орынның қонақтары төлеген ақша түсетін Kaspi компаниясы. Тізім біздің Kaspi сервисінен алынады, қолмен ештеңе енгізудің қажеті жоқ.",
       loadingTitle: "Төлем баптауларын жүктеп жатырмыз…",
+      separateSaveHint:
+        "Төменде өз батырмасымен сақталады — мекеме нысанының жалпы «Сақтау» батырмасы бұл өрісті жібермейді.",
       currentBinding: (name: string, id: string) => `Қазір байланған: ${name} (ID ${id})`,
       notBound: "Орын бірде-бір компанияға байланбаған, төлем қабылдау мүмкін емес",
       selectLabel: "Kaspi компаниясы",

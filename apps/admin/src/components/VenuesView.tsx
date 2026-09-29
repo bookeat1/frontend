@@ -50,6 +50,8 @@ import { CitySelectField, cityOptionsFor } from "./ui/CitySelectField";
 import { CuisinePicker, mergeCuisineOptions } from "./ui/CuisinePicker";
 import { VenueFeaturePicker } from "./ui/VenueFeaturePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
+import { KwaakaLinkCard } from "./KwaakaLinkCard";
+import { PaymentAcceptanceCard } from "./PaymentAcceptanceCard";
 import { Modal } from "./ui/Modal";
 import {
   SOCIAL_LINK_ERROR_COPY,
@@ -307,8 +309,19 @@ export function VenuesView() {
  *     что сохранилось, а что нет, и даёт повторить только кухни;
  *   • повторное «Сохранить» после уже созданного заведения не создаёт второе —
  *     оно правит созданное (id запомнен).
+ *
+ * ТРЕТЬЯ ПАРА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Приём оплаты (Kaspi) и Kwaaka
+ * POS рисуются здесь же, но сохраняются каждая своей кнопкой прямо в карточке
+ * (см. `PaymentAcceptanceCard`/`KwaakaLinkCard`) — общее «Сохранить» ниже их не
+ * трогает вовсе. Поэтому, пока в одной из них есть несохранённый ввод
+ * (`providerCardsDirty`), форма не закрывается ни по «Отмена», ни по крестику/
+ * Escape: иначе смена Kaspi-компании молча терялась бы, а деньги гостей
+ * продолжали идти на старого провайдера без единого предупреждения (блокер
+ * ревью PR #268). Для НОВОГО заведения полный успех «Сохранить» тоже не
+ * закрывает форму — до этого момента у карточек оплаты/Kwaaka просто не было
+ * id, куда писать.
  */
-function VenueFormModal({
+export function VenueFormModal({
   title,
   venue,
   dictionary,
@@ -376,6 +389,7 @@ function VenueFormModal({
   // клиент) — см. эффект синхронизации ниже.
   const [freeCancelMinutes, setFreeCancelMinutes] = useState("");
   // Черновики переводов. Русский текст остаётся в обычных полях выше.
+  const [nameI18n, setNameI18n] = useState(translationDraftFrom());
   const [descriptionI18n, setDescriptionI18n] = useState(translationDraftFrom());
   const [addressI18n, setAddressI18n] = useState(translationDraftFrom());
   const [openingHoursI18n, setOpeningHoursI18n] = useState(translationDraftFrom());
@@ -405,6 +419,24 @@ function VenueFormModal({
   >(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
 
+  // Карточки оплаты и Kwaaka сохраняются СВОЕЙ кнопкой, отдельно от этой формы
+  // (см. render ниже и review PR #268: без этой развязки общее «Сохранить»
+  // молча закрывало форму, а несохранённая смена Kaspi-компании терялась —
+  // деньги гостей продолжали идти на старого провайдера, без единого
+  // предупреждения). Пока хоть одна из них не сохранена, форма не закрывается.
+  const [paymentDirty, setPaymentDirty] = useState(false);
+  const [kwaakaDirty, setKwaakaDirty] = useState(false);
+  const providerCardsDirty = paymentDirty || kwaakaDirty;
+  // `finishAfterSave` выполняется ПОСЛЕ ответа сервера (submit/retryCuisines/
+  // retryFeatures/retryFreeCancelWindow — все async), то есть в замыкании,
+  // взятом на момент нажатия кнопки. Пока идёт запрос, карточки оплаты/Kwaaka
+  // остаются доступны для правки: если человек успеет поменять там что-то до
+  // ответа, `providerCardsDirty` из замыкания всё ещё «чистый», и форма молча
+  // закроется, потеряв эту правку (ревью PR #268, четвёртый круг). Ref
+  // обновляется на каждом рендере и всегда читает актуальное значение.
+  const providerCardsDirtyRef = useRef(providerCardsDirty);
+  providerCardsDirtyRef.current = providerCardsDirty;
+
   // Ссылки на соцсети приходят ТОЛЬКО в детальном ответе: листинг каталога
   // (GET /admin/restaurants) их не отдаёт вообще. Поэтому при правке они
   // догружаются отдельным запросом — и пока он не ответил, ключ social_links в
@@ -429,7 +461,18 @@ function VenueFormModal({
     retry: false,
   });
   const detail = venue ? detailQuery.data : undefined;
-  const detailLoaded = venue ? detailQuery.isSuccess : true;
+  // НЕ `detailQuery.isSuccess` напрямую: между рендером, где запрос УЖЕ
+  // ответил, и следующим, где эффект ниже реально разложит ответ по полям
+  // формы (включая `nameI18n`), есть один кадр, в котором `detailQuery.data`
+  // уже есть, а `nameI18n` — ещё старый пустой черновик. Нажатие «Сохранить»
+  // именно в этом кадре читало бы актуальный `detail?.name_i18n` (переводы
+  // ЕСТЬ) против ещё не подтянувшегося пустого `nameI18n` — и
+  // `buildTranslationPatch` понял бы это как «оба языка стёрли», отправив
+  // патч-УДАЛЕНИЕ чужих переводов. `detailSynced` выставляется в ТОМ ЖЕ эффекте,
+  // что и сами поля, синхронно с ними — значит не может стать `true` раньше,
+  // чем `nameI18n` и соседи реально обновились.
+  const [detailSynced, setDetailSynced] = useState(false);
+  const detailLoaded = venue ? detailSynced : true;
 
   // Синхронизируем ТОЛЬКО когда сервер вправду отдал другой объект: пересборка
   // состояния на каждый рендер уносила бы поле из-под пальцев (та же грабля,
@@ -440,6 +483,7 @@ function VenueFormModal({
     if (!data || syncedDetailRef.current === data) return;
     syncedDetailRef.current = data;
     setOpeningHours(data.opening_hours ?? "");
+    setNameI18n(translationDraftFrom(data.name_i18n));
     setDescriptionI18n(translationDraftFrom(data.description_i18n));
     setAddressI18n(translationDraftFrom(data.address_i18n));
     setOpeningHoursI18n(translationDraftFrom(data.opening_hours_i18n));
@@ -449,6 +493,9 @@ function VenueFormModal({
     // initialFreeCancelMinutesField: точное поле предпочтительно, часы × 60 —
     // только фолбэк.
     setFreeCancelMinutes(initialFreeCancelMinutesField(data));
+    // Тем же проходом — иначе получаем ровно ту гонку, что описана у
+    // `detailSynced` выше.
+    setDetailSynced(true);
   }, [detailQuery.data]);
 
   // Кухни заведения читаются своей ручкой, а не из строки листинга: в листинге
@@ -519,7 +566,33 @@ function VenueFormModal({
   const featuresChanged =
     featuresLoaded && !sameVenueFeatureSelection(featureIds, loadedFeatureIds!);
 
-  const canSubmit = name.trim().length > 0 && !busy;
+  const canSubmit = name.trim().length > 0 && !busy && !providerCardsDirty;
+
+  // Общий `onClose` формы дергают три места сразу: кнопка «Отмена», крестик и
+  // Escape/клик по подложке внутри `Modal`. Все три обязаны проходить через
+  // одну и ту же проверку — иначе достаточно нажать Escape в обход кнопки.
+  const requestClose = () => {
+    if (providerCardsDirty) return;
+    onClose();
+  };
+
+  // Общая точка выхода после ЛЮБОГО успешного сохранения — «Сохранить» И все
+  // три retry* ниже. Обход был в том, что retry* звали `onSaved()` напрямую,
+  // в обход `requestClose`: удавшийся повтор кухонь/удобств/окна закрывал
+  // форму, даже когда в карточке оплаты/Kwaaka лежала несохранённая правка
+  // (ревью PR #268, второй круг). Те же правила, что и у «Отмена»/крестика:
+  //   • несохранённая карточка блокирует закрытие;
+  //   • новое заведение никогда не закрывается само — есть только этот
+  //     единственный удобный момент увидеть карточки оплаты/Kwaaka с уже
+  //     появившимся id.
+  const finishAfterSave = () => {
+    if (!venue) return;
+    // Читаем ref, а не `providerCardsDirty` из замыкания: эта функция всегда
+    // зовётся после `await`, и к тому моменту снаружи мог поменяться дирти-флаг
+    // карточек оплаты/Kwaaka (см. комментарий у `providerCardsDirtyRef` выше).
+    if (providerCardsDirtyRef.current) return;
+    onSaved();
+  };
 
   // Пустое/нечисловое поле — платформенный дефолт: у денежного окна нет
   // сентинела «сбросить» (колонка `free_cancel_window_minutes` NOT NULL),
@@ -569,6 +642,7 @@ function VenueFormModal({
     // сервер оставляет как есть, и правка коллеги не затирается.
     if (detailLoaded) {
       input.opening_hours = openingHours.trim();
+      input.name_i18n = buildTranslationPatch(nameI18n, detail?.name_i18n);
       input.description_i18n = buildTranslationPatch(descriptionI18n, detail?.description_i18n);
       input.address_i18n = buildTranslationPatch(addressI18n, detail?.address_i18n);
       input.opening_hours_i18n = buildTranslationPatch(
@@ -634,7 +708,16 @@ function VenueFormModal({
       setFailure("freeCancelWindow");
       return;
     }
-    onSaved();
+
+    // "saved". `createdId` идёт СРАЗУ, а не только на неудачных ветках выше:
+    // иначе для НОВОГО заведения карточки оплаты/Kwaaka (условие ниже —
+    // `venue?.id ?? createdId`) не увидят id вовсе, потому что при полном
+    // успехе он раньше не выставлялся.
+    setCreatedId(outcome.venue.id);
+    // Оба правила — «новое заведение не закрывается само» и «несохранённая
+    // карточка оплаты/Kwaaka блокирует закрытие» — теперь в одном месте,
+    // см. `finishAfterSave`.
+    finishAfterSave();
   };
 
   /** Повтор ТОЛЬКО кухонь: заведение уже сохранено, второй раз его писать
@@ -672,7 +755,7 @@ function VenueFormModal({
     }
     setFailure(null);
     setBusy(false);
-    onSaved();
+    finishAfterSave();
   };
 
   /** Повтор ТОЛЬКО удобств: заведение и кухни уже легли, денежное окно после
@@ -700,7 +783,7 @@ function VenueFormModal({
     }
     setFailure(null);
     setBusy(false);
-    onSaved();
+    finishAfterSave();
   };
 
   /** Повтор ТОЛЬКО денежного окна: заведение, кухни и удобства уже легли —
@@ -713,7 +796,7 @@ function VenueFormModal({
       await apiClient.setFreeCancelWindow(targetId, freeCancelWindowMinutesToSave);
       setFailure(null);
       setBusy(false);
-      onSaved();
+      finishAfterSave();
     } catch {
       setBusy(false);
       setFailure("freeCancelWindow");
@@ -721,11 +804,19 @@ function VenueFormModal({
   };
 
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={title} onClose={requestClose}>
       <div className="flex flex-col gap-md">
-        <Field label="Название" required>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
+        <TranslatedField
+          id="venue-name"
+          label="Название"
+          required
+          base={name}
+          onBaseChange={setName}
+          translations={nameI18n}
+          onTranslationsChange={setNameI18n}
+          stored={detail?.name_i18n}
+          disabled={busy}
+        />
 
         {venue && detailQuery.isPending ? (
           <p className="text-sm text-text-muted" role="status">
@@ -739,6 +830,7 @@ function VenueFormModal({
         ) : (
           <TranslationCoverageNote
             fields={[
+              { label: "Название", translations: nameI18n },
               { label: "Описание", translations: descriptionI18n },
               { label: "Адрес", translations: addressI18n },
               { label: "Часы работы", translations: openingHoursI18n },
@@ -963,6 +1055,33 @@ function VenueFormModal({
           </div>
         ) : null}
 
+        {venue?.id ?? createdId ? (
+          <>
+            {!venue && createdId ? (
+              <p className="text-sm text-text" role="status">
+                Заведение создано. Настройте приём оплаты и Kwaaka ниже своими кнопками —
+                форма закроется по «Отмена», когда с этим будет покончено.
+              </p>
+            ) : null}
+            <PaymentAcceptanceCard
+              restaurantId={(venue?.id ?? createdId)!}
+              onDirtyChange={setPaymentDirty}
+            />
+            <KwaakaLinkCard
+              restaurantId={(venue?.id ?? createdId)!}
+              onDirtyChange={setKwaakaDirty}
+            />
+          </>
+        ) : null}
+
+        {providerCardsDirty ? (
+          <p className="text-sm text-brand" role="alert">
+            Есть несохранённая правка в приёме оплаты или Kwaaka выше — сохраните её кнопкой в
+            самой карточке (или верните прежнее значение). Пока это не сделано, форма не
+            закрывается, чтобы деньги гостей случайно не остались привязаны не к тому.
+          </p>
+        ) : null}
+
         {failure === "features" ? (
           <div className="flex flex-col gap-xs" role="alert">
             <p className="text-sm text-brand">
@@ -1002,7 +1121,7 @@ function VenueFormModal({
         ) : null}
 
         <div className="flex justify-end gap-xs">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={requestClose} disabled={providerCardsDirty}>
             Отмена
           </Button>
           <Button onClick={() => void submit()} loading={busy} disabled={!canSubmit}>
