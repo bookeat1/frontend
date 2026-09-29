@@ -708,4 +708,11 @@ export const borderWidth = {
   /** Time-slot pill outline — 1.5px, grey when idle, brand when chosen
    * (Figma node 471:3914). */
   control: 1.5,
+  /**
+   * Красная рамка вокруг QR-кода в шторке лояльности (Figma node 5455:6737).
+   * Тот же 1.5, что у `control`, но свой токен: роль другая (декоративная
+   * рамка карточки, а не состояние пилюли слота), а совпадение значений — не
+   * повод разводить одну переменную на две смысловые роли.
+   */
+  loyaltyQrFrame: 1.5,
 } as const;

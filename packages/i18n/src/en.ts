@@ -466,6 +466,11 @@ export const en: LocaleOverride<Dictionary> = {
     socialWhatsapp: "Message on WhatsApp",
     socialInstagram: "Open Instagram",
     favoriteFailed: "Couldn't save — please try again",
+    loyaltyQr: {
+      title: "Your QR code",
+      instruction: "Show this QR code to staff",
+      note: "The code is single-use and refreshes on every visit",
+    },
     menuDishAddPrice: (price: string) => `Add · ${price}`,
     menuDishQtyLess: "Decrease quantity",
     menuDishQtyMore: "Increase quantity",
@@ -2720,6 +2725,7 @@ export const en: LocaleOverride<Dictionary> = {
     openFiltersWithCount: (count: number) => `Open filters, ${count} selected`,
     removeFilter: (name: string) => `Remove filter ${name}`,
     shareButton: "Share",
+    loyaltyQrButton: "Loyalty QR code",
   },
   states: {
     offlineTitle: "No internet connection",
