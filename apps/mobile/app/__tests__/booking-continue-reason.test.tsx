@@ -57,6 +57,9 @@ let availability: { data?: DayAvailability; isPending: boolean; isError: boolean
 
 vi.mock("../../src/hooks/useBooking", () => ({
   useAvailability: () => ({ ...availability, refetch: vi.fn() }),
+  // Пустое меню — «Продолжить» ведёт сразу на подтверждение, как и раньше;
+  // сам переход через экран меню тестируют другие файлы.
+  useMenuSections: () => ({ data: [], isPending: false, isError: false }),
 }));
 
 function slot(startsAt: string, available: boolean) {

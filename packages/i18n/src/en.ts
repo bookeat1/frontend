@@ -2166,6 +2166,7 @@ export const en: LocaleOverride<Dictionary> = {
     preorderSave: "Save order",
     preorderSaving: "Saving…",
     preorderDone: "Done",
+    preorderSkip: "Skip Pre-order",
     preorderClear: "Clear",
     preorderEmptyTitle: "This restaurant has no menu yet",
     preorderEmptyDescription: "Dishes will appear here once the restaurant uploads them",

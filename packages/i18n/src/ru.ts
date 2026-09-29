@@ -3019,6 +3019,11 @@ export const ru = {
     preorderSave: "Сохранить заказ",
     preorderSaving: "Сохраняем…",
     preorderDone: "Готово",
+    /** Кнопка внизу экрана меню, когда на него привёл шаг «Продолжить» с
+     * экрана брони (Figma 918:11820, node 918:11947 — "Skip Pre-order").
+     * Ведёт на подтверждение, а не просто закрывает экран — в отличие от
+     * `preorderDone`. */
+    preorderSkip: "Пропустить предзаказ",
     preorderClear: "Очистить",
     preorderEmptyTitle: "У заведения пока нет меню",
     preorderEmptyDescription: "Блюда появятся здесь, когда заведение их загрузит",
