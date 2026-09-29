@@ -1,5 +1,5 @@
 import type { BookingStatus } from "@bookeat/api";
-import { colors, typography } from "@bookeat/design-tokens";
+import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import React from "react";
 import { StyleSheet, Text } from "react-native";
@@ -21,7 +21,8 @@ const t = getDictionary();
  */
 export function WhatHappensNextCard({ status }: { status: BookingStatus }) {
   return (
-    <BookingCard title={t.booking.whatHappensNextTitle}>
+    // Заголовок 20/28 и просвет 16 до текста — Figma node 5504:7532/7533/7534.
+    <BookingCard title={t.booking.whatHappensNextTitle} titleSize="section" gap={spacing.lg}>
       <Text style={styles.body}>{t.booking.whatHappensNext[status]}</Text>
     </BookingCard>
   );

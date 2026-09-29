@@ -196,6 +196,19 @@ export const controlHeight = {
    * (`design-ref/screen-explore.png`). They are inside a horizontally
    * scrolling card, so the 44pt rule is met with hitSlop, not with height. */
   compactPill: 28,
+  /**
+   * Фото блюда в списке «Предзаказ» на экране брони — 140x100 (Figma
+   * «BookEat (Copy) (Copy)», node 5504:7544 и соседние 5504:7553/7562).
+   * ОТДЕЛЬНЫЙ токен, а не `dishPhotoWidth`/`dishPhotoHeight` (120x80): та
+   * пара измерена с рендера экрана выбора блюд, это — с узла другого экрана,
+   * и значения в макете различаются на самом деле, не по недосмотру.
+   */
+  preorderSummaryPhotoWidth: 140,
+  preorderSummaryPhotoHeight: 100,
+  /** Круглая белая пилюля с числом порций, наложенная на угол фото в списке
+   * «Предзаказ» — 36x36 (node 5504:7545 и соседние). Только для чтения: в
+   * этом списке блюда уже заказаны, тут нет +/-. */
+  preorderQuantityBadge: 36,
 } as const;
 
 /**

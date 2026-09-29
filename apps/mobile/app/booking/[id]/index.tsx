@@ -20,7 +20,7 @@ import { describeCancellationCost } from "../../../src/components/booking/cancel
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
 import { AddPreorderRow } from "../../../src/components/booking/AddPreorderRow";
-import { PreorderPaidBlock, PreorderPaidPill } from "../../../src/components/booking/PreorderPaidBlock";
+import { PreorderCard } from "../../../src/components/booking/PreorderPaidBlock";
 import { PreorderPayEntry } from "../../../src/components/booking/PreorderPayEntry";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
@@ -296,7 +296,10 @@ export default function ReservationScreen() {
         <ReservationHeaderCard
           booking={data}
           restaurant={restaurant.data}
-          paidPill={paidPayment ? <PreorderPaidPill /> : null}
+          guestsLabel={t.booking.guestsCount(data.guests)}
+          dateLabel={formatRelativeDay(data.startsAt)}
+          timeLabel={formatTime(data.startsAt)}
+          hasPreorder={preorderItemsCount > 0}
           actions={
             // Ряд из «На главную» и «Меню» (макет 3059:11285, правка владельца
             // 2026-08-20). Отмена отсюда УШЛА вниз, отдельным блоком: держать
@@ -373,7 +376,14 @@ export default function ReservationScreen() {
           }
         />
 
-        {paidPayment && preorder.data ? <PreorderPaidBlock preorder={preorder.data} payment={paidPayment} /> : null}
+        {/* Список предзаказа виден ВСЕГДА, когда в брони есть хоть одна
+            позиция, — бронь с предзаказом уже состоявшийся факт независимо от
+            оплаты (макет 5504:7535). `paidPayment` внутри дорисовывает
+            пометку «Оплачено» и разбивку суммы, когда деньги ушли; без него
+            карточка просто список блюд без итога. */}
+        {preorder.data && preorder.data.items.length > 0 ? (
+          <PreorderCard preorder={preorder.data} payment={paidPayment} />
+        ) : null}
 
         {payEntry ? (
           <PreorderPayEntry
@@ -432,7 +442,7 @@ export default function ReservationScreen() {
             У отменённой и прошедшей по статусу брони блока тоже нет вовсе:
             отменять там нечего. */}
         {cancellable && !visitStarted ? (
-          <BookingCard title={t.booking.cancelSectionTitle}>
+          <BookingCard title={t.booking.cancelSectionTitle} titleSize="section" gap={spacing.lg}>
             <PrimaryButton
               label={t.booking.cancelBooking}
               variant="secondary"

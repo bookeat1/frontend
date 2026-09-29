@@ -15,12 +15,27 @@ export function BookingCard({
   title,
   corners = "all",
   align = "start",
+  /**
+   * `card` (по умолчанию) — прежний заголовок 18/26 (`typography.titleCard`).
+   * `section` — 20/28 −0.5 (`typography.titleLg`), которым в редизайне
+   * (Figma «BookEat (Copy) (Copy)», узлы 5504:7533/7536/7567/7594) нарисованы
+   * «What happens next?», «Pre-order», «Contacts», «Want to cancel?».
+   * Проп, а не смена дефолта: `BookingCard` делит вёрстку с `profile/edit.tsx`,
+   * и молчаливая правка заголовка задела бы экран, которого эта задача не
+   * касается.
+   */
+  titleSize = "card",
+  /** Просвет между заголовком и содержимым. По умолчанию — прежние 12
+   * (`spacing.md`), не занятые этой правкой: то же самое про `profile/edit.tsx`. */
+  gap = spacing.md,
   style,
   children,
 }: {
   title?: string;
   corners?: "all" | "bottom";
   align?: "start" | "center";
+  titleSize?: "card" | "section";
+  gap?: number;
   style?: ViewStyle;
   children: React.ReactNode;
 }) {
@@ -30,11 +45,15 @@ export function BookingCard({
         styles.card,
         corners === "bottom" ? styles.cornersBottom : styles.cornersAll,
         align === "center" && styles.centered,
+        { gap },
         style,
       ]}
     >
       {title ? (
-        <Text style={styles.title} accessibilityRole="header">
+        <Text
+          style={[styles.title, titleSize === "section" && styles.titleSection]}
+          accessibilityRole="header"
+        >
           {title}
         </Text>
       ) : null}
@@ -52,7 +71,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border.control,
     padding: spacing.lg,
-    gap: spacing.md,
   },
   cornersAll: {
     borderRadius: radius.card,
@@ -67,5 +85,8 @@ const styles = StyleSheet.create({
   title: {
     ...typography.titleCard,
     color: colors.text.primary,
+  },
+  titleSection: {
+    ...typography.titleLg,
   },
 });

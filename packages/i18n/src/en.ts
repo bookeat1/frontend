@@ -2244,6 +2244,9 @@ export const en: LocaleOverride<Dictionary> = {
       cancelled: "Cancelled",
       no_show: "No-show",
     },
+    /** Badge over the header photo when the booking is confirmed AND has a
+     * pre-order attached (Figma «BookEat (Copy) (Copy)», node 5504:7635). */
+    confirmedPreorderBadge: "Confirmed pre-order",
     whenLabel: "When",
     whoLabel: "For whom",
     freeCancelUntil: (when: string) => `Free cancellation until ${when}`,
