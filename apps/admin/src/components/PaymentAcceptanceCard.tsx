@@ -32,6 +32,7 @@ import { ErrorState, LoadingState } from "./StateViews";
  * (см. SettingsView).
  */
 const copy = t.admin.payments;
+const sectionCopy = t.admin.paymentSection;
 
 /** Провайдер, о котором эта карточка. Другие эквайеры сюда не заводятся: у
  * них нет ни счетов на выбор, ни сессии кассира. */
@@ -50,6 +51,7 @@ export function PaymentAcceptanceCard({
   restaurantId,
   client = apiClient,
   onDirtyChange,
+  embedded = false,
 }: {
   restaurantId: string;
   client?: PaymentAcceptanceClient;
@@ -57,6 +59,9 @@ export function PaymentAcceptanceCard({
    * VenuesView). Родитель должен знать, есть ли тут несохранённый ввод, чтобы
    * не дать форме молча закрыться с чужой привязкой на счету. */
   onDirtyChange?: (dirty: boolean) => void;
+  /** Внутри `PaymentSection`: без своей подложки, заголовок «Счёт Kaspi» вместо
+   * «Приём оплаты», пояснение про отдельную кнопку говорит секция. */
+  embedded?: boolean;
 }) {
   const queryClient = useQueryClient();
   const accountKey = useMemo(
@@ -99,6 +104,7 @@ export function PaymentAcceptanceCard({
         return queryClient.invalidateQueries({ queryKey: accountKey });
       }}
       onDirtyChange={onDirtyChange}
+      embedded={embedded}
     />
   );
 }
@@ -113,6 +119,7 @@ function PaymentAcceptanceForm({
   onRetryCompanies,
   onSaved,
   onDirtyChange,
+  embedded,
 }: {
   restaurantId: string;
   client: PaymentAcceptanceClient;
@@ -123,6 +130,7 @@ function PaymentAcceptanceForm({
   onRetryCompanies: () => void;
   onSaved: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  embedded: boolean;
 }) {
   const [accountRef, setAccountRef] = useState(account.account_ref ?? "");
   const [isActive, setIsActive] = useState(account.is_active);
@@ -179,10 +187,19 @@ function PaymentAcceptanceForm({
   useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
   return (
-    <div className="rounded-card bg-surface p-lg">
-      <h2 className="text-base font-semibold text-text">{copy.title}</h2>
-      <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
-      <p className="mt-xs max-w-prose text-[12px] text-text-muted">{copy.separateSaveHint}</p>
+    <div className={embedded ? undefined : "rounded-card bg-surface p-lg"}>
+      {embedded ? (
+        <>
+          <h3 className="text-sm font-semibold text-text">{sectionCopy.kaspiHeading}</h3>
+          <p className="mt-xs max-w-prose text-[13px] text-text-muted">{sectionCopy.kaspiDescription}</p>
+        </>
+      ) : (
+        <>
+          <h2 className="text-base font-semibold text-text">{copy.title}</h2>
+          <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
+          <p className="mt-xs max-w-prose text-[12px] text-text-muted">{copy.separateSaveHint}</p>
+        </>
+      )}
 
       <p className="mt-sm text-[13px] text-text">
         {account.connected ? copy.currentBinding(boundName, account.account_ref) : copy.notBound}

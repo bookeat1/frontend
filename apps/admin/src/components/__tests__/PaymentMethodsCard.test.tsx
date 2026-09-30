@@ -97,10 +97,10 @@ describe("PaymentMethodsCard", () => {
     );
   });
 
-  it("F2: подсказка про Kaspi без привязки говорит «выше», не «ниже»", async () => {
+  it("подсказка про Kaspi без привязки отсылает к блоку «Счёт Kaspi» ниже (он теперь под способами)", async () => {
     setup({ payments_enabled: true, methods: ["kaspi"], kaspi_account_bound: false });
     const hint = await screen.findByText(/не привязано|не привязан|байланбаған/);
-    expect(hint.textContent).toMatch(/выше/);
-    expect(hint.textContent).not.toMatch(/ниже/);
+    expect(hint.textContent).toMatch(/ниже/);
+    expect(hint.textContent).not.toMatch(/выше/);
   });
 });
