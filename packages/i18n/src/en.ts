@@ -1912,12 +1912,20 @@ export const en: LocaleOverride<Dictionary> = {
       saveFailed: "Couldn't save. Please try again",
       loadFailed: "Links didn't load, so they can't be changed yet",
     },
+    paymentSection: {
+      title: "Payment",
+      description:
+        "How guests pay for a pre-order at this restaurant: the master switch, the payment methods and, when Kaspi is ticked, the company that receives the money. Each part is saved with its own button; the form's general «Save» does not send them.",
+      methodsGroupLabel: "Payment methods offered to the guest",
+      kaspiHeading: "Kaspi account",
+      kaspiDescription: "Where the money goes when a guest pays through Kaspi.",
+    },
     paymentMethods: {
       title: "Payment methods",
       description: "How this restaurant's guests can pay for a pre-order. Guests only see the buttons that are available.",
       loadingTitle: "Loading payment methods…",
-      masterLabel: "Online payments",
-      masterHint: "The restaurant's master switch. “Like the platform” follows the platform-wide setting, which can only be changed platform-wide, not here.",
+      masterLabel: "Online payments for this restaurant",
+      masterHint: "The master switch: when it is off, guests see no payment buttons at all, even if methods are ticked below. “Like the platform” follows the platform-wide setting, which can only be changed platform-wide, not here.",
       masterOptionInherit: (globalEnabled?: boolean) =>
         globalEnabled === undefined
           ? "Like the platform"
@@ -1926,7 +1934,7 @@ export const en: LocaleOverride<Dictionary> = {
       masterOptionDisabled: "Disabled",
       kaspiLabel: "Kaspi",
       cardLabel: "Card (FreedomPay, TipTop, etc.)",
-      kaspiUnbound: "Kaspi is on, but the restaurant isn't linked to a Kaspi company, so guests won't see it. Link a company in the «Accepting payments» card above.",
+      kaspiUnbound: "Kaspi is on, but the restaurant isn't linked to a Kaspi company, so guests won't see it. Pick a company in the «Kaspi account» block below.",
       save: "Save",
       saving: "Saving…",
       saved: "Payment methods saved",

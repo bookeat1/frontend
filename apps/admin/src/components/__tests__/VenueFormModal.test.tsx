@@ -31,6 +31,7 @@ let storedAccount: AcquirerAccount = {
 };
 let storedKwaakaId: string | null = null;
 let storedLoyaltyEnabled = false;
+let storedMethods: string[] = ["kaspi"];
 
 let freeCancelWindowShouldFailOnce = false;
 
@@ -66,7 +67,7 @@ vi.mock("@/lib/api", () => ({
     getPaymentMethods: vi.fn(async () => ({
       payments_enabled: null,
       payments_enabled_global: true,
-      methods: ["kaspi"],
+      methods: storedMethods,
       kaspi_account_bound: storedAccount.connected,
     })),
     setPaymentMethods: vi.fn(async () => ({
@@ -136,6 +137,7 @@ afterEach(() => {
   cleanup();
   storedAccount = { provider: "kaspi", connected: false, account_ref: "", is_active: false };
   storedKwaakaId = null;
+  storedMethods = ["kaspi"];
 });
 
 describe("VenueFormModal — провайдерские карточки не сохраняются общей кнопкой (PR #268 fix)", () => {
@@ -146,7 +148,7 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
 
     // Заведение создано — карточки появились.
-    await screen.findByText("Приём оплаты");
+    await screen.findByRole("heading", { name: "Оплата" });
     await screen.findByText("Kwaaka POS");
 
     expect(onSaved).not.toHaveBeenCalled();
@@ -158,7 +160,7 @@ describe("VenueFormModal — провайдерские карточки не с
 
     fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
-    await screen.findByText("Приём оплаты");
+    await screen.findByRole("heading", { name: "Оплата" });
 
     // Трогаем карточку, НЕ нажимая её собственную кнопку.
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), { target: { value: "2" } });
@@ -188,18 +190,62 @@ describe("VenueFormModal — провайдерские карточки не с
     expect(onSaved).not.toHaveBeenCalled();
   });
 
-  it("«Способы оплаты» стоят рядом с «Приёмом оплаты», и их несохранённая правка тоже блокирует закрытие формы", async () => {
+  it("один блок «Оплата»: переключатель, способы, затем «Счёт Kaspi»; Kwaaka и лояльность вне блока", async () => {
+    renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    const heading = await screen.findByRole("heading", { name: "Оплата" });
+    const master = await screen.findByLabelText(/^Онлайн-оплата/);
+    const methods = await screen.findByText("Способы оплаты для гостя");
+    const company = await screen.findByRole("heading", { name: "Счёт Kaspi" });
+    const follows = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(heading, master)).toBe(true);
+    expect(follows(master, methods)).toBe(true);
+    expect(follows(methods, company)).toBe(true);
+
+    // Один визуальный блок: единственный заголовок «Оплата» — h2, остальное внутри него.
+    const section = heading.closest("section")!;
+    expect(section.contains(master) && section.contains(methods) && section.contains(company)).toBe(true);
+    expect(screen.getAllByRole("heading", { name: "Оплата" })).toHaveLength(1);
+    expect(section.contains(await screen.findByText("Kwaaka POS"))).toBe(false);
+  });
+
+  it("«Счёт Kaspi» скрыт, пока Kaspi не отмечен, и появляется по флажку", async () => {
+    storedMethods = ["card"];
+    renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await screen.findByLabelText("Kaspi");
+    expect(screen.queryByRole("heading", { name: "Счёт Kaspi" })).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Kaspi"));
+    expect(await screen.findByRole("heading", { name: "Счёт Kaspi" })).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("Kaspi"));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Счёт Kaspi" })).toBeNull());
+  });
+
+  it("несохранённый выбор компании не пропадает молча, если снять флажок Kaspi: блок остаётся, форма заперта", async () => {
+    renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), { target: { value: "2" } });
+    fireEvent.click(screen.getByLabelText("Kaspi"));
+
+    expect(await screen.findByRole("heading", { name: "Счёт Kaspi" })).toBeTruthy();
+    expect((screen.getByLabelText(/Компания в Kaspi/) as HTMLSelectElement).value).toBe("2");
+    expect((screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("несохранённая правка способов оплаты блокирует закрытие формы", async () => {
     const { onSaved, onClose } = renderModal();
 
     fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
-    await screen.findByText("Приём оплаты");
-    const methodsHeading = await screen.findByText("Способы оплаты");
-    // Один порядок в форме: «Приём оплаты», затем «Способы оплаты».
-    expect(
-      screen.getByText("Приём оплаты").compareDocumentPosition(methodsHeading) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    await screen.findByRole("heading", { name: "Оплата" });
 
     // Включаем «Карту», не нажимая собственную кнопку карточки.
     fireEvent.click(await screen.findByLabelText(/^Карта \(FreedomPay/));
@@ -245,7 +291,7 @@ describe("VenueFormModal — провайдерские карточки не с
     const retryButton = await screen.findByRole("button", {
       name: "Повторить бесплатную отмену",
     });
-    await screen.findByText("Приём оплаты");
+    await screen.findByRole("heading", { name: "Оплата" });
 
     fireEvent.click(retryButton);
 

@@ -52,8 +52,7 @@ import { VenueFeaturePicker } from "./ui/VenueFeaturePicker";
 import { ImageUploadField } from "./ui/ImageUploadField";
 import { KwaakaLinkCard } from "./KwaakaLinkCard";
 import { LoyaltyCard } from "./LoyaltyCard";
-import { PaymentAcceptanceCard } from "./PaymentAcceptanceCard";
-import { PaymentMethodsCard } from "./PaymentMethodsCard";
+import { PaymentSection } from "./PaymentSection";
 import { Modal } from "./ui/Modal";
 import {
   SOCIAL_LINK_ERROR_COPY,
@@ -312,9 +311,9 @@ export function VenuesView() {
  *   • повторное «Сохранить» после уже созданного заведения не создаёт второе —
  *     оно правит созданное (id запомнен).
  *
- * ТРЕТЬЯ ГРУППА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Приём оплаты (Kaspi), способы
- * оплаты (`PaymentMethodsCard`), Kwaaka POS и переключатель лояльности рисуются здесь же, но сохраняются каждая
- * своей кнопкой прямо в карточке (см. `PaymentAcceptanceCard`/`KwaakaLinkCard`/
+ * ТРЕТЬЯ ГРУППА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Блок «Оплата»
+ * (`PaymentSection`: способы оплаты и компания в Kaspi), Kwaaka POS и переключатель лояльности рисуются здесь же, но сохраняются каждая
+ * своей кнопкой прямо в карточке (см. `PaymentSection`/`KwaakaLinkCard`/
  * `LoyaltyCard`) — общее «Сохранить» ниже их не трогает вовсе. Поэтому, пока в
  * одной из них есть несохранённый ввод (`providerCardsDirty`), форма не
  * закрывается ни по «Отмена», ни по крестику/
@@ -1070,13 +1069,10 @@ export function VenueFormModal({
                 форма закроется по «Отмена», когда с этим будет покончено.
               </p>
             ) : null}
-            <PaymentAcceptanceCard
+            <PaymentSection
               restaurantId={(venue?.id ?? createdId)!}
-              onDirtyChange={setPaymentDirty}
-            />
-            <PaymentMethodsCard
-              restaurantId={(venue?.id ?? createdId)!}
-              onDirtyChange={setPaymentMethodsDirty}
+              onMethodsDirtyChange={setPaymentMethodsDirty}
+              onCompanyDirtyChange={setPaymentDirty}
             />
             <KwaakaLinkCard
               restaurantId={(venue?.id ?? createdId)!}
