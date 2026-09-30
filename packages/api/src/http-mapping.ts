@@ -178,6 +178,11 @@ export interface ApiRestaurant {
    * «оплату не предлагаем». См. Restaurant.acceptsOnlinePayment.
    */
   accepts_online_payment?: boolean;
+  /**
+   * Требует ли заведение оплату предзаказа (backend PR #163). Указатель на
+   * бэкенде с omitempty: нет ключа = «не посчитано», а НЕ false.
+   */
+  preorder_payment_required?: boolean | null;
   /** Доступные способы оплаты (backend PR #150). Нет ключа — старый бэкенд. */
   payment_methods?: string[] | null;
   /**
@@ -1406,6 +1411,10 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
     // кнопку у неподключённого заведения, получает 422 и остаётся с чувством,
     // что сломалось приложение.
     acceptsOnlinePayment: api.accepts_online_payment === true,
+    // `null`, а не `false`, когда ключа нет: «не посчитано» и «не требуется»
+    // — разные исходы, и старый бэкенд не должен внезапно прятать оплату.
+    preorderPaymentRequired:
+      typeof api.preorder_payment_required === "boolean" ? api.preorder_payment_required : null,
     paymentMethods: mapPaymentMethods(api.payment_methods),
     // D-API-1 (ТЗ `web-preorder-menu-20260908`): `null`, а НЕ 0, когда поля
     // нет или оно `null` — минимум «не задан», а не «любая ненулевая сумма

@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { RepositoryError, computePaymentBreakdown, isCancellableBookingStatus, type Booking, type PaymentMethod } from "@bookeat/api/client";
+import {
+  RepositoryError,
+  computePaymentBreakdown,
+  isCancellableBookingStatus,
+  venueOffersPreorderPayment,
+  type Booking,
+  type PaymentMethod,
+} from "@bookeat/api/client";
 
 import { Container } from "@web/components/layout/Container";
 import { SiteChrome } from "@web/components/layout/SiteChrome";
@@ -99,7 +106,7 @@ function PaymentBody({
   const paymentGate = preorderPaymentGate({
     bookingIsLive: isCancellableBookingStatus(booking.status),
     preorderItemsCount: preorder.data?.items.length ?? 0,
-    venueAcceptsOnlinePayment: venue.data?.acceptsOnlinePayment === true,
+    venueAcceptsOnlinePayment: venueOffersPreorderPayment(venue.data),
     existingPayment: bookingPayment.isError ? null : bookingPayment.data,
   });
   const paymentFlow = useKaspiPaymentFlow({
@@ -123,6 +130,20 @@ function PaymentBody({
     if (phase === "paid") router.replace(`/bookings/${bookingId}/payment/success`);
     else if (phase === "dead") router.replace(`/bookings/${bookingId}/payment/error`);
   }, [phase, router, bookingId]);
+
+  // Заведение само сказало «оплата предзаказа не нужна»: платить здесь нечего,
+  // ошибки гостю не показываем — возвращаем на бронь. Если же 422 «requires no
+  // payment» всё-таки пришёл (старый бэкенд без поля), остаёмся на странице и
+  // показываем спокойное объяснение (`createFailureMessage`).
+  const paymentNotRequired = venue.data != null && !venueOffersPreorderPayment(venue.data);
+  useEffect(() => {
+    if (paymentNotRequired && phase !== "settling" && phase !== "paid") router.replace(`/bookings/${bookingId}`);
+  }, [paymentNotRequired, phase, router, bookingId]);
+
+  // Пока идёт уход на бронь — нейтральный скелет, без мигания блока ошибки.
+  if (paymentNotRequired && phase !== "settling" && phase !== "paid") {
+    return <Skeleton className="h-[480px] w-full rounded-2xl" />;
+  }
 
   if (!paymentGate.payable && phase !== "settling") {
     return (
@@ -298,12 +319,19 @@ function PaymentBody({
 
 function createFailureMessage(
   error: unknown,
-  texts: { errorOffline: string; errorAlreadyActive: string; errorUnavailable: string; errorServer: string },
+  texts: {
+    errorOffline: string;
+    errorAlreadyActive: string;
+    errorUnavailable: string;
+    errorNotRequired: string;
+    errorServer: string;
+  },
 ): string | null {
   if (!error) return null;
   if (error instanceof RepositoryError) {
     if (error.isOffline) return texts.errorOffline;
     if (error.status === 409) return texts.errorAlreadyActive;
+    if (error.isPaymentNotRequired) return texts.errorNotRequired;
     if (error.status === 422) return texts.errorUnavailable;
   }
   return texts.errorServer;

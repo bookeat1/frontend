@@ -92,7 +92,12 @@ export function PaymentAcceptanceCard({
       companiesLoading={companiesQuery.isPending}
       companiesFailed={companiesQuery.isError}
       onRetryCompanies={() => void companiesQuery.refetch()}
-      onSaved={() => queryClient.invalidateQueries({ queryKey: accountKey })}
+      onSaved={() => {
+        // «Способы оплаты» в той же форме показывают подсказку «Kaspi не привязан»
+        // по `kaspi_account_bound` — после смены компании она не должна устареть.
+        void queryClient.invalidateQueries({ queryKey: ["payment-methods", restaurantId] });
+        return queryClient.invalidateQueries({ queryKey: accountKey });
+      }}
       onDirtyChange={onDirtyChange}
     />
   );

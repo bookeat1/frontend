@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PaymentMethodsInput, PaymentMethodsSettings } from "@bookeat/api/admin";
 
@@ -14,8 +14,9 @@ import { ErrorState, LoadingState } from "./StateViews";
  * «Способы оплаты» — какие кнопки оплаты увидит гость этого заведения:
  * «Оплатить Kaspi» и/или «Оплатить картой», плюс главный переключатель.
  *
- * Только для суперадмина (бэкенд отвечает 403 остальным) — роль проверяет тот,
- * кто вешает карточку на экран (см. SettingsView). Привязка компании Kaspi
+ * Только для суперадмина (бэкенд отвечает 403 остальным): карточка живёт в форме
+ * заведения платформенного каталога (VenuesView), а тот экран открыт только
+ * суперадмину. Привязка компании Kaspi
  * остаётся в «Приёме оплаты»; здесь только подсказка, когда Kaspi включён, а
  * привязки нет (гостю он тогда не покажется).
  *
@@ -33,9 +34,12 @@ export interface PaymentMethodsClient {
 export function PaymentMethodsCard({
   restaurantId,
   client = apiClient,
+  onDirtyChange,
 }: {
   restaurantId: string;
   client?: PaymentMethodsClient;
+  /** Сообщает родителю, есть ли несохранённая правка (форма заведения тогда не закрывается). */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const key = useMemo(() => ["payment-methods", restaurantId] as const, [restaurantId]);
@@ -51,6 +55,7 @@ export function PaymentMethodsCard({
       client={client}
       settings={query.data}
       onSaved={(saved) => queryClient.setQueryData(key, saved)}
+      onDirtyChange={onDirtyChange}
     />
   );
 }
@@ -60,11 +65,13 @@ function PaymentMethodsForm({
   client,
   settings,
   onSaved,
+  onDirtyChange,
 }: {
   restaurantId: string;
   client: PaymentMethodsClient;
   settings: PaymentMethodsSettings;
   onSaved: (saved: PaymentMethodsSettings) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [enabled, setEnabled] = useState<boolean | null>(settings.payments_enabled);
   const [kaspi, setKaspi] = useState(settings.methods.includes("kaspi"));
@@ -73,11 +80,14 @@ function PaymentMethodsForm({
   const [notice, setNotice] = useState<string | null>(null);
 
   // Поля следуют за сохранённым на сервере, а не за выбранным.
+  // Зависим только от сохранённых полей: обновление `kaspi_account_bound` (после
+  // смены компании в «Приёме оплаты») не должно затирать несохранённый выбор.
+  const savedMethods = settings.methods.join(",");
   useEffect(() => {
     setEnabled(settings.payments_enabled);
-    setKaspi(settings.methods.includes("kaspi"));
-    setCard(settings.methods.includes("card"));
-  }, [settings]);
+    setKaspi(savedMethods.split(",").includes("kaspi"));
+    setCard(savedMethods.split(",").includes("card"));
+  }, [settings.payments_enabled, savedMethods]);
 
   const save = useMutation({
     mutationFn: (input: PaymentMethodsInput) => client.setPaymentMethods(restaurantId, input),
@@ -97,6 +107,15 @@ function PaymentMethodsForm({
     kaspi !== settings.methods.includes("kaspi") ||
     card !== settings.methods.includes("card");
   const busy = save.isPending;
+
+  // Родитель (форма заведения) не должен закрыться, пока тут висит несохранённая
+  // правка: общая кнопка «Сохранить» формы эту карточку не трогает.
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  useEffect(() => {
+    onDirtyChangeRef.current?.(dirty);
+  }, [dirty]);
+  useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
   function touch<T>(set: (v: T) => void) {
     return (v: T) => {

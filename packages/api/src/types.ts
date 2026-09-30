@@ -290,6 +290,15 @@ export interface Restaurant {
    */
   acceptsOnlinePayment: boolean;
   /**
+   * Требует ли заведение оплату предзаказа (`preorder_payment_required`,
+   * backend PR #163, верхний уровень `GET /restaurants/:id`, рядом с
+   * `accepts_online_payment`). `null`/нет поля — сервер не посчитал (старый
+   * бэкенд): поведение прежнее. `false` — платёж по брони создать нельзя
+   * (422 «this booking requires no payment»), кнопку оплаты не показываем.
+   * Решение принимает `venueOffersPreorderPayment`, а не компонент.
+   */
+  preorderPaymentRequired?: boolean | null;
+  /**
    * Способы оплаты, доступные гостю прямо сейчас (`payment_methods` в
    * `GET /restaurants/:id`, backend PR #150). `null` — сервер поля не прислал
    * (старый бэкенд): экран показывает одну кнопку «Оплатить» без `method`,

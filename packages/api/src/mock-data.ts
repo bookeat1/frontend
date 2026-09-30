@@ -749,6 +749,7 @@ export const restaurants: Restaurant[] = [
     // офлайн-режиме должны быть видны ОБА исхода — и бронь с кнопкой Kaspi, и
     // бронь без неё.
     acceptsOnlinePayment: true,
+    preorderPaymentRequired: null,
     paymentMethods: null,
     preorderMinAmountMinor: null,
     // 350 = 3.5% — то же единственное заведение с «подключённой» оплатой

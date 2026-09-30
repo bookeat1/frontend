@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import type { BookingPayment } from "@bookeat/api/client";
 
 import { formatMoneyMinor } from "@web/lib/format";
@@ -45,12 +45,15 @@ const live = (over: Partial<BookingPayment> = {}): BookingPayment => ({
   ...over,
 });
 
-function setup(payment: BookingPayment | null, opts: { online?: boolean } = {}) {
+function setup(payment: BookingPayment | null, opts: { online?: boolean; required?: boolean | null } = {}) {
   repository.getBooking = vi.fn(async () => booking({ id: ID, status: "confirmed" }));
   repository.getPreorder = vi.fn(async () => preorder({ totalMinor: 350000 }));
   repository.getBookingPayment = vi.fn(async () => payment);
   repository.getRestaurant = vi.fn(async () =>
-    venueDetail({ acceptsOnlinePayment: opts.online ?? true, paymentFee: { rateBps: 350, minFeeMinor: 2500 } }),
+    venueDetail({
+      acceptsOnlinePayment: opts.online ?? true,
+      ...(opts.required !== undefined ? { preorderPaymentRequired: opts.required } : {}),
+      paymentFee: { rateBps: 350, minFeeMinor: 2500 } }),
   );
   renderScreen(<BookingResultScreen id={ID} />);
 }
@@ -77,6 +80,19 @@ describe("страница брони: оплата предзаказа", () =>
     setup(null, { online: false });
     await screen.findByTestId("preorder-pay-entry").catch(() => null);
     expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
+  });
+
+  it("preorder_payment_required = false — входа на оплату нет (оплата не нужна)", async () => {
+    setup(null, { required: false });
+    await waitFor(() => expect(repository.getRestaurant).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
+    expect(screen.queryByText("Предзаказ ещё не оплачен")).toBeNull();
+  });
+
+  it("preorder_payment_required = true или не прислан — вход есть", async () => {
+    setup(null, { required: true });
+    expect(await screen.findByText("Предзаказ ещё не оплачен")).toBeTruthy();
   });
 
   it("оплачено — пометка и блок «Предзаказ» с блюдами и итогом, входа на оплату нет", async () => {
