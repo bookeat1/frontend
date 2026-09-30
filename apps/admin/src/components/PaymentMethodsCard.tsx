@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PaymentMethodsInput, PaymentMethodsSettings } from "@bookeat/api/admin";
 
@@ -25,6 +25,7 @@ import { ErrorState, LoadingState } from "./StateViews";
  * значение: иначе любое сохранение методов молча закрепило бы заведение.
  */
 const copy = t.admin.paymentMethods;
+const sectionCopy = t.admin.paymentSection;
 
 export interface PaymentMethodsClient {
   getPaymentMethods(restaurantId: string): Promise<PaymentMethodsSettings>;
@@ -35,11 +36,19 @@ export function PaymentMethodsCard({
   restaurantId,
   client = apiClient,
   onDirtyChange,
+  onKaspiChange,
+  embedded = false,
 }: {
   restaurantId: string;
   client?: PaymentMethodsClient;
   /** Сообщает родителю, есть ли несохранённая правка (форма заведения тогда не закрывается). */
   onDirtyChange?: (dirty: boolean) => void;
+  /** Текущее состояние флажка Kaspi (включая ещё не сохранённое): по нему
+   * `PaymentSection` решает, показывать ли блок «Счёт Kaspi». */
+  onKaspiChange?: (checked: boolean) => void;
+  /** Внутри `PaymentSection`: без своей подложки и заголовка, рамку и заголовок
+   * «Оплата» рисует секция. */
+  embedded?: boolean;
 }) {
   const queryClient = useQueryClient();
   const key = useMemo(() => ["payment-methods", restaurantId] as const, [restaurantId]);
@@ -56,6 +65,8 @@ export function PaymentMethodsCard({
       settings={query.data}
       onSaved={(saved) => queryClient.setQueryData(key, saved)}
       onDirtyChange={onDirtyChange}
+      onKaspiChange={onKaspiChange}
+      embedded={embedded}
     />
   );
 }
@@ -66,13 +77,18 @@ function PaymentMethodsForm({
   settings,
   onSaved,
   onDirtyChange,
+  onKaspiChange,
+  embedded,
 }: {
   restaurantId: string;
   client: PaymentMethodsClient;
   settings: PaymentMethodsSettings;
   onSaved: (saved: PaymentMethodsSettings) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onKaspiChange?: (checked: boolean) => void;
+  embedded: boolean;
 }) {
+  const groupId = useId();
   const [enabled, setEnabled] = useState<boolean | null>(settings.payments_enabled);
   const [kaspi, setKaspi] = useState(settings.methods.includes("kaspi"));
   const [card, setCard] = useState(settings.methods.includes("card"));
@@ -117,6 +133,13 @@ function PaymentMethodsForm({
   }, [dirty]);
   useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
+  const onKaspiChangeRef = useRef(onKaspiChange);
+  onKaspiChangeRef.current = onKaspiChange;
+  useEffect(() => {
+    onKaspiChangeRef.current?.(kaspi);
+  }, [kaspi]);
+  useEffect(() => () => onKaspiChangeRef.current?.(false), []);
+
   function touch<T>(set: (v: T) => void) {
     return (v: T) => {
       set(v);
@@ -126,11 +149,15 @@ function PaymentMethodsForm({
   }
 
   return (
-    <div className="rounded-card bg-surface p-lg">
-      <h2 className="text-base font-semibold text-text">{copy.title}</h2>
-      <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
+    <div className={embedded ? undefined : "rounded-card bg-surface p-lg"}>
+      {embedded ? null : (
+        <>
+          <h2 className="text-base font-semibold text-text">{copy.title}</h2>
+          <p className="mt-xs max-w-prose text-[13px] text-text-muted">{copy.description}</p>
+        </>
+      )}
 
-      <fieldset className="mt-lg flex flex-col gap-md border-0 p-0" disabled={busy}>
+      <fieldset className={`${embedded ? "" : "mt-lg "}flex flex-col gap-md border-0 p-0`} disabled={busy}>
         <Field label={copy.masterLabel} hint={copy.masterHint}>
           <Select
             value={enabled === null ? "inherit" : enabled ? "enabled" : "disabled"}
@@ -144,13 +171,18 @@ function PaymentMethodsForm({
             <option value="disabled">{copy.masterOptionDisabled}</option>
           </Select>
         </Field>
-        <CheckboxRow label={copy.kaspiLabel} checked={kaspi} onChange={touch(setKaspi)} />
-        {kaspi && !settings.kaspi_account_bound ? (
-          <p role="alert" className="max-w-prose text-[12px] text-brand">
-            {copy.kaspiUnbound}
-          </p>
-        ) : null}
-        <CheckboxRow label={copy.cardLabel} checked={card} onChange={touch(setCard)} />
+        <div role="group" aria-labelledby={groupId} className="flex flex-col">
+          <span id={groupId} className="text-sm font-medium text-text">
+            {sectionCopy.methodsGroupLabel}
+          </span>
+          <CheckboxRow label={copy.kaspiLabel} checked={kaspi} onChange={touch(setKaspi)} />
+          {kaspi && !settings.kaspi_account_bound ? (
+            <p role="alert" className="max-w-prose text-[12px] text-brand">
+              {copy.kaspiUnbound}
+            </p>
+          ) : null}
+          <CheckboxRow label={copy.cardLabel} checked={card} onChange={touch(setCard)} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-md">
           <Button
