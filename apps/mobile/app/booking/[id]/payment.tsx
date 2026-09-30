@@ -152,9 +152,15 @@ export default function PaymentScreen() {
   // 422 «requires no payment» всё-таки пришёл (старый бэкенд без поля),
   // остаёмся и показываем спокойное объяснение (`createFailureMessage`).
   const paymentNotRequired = restaurant.data != null && !venueOffersPreorderPayment(restaurant.data);
+  const leavingRef = React.useRef(false);
+  const leavingNotRequired = paymentNotRequired && phase !== "settling" && phase !== "paid";
   React.useEffect(() => {
-    if (paymentNotRequired && phase !== "settling" && phase !== "paid") leave();
-  }, [paymentNotRequired, phase, leave]);
+    // Один раз: эффект перезапускается при смене `leave`/`phase`, а второй
+    // `router.back()` увёл бы гостя ещё на экран назад.
+    if (!leavingNotRequired || leavingRef.current) return;
+    leavingRef.current = true;
+    leave();
+  }, [leavingNotRequired, leave]);
 
   // Шторка (Figma 5387:7782): весь экран — прозрачный маршрут, панель снизу.
   // Состояния загрузки/ошибки/«платить нечего» рисуются ВНУТРИ той же панели,
@@ -178,6 +184,17 @@ export default function PaymentScreen() {
             description={t.search.errorDescription}
             action={{ label: t.common.retry, onPress: () => void booking.refetch(), variant: "button" }}
           />
+        </View>
+      </RouteSheet>
+    );
+  }
+
+  // Уходим на бронь — нейтральная загрузка, без мигания «платить нечего».
+  if (leavingNotRequired) {
+    return (
+      <RouteSheet onClose={leave} closeLabel={t.common.close}>
+        <View style={styles.stateBody}>
+          <LoadingState title={t.booking.bookingLoading} />
         </View>
       </RouteSheet>
     );

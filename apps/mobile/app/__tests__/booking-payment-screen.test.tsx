@@ -354,7 +354,7 @@ describe("отказы создания счёта", () => {
 
   it("422 «requires no payment» — спокойное объяснение вместо общей ошибки", async () => {
     const { RepositoryError } = await import("@bookeat/api");
-    flowState.error = new RepositoryError("x", undefined, 422, "validation: this booking requires no payment");
+    flowState.error = new RepositoryError("x", undefined, 422, "validation failed", "payment_not_required");
 
     render(<PaymentScreen />);
     await waitFor(() => expect(screen.getByText(t.booking.paymentErrorNotRequired)).toBeTruthy());

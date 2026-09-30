@@ -64,7 +64,7 @@ describe("оплата не требуется", () => {
   it("422 «requires no payment» — понятное сообщение вместо общей ошибки", async () => {
     setup({ preorderPaymentRequired: null });
     repository.createBookingPayment = vi.fn(async () => {
-      throw new RepositoryError("Request failed", undefined, 422, "validation: this booking requires no payment");
+      throw new RepositoryError("Request failed", undefined, 422, "validation failed", "payment_not_required");
     });
     fireEvent.click(await screen.findByRole("button", { name: /^Оплатить/ }));
     const alert = await screen.findByRole("alert");

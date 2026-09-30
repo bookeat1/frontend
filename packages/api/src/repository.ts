@@ -859,13 +859,15 @@ export class RepositoryError extends Error {
 
   /**
    * The 422 from `POST /bookings/:id/payment` that means "nothing to pay
-   * online for this booking" (`this booking requires no payment`, create.go
-   * resolveAmount): the venue does not require payment for the pre-order.
-   * Not an error from the guest's point of view — the message alone is the
-   * only marker (the envelope has no `code` for it), hence the text match,
-   * kept narrow on purpose.
+   * online for this booking": the venue does not require payment for the
+   * pre-order. Not an error from the guest's point of view.
+   *
+   * Contract (backend #163): envelope `code === "payment_not_required"`.
+   * The text match on the old `this booking requires no payment` message is
+   * only a fallback for a backend that predates the code; kept narrow.
    */
   get isPaymentNotRequired(): boolean {
+    if (this.code === "payment_not_required") return true;
     return this.status === 422 && (this.serverMessage ?? "").toLowerCase().includes("requires no payment");
   }
 

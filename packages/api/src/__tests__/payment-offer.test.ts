@@ -21,7 +21,11 @@ describe("venueOffersPreorderPayment", () => {
 });
 
 describe("RepositoryError.isPaymentNotRequired", () => {
-  it("только 422 с «requires no payment»", () => {
+  it("код payment_not_required — главный признак", () => {
+    expect(new RepositoryError("x", undefined, 422, "validation failed", "payment_not_required").isPaymentNotRequired).toBe(true);
+    expect(new RepositoryError("x", undefined, 422, "validation failed", "other_code").isPaymentNotRequired).toBe(false);
+  });
+  it("текст «requires no payment» — только запасной вариант для старого бэкенда, только при 422", () => {
     expect(new RepositoryError("x", undefined, 422, "validation: this booking requires no payment").isPaymentNotRequired).toBe(true);
     expect(new RepositoryError("x", undefined, 422, "payments are not enabled").isPaymentNotRequired).toBe(false);
     expect(new RepositoryError("x", undefined, 500, "requires no payment").isPaymentNotRequired).toBe(false);

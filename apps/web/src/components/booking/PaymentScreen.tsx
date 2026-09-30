@@ -140,6 +140,11 @@ function PaymentBody({
     if (paymentNotRequired && phase !== "settling" && phase !== "paid") router.replace(`/bookings/${bookingId}`);
   }, [paymentNotRequired, phase, router, bookingId]);
 
+  // Пока идёт уход на бронь — нейтральный скелет, без мигания блока ошибки.
+  if (paymentNotRequired && phase !== "settling" && phase !== "paid") {
+    return <Skeleton className="h-[480px] w-full rounded-2xl" />;
+  }
+
   if (!paymentGate.payable && phase !== "settling") {
     return (
       <StateMessage text={t.web.bookingResult.payment.errorUnavailable}>
