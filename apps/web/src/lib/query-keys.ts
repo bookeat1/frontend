@@ -43,6 +43,17 @@ export const PREORDER_KEY = ["preorder"] as const;
  * чистятся вместе с бронью. */
 export const BOOKING_PAYMENT_KEY = ["booking-payment"] as const;
 
+/**
+ * Сохранённый профиль «Фуди-профиль» гостя (`GET/PUT
+ * /users/me/foodie-profile`), спека `foodie-profile-web-desktop-20260930.md`.
+ * Тот же ключ, что у визарда приложения (`["foodie-profile"]`,
+ * `apps/mobile/src/lib/foodie-profile-draft.tsx`) — без локали: коды
+ * кухонь/диет/аллергий не переводятся, перевод только в справочнике опций.
+ * АЛЛЕРГИИ — ДАННЫЕ О ЗДОРОВЬЕ: ключ обязан быть в `SESSION_SCOPED_KEYS`
+ * ниже, иначе следующий гость в той же вкладке унаследует чужой профиль.
+ */
+export const FOODIE_PROFILE_KEY = ["foodie-profile"] as const;
+
 /** Всё, что нельзя показывать следующему гостю в этой же вкладке. */
 const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
   FAVORITES_KEY,
@@ -50,6 +61,7 @@ const SESSION_SCOPED_KEYS: readonly (readonly string[])[] = [
   MY_BOOKINGS_KEY,
   PREORDER_KEY,
   BOOKING_PAYMENT_KEY,
+  FOODIE_PROFILE_KEY,
 ];
 
 /**
@@ -80,6 +92,16 @@ const SESSION_SENSITIVE_SECOND_SEGMENTS: ReadonlySet<string> = new Set([
   "promotions",
 ]);
 
+/** Совпадает предикат ключа со вторым сегментом персонализированных рядов
+ * главной (`picks`/`events`/`promotions`, `[locale, second, ...]`). Общее
+ * место для чистки сессии ниже и для инвалидации после сохранения
+ * «Фуди-профиля» (спека `foodie-profile-web-desktop-20260930.md`, критерий
+ * 22) — один и тот же набор ключей, два разных повода его тронуть. */
+function isPersonalizedRowQuery(queryKey: readonly unknown[]): boolean {
+  const second = queryKey[1];
+  return typeof second === "string" && SESSION_SENSITIVE_SECOND_SEGMENTS.has(second);
+}
+
 /**
  * Выбросить данные прежней сессии.
  *
@@ -98,9 +120,20 @@ export function forgetSessionScopedQueries(client: QueryClient): void {
     client.removeQueries({ queryKey });
   }
   client.removeQueries({
-    predicate: (query) => {
-      const second = query.queryKey[1];
-      return typeof second === "string" && SESSION_SENSITIVE_SECOND_SEGMENTS.has(second);
-    },
+    predicate: (query) => isPersonalizedRowQuery(query.queryKey),
+  });
+}
+
+/**
+ * Персонализированные ряды главной устарели ПРЯМО СЕЙЧАС, а не через
+ * `staleTime` — вызывается после успешного `PUT
+ * /users/me/foodie-profile` (критерий 22 спеки). `invalidateQueries`, не
+ * `removeQueries`: экраны этих рядов могут быть немонтированы (форма
+ * профиля — отдельная страница) и не должны платить сетью за данные, которые
+ * никто сейчас не смотрит — они перезапросят сами при следующем монтировании.
+ */
+export function invalidatePersonalizedRowQueries(client: QueryClient): void {
+  void client.invalidateQueries({
+    predicate: (query) => isPersonalizedRowQuery(query.queryKey),
   });
 }

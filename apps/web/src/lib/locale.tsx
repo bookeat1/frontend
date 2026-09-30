@@ -58,17 +58,28 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (isWebLocale(stored)) setLocaleState(stored);
+    if (isWebLocale(stored)) {
+      // `setApiLanguage` СИНХРОННО, до `setLocaleState`: React коммитит эффекты
+      // снизу вверх (дети раньше родителя), поэтому запросы дочерних
+      // компонентов (useQuery с языком в queryKey) на следующий рендер уже
+      // видят обновлённый язык API, а не читают его из ещё не отработавшего
+      // эффекта провайдера — иначе первый запрос после восстановления языка
+      // из localStorage уходит со старым `Accept-Language` и кэшируется под
+      // новым ключом с чужим переводом.
+      setApiLanguage(stored);
+      setLocaleState(stored);
+    }
   }, []);
 
   useEffect(() => {
-    // Язык интерфейса И язык запроса — одно и то же значение: сервер переводит
-    // содержимое по `Accept-Language` (названия кухонь, удобств, событий).
-    setApiLanguage(locale);
     document.documentElement.lang = locale;
   }, [locale]);
 
   const setLocale = useCallback((next: WebLocale) => {
+    // Та же причина, что и в эффекте восстановления языка выше: язык API
+    // должен смениться ДО того, как React перерисует детей с новой локалью,
+    // иначе их useQuery успевает уйти в сеть со старым `Accept-Language`.
+    setApiLanguage(next);
     setLocaleState(next);
     window.localStorage.setItem(STORAGE_KEY, next);
   }, []);

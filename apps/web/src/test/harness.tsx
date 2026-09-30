@@ -3,10 +3,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { vi } from "vitest";
 import type {
+  AuthRepository,
   AvailabilitySlot,
   Booking,
   DayAvailability,
   EventSummary,
+  FoodieBudgetOption,
+  FoodieOption,
+  FoodieProfile,
+  FoodieProfileOptions,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -241,8 +246,77 @@ export function repositoryStub(
     // `getPreorder` — блок «Предзаказ» на `/bookings/[id]`.
     setPreorder: vi.fn(async () => preorder()),
     getPreorder: vi.fn(async () => preorder({ items: [], totalMinor: 0 })),
+    // «Фуди-профиль»: живой справочник плиток (`GET /foodie-profile/options`).
+    getFoodieProfileOptions: vi.fn(async () => foodieProfileOptions()),
   };
   return { ...base, ...overrides } as unknown as RestaurantRepository;
+}
+
+/** Один вариант справочника «Фуди-профиль» (кухня/диета/аллергия). */
+export function foodieOption(overrides: Partial<FoodieOption> = {}): FoodieOption {
+  return {
+    id: "opt-1",
+    code: "kazakh",
+    name: "Казахская",
+    imageUrl: undefined,
+    displayOrder: 0,
+    ...overrides,
+  };
+}
+
+/** Ярус бюджета справочника «Фуди-профиль». */
+export function foodieBudgetOption(overrides: Partial<FoodieBudgetOption> = {}): FoodieBudgetOption {
+  return {
+    ...foodieOption({ id: "budget-mid", code: "mid", name: "Средний" }),
+    description: undefined,
+    priceLabel: "5 000 – 10 000 ₸",
+    priceCategory: "mid",
+    ...overrides,
+  };
+}
+
+/** `GET /foodie-profile/options` — три кухни, две диеты, две аллергии, три
+ * яруса бюджета: минимум, достаточный, чтобы проверить лимит/эксклюзивность/
+ * фильтрацию скрытых кодов без раздувания фикстуры. */
+export function foodieProfileOptions(overrides: Partial<FoodieProfileOptions> = {}): FoodieProfileOptions {
+  return {
+    cuisines: [
+      foodieOption({ id: "c-kazakh", code: "kazakh", name: "Казахская", displayOrder: 0 }),
+      foodieOption({ id: "c-italian", code: "italian", name: "Итальянская", displayOrder: 1 }),
+      foodieOption({ id: "c-japanese", code: "japanese", name: "Японская", displayOrder: 2 }),
+    ],
+    diets: [
+      foodieOption({ id: "d-no_diet", code: "no_diet", name: "Без диеты", displayOrder: 0 }),
+      foodieOption({ id: "d-vegan", code: "vegan", name: "Веганская", displayOrder: 1 }),
+    ],
+    allergies: [
+      foodieOption({ id: "a-nuts", code: "nuts", name: "Орехи", displayOrder: 0 }),
+      foodieOption({ id: "a-soy", code: "soy", name: "Соя", displayOrder: 1 }),
+    ],
+    budgets: [
+      foodieBudgetOption({ id: "b-budget", code: "budget", name: "Бюджетный", priceLabel: "до 5 000 ₸" }),
+      foodieBudgetOption({ id: "b-mid", code: "mid", name: "Средний", priceLabel: "5 000 – 10 000 ₸" }),
+      foodieBudgetOption({ id: "b-premium", code: "premium", name: "Премиум", priceLabel: "от 10 000 ₸" }),
+    ],
+    ...overrides,
+  };
+}
+
+/** Сохранённый профиль (`GET/PUT /users/me/foodie-profile`) — пустой по
+ * умолчанию, как у гостя, который ещё ничего не выбирал (3.2 спеки). */
+export function foodieProfile(overrides: Partial<FoodieProfile> = {}): FoodieProfile {
+  return { cuisines: [], diets: [], allergies: [], budget: null, ...overrides };
+}
+
+/** Репозиторий сессионных ручек (`AuthRepository`) целиком из `vi.fn()` —
+ * тот же приём, что `repositoryStub` выше, для гостевых, а не публичных
+ * запросов (личные данные, «Фуди-профиль»). */
+export function authRepositoryStub(overrides: Partial<AuthRepository> = {}): AuthRepository {
+  const base = {
+    getFoodieProfile: vi.fn(async () => foodieProfile()),
+    replaceFoodieProfile: vi.fn(async (input: FoodieProfile) => input),
+  };
+  return { ...base, ...overrides } as unknown as AuthRepository;
 }
 
 /** Событие афиши — как в макете 3525:14279: три тега, из которых карточка

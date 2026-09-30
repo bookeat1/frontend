@@ -257,8 +257,11 @@ describe("ProfileScreen — меню и сегменты", () => {
     const links = within(nav);
     expect(links.getByRole("link", { name: "Избранное" }).getAttribute("aria-current")).toBe("page");
     expect(links.getByRole("link", { name: "Мои брони" }).getAttribute("href")).toBe("/profile");
+    expect(links.getByRole("link", { name: "Фуди-профиль" }).getAttribute("href")).toBe(
+      "/profile?section=foodie",
+    );
     expect(links.getByRole("link", { name: "Настройки" }).getAttribute("href")).toBe("/profile?section=settings");
-    expect(nav.querySelectorAll("a")).toHaveLength(3);
+    expect(nav.querySelectorAll("a")).toHaveLength(4);
     expect(screen.getByRole("heading", { level: 2, name: "Избранное" })).toBeTruthy();
   });
 
