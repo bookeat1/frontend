@@ -2198,7 +2198,6 @@ export const en: LocaleOverride<Dictionary> = {
     preorderOptional: "Optional — you can also choose dishes on the spot",
     preorderAdd: "Choose dishes",
     preorderEdit: "Edit pre-order",
-    preorderAddEntry: "Add pre-order",
     preorderEditLocked:
       "A confirmed booking's pre-order can only be changed through the venue — please contact the restaurant",
     preorderEditInFlight:
