@@ -2,6 +2,7 @@ import type { MenuHighlight } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Plus } from "./icons";
 import { PhotoView } from "./PhotoView";
 
 const ITEM_WIDTH = 180;
@@ -29,16 +30,32 @@ const ITEM_HEIGHT = 120;
 export function MenuItemCard({
   item,
   onPress,
+  showAddAffordance = false,
 }: {
   item: MenuHighlight;
   onPress?: (dishId: string) => void;
+  /**
+   * Белый круглый «+» поверх фото (Figma node 5459:7436/7450) — только
+   * подсказка, не отдельная нажимаемая цель: тап по НЕЙ так же открывает
+   * карточку блюда, как тап по любому месту карточки. По умолчанию выключен,
+   * чтобы не менять вид карточки там, где его никто не просил (страница
+   * заведения, Confirmation).
+   */
+  showAddAffordance?: boolean;
 }) {
   const content = (
     <>
       {/* Плашка «фото нет» больше не живёт здесь: она переехала в PhotoView,
           вместе с тем же случаем для заведений и для фото, которое не
           загрузилось. Вид у неё тот же — ровный фон и приглушённый прибор. */}
-      <PhotoView uri={item.photo?.uri} alt={item.photo?.alt} style={styles.image} size="tile" />
+      <View>
+        <PhotoView uri={item.photo?.uri} alt={item.photo?.alt} style={styles.image} size="tile" />
+        {showAddAffordance ? (
+          <View style={styles.addAffordance} importantForAccessibility="no">
+            <Plus size={20} color={colors.text.primary} weight="regular" />
+          </View>
+        ) : null}
+      </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {item.name}
@@ -84,6 +101,24 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderRadius: radius.card,
     backgroundColor: colors.background.chip,
+  },
+  // Same white-circle-over-photo affordance as the pre-order dish list
+  // (`book/menu.tsx`, `addButton`) — 36x36, radius.pill, bottom-right corner.
+  addAffordance: {
+    position: "absolute",
+    right: spacing.sm,
+    bottom: spacing.sm,
+    width: spacing.xxxl,
+    height: spacing.xxxl,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.background.surface,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   body: {
     // Карточки в ленте тянутся до высоты самой высокой, а цена прижата к низу

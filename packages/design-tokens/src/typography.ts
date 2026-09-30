@@ -13,8 +13,9 @@ export const typography = {
     fontSize: 24,
     lineHeight: 32,
   },
-  /** Venue name on the Reservation detail screen (node 488:9876) — the one
-   * place the design goes above 20pt. */
+  /** Venue name on the Reservation detail screen (node 488:9876). Also the
+   * placeholder loyalty code digits in `LoyaltyQrSheet` (node 5455:6737,
+   * loyalty backend does not exist yet) — same bold weight above 20pt. */
   titleXl: {
     fontFamily: fontFamilies.notoSansBold,
     fontSize: 22,
@@ -571,6 +572,19 @@ export const typography = {
     fontFamily: fontFamilies.interSemiBold,
     fontSize: 12,
     lineHeight: 16,
+  },
+  /**
+   * Капсула-заголовок «Подтверждение» в шапке экрана «Подтверждение брони» —
+   * Noto Sans Medium 16/24 (Figma BookEat (Copy) (Copy), node 5482:13909).
+   *
+   * Не `titleMd` (16/24, тот же размер): там SemiBold — вес заголовков
+   * экранов, а здесь макет рисует Medium, потому что подпись стоит внутри
+   * стеклянной капсулы поверх фотографии, а не в обычной шапке.
+   */
+  heroCapsuleLabel: {
+    fontFamily: fontFamilies.notoSansMedium,
+    fontSize: 16,
+    lineHeight: 24,
   },
 } as const;
 

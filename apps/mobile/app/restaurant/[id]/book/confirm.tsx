@@ -1,15 +1,15 @@
 import type { BookingConflictKind } from "@bookeat/api";
 import { RepositoryError, formatServiceFeePercent, hasVisibleServiceFee } from "@bookeat/api";
-import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
+import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FlowHeader } from "../../../../src/components/FlowHeader";
 import { CalendarBlank, Minus, Plus, User } from "../../../../src/components/icons";
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { AddPreorderRow } from "../../../../src/components/booking/AddPreorderRow";
+import { ConfirmationHero } from "../../../../src/components/booking/ConfirmationHero";
 import { PhotoView } from "../../../../src/components/PhotoView";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { useCampaignAttribution } from "../../../../src/hooks/useCampaignAttribution";
@@ -25,7 +25,6 @@ import {
   type PreorderDraftLine,
 } from "../../../../src/lib/booking-draft";
 import { formatDayMonth, formatMoneyMinor, formatTime, fromDateKey, isSameDay } from "../../../../src/lib/format";
-import { formatStoredPhoneForDisplay } from "../../../../src/lib/phone";
 
 const t = getDictionary();
 
@@ -104,7 +103,6 @@ export default function ConfirmBookingScreen() {
   // answered. What is submitted and what is shown are therefore the same value.
   const contactName = (user?.fullName ?? "").trim() || draft.name.trim();
   const contactPhoneRaw = (user?.phone ?? "").trim() || draft.phone.trim();
-  const contactPhone = contactPhoneRaw ? formatStoredPhoneForDisplay(contactPhoneRaw) : "";
 
   const goToMyBookings = () => router.push("/bookings");
 
@@ -269,25 +267,22 @@ export default function ConfirmBookingScreen() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
-        <FlowHeader title={t.booking.confirmTitle} onBack={() => router.back()} onClose={leaveFlow} />
-      </SafeAreaView>
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Venue header, centred (node 918:12098): a 64pt photo over the name
-            and address. */}
-        {restaurant ? (
-          <View style={styles.venueHeader}>
-            <PhotoView
-              uri={restaurant.coverPhoto?.uri}
-              alt={restaurant.coverPhoto?.alt}
-              style={styles.venuePhoto}
-              size="tile"
-              decorative
-            />
-            <Text style={styles.venueName}>{restaurant.name}</Text>
-            <Text style={styles.venueAddress}>{restaurant.address}</Text>
-          </View>
+        {/* Шапка «Confirmation» (node 918:13021, кадр 5482:13902): фото
+            заведения во весь экран, «назад»/капсула-заголовок/закрыть и, у
+            нижнего края, имя, адрес и пилюли «гости · дата · время» — всё
+            поверх снимка. Рендерится только когда есть и заведение, и слот:
+            без слота эффект выше уводит гостя назад, а с пустыми пилюлями
+            («гости · · время») шапка выглядела бы сломанной. */}
+        {restaurant && draft.slot ? (
+          <ConfirmationHero
+            restaurant={restaurant}
+            guestsLabel={t.booking.guestsCount(draft.guests)}
+            dateLabel={dateLabel}
+            timeLabel={formatTime(draft.slot.startsAt)}
+            onBack={() => router.back()}
+            onClose={leaveFlow}
+          />
         ) : null}
 
         {/* Details (node 918:12103): date & time and guests, each with an Edit. */}
@@ -328,7 +323,12 @@ export default function ConfirmBookingScreen() {
                 line={line}
                 onChange={(quantity) =>
                   draft.setPreorderQuantity(
-                    { menuItemId: line.menuItemId, name: line.name, priceMinor: line.priceMinor },
+                    {
+                      menuItemId: line.menuItemId,
+                      name: line.name,
+                      priceMinor: line.priceMinor,
+                      imageUrl: line.imageUrl,
+                    },
                     quantity,
                   )
                 }
@@ -363,22 +363,12 @@ export default function ConfirmBookingScreen() {
           </View>
         ) : null}
 
-        {/* Контакты (owner's rule): name + phone from the account, read-only. */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.booking.contactSectionTitle}</Text>
-          <View style={styles.contactRow}>
-            <Text style={styles.contactLabel}>{t.booking.nameLabel}</Text>
-            <Text style={[styles.contactValue, !contactName && styles.contactMissing]}>
-              {contactName || t.booking.contactNameMissing}
-            </Text>
-          </View>
-          <View style={styles.contactRow}>
-            <Text style={styles.contactLabel}>{t.booking.phoneLabel}</Text>
-            <Text style={[styles.contactValue, !contactPhone && styles.contactMissing]}>
-              {contactPhone || t.booking.contactPhoneMissing}
-            </Text>
-          </View>
-        </View>
+        {/* Карточки «Контакты» (имя/телефон гостя) здесь БОЛЬШЕ НЕТ: в
+            актуальном дереве макета (918:13021) такого блока нет вовсе —
+            имя и телефон уже участвуют в отправке брони и в проверке
+            `canSubmit` ниже, но на экране отдельно не показываются (правка
+            29.09.2026). `contactName`/`contactPhoneRaw` остаются
+            вычисляемыми значениями для самой отправки. */}
 
         {/* Top Picks (node 918:12160) — из того же ответа о заведении. Тап
             открывает карточку блюда поверх экрана, и с 2026-08-27 из неё же
@@ -484,26 +474,35 @@ function PreorderRow({
             : formatMoneyMinor(line.priceMinor)}
         </Text>
       </View>
-      <View style={styles.stepper}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${t.booking.dishRemove}: ${line.name}`}
-          onPress={() => onChange(line.quantity - 1)}
-          hitSlop={8}
-          style={styles.stepperButton}
-        >
-          <Minus size={18} color={colors.text.primary} weight="bold" />
-        </Pressable>
-        <Text style={styles.stepperValue}>{line.quantity}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${t.booking.dishAdd}: ${line.name}`}
-          onPress={() => onChange(line.quantity + 1)}
-          hitSlop={8}
-          style={styles.stepperButton}
-        >
-          <Plus size={18} color={colors.text.primary} weight="bold" />
-        </Pressable>
+      {/* Фото блюда (Figma 918:13021: 140×100, radius 20), тот же плейсхолдер
+          `PhotoView`, что и на списке предзаказа состоявшейся брони
+          (`PreorderPaidBlock`) — черновик уже несёт `imageUrl` из
+          `MenuDish`/`DishCardItem`, так что здесь оно не декоративная
+          заглушка, а настоящее фото блюда. Степпер остаётся тем же самым
+          контролом, просто наложен на нижний край фото, как в макете. */}
+      <View style={styles.preorderPhotoBox}>
+        <PhotoView uri={line.imageUrl ?? undefined} style={styles.preorderPhoto} decorative placeholderIconSize={24} />
+        <View style={styles.stepper}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t.booking.dishRemove}: ${line.name}`}
+            onPress={() => onChange(line.quantity - 1)}
+            hitSlop={8}
+            style={styles.stepperButton}
+          >
+            <Minus size={18} color={colors.text.primary} weight="bold" />
+          </Pressable>
+          <Text style={styles.stepperValue}>{line.quantity}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t.booking.dishAdd}: ${line.name}`}
+            onPress={() => onChange(line.quantity + 1)}
+            hitSlop={8}
+            style={styles.stepperButton}
+          >
+            <Plus size={18} color={colors.text.primary} weight="bold" />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -516,36 +515,9 @@ const styles = StyleSheet.create({
     // менять под ними фон на середине пути незачем.
     backgroundColor: colors.background.screen,
   },
-  headerSafeArea: {
-    backgroundColor: colors.background.surface,
-  },
   content: {
     paddingBottom: spacing.xxxl,
     gap: spacing.sm,
-  },
-  venueHeader: {
-    backgroundColor: colors.background.surface,
-    alignItems: "center",
-    paddingVertical: spacing.lg,
-    gap: spacing.xs,
-    borderBottomLeftRadius: radius.card,
-    borderBottomRightRadius: radius.card,
-  },
-  venuePhoto: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.card,
-    backgroundColor: colors.background.chip,
-  },
-  venueName: {
-    ...typography.titleLg,
-    color: colors.text.primary,
-    textAlign: "center",
-  },
-  venueAddress: {
-    ...typography.body,
-    color: colors.text.muted,
-    textAlign: "center",
   },
   card: {
     backgroundColor: colors.background.surface,
@@ -638,13 +610,34 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
   },
+  // Фото 140×100 (узел 918:13021), степпер наложен на нижний край абсолютным
+  // позиционированием — тот же приём, что у пилюли количества на
+  // состоявшейся брони (`PreorderPaidBlock.itemPhotoBox`/`quantityBadge`).
+  preorderPhotoBox: {
+    width: controlHeight.preorderSummaryPhotoWidth,
+    height: controlHeight.preorderSummaryPhotoHeight,
+  },
+  preorderPhoto: {
+    width: "100%",
+    height: "100%",
+    borderRadius: radius.card,
+    backgroundColor: colors.background.chip,
+  },
   stepper: {
+    position: "absolute",
+    right: spacing.sm,
+    bottom: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
     paddingHorizontal: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: colors.background.chip,
+    backgroundColor: colors.background.surface,
+    shadowColor: colors.overlay.footerShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   stepperButton: {
     width: spacing.xxxl,

@@ -147,6 +147,21 @@ export interface ApiRestaurant {
   is_popular: boolean | null;
   is_premium: boolean | null;
   display_order: number | null;
+  /**
+   * Показывать ли гостю кнопку «QR-код лояльности» на экране заведения
+   * (`apps/mobile` `VenueHero`, `onOpenLoyaltyQr`, PR #275) —
+   * `restaurants.loyalty_enabled`, admin-editable via `PATCH /restaurants/:id`
+   * (superadmin-only, see `packages/api/src/admin/types.ts`
+   * `RestaurantPricePatch.loyalty_enabled`). Unlike `is_premium`/`is_new`
+   * above, NOT `omitempty` on the backend — present on every restaurant
+   * response, guest-facing included (`GET /restaurants/:id`,
+   * `GET /restaurants`, `GET /restaurants/search`), and `false` is a real
+   * explicit value, not "field missing". Typed required here for the same
+   * reason; `mapRestaurantDetail` still reads it strictly (`=== true`) so an
+   * old server build that predates this field degrades to "hidden", not
+   * "shown".
+   */
+  loyalty_enabled?: boolean;
   primary_image?: string;
   images?: ApiImage[];
   features?: ApiFeature[];
@@ -1426,6 +1441,10 @@ export function mapRestaurantDetail(api: ApiRestaurant, extras: RestaurantExtras
         ? api.booking_rules.free_cancel_hours
         : undefined,
     lateArrivalText: text(api.booking_rules?.late_arrival_text) || undefined,
+    // Strict `=== true` (not `??`/truthiness): an old server build that
+    // predates this field, or an explicit `false`, both mean "hidden" — same
+    // fail-safe stance as `acceptsOnlinePayment` above.
+    loyaltyEnabled: api.loyalty_enabled === true,
   };
 }
 

@@ -2,6 +2,22 @@ import type { Dictionary } from "./ru";
 import type { LocaleOverride } from "./index";
 
 /**
+ * Латинское написание города ЗАГЛАВНЫМИ для брендовых надписей гастрогида
+ * («VISIT ALMATY», «BOOKEAT GUIDE · ALMATY») — макет 3192:6251/6254 рисует
+ * их латиницей всегда, независимо от языка интерфейса. См. тот же хелпер в
+ * ru.ts за подробностями (правка 29.09.2026): `city` приезжает кириллицей
+ * («Алматы»/«Астана»), и `.toUpperCase()` её не транслитерирует.
+ */
+function cityLatinUpper(city: string): string {
+  const known: Record<string, string> = {
+    Алматы: "ALMATY",
+    Астана: "ASTANA",
+    Шымкент: "SHYMKENT",
+  };
+  return known[city.trim()] ?? city.toUpperCase();
+}
+
+/**
  * Kazakh has no separate plural noun form after a numeral — the noun stays in
  * its base (singular) shape, so "1 қонақ" and "5 қонақ" both use "қонақ".
  * Pluralisation still lives in the dictionary, not the markup; these helpers
@@ -154,8 +170,8 @@ export const kk: LocaleOverride<Dictionary> = {
     notFoundDescription:
       "Ол жарияланымнан алынған болуы мүмкін. Тізімге оралып, басқасын таңдаңыз.",
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
-    guideBrandTitle: (city: string) => `VISIT ${city.toUpperCase()} × BOOKEAT`,
-    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${city.toUpperCase()}`,
+    guideBrandTitle: (city: string) => `VISIT ${cityLatinUpper(city)} × BOOKEAT`,
+    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${cityLatinUpper(city)}`,
     guideHeadline: (city: string) => `Salém, ${city}.`,
     guideSubheadline: "Тамақтанамыз, серуендейміз және қаланы ашамыз.",
     rubricsTitle: "Айдарлар",
@@ -179,7 +195,7 @@ export const kk: LocaleOverride<Dictionary> = {
     /** Мақала мәтіні блогының тақырыбы. */
     articleAboutTitle: "Мақала туралы",
     rubricHeaderTitle: "Гастрогид",
-    rubricEyebrow: (city: string) => `ГАСТРОГИД · VISIT ${city.toUpperCase()}`,
+    rubricEyebrow: (city: string) => `ГАСТРОГИД · VISIT ${cityLatinUpper(city)}`,
     rubricEditorialTitle: "Редакция таңдағаны",
     rubricLoading: "Айдарды жүктеп жатырмыз…",
     rubricEmptyTitle: "Айдар әзірге бос",
@@ -473,6 +489,11 @@ export const kk: LocaleOverride<Dictionary> = {
     socialWhatsapp: "WhatsApp-та жазу",
     socialInstagram: "Instagram ашу",
     favoriteFailed: "Сақтау мүмкін болмады — қайталап көріңіз",
+    loyaltyQr: {
+      title: "Сіздің QR-кодыңыз",
+      instruction: "Бұл QR-кодты қызметкерге көрсетіңіз",
+      note: "Код бір реттік және әр келген сайын жаңарады",
+    },
   },
   nav: {
     overview: "Басты бет",
@@ -1729,6 +1750,23 @@ export const kk: LocaleOverride<Dictionary> = {
       saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
       saveForbidden: "Байланысты тек суперәкімші өзгерте алады",
     },
+    loyalty: {
+      title: "Бонус жүйесі",
+      description:
+        "Қосымшада осы мекеменің экранында «Лояльность QR-коды» батырмасын қонаққа көрсету керек пе. Мұны тек суперәкімші көреді және өзгерте алады.",
+      toggleLabel: "Лояльность қосулы",
+      toggleHintOn: "Қонақ мекеме экранында лояльность QR-код батырмасын көреді.",
+      toggleHintOff: "Лояльность QR-код батырмасы қонаққа көрсетілмейді.",
+      separateSaveHint:
+        "Төменде өз батырмасымен сақталады — мекеме нысанының жалпы «Сақтау» батырмасы бұл өрісті жібермейді.",
+      loadingTitle: "Лояльность баптауын жүктеп жатырмыз…",
+      save: "Сақтау",
+      saving: "Сақтап жатырмыз…",
+      saved: "Сақталды",
+      noChanges: "Ештеңе өзгерген жоқ, сақтайтын нәрсе жоқ",
+      saveFailed: "Сақтау мүмкін болмады. Қайталап көріңіз",
+      saveForbidden: "Бұл баптауды тек суперәкімші өзгерте алады",
+    },
     venueFilters: {
       searchLabel: "Атауы бойынша іздеу",
       searchPlaceholder: "Мысалы: Юрта",
@@ -2170,6 +2208,7 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderSave: "Тапсырысты сақтау",
     preorderSaving: "Сақталуда…",
     preorderDone: "Дайын",
+    preorderSkip: "Алдын ала тапсырысты өткізіп жіберу",
     preorderClear: "Тазалау",
     preorderEmptyTitle: "Орында әзірге мәзір жоқ",
     preorderEmptyDescription: "Орын мәзірді жүктегенде тағамдар осында пайда болады",
@@ -2242,6 +2281,9 @@ export const kk: LocaleOverride<Dictionary> = {
       cancelled: "Бас тартылған",
       no_show: "Келмедіңіз",
     },
+    /** Бронь расталған ЖӘНЕ оған алдын ала тапсырыс тіркелген кездегі фото
+     * шапкасының үстіндегі белгі (Figma node 5504:7635). */
+    confirmedPreorderBadge: "Алдын ала тапсырыс расталды",
     whenLabel: "Қашан",
     whoLabel: "Кімге",
     freeCancelUntil: (when: string) => `${when} дейін тегін бас тарту`,
@@ -2723,6 +2765,7 @@ export const kk: LocaleOverride<Dictionary> = {
     openFiltersWithCount: (count: number) => `Сүзгілерді ашу, таңдалды: ${count}`,
     removeFilter: (name: string) => `${name} сүзгісін алып тастау`,
     shareButton: "Бөлісу",
+    loyaltyQrButton: "Адалдық QR-коды",
   },
   states: {
     offlineTitle: "Интернет байланысы жоқ",

@@ -3,7 +3,7 @@ import { formatServiceFeePercent, hasVisibleServiceFee } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft } from "../../../src/components/icons";
@@ -15,6 +15,7 @@ import { VenueAddressRow, VenueContactIcons } from "../../../src/components/cont
 import { DETAIL_FOOTER_CLEARANCE } from "../../../src/components/detail/DetailBlocks";
 import { PrimaryButton } from "../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../src/components/SegmentedTabs";
+import { LoyaltyQrSheet } from "../../../src/components/restaurant/LoyaltyQrSheet";
 import { StoriesRail } from "../../../src/components/restaurant/StoriesRail";
 import { VenueHero } from "../../../src/components/restaurant/VenueHero";
 import { ErrorState, LoadingState } from "../../../src/components/StateViews";
@@ -42,6 +43,9 @@ export default function RestaurantDetailScreen() {
   // Потянуть карточку = переспросить и профиль заведения, и ленту сторис;
   // кружок гаснет, когда ответили оба (см. useRestaurantRefresh).
   const { refreshing, onRefresh } = useRestaurantRefresh(id);
+  // Шторка «QR-код лояльности» — визуальная заглушка без бэкенда, см.
+  // комментарий LoyaltyQrSheet.
+  const [loyaltyQrVisible, setLoyaltyQrVisible] = useState(false);
 
   // «Лучшие позиции» — только блюда с фотографией: карточка ленты это прежде
   // всего снимок, а ряд серых плашек читается как поломка (правка владельца,
@@ -118,6 +122,12 @@ export default function RestaurantDetailScreen() {
               onToggleFavorite={favorite.toggle}
               onBack={() => router.back()}
               onShare={() => void share(restaurant.name, restaurant.address)}
+              // Кнопку включает/выключает суперадмин в кабинете, отдельно на
+              // каждое заведение (`loyalty_enabled`, PATCH /restaurants/:id,
+              // admin-only) — у заведения нет своей системы лояльности.
+              onOpenLoyaltyQr={
+                restaurant.loyaltyEnabled ? () => setLoyaltyQrVisible(true) : undefined
+              }
             />
             {favorite.failed ? (
               <Text style={styles.favoriteFailed} accessibilityRole="alert">
@@ -250,6 +260,8 @@ export default function RestaurantDetailScreen() {
               />
             </View>
           </SafeAreaView>
+
+          <LoyaltyQrSheet visible={loyaltyQrVisible} onClose={() => setLoyaltyQrVisible(false)} />
         </>
       )}
     </View>

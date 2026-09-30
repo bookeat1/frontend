@@ -126,6 +126,7 @@ const RESTAURANT: Restaurant = {
   paymentMethods: null,
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
+  loyaltyEnabled: false,
 };
 
 function bookingWith(status: BookingStatus): Booking {
@@ -199,11 +200,17 @@ beforeEach(() => {
  * «Предзаказ», «Изменить предзаказ» и «Оплата предзаказа» — оплата теперь только
  * шторкой `booking/[id]/payment` (см. `booking-payment-screen.test.tsx`). */
 /** Большого блока «Оплата предзаказа» на экране брони нет (макет 3073:11428).
- * Остаются только компактный вход в оплату (нет платежа) и компактный блок
- * «Предзаказ» после оплаты (правка владельца 2026-09-24). */
+ *
+ * ОБНОВЛЕНО редизайном шапки/предзаказа (Figma «BookEat (Copy) (Copy)», node
+ * 5504:7508, состояние «подтверждена + есть предзаказ»): компактный блок
+ * «Предзаказ» теперь виден ВСЕГДА, когда у брони есть хоть одна позиция,
+ * а не только после оплаты — бронь с предзаказом уже состоявшийся факт сам
+ * по себе (см. `PreorderCard` в `src/components/booking/PreorderPaidBlock.tsx`).
+ * Кнопки оплаты по-прежнему нет, платёж — только через `booking/[id]/payment`.
+ */
 describe("экран брони не показывает большой блок предзаказа/оплаты", () => {
   it.each<[string, () => void, { payButton: boolean; dishes: boolean }]>([
-    ["живая бронь с предзаказом, заведение принимает оплату", () => {}, { payButton: true, dishes: false }],
+    ["живая бронь с предзаказом, заведение принимает оплату", () => {}, { payButton: true, dishes: true }],
     ["предзаказ уже оплачен", () => {
       livePayment = paymentWith({ status: "captured" });
       flowState.phase = "paid";
@@ -212,7 +219,7 @@ describe("экран брони не показывает большой бло�
     ["платёж дожимается", () => {
       flowState.phase = "settling";
       flowState.payment = paymentWith({ status: "captured" });
-    }, { payButton: true, dishes: false }],
+    }, { payButton: true, dishes: true }],
   ])("%s", async (_name, arrange, expected) => {
     arrange();
     render(<ReservationScreen />);

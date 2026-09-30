@@ -2,6 +2,28 @@ import type { Dictionary } from "./ru";
 import type { LocaleOverride } from "./index";
 
 /**
+ * Latin, all-caps city name for the guide's brand copy ("VISIT ALMATY",
+ * "BOOKEAT GUIDE · ALMATY") — the design (node 3192:6251/6254) always spells
+ * these in Latin, regardless of UI language.
+ *
+ * `city` arrives from `useGuestCity()`/the API as-is — Cyrillic "Алматы"/
+ * "Астана" (see `RestaurantFilter.city` in packages/api) — and used to go
+ * straight into `.toUpperCase()`, which upper-cases Cyrillic letters rather
+ * than transliterating them (fixed 29.09.2026). The list covers the three
+ * cities the catalog actually has today (Алматы/Астана/Шымкент); an unknown
+ * name falls back to `.toUpperCase()` so a new city does not vanish from the
+ * copy just because it is missing here.
+ */
+function cityLatinUpper(city: string): string {
+  const known: Record<string, string> = {
+    Алматы: "ALMATY",
+    Астана: "ASTANA",
+    Шымкент: "SHYMKENT",
+  };
+  return known[city.trim()] ?? city.toUpperCase();
+}
+
+/**
  * English plural of "guest": 1 guest / 2 guests. Lives here, not in the
  * component — pluralisation is part of the dictionary, not the markup.
  */
@@ -150,8 +172,8 @@ export const en: LocaleOverride<Dictionary> = {
     notFoundTitle: "Collection not found",
     notFoundDescription: "It may have been unpublished. Go back to the list and pick another.",
     card: (title: string, subtitle: string) => `${title}, ${subtitle}`,
-    guideBrandTitle: (city: string) => `VISIT ${city.toUpperCase()} × BOOKEAT`,
-    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${city.toUpperCase()}`,
+    guideBrandTitle: (city: string) => `VISIT ${cityLatinUpper(city)} × BOOKEAT`,
+    guideEyebrow: (city: string) => `BOOKEAT GUIDE · ${cityLatinUpper(city)}`,
     guideHeadline: (city: string) => `Salém, ${city}.`,
     guideSubheadline: "We eat, we walk, we discover the city.",
     rubricsTitle: "Sections",
@@ -175,7 +197,7 @@ export const en: LocaleOverride<Dictionary> = {
     /** Heading of the article's text block — same shape as «About the event». */
     articleAboutTitle: "About the article",
     rubricHeaderTitle: "Gastro guide",
-    rubricEyebrow: (city: string) => `GASTRO GUIDE · VISIT ${city.toUpperCase()}`,
+    rubricEyebrow: (city: string) => `GASTRO GUIDE · VISIT ${cityLatinUpper(city)}`,
     rubricEditorialTitle: "Editor's picks",
     rubricLoading: "Loading the section…",
     rubricEmptyTitle: "Nothing in this section yet",
@@ -466,6 +488,11 @@ export const en: LocaleOverride<Dictionary> = {
     socialWhatsapp: "Message on WhatsApp",
     socialInstagram: "Open Instagram",
     favoriteFailed: "Couldn't save — please try again",
+    loyaltyQr: {
+      title: "Your QR code",
+      instruction: "Show this QR code to staff",
+      note: "The code is single-use and refreshes on every visit",
+    },
     menuDishAddPrice: (price: string) => `Add · ${price}`,
     menuDishQtyLess: "Decrease quantity",
     menuDishQtyMore: "Increase quantity",
@@ -1723,6 +1750,23 @@ export const en: LocaleOverride<Dictionary> = {
       saveFailed: "Couldn't save. Please try again",
       saveForbidden: "Only a superadmin can change the link",
     },
+    loyalty: {
+      title: "Loyalty program",
+      description:
+        "Whether the guest sees the loyalty QR-code button on this venue's screen in the app. Only a superadmin can see and change it.",
+      toggleLabel: "Loyalty enabled",
+      toggleHintOn: "Guests see the loyalty QR-code button on the venue screen.",
+      toggleHintOff: "The loyalty QR-code button is hidden from guests.",
+      separateSaveHint:
+        "Saved with its own button below — the venue form's general Save doesn't send this field.",
+      loadingTitle: "Loading the loyalty setting…",
+      save: "Save",
+      saving: "Saving…",
+      saved: "Saved",
+      noChanges: "Nothing has changed, there's nothing to save",
+      saveFailed: "Couldn't save. Please try again",
+      saveForbidden: "Only a superadmin can change this setting",
+    },
     venueFilters: {
       searchLabel: "Search by name",
       searchPlaceholder: "For example: Yurta",
@@ -2166,6 +2210,7 @@ export const en: LocaleOverride<Dictionary> = {
     preorderSave: "Save order",
     preorderSaving: "Saving…",
     preorderDone: "Done",
+    preorderSkip: "Skip Pre-order",
     preorderClear: "Clear",
     preorderEmptyTitle: "This restaurant has no menu yet",
     preorderEmptyDescription: "Dishes will appear here once the restaurant uploads them",
@@ -2238,6 +2283,9 @@ export const en: LocaleOverride<Dictionary> = {
       cancelled: "Cancelled",
       no_show: "No-show",
     },
+    /** Badge over the header photo when the booking is confirmed AND has a
+     * pre-order attached (Figma «BookEat (Copy) (Copy)», node 5504:7635). */
+    confirmedPreorderBadge: "Confirmed pre-order",
     whenLabel: "When",
     whoLabel: "For whom",
     freeCancelUntil: (when: string) => `Free cancellation until ${when}`,
@@ -2719,6 +2767,7 @@ export const en: LocaleOverride<Dictionary> = {
     openFiltersWithCount: (count: number) => `Open filters, ${count} selected`,
     removeFilter: (name: string) => `Remove filter ${name}`,
     shareButton: "Share",
+    loyaltyQrButton: "Loyalty QR code",
   },
   states: {
     offlineTitle: "No internet connection",

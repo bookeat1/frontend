@@ -6,14 +6,17 @@ import { describe, expect, it } from "vitest";
  * Блок отмены на экране брони.
  *
  * Экран показывает блок по `isCancellableBookingStatus && !hasVisitStarted`
- * (бронь жива И визит ещё не наступил), а кнопку внутри включает по
- * `canGuestCancel` (жива И до визита больше двух часов). Проверяется именно
- * РАСХОЖДЕНИЕ этих условий: 21.08.2026 владелец открыл бронь на сегодня в
- * 11:00 около 09:09 и не нашёл блока вовсе — двухчасовое окно уже закрылось,
- * и блок исчезал целиком. Пропавший блок читается как потерянная кнопка, а
- * не как правило, поэтому теперь он остаётся и объясняет себя словами — но
- * только ДО начала визита; как только время визита наступило, блок снова
- * пропадает целиком, потому что отменять уже нечего (см. `hasVisitStarted`).
+ * (бронь жива И визит ещё не наступил), а кнопку внутри включает
+ * `canGuestCancel` — тоже только по статусу.
+ *
+ * БЫЛО (до правки 29.09.2026, «объединение окна»): `canGuestCancel` ещё
+ * смотрела на время — за два часа до визита кнопка выключалась (решение
+ * владельца 18.08.2026, инцидент с бронью на 11:00, замеченный в 09:09).
+ * Это правило снято: сервер разрешает гостю отменить бронь в любой момент,
+ * пока статус живой (`usecase/bookings/status.go` `authorizeTransition`), а
+ * `restaurants.free_cancel_window_minutes` решает только вопрос денег
+ * (`describeCancellationCost`), не доступность кнопки. Тест ниже проверяет
+ * текущее, а не историческое поведение.
  */
 
 function booking(overrides: Partial<Booking>): Booking {
@@ -34,27 +37,18 @@ function booking(overrides: Partial<Booking>): Booking {
 }
 
 describe("блок отмены брони", () => {
-  it("до визита меньше двух часов: блок есть, кнопка выключена", () => {
-    // 04:09 UTC — ровно тот случай, что владелец увидел на устройстве.
-    const now = new Date("2026-08-21T04:09:00Z");
+  it("статус живой, вне зависимости от времени до визита: и блок, и кнопка доступны", () => {
     const live = booking({});
 
     expect(isCancellableBookingStatus(live.status)).toBe(true);
-    expect(canGuestCancel(live, now)).toBe(false);
-  });
-
-  it("до визита больше двух часов: и блок, и кнопка", () => {
-    const now = new Date("2026-08-21T03:00:00Z");
-    const live = booking({});
-
-    expect(isCancellableBookingStatus(live.status)).toBe(true);
-    expect(canGuestCancel(live, now)).toBe(true);
+    expect(canGuestCancel(live)).toBe(true);
   });
 
   it("у отменённой брони блока нет вовсе: отменять нечего", () => {
     const dead = booking({ status: "cancelled" });
 
     expect(isCancellableBookingStatus(dead.status)).toBe(false);
+    expect(canGuestCancel(dead)).toBe(false);
   });
 
   it("время визита ещё не наступило: hasVisitStarted молчит, блок остаётся", () => {
@@ -65,21 +59,21 @@ describe("блок отмены брони", () => {
   });
 
   it("время визита наступило (или прошло), а статус остался живым: блок должен пропасть целиком", () => {
-    // Тот же кейс владельца 18.08.2026, но дальше по времени: не «за два часа
-    // до», а «визит уже начался», и заведение статус так и не перевело.
     const startedNow = booking({ status: "confirmed" });
     expect(hasVisitStarted(startedNow, new Date(startedNow.startsAt))).toBe(true);
 
     const pastNow = new Date(Date.parse(startedNow.startsAt) + 60 * 60 * 1000);
     const arrivedButLate = booking({ status: "arrived" });
     expect(hasVisitStarted(arrivedButLate, pastNow)).toBe(true);
-    // Кнопка и до этого уже была бы выключена (окно давно закрылось) — но
-    // теперь пропадает и сам блок.
-    expect(canGuestCancel(arrivedButLate, pastNow)).toBe(false);
+    // Кнопка сама по себе (по статусу) всё ещё была бы включена — блок
+    // прячется целиком отдельным условием `!hasVisitStarted` на экране, а не
+    // потому что `canGuestCancel` вдруг стала false.
+    expect(canGuestCancel(arrivedButLate)).toBe(true);
   });
 
-  it("нечитаемое время визита не прячет блок — решает `canGuestCancel`/сервер", () => {
+  it("нечитаемое время визита не прячет блок — решает статус/сервер", () => {
     const brokenDate = booking({ startsAt: "not-a-date" });
     expect(hasVisitStarted(brokenDate)).toBe(false);
+    expect(canGuestCancel(brokenDate)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { TIME_OF_DAY_ORDER, timeOfDayOfSlot } from "@bookeat/api";
+import { timeOfDayOfSlot } from "@bookeat/api";
 import type { AvailabilitySlot, DayOfWeek, TimeOfDay } from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -7,37 +7,32 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { DateStrip } from "../../../../src/components/DateStrip";
 import { FlowHeader } from "../../../../src/components/FlowHeader";
-import { CalendarBlank, ForkKnife, User } from "../../../../src/components/icons";
+import { CalendarBlank, CaretRight, User } from "../../../../src/components/icons";
 import { MenuHighlightsStrip } from "../../../../src/components/restaurant/MenuHighlightsStrip";
 import { PillSelect } from "../../../../src/components/PillSelect";
 import { PrimaryButton } from "../../../../src/components/PrimaryButton";
 import { SegmentedTabs } from "../../../../src/components/SegmentedTabs";
-import { SelectRow } from "../../../../src/components/SelectRow";
 import { EmptyState, ErrorState, LoadingState } from "../../../../src/components/StateViews";
 import { WheelSheet } from "../../../../src/components/search/WheelSheet";
 import { TextField } from "../../../../src/components/TextField";
 import { TimeSlotGrid } from "../../../../src/components/TimeSlotGrid";
-import { useAvailability } from "../../../../src/hooks/useBooking";
+import { useAvailability, useMenuSections } from "../../../../src/hooks/useBooking";
 import { useRestaurant } from "../../../../src/hooks/useRestaurant";
 import { trackEvent } from "../../../../src/lib/analytics";
 import { useAuth } from "../../../../src/lib/auth";
 import { dateChoices } from "../../../../src/lib/availability-label";
 import { guestOptions } from "../../../../src/lib/availability-options";
-import {
-  estimatePreorderTotalMinor,
-  useAddDishToPreorder,
-  useBookingDraft,
-} from "../../../../src/lib/booking-draft";
+import { useAddDishToPreorder, useBookingDraft } from "../../../../src/lib/booking-draft";
 import { openPhone } from "../../../../src/lib/external-links";
-import { formatDayMonth, formatMoneyMinor, fromDateKey, isSameDay } from "../../../../src/lib/format";
+import { formatDayMonth, fromDateKey, isSameDay } from "../../../../src/lib/format";
 import { dayHoursLabel, scheduleDayFor } from "../../../../src/lib/schedule";
 
 const t = getDictionary();
@@ -53,6 +48,18 @@ const TAB_LABELS: Record<TimeOfDay, string> = {
   lunch: t.booking.lunch,
   dinner: t.booking.dinner,
 };
+
+/**
+ * ТОЛЬКО для этого экрана: обновлённый макет (Figma 918:11747, узел
+ * 918:11781) рисует в дереве ровно две вкладки — «Lunch»/«Dinner», третьей
+ * «Утро» нет вовсе. Это UI-фильтр ЭТОГО экрана, а не правка общего словаря
+ * периодов: `TIME_OF_DAY_ORDER`/`TimeOfDay` из `@bookeat/api` используются
+ * и в `TimeOfDayChips` (фильтр поиска) и в `search.tsx`, менять их отсюда
+ * нельзя. Слот с `timeOfDayOfSlot === "morning"` при этом просто не попадает
+ * ни в одну вкладку — сознательно открытый вопрос, см. отчёт задачи: нужно
+ * ли утро на Reservation вообще или продукт решил убрать его насовсем.
+ */
+const RESERVATION_TABS: readonly TimeOfDay[] = ["lunch", "dinner"];
 
 export default function ReservationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -75,6 +82,10 @@ export default function ReservationScreen() {
     // Заведение без онлайн-брони не спрашиваем вообще — см. useAvailability.
     acceptsOnlineBookings: restaurant?.acceptsOnlineBookings,
   });
+  // Тот же запрос (и тот же кеш на 5 минут), что и на Confirmation —
+  // `canAddPreorder`: нужен только, чтобы решить, вести ли «Продолжить» через
+  // экран меню или сразу на подтверждение (см. handleContinue ниже).
+  const menu = useMenuSections(id);
 
   // Утро / Обед / Ужин. Держим ЗНАЧЕНИЕ, а не индекс, и здесь, а не в списке
   // слотов: значение переживает и перерисовку грида при смене выбранного
@@ -133,10 +144,9 @@ export default function ReservationScreen() {
   useEffect(() => {
     if (didInitTab.current || !availabilitySlots || availabilitySlots.length === 0) return;
     didInitTab.current = true;
-    // Первая по ходу дня вкладка, где вообще есть свободное время. Без утра
-    // это была пара «нет обеда → открой ужин»; с тремя вкладками правило то же
-    // самое, просто записано для всего порядка сразу.
-    const firstFree = TIME_OF_DAY_ORDER.find((period) =>
+    // Первая по ходу дня вкладка, где вообще есть свободное время — среди
+    // ДВУХ вкладок, которые экран сейчас показывает (см. RESERVATION_TABS).
+    const firstFree = RESERVATION_TABS.find((period) =>
       availabilitySlots.some((s) => s.available && timeOfDayOfSlot(s.startsAt) === period),
     );
     if (firstFree) setActiveTab(firstFree);
@@ -165,9 +175,6 @@ export default function ReservationScreen() {
     if (!day.opensAt || !day.closesAt) return null;
     return t.booking.slotsClosedSchedule(dayHoursLabel(day));
   }, [restaurant?.schedule, draft.date]);
-
-  const preorderTotal = estimatePreorderTotalMinor(draft.preorder);
-  const preorderCount = draft.preorder.reduce((sum, line) => sum + line.quantity, 0);
 
   // «Добавить» с карточки блюда в ленте «Лучшие позиции» пишет в ЭТОТ же
   // черновик — тот, что наполняет экран меню. Общий хук, один и тот же на
@@ -204,11 +211,24 @@ export default function ReservationScreen() {
    * back on THIS screen afterwards (the gate is pushed on top of the stack, so
    * the draft survives). Identity is never collected here — name and phone come
    * from the account and are shown read-only on the Confirmation screen.
+   *
+   * Новое (Figma 918:11820, «Menu»): если у заведения есть хоть одно живое
+   * блюдо, «Продолжить» сначала открывает экран меню с параметром
+   * `next=confirm` — там кнопка внизу превращается в «Skip Pre-order» и ведёт
+   * на подтверждение. Заведение без меню, как и раньше, идёт на подтверждение
+   * напрямую — вести гостя на пустой список блюд незачем. Тот же признак
+   * (`menu.data` — хотя бы одна секция с блюдами), что уже считает
+   * `canAddPreorder` на Confirmation.
    */
   const handleContinue = () => {
     if (!draft.slot || !id) return;
     if (authStatus !== "signed-in") {
       router.push({ pathname: "/auth/sign-in", params: { reason: "booking" } });
+      return;
+    }
+    const venueHasMenu = (menu.data ?? []).some((section) => section.dishes.length > 0);
+    if (venueHasMenu) {
+      router.push({ pathname: `/restaurant/${id}/book/menu`, params: { next: "confirm" } });
       return;
     }
     router.push(`/restaurant/${id}/book/confirm`);
@@ -269,20 +289,17 @@ export default function ReservationScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.section, styles.sectionFirst]}>
+            {/* Лента дат (DateStrip) здесь БОЛЬШЕ НЕТ по актуальному макету
+                (узел 918:11766): после имени и адреса заведения сразу идут
+                две пилюли дата/гости, а не лента дней + пилюли. Сам компонент
+                и выбор даты колесом (WheelSheet) остаются — на экране просто
+                не осталось второго способа выбрать дату. */}
             {restaurant ? (
               <View style={styles.venueBox}>
                 <Text style={styles.venueName}>{restaurant.name}</Text>
                 <Text style={styles.venueAddress}>{restaurant.address}</Text>
               </View>
             ) : null}
-            <View style={styles.stripBleed}>
-              <DateStrip
-                selected={draft.date}
-                onSelect={draft.setDate}
-                todayLabel={t.booking.today}
-                tomorrowLabel={t.booking.tomorrow}
-              />
-            </View>
             <View style={[styles.sectionBody, styles.pillRow]}>
               <PillSelect
                 icon={CalendarBlank}
@@ -331,36 +348,21 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          <View style={[styles.section, styles.sectionRounded]}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t.booking.preorderSectionTitle}</Text>
-              <Text style={styles.sectionCaption}>{t.booking.preorderOptional}</Text>
-            </View>
-            <View style={styles.sectionBody}>
-              <SelectRow
-                icon={ForkKnife}
-                label={preorderCount > 0 ? t.booking.preorderEdit : t.booking.preorderAdd}
-                value={
-                  preorderCount > 0
-                    ? t.booking.preorderSummary(
-                        preorderCount,
-                        preorderTotal === undefined
-                          ? t.booking.preorderNoPrice
-                          : formatMoneyMinor(preorderTotal),
-                      )
-                    : ""
-                }
-                placeholder={t.booking.preorderOptional}
-                caption={preorderCount > 0 ? t.booking.preorderTotalEstimateNote : undefined}
-                onPress={() => router.push(`/restaurant/${id}/book/menu`)}
-              />
-            </View>
-          </View>
+          {/* «Выбрать/изменить блюда» здесь БОЛЬШЕ НЕТ (макет 918:11747 в
+              актуальном дереве не рисует такую карточку между сеткой времени
+              и «Пожеланиями» вовсе) — она дублировала уже появившийся флоу
+              «Продолжить → меню» (handleContinue выше) и до правки от
+              29.09.2026 держала блоки на этом экране в неверном по макету
+              порядке. Добавить/изменить предзаказ теперь можно только через
+              «Продолжить» (когда у заведения есть меню) или с ленты
+              «Топ блюда» ниже. */}
 
           {/* "Special Requests" is its own card in the design (node 471:3946 /
-              918:11747): a titled card with one bare rounded box, no field
-              label. It stays editable here; Confirmation shows it read-only. */}
-          <View style={[styles.section, styles.sectionRounded]}>
+              918:11813): a titled card with one bare rounded box, no field
+              label. It stays editable here; Confirmation shows it read-only.
+              Bottom padding is 32, not the shared 16 (node 918:11813: padding
+              16/16/32/16). */}
+          <View style={[styles.section, styles.sectionRounded, styles.sectionPadBottomLg]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t.booking.specialRequestsTitle}</Text>
             </View>
@@ -376,20 +378,30 @@ export default function ReservationScreen() {
             </View>
           </View>
 
-          {/* "Top Picks" (node 471:3950). Rendered from the venue payload this
-              screen already has — no extra request. Тап по карточке открывает
-              карточку блюда поверх экрана: до 2026-08-26 лента здесь выглядела
-              нажимаемой и не делала НИЧЕГО (`MenuItemCard` без `onPress` — не
-              кнопка). Уводить на экран меню нельзя — это бросило бы черновик
-              брони, поэтому шторка. */}
+          {/* "Top Picks" (node 5459:7411, "Menu" in the current tree).
+              Rendered from the venue payload this screen already has — no
+              extra request. Тап по карточке открывает карточку блюда поверх
+              экрана: до 2026-08-26 лента здесь выглядела нажимаемой и не
+              делала НИЧЕГО (`MenuItemCard` без `onPress` — не кнопка). Уводить
+              на экран меню нельзя — это бросило бы черновик брони, поэтому
+              шторка. Заголовок теперь кликабелен — шеврон справа (узел
+              5459:7429) ведёт на полное меню заведения, которое живёт вне
+              флоу брони и черновика ничем не рискует. */}
           {restaurant && restaurant.menuHighlights.length > 0 ? (
             <View style={[styles.section, styles.sectionLast]}>
-              <View style={styles.sectionHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.restaurant.menuHighlights}
+                onPress={() => router.push(`/restaurant/${id}/menu`)}
+                style={[styles.sectionHeader, styles.sectionTitleRow]}
+              >
                 <Text style={styles.sectionTitle}>{t.restaurant.menuHighlights}</Text>
-              </View>
+                <CaretRight size={24} color={colors.text.primary} weight="regular" />
+              </Pressable>
               <MenuHighlightsStrip
                 items={restaurant.menuHighlights}
                 contentContainerStyle={styles.topPicksRow}
+                showAddAffordance
                 // Заведение без онлайн-брони до этой ветки не доходит (экран
                 // выше отдаёт своё состояние), но условие оставлено явным:
                 // добавлять в бронь, которой не будет, некуда.
@@ -581,9 +593,9 @@ function SlotsSection({
   return (
     <View style={styles.slotsBlock}>
       <SegmentedTabs
-        labels={TIME_OF_DAY_ORDER.map((period) => TAB_LABELS[period])}
-        activeIndex={TIME_OF_DAY_ORDER.indexOf(activeTab)}
-        onChange={(index) => onTabChange(TIME_OF_DAY_ORDER[index])}
+        labels={RESERVATION_TABS.map((period) => TAB_LABELS[period])}
+        activeIndex={RESERVATION_TABS.indexOf(activeTab)}
+        onChange={(index) => onTabChange(RESERVATION_TABS[index])}
       />
       {tabSlots.length > 0 ? (
         <TimeSlotGrid slots={tabSlots} selected={selected} onSelect={onSelect} />
@@ -663,15 +675,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
   },
-  // The date strip scrolls edge to edge; its own contentContainer carries the
-  // page padding so the first cell doesn't look clipped.
-  stripBleed: {
-    marginHorizontal: -spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
   sectionTitle: {
     ...typography.titleLg,
     color: colors.text.primary,
+  },
+  // "Special Requests" carries a bigger bottom padding than the other cards —
+  // 32 vs the shared 16 (node 918:11813: padding 16/16/32/16). Same value
+  // `sectionLast` already uses on the last visible card, but this one is not
+  // the last card on screen, so it needs its own modifier.
+  sectionPadBottomLg: {
+    paddingBottom: spacing.xxxl,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.lg,
   },
   sectionCaption: {
     ...typography.caption,
@@ -704,6 +723,9 @@ const styles = StyleSheet.create({
   },
   footerSafeArea: {
     backgroundColor: colors.background.surface,
+    // Плашка — radius 24 (node 918:11817), не была нарисована раньше и
+    // сливалась с прямым краем экрана.
+    borderRadius: radius.flowFooter,
     // 0 -8 16 at 8% black (node 471:3967); the alpha lives in the token, so
     // shadowOpacity is left at full strength.
     shadowColor: colors.overlay.footerShadow,

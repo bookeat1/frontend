@@ -1,7 +1,7 @@
 import type { Booking, BookingPayment, Preorder, Restaurant } from "@bookeat/api";
 import { getDictionary } from "@bookeat/i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReservationScreen from "../booking/[id]/index";
@@ -70,6 +70,7 @@ const RESTAURANT: Restaurant = {
   preorderMinAmountMinor: null,
   serviceFeeBps: null,
   paymentFee: { rateBps: 350, minFeeMinor: 2500 },
+  loyaltyEnabled: false,
 };
 
 const livePayment = (over: Partial<BookingPayment> = {}): BookingPayment => ({
@@ -144,13 +145,21 @@ describe("экран брони: оплата предзаказа", () => {
     expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
   });
 
-  it("оплачено — пометка рядом со статусом брони и блок «Предзаказ», входа на оплату нет", async () => {
+  it("оплачено — блок «Предзаказ» с разбивкой суммы, входа на оплату нет", async () => {
     payment = livePayment({ status: "captured", baseAmountMinor: 350_000, feeMinor: 12_695 });
     renderScreen();
-    await waitFor(() => expect(screen.getByTestId("preorder-paid-pill")).toBeTruthy());
-    // Статус брони остаётся про подтверждение рестораном.
+    await waitFor(() => expect(screen.getByTestId("preorder-paid-block")).toBeTruthy());
+    // Статус брони остаётся про подтверждение рестораном. Зелёной пилюли
+    // «Предзаказ оплачен» над списком блюд больше нет (правка 29.09.2026) —
+    // факт оплаты уже виден по бейджу в шапке экрана, не в этой карточке.
     expect(screen.getByText(t.booking.status.pending)).toBeTruthy();
-    expect(screen.getByTestId("preorder-paid-block").textContent).toContain("2 × Бешбармак");
+    expect(screen.queryByTestId("preorder-paid-pill")).toBeNull();
+    // Редизайн (Figma node 5504:7538 и соседние): название блюда и число
+    // порций теперь два отдельных узла — название слева, число в круглой
+    // пилюле на фото справа, — а не одна строка «2 × Бешбармак».
+    const block = screen.getByTestId("preorder-paid-block");
+    expect(within(block).getByText("Бешбармак")).toBeTruthy();
+    expect(within(block).getByText("2")).toBeTruthy();
     expect(screen.getByTestId("preorder-paid-total").textContent).toBe(formatMoneyMinor(362_695));
     expect(screen.getByText(t.booking.paymentBreakdownFee)).toBeTruthy();
     expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();

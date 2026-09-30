@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, Export, Heart, type IconProps } from "../icons";
+import { ArrowLeft, Export, Heart, QrCode, type IconProps } from "../icons";
 import { PhotoView } from "../PhotoView";
 import { cuisineLine } from "../../lib/cuisine-display";
 
@@ -35,6 +35,18 @@ const t = getDictionary();
  *
  * Адрес из шапки ушёл вместе с прежней вёрсткой: в макете его здесь нет, а на
  * экране он остался там, где ему и место, — в блоке контактов рядом с картой.
+ *
+ * КНОПКА QR (2026-09-29, node 5386:6855 / 5455:6726): встала первой в правой
+ * группе, перед сердечком — порядок «QR → нравится → поделиться» ровно как в
+ * макете. Открывает `LoyaltyQrSheet` — ВИЗУАЛЬНУЮ ЗАГЛУШКУ без реального
+ * бэкенда лояльности, подробности в комментарии того компонента.
+ *
+ * ВИДИМОСТЬ КНОПКИ QR (2026-09-29, суперадмин-переключатель «Лояльность» в
+ * кабинете): `restaurant.loyaltyEnabled` решает платформа, не заведение — у
+ * него нет своей системы лояльности. Кнопка рендерится, только когда родитель
+ * передал `onOpenLoyaltyQr` (см. `app/restaurant/[id]/index.tsx`, которая
+ * подставляет колбэк ТОЛЬКО при `loyaltyEnabled === true`); без колбэка
+ * кнопки нет вовсе, а не есть-но-выключена.
  */
 export function VenueHero({
   restaurant,
@@ -42,12 +54,16 @@ export function VenueHero({
   onToggleFavorite,
   onBack,
   onShare,
+  onOpenLoyaltyQr,
 }: {
   restaurant: Restaurant;
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onBack: () => void;
   onShare: () => void;
+  /** Не передан — кнопки QR-кода лояльности нет вовсе (заведение отключено
+   * суперадмином в кабинете). */
+  onOpenLoyaltyQr?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   // Цена в подписи — символьной СТУПЕНЬЮ «₸/₸₸/₸₸₸» (правка владельца
@@ -90,6 +106,13 @@ export function VenueHero({
         <View style={styles.controls}>
           <HeroButton icon={ArrowLeft} label={t.a11y.backButton} onPress={onBack} />
           <View style={styles.controlsRight}>
+            {onOpenLoyaltyQr ? (
+              <HeroButton
+                icon={QrCode}
+                label={t.a11y.loyaltyQrButton}
+                onPress={onOpenLoyaltyQr}
+              />
+            ) : null}
             <HeroButton
               icon={Heart}
               label={

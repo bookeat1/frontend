@@ -754,6 +754,9 @@ export const restaurants: Restaurant[] = [
     // 350 = 3.5% — то же единственное заведение с «подключённой» оплатой
     // выше, чтобы офлайн-режим показал непустой блок сбора хотя бы раз.
     serviceFeeBps: 350,
+    // Единственное заведение макета с включённой лояльностью — офлайн-режим
+    // должен показать и кнопку QR-кода лояльности, и её отсутствие.
+    loyaltyEnabled: true,
   },
   {
     id: "r2",
@@ -790,6 +793,7 @@ export const restaurants: Restaurant[] = [
     paymentMethods: null,
     preorderMinAmountMinor: null,
     serviceFeeBps: null,
+    loyaltyEnabled: false,
   },
   {
     id: "r3",
@@ -823,6 +827,7 @@ export const restaurants: Restaurant[] = [
     paymentMethods: null,
     preorderMinAmountMinor: null,
     serviceFeeBps: null,
+    loyaltyEnabled: false,
   },
   {
     id: "r4",
@@ -873,6 +878,7 @@ export const restaurants: Restaurant[] = [
     paymentMethods: null,
     preorderMinAmountMinor: null,
     serviceFeeBps: null,
+    loyaltyEnabled: false,
   },
 ];
 

@@ -80,6 +80,7 @@ import type {
   PushSubscriptionInput,
   RestaurantManager,
   RestaurantKwaakaLink,
+  RestaurantLoyaltySettings,
   RestaurantPricePatch,
   RestaurantPricing,
   RestaurantProfile,
@@ -1313,11 +1314,27 @@ export class AdminApiClient {
   }
 
   /**
+   * GET /admin/restaurants/:id → `loyalty_enabled`. Present (not omitempty)
+   * on every restaurant read the backend returns, but the PATCH that changes
+   * it is admin-only (backend strips the key from a non-admin caller's PATCH,
+   * same as `kwaaka_restaurant_id`/`is_premium`), so the card that reads and
+   * writes it here is gated to superadmins by its mount point (VenuesView is
+   * admin-gated as a whole).
+   */
+  getRestaurantLoyalty(restaurantId: string): Promise<RestaurantLoyaltySettings> {
+    return this.request<RestaurantLoyaltySettings>(
+      "GET",
+      `/admin/restaurants/${encodeURIComponent(restaurantId)}`,
+    );
+  }
+
+  /**
    * PATCH /restaurants/:id — updates the venue's pricing, and (shared body)
-   * the Kwaaka POS link below. `price_min`/`price_max` are whole tenge and the
-   * backend validates the MERGED row (both-null-or-both-set, 0 <= min <= max),
-   * so the caller sends the pair together or omits both. Answers the full
-   * updated restaurant; typed as the pricing slice the card reads back.
+   * the Kwaaka POS link / loyalty toggle below. `price_min`/`price_max` are
+   * whole tenge and the backend validates the MERGED row (both-null-or-both-set,
+   * 0 <= min <= max), so the caller sends the pair together or omits both.
+   * Answers the full updated restaurant; typed as the pricing slice the card
+   * reads back.
    */
   patchRestaurant(restaurantId: string, input: RestaurantPricePatch): Promise<RestaurantPricing> {
     return this.request<RestaurantPricing>(

@@ -20,7 +20,7 @@ import { describeCancellationCost } from "../../../src/components/booking/cancel
 import { BookingDetailsCard } from "../../../src/components/booking/BookingDetailsCard";
 import { ContactsCard, hasAnyContact } from "../../../src/components/booking/ContactsCard";
 import { AddPreorderRow } from "../../../src/components/booking/AddPreorderRow";
-import { PreorderPaidBlock, PreorderPaidPill } from "../../../src/components/booking/PreorderPaidBlock";
+import { PreorderCard } from "../../../src/components/booking/PreorderPaidBlock";
 import { PreorderPayEntry } from "../../../src/components/booking/PreorderPayEntry";
 import { PushOptInCard } from "../../../src/components/booking/PushOptInCard";
 import { ReservationHeaderCard } from "../../../src/components/booking/ReservationHeaderCard";
@@ -119,16 +119,6 @@ export default function ReservationScreen() {
     livePayment && livePayment.purpose === "preorder" && isPaid(livePayment.status) && preorderItemsCount > 0
       ? livePayment
       : null;
-  // Вход «Добавить/Изменить предзаказ»: правила совпадают с бэкендом
-  // (usecase/preorder.Replace), см. guestPreorderEditAction.
-  const editAction = booking.data
-    ? guestPreorderEditAction({
-        status: booking.data.status,
-        itemsCount: preorderItemsCount,
-        // Пока платёж или состав не загрузились — вход скрыт.
-        payment: payment.isError || payment.isPending || preorder.isPending ? undefined : (payment.data ?? null),
-      })
-    : null;
   const payBase = preorder.data?.totalMinor ?? null;
   const payAmountMinor =
     payEntry?.kind === "waiting"
@@ -237,14 +227,23 @@ export default function ReservationScreen() {
   // covers a slow/pending one the same way, so cancelling itself is never
   // blocked on it.
   const paymentValue = payment.isError || payment.isPending ? undefined : payment.data;
-  const { text: consequence } = describeCancellationCost({ booking: data, payment: paymentValue });
+  const { cost: cancellationCost, text: consequence } = describeCancellationCost({
+    booking: data,
+    payment: paymentValue,
+  });
   // Меню у заведения есть, если деталка принесла хотя бы одно блюдо.
   const hasMenu = (restaurant.data?.menuHighlights.length ?? 0) > 0;
   // Бронь, из которой уже никуда не перейти: визит прошёл, гость не пришёл
   // или бронь отменена. Предзаказывать в неё нечего.
   const terminal = isTerminalBookingStatus(data.status);
-  // «Меню» показываем только живой брони с меню у заведения.
-  const showMenuAction = hasMenu && !terminal;
+  // «Меню» показываем только живой брони с меню у заведения — и НЕ показываем
+  // на брони, которая ещё «ожидает подтверждения» заведением, если гость ещё
+  // не сделал предзаказ (правка 29.09.2026): звать делать предзаказ в бронь,
+  // которую заведение ещё даже не подтвердило, преждевременно. Если предзаказ
+  // уже есть (гость успел его сделать раньше, статус ещё не подтверждён) —
+  // кнопка остаётся, ей всё ещё можно изменить состав.
+  const showMenuAction =
+    hasMenu && !terminal && !(data.status === "pending" && preorderItemsCount === 0);
   // Бронь, которой уже не будет (отменена, «не пришёл», или время визита
   // прошло, а подтверждения так и не случилось): вместо «На главную» —
   // «Забронировать снова» в то же заведение. Отправлять человека на главную
@@ -253,7 +252,7 @@ export default function ReservationScreen() {
   // Визит уже наступил (или прошёл), а статус всё ещё «живой» — блок отмены
   // прячем целиком: отменять уже нечего, гостя либо ждут за столом сейчас,
   // либо визит уже состоялся, а статус просто никто не перевёл. Отдельно от
-  // `canCancel`/двухчасового окна — то решает, работает ли кнопка ДО визита.
+  // `canCancel` — та смотрит только на статус брони, не на время визита.
   const visitStarted = hasVisitStarted(data);
 
   const onConfirmCancel = () => {
@@ -279,7 +278,12 @@ export default function ReservationScreen() {
             hours_since_created: hoursBetween(cancelled.createdAt, Date.now()),
             hours_before_visit: hoursBetween(Date.now(), cancelled.startsAt),
             // Была ли отмена платной — это про деньги, не про человека.
-            was_free: canGuestCancel(data),
+            // БЫЛО `canGuestCancel(data)` — та функция про доступность
+            // кнопки (статус брони), не про деньги; после «объединения окна»
+            // (29.09.2026) она вообще перестала иметь отношение к оплате.
+            // Настоящий источник — `describeCancellationCost`, та же
+            // логика, что показывает гостю текст в диалоге подтверждения.
+            was_free: cancellationCost.kind === "free" || cancellationCost.kind === "free-until",
           });
         },
         onError: (error) => setCancelError(cancelErrorMessage(error)),
@@ -296,7 +300,10 @@ export default function ReservationScreen() {
         <ReservationHeaderCard
           booking={data}
           restaurant={restaurant.data}
-          paidPill={paidPayment ? <PreorderPaidPill /> : null}
+          guestsLabel={t.booking.guestsCount(data.guests)}
+          dateLabel={formatRelativeDay(data.startsAt)}
+          timeLabel={formatTime(data.startsAt)}
+          hasPreorder={preorderItemsCount > 0}
           actions={
             // Ряд из «На главную» и «Меню» (макет 3059:11285, правка владельца
             // 2026-08-20). Отмена отсюда УШЛА вниз, отдельным блоком: держать
@@ -354,26 +361,23 @@ export default function ReservationScreen() {
           }
         />
 
-        <BookingDetailsCard
-          booking={data}
-          dateTimeLabel={`${formatRelativeDay(data.startsAt)}, ${formatTime(data.startsAt)}`}
-          guestsLabel={t.booking.guestsCount(data.guests)}
-          editable={canCancel}
-          onEditDateTime={() =>
-            router.push({
-              pathname: "/booking/[id]/reschedule",
-              params: { id: data.id, focus: "date" },
-            })
-          }
-          onEditGuests={() =>
-            router.push({
-              pathname: "/booking/[id]/reschedule",
-              params: { id: data.id, focus: "guests" },
-            })
-          }
-        />
+        {/* «Детали» (дата/гости с «Изменить») здесь БОЛЬШЕ НЕТ: ни у
+            состояния «ждёт подтверждения» (макет 3073:11428), ни у
+            «подтверждено + предзаказ» (макет 5504:7508) в дереве этого блока
+            нет вовсе — сразу после шапки с фото идёт «Что дальше». Дата,
+            время и число гостей и так видны в пилюлях на фото; перенос даты
+            остаётся доступен с экрана `reschedule`, просто без входа отсюда
+            (правка 29.09.2026). */}
+        <WhatHappensNextCard status={data.status} />
 
-        {paidPayment && preorder.data ? <PreorderPaidBlock preorder={preorder.data} payment={paidPayment} /> : null}
+        {/* Список предзаказа виден ВСЕГДА, когда в брони есть хоть одна
+            позиция, — бронь с предзаказом уже состоявшийся факт независимо от
+            оплаты (макет 5504:7535). `paidPayment` внутри дорисовывает
+            пометку «Оплачено» и разбивку суммы, когда деньги ушли; без него
+            карточка просто список блюд без итога. */}
+        {preorder.data && preorder.data.items.length > 0 ? (
+          <PreorderCard preorder={preorder.data} payment={paidPayment} />
+        ) : null}
 
         {payEntry ? (
           <PreorderPayEntry
@@ -383,15 +387,6 @@ export default function ReservationScreen() {
             onPay={() => router.push({ pathname: "/booking/[id]/payment", params: { id: data.id } })}
           />
         ) : null}
-
-        {editAction ? (
-          <AddPreorderRow
-            label={editAction === "add" ? t.booking.preorderAddEntry : t.booking.preorderEdit}
-            onPress={() => router.push(`/restaurant/${data.restaurantId}/book/menu?booking=${data.id}`)}
-          />
-        ) : null}
-
-        <WhatHappensNextCard status={data.status} />
 
         {/* The permission ask, and the only one in the app. Shown just after
             the booking was created, where «сообщим, когда подтвердят» answers
@@ -417,36 +412,31 @@ export default function ReservationScreen() {
         ) : null}
 
         {/* Отмена брони — САМЫЙ ПОСЛЕДНИЙ блок экрана (макет 3073:11402).
-            Блок стоит на месте у любой живой брони ДО начала визита, даже
-            когда кнопка уже не работает: за два часа до визита заведение
-            держит стол, и отмена уходит в разговор с рестораном (правило от
-            18.08.2026). Раньше в этом случае блок исчезал целиком, и человек
-            видел экран, где отмены просто нет, — это читается как потерянная
-            кнопка, а не как правило. Теперь правило написано словами.
+            Блок стоит на месте у любой живой брони ДО начала визита — жёсткого
+            временного окна на отмену больше нет (решение владельца
+            «объединение окна», 29.09.2026: сервер разрешает отмену в любой
+            момент, доступность кнопки решает только статус брони, деньги —
+            отдельно, через `free_cancel_window_minutes`/диалог подтверждения).
 
-            А вот когда время визита уже НАСТУПИЛО (`visitStarted`), блок
-            прячется целиком, а не просто выключает кнопку: гостя либо ждут
-            за столом прямо сейчас, либо визит уже состоялся, и предлагать
-            отмену — не то же самое, что напоминать про закрытое окно.
+            Когда время визита уже НАСТУПИЛО (`visitStarted`), блок прячется
+            целиком, а не просто выключает кнопку: гостя либо ждут за столом
+            прямо сейчас, либо визит уже состоялся.
 
             У отменённой и прошедшей по статусу брони блока тоже нет вовсе:
             отменять там нечего. */}
         {cancellable && !visitStarted ? (
-          <BookingCard title={t.booking.cancelSectionTitle}>
+          <BookingCard title={t.booking.cancelSectionTitle} titleSize="section" gap={spacing.lg}>
             <PrimaryButton
               label={t.booking.cancelBooking}
               variant="secondary"
               size="lg"
               icon={XCircle}
-              disabled={!canCancel || cancel.isPending}
+              disabled={cancel.isPending}
               onPress={() => {
                 setCancelError(null);
                 setDialogOpen(true);
               }}
             />
-            {!canCancel ? (
-              <Text style={styles.cancelHint}>{t.booking.cancelWindowClosed}</Text>
-            ) : null}
           </BookingCard>
         ) : null}
         {/* Белый хвост под последним блоком. Это отдельный элемент, а не
@@ -541,11 +531,6 @@ const styles = StyleSheet.create({
   },
   actionCell: {
     flex: 1,
-  },
-  // Пояснение под неактивной кнопкой отмены.
-  cancelHint: {
-    ...typography.caption,
-    color: colors.text.muted,
   },
   notice: {
     borderWidth: 1,

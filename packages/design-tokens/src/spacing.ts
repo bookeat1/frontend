@@ -136,6 +136,14 @@ export const radius = {
   /** Точка/таблетка пагинации визарда «Фуди-профиль» — 4 (не `pill`: в
    * макете это конкретное скругление, а не капсула). */
   progressDot: 4,
+  /**
+   * Плавающая нижняя плашка с кнопкой «Продолжить» на экране брони — 24
+   * (Figma 918:11817, «Frame 53»: `cornerRadius: 24`). Отдельный токен, а не
+   * `dialog`/`bookingCard`/`contentBlock` (те же 24): плашка того же ряда
+   * узлов, но своя роль — правка любого из них не должна тянуть за собой
+   * подвал флоу брони.
+   */
+  flowFooter: 24,
 } as const;
 
 /** Minimum hit-slop / touch target per accessibility hard rule (>= 44pt). */
@@ -188,6 +196,19 @@ export const controlHeight = {
    * (`design-ref/screen-explore.png`). They are inside a horizontally
    * scrolling card, so the 44pt rule is met with hitSlop, not with height. */
   compactPill: 28,
+  /**
+   * Фото блюда в списке «Предзаказ» на экране брони — 140x100 (Figma
+   * «BookEat (Copy) (Copy)», node 5504:7544 и соседние 5504:7553/7562).
+   * ОТДЕЛЬНЫЙ токен, а не `dishPhotoWidth`/`dishPhotoHeight` (120x80): та
+   * пара измерена с рендера экрана выбора блюд, это — с узла другого экрана,
+   * и значения в макете различаются на самом деле, не по недосмотру.
+   */
+  preorderSummaryPhotoWidth: 140,
+  preorderSummaryPhotoHeight: 100,
+  /** Круглая белая пилюля с числом порций, наложенная на угол фото в списке
+   * «Предзаказ» — 36x36 (node 5504:7545 и соседние). Только для чтения: в
+   * этом списке блюда уже заказаны, тут нет +/-. */
+  preorderQuantityBadge: 36,
 } as const;
 
 /**
@@ -700,4 +721,11 @@ export const borderWidth = {
   /** Time-slot pill outline — 1.5px, grey when idle, brand when chosen
    * (Figma node 471:3914). */
   control: 1.5,
+  /**
+   * Красная рамка вокруг QR-кода в шторке лояльности (Figma node 5455:6737).
+   * Тот же 1.5, что у `control`, но свой токен: роль другая (декоративная
+   * рамка карточки, а не состояние пилюли слота), а совпадение значений — не
+   * повод разводить одну переменную на две смысловые роли.
+   */
+  loyaltyQrFrame: 1.5,
 } as const;
