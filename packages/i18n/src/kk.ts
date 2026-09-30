@@ -2197,7 +2197,6 @@ export const kk: LocaleOverride<Dictionary> = {
     preorderOptional: "Міндетті емес — тағамдарды жерде де таңдауға болады",
     preorderAdd: "Тағам таңдау",
     preorderEdit: "Тапсырысты өзгерту",
-    preorderAddEntry: "Алдын ала тапсырыс қосу",
     preorderEditLocked:
       "Расталған брондаудың тапсырысын тек мекеме арқылы өзгертуге болады — мекемемен байланысыңыз",
     preorderEditInFlight:

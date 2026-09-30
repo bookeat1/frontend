@@ -3067,7 +3067,6 @@ export const ru = {
     preorderOptional: "Необязательно — блюда можно выбрать и на месте",
     preorderAdd: "Выбрать блюда",
     preorderEdit: "Изменить предзаказ",
-    preorderAddEntry: "Добавить предзаказ",
     preorderEditLocked:
       "Предзаказ подтверждённой брони можно изменить только через заведение — свяжитесь с рестораном",
     preorderEditInFlight:
