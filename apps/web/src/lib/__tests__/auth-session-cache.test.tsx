@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { readBookingFormDraft, writeBookingFormDraft } from "@web/lib/booking-form-draft";
-import { BOOKING_KEY, FAVORITES_KEY } from "@web/lib/query-keys";
+import { BOOKING_KEY, FAVORITES_KEY, FOODIE_PROFILE_KEY } from "@web/lib/query-keys";
 
 /**
  * Кэш, привязанный к сессии, НЕ ДОЛЖЕН ЕЁ ПЕРЕЖИВАТЬ.
@@ -74,6 +74,10 @@ function renderProbe() {
   client.setQueryData(FAVORITES_KEY, new Set(["venue-1"]));
   // И его бронь с телефоном — как после `createBooking` (см. queries.ts).
   client.setQueryData([...BOOKING_KEY, BOOKING_ID], { id: BOOKING_ID, phone: "+77010000000" });
+  // И его «Фуди-профиль» — аллергии это данные о здоровье (спека
+  // `foodie-profile-web-desktop-20260930.md`, критерий 24), утечка здесь
+  // дороже любой другой в разделе.
+  client.setQueryData(FOODIE_PROFILE_KEY, { cuisines: ["kazakh"], diets: [], allergies: ["nuts"], budget: "mid" });
   // Персонализация v1 (§3.9) — те же ключи и для анонима, и для вошедшего,
   // так что чистка нужна на КАЖДЫЙ переход, не только на выход (PR #232
   // review): `locale` первым элементом, поэтому это предикат, не префикс.
@@ -116,6 +120,24 @@ describe("кэш и смена сессии", () => {
     fireEvent.click(screen.getByRole("button", { name: "выйти" }));
 
     await waitFor(() => expect(client.getQueryData([...BOOKING_KEY, BOOKING_ID])).toBeUndefined());
+  });
+
+  it("выход стирает «Фуди-профиль» прежнего гостя (аллергии — данные о здоровье)", async () => {
+    const client = renderProbe();
+    expect(client.getQueryData(FOODIE_PROFILE_KEY)).toBeDefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "выйти" }));
+
+    await waitFor(() => expect(client.getQueryData(FOODIE_PROFILE_KEY)).toBeUndefined());
+  });
+
+  it("вход тоже стирает «Фуди-профиль» прежнего гостя, не только выход", async () => {
+    const client = renderProbe();
+
+    fireEvent.click(screen.getByRole("button", { name: "войти" }));
+
+    await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("in"));
+    expect(client.getQueryData(FOODIE_PROFILE_KEY)).toBeUndefined();
   });
 
   it("выход стирает персонализированный ряд «Для вас» и афишу/акции под вкус", async () => {

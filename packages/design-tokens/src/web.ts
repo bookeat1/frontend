@@ -1268,6 +1268,41 @@ export const webProfile = {
     title: { fontSize: 24, lineHeight: 32, fontWeight: 600, color: "#181f20" },
     text: { fontSize: 16, lineHeight: 24, fontWeight: 400, color: "#787884" },
   },
+  /**
+   * Раздел «Фуди-профиль» — спека `foodie-profile-web-desktop-20260930.md`,
+   * Figma `qmMsg4jO1ggmyEHNIAD2ll`, узел `5312:22289`. `GET
+   * /v1/files/:key/nodes` дальше глубины 4 отвечал 429 (`Retry-After` ≈ 6 ч,
+   * тариф starter) всю сессию 30.09.2026 — числа внутри карточек сняты с
+   * PNG-рендеров (`design-specs/web/shots/5312-22289-foodie-*.png`) и
+   * помечены «≈» в спеке §5; счёт по шкале Tailwind (кратность 4) сходится
+   * без округления ни разу больше чем на 2 px, поэтому округления нет.
+   * Пересверить по REST, когда лимит файла откроется.
+   */
+  foodie: {
+    /** Заголовок → подзаголовок раздела через 8. */
+    headerGap: 8,
+    /** Заголовок / 4 карточки / строка сохранения — через 24. */
+    columnGap: 24,
+    /** Белая карточка: радиус 20 (`webRadius.xl`), паддинг 24, внутри 16. */
+    card: { padding: 24, radius: webRadius.xl, gap: 16 },
+    /** Плитка кухни на `lg+`: 5 колонок, ≈164×108, просвет ≈12×16.
+     * Ниже `lg` — 3 колонки (контракт `responsive.md`). */
+    cuisine: {
+      columns: 5,
+      mobileColumns: 3,
+      tileWidth: 164,
+      tileHeight: 108,
+      gapX: 12,
+      gapY: 16,
+    },
+    /** Чипы диет/аллергий — высота 38 = `webControls.chip`, ряды через 16. */
+    chipsGap: 16,
+    /** Карточка бюджета: `md+` в ряд по три, ≈280×89, просвет ≈12; ниже
+     * `md` — столбиком. */
+    budget: { width: 280, height: 89, gap: 12 },
+    /** Строка сохранения: кнопка и подсказка/статус в ряд через 16. */
+    saveGap: 16,
+  },
 } as const;
 
 /**

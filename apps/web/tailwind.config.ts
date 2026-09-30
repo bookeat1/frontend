@@ -549,6 +549,16 @@ const config: Config = {
         "settings-row": px(webProfile.settings.card.headingGap),
         "settings-col": px(webProfile.settings.personalData.columnGap),
         "settings-toggle-row": px(webProfile.settings.notifications.rowGap),
+        /** Раздел «Фуди-профиль» (узел 5312:22289), числа — `webProfile.foodie`. */
+        "foodie-header-gap": px(webProfile.foodie.headerGap),
+        "foodie-col-gap": px(webProfile.foodie.columnGap),
+        "foodie-card-p": px(webProfile.foodie.card.padding),
+        "foodie-card-gap": px(webProfile.foodie.card.gap),
+        "foodie-tile-x": px(webProfile.foodie.cuisine.gapX),
+        "foodie-tile-y": px(webProfile.foodie.cuisine.gapY),
+        "foodie-chips-gap": px(webProfile.foodie.chipsGap),
+        "foodie-budget-gap": px(webProfile.foodie.budget.gap),
+        "foodie-save-gap": px(webProfile.foodie.saveGap),
       },
       height: {
         "btn-l": px(webControls.buttonL.height),
@@ -634,6 +644,8 @@ const config: Config = {
         "pbook-action": px(webProfile.bookingCard.actions.height),
         "fav-image": px(webProfile.favorites.card.imageHeight),
         "signout-icon-badge": px(webProfile.signOutDialog.icon.badgeSize),
+        "foodie-tile": px(webProfile.foodie.cuisine.tileHeight),
+        "foodie-budget": px(webProfile.foodie.budget.height),
         /** Карточка события/акции (5033:6922, `webEventDetail`): обложка 426,
          * мини-карточка заведения 120, её фото 88, карточка контакта 86,
          * кнопка «Записаться» 52. Карта переиспользует `h-venue-map`. */

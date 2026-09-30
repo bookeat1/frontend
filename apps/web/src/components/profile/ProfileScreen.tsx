@@ -15,6 +15,7 @@ import { SignOutDialog } from "@web/components/ui/SignOutDialog";
 import { VenueCard } from "@web/components/ui/VenueCard";
 import { ProfileCard, type ProfileStat } from "@web/components/profile/ProfileCard";
 import { ProfileSkeleton } from "@web/components/profile/ProfileFallback";
+import { ProfileFoodie } from "@web/components/profile/ProfileFoodie";
 import { ProfileNav, SECTION_PARAM, parseSection, type ProfileSection } from "@web/components/profile/ProfileNav";
 import { ProfileSegmented, segmentTabId } from "@web/components/profile/ProfileSegmented";
 import { ProfileSettings } from "@web/components/profile/ProfileSettings";
@@ -164,6 +165,8 @@ export function ProfileScreen() {
               />
             ) : section === "favorites" ? (
               <FavoritesSection />
+            ) : section === "foodie" ? (
+              <ProfileFoodie />
             ) : (
               <ProfileSettings />
             )}
