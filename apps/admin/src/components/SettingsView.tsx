@@ -7,26 +7,22 @@ import { CuisinesCard } from "./CuisinesCard";
 import { PricingCard } from "./PricingCard";
 import { SocialLinksCard } from "./SocialLinksCard";
 import { VenueFeaturesCard } from "./VenueFeaturesCard";
-import { PaymentMethodsCard } from "./PaymentMethodsCard";
 import { TelegramNotificationCard } from "./TelegramNotificationCard";
 import { WhatsAppNotificationCard } from "./WhatsAppNotificationCard";
 
 /**
  * «Настройки» — the venue's self-service settings: capacity mode, average
  * check, the venue's cuisines, its features («Удобства»), its social links, the
- * Telegram chat and the WhatsApp number its booking alerts go to. «Приём оплаты»
- * и «Kwaaka POS» живут не здесь, а в карточке заведения в платформенном
- * каталоге (VenuesView, только суперадмин). Each card owns its own load/save;
+ * Telegram chat and the WhatsApp number its booking alerts go to. «Способы
+ * оплаты», «Приём оплаты», «Kwaaka POS» и лояльность живут не здесь, а в карточке
+ * заведения в платформенном каталоге (VenuesView, только суперадмин). Each card owns its own load/save;
  * the rest of the booking policy (buffers, lead time,
  * auto-confirm) is editable through the same PATCH but has no agreed UI yet, so
  * it is not faked here.
  */
 export function SettingsView() {
-  const { restaurant, user } = useAuth();
+  const { restaurant } = useAuth();
   const restaurantId = restaurant!.id;
-  // «Способы оплаты» показываем только суперадмину: бэкенд отвечает 403
-  // остальным (см. PaymentMethodsCard).
-  const isSuperadmin = user?.role === "admin";
 
   return (
     <section className="mx-auto flex max-w-[900px] flex-col gap-xl">
@@ -36,7 +32,6 @@ export function SettingsView() {
       <CuisinesCard restaurantId={restaurantId} />
       <VenueFeaturesCard restaurantId={restaurantId} />
       <SocialLinksCard restaurantId={restaurantId} />
-      {isSuperadmin ? <PaymentMethodsCard restaurantId={restaurantId} /> : null}
       <TelegramNotificationCard restaurantId={restaurantId} />
       <WhatsAppNotificationCard restaurantId={restaurantId} />
     </section>

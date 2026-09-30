@@ -53,6 +53,7 @@ import { ImageUploadField } from "./ui/ImageUploadField";
 import { KwaakaLinkCard } from "./KwaakaLinkCard";
 import { LoyaltyCard } from "./LoyaltyCard";
 import { PaymentAcceptanceCard } from "./PaymentAcceptanceCard";
+import { PaymentMethodsCard } from "./PaymentMethodsCard";
 import { Modal } from "./ui/Modal";
 import {
   SOCIAL_LINK_ERROR_COPY,
@@ -311,8 +312,8 @@ export function VenuesView() {
  *   • повторное «Сохранить» после уже созданного заведения не создаёт второе —
  *     оно правит созданное (id запомнен).
  *
- * ТРЕТЬЯ ГРУППА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Приём оплаты (Kaspi), Kwaaka
- * POS и переключатель лояльности рисуются здесь же, но сохраняются каждая
+ * ТРЕТЬЯ ГРУППА ПОЛЕЙ ВООБЩЕ НЕ ЧАСТЬ ЭТОЙ ЗАПИСИ. Приём оплаты (Kaspi), способы
+ * оплаты (`PaymentMethodsCard`), Kwaaka POS и переключатель лояльности рисуются здесь же, но сохраняются каждая
  * своей кнопкой прямо в карточке (см. `PaymentAcceptanceCard`/`KwaakaLinkCard`/
  * `LoyaltyCard`) — общее «Сохранить» ниже их не трогает вовсе. Поэтому, пока в
  * одной из них есть несохранённый ввод (`providerCardsDirty`), форма не
@@ -428,9 +429,10 @@ export function VenueFormModal({
   // единого предупреждения). Пока хоть одна из них не сохранена, форма не
   // закрывается.
   const [paymentDirty, setPaymentDirty] = useState(false);
+  const [paymentMethodsDirty, setPaymentMethodsDirty] = useState(false);
   const [kwaakaDirty, setKwaakaDirty] = useState(false);
   const [loyaltyDirty, setLoyaltyDirty] = useState(false);
-  const providerCardsDirty = paymentDirty || kwaakaDirty || loyaltyDirty;
+  const providerCardsDirty = paymentDirty || paymentMethodsDirty || kwaakaDirty || loyaltyDirty;
   // `finishAfterSave` выполняется ПОСЛЕ ответа сервера (submit/retryCuisines/
   // retryFeatures/retryFreeCancelWindow — все async), то есть в замыкании,
   // взятом на момент нажатия кнопки. Пока идёт запрос, карточки оплаты/Kwaaka
@@ -1063,7 +1065,7 @@ export function VenueFormModal({
           <>
             {!venue && createdId ? (
               <p className="text-sm text-text" role="status">
-                Заведение создано. Настройте приём оплаты, Kwaaka и лояльность ниже своими
+                Заведение создано. Настройте приём и способы оплаты, Kwaaka и лояльность ниже своими
                 кнопками —
                 форма закроется по «Отмена», когда с этим будет покончено.
               </p>
@@ -1071,6 +1073,10 @@ export function VenueFormModal({
             <PaymentAcceptanceCard
               restaurantId={(venue?.id ?? createdId)!}
               onDirtyChange={setPaymentDirty}
+            />
+            <PaymentMethodsCard
+              restaurantId={(venue?.id ?? createdId)!}
+              onDirtyChange={setPaymentMethodsDirty}
             />
             <KwaakaLinkCard
               restaurantId={(venue?.id ?? createdId)!}
@@ -1085,7 +1091,7 @@ export function VenueFormModal({
 
         {providerCardsDirty ? (
           <p className="text-sm text-brand" role="alert">
-            Есть несохранённая правка в приёме оплаты, Kwaaka или лояльности выше — сохраните её
+            Есть несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности выше — сохраните её
             кнопкой в самой карточке (или верните прежнее значение). Пока это не сделано, форма
             не закрывается, чтобы деньги гостей или настройка лояльности случайно не остались
             привязаны не к тому.
