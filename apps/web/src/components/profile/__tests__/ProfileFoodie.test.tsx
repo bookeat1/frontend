@@ -220,6 +220,23 @@ describe("ProfileFoodie — кухни", () => {
     expect(hint.getAttribute("role")).toBe("status");
     expect(screen.getByRole("button", { name: "F" }).getAttribute("aria-pressed")).toBe("false");
   });
+
+  it("ревью-фикс: рамка выбора — отдельный слой поверх фото, не box-shadow на самой кнопке", async () => {
+    // `ring`/box-shadow на кнопке-контейнере рисуется ДО абсолютно
+    // спозиционированных потомков (фото, градиент) и оказывается под ними —
+    // видна только по краям либо не видна вовсе (QA нашёл это по скриншоту
+    // `qa-pr285-foodie-1440x900.png`). Рамка теперь — отдельный `<span>`
+    // поверх фото/градиента, а не класс на самом `<button>`.
+    renderFoodie();
+    await screen.findByText("Выбрано 0 из 5");
+    const tile = screen.getByRole("button", { name: "Итальянская" });
+    fireEvent.click(tile);
+
+    expect(tile.className).not.toMatch(/ring-2/);
+    const overlay = tile.querySelector(".ring-brand");
+    expect(overlay).toBeTruthy();
+    expect(overlay?.getAttribute("aria-hidden")).toBe("true");
+  });
 });
 
 describe("ProfileFoodie — диеты", () => {
@@ -296,6 +313,26 @@ describe("ProfileFoodie — сохранение", () => {
 
     resolveSave(foodieProfile({ cuisines: ["italian"] }));
     await waitFor(() => expect(save.hasAttribute("disabled")).toBe(false));
+  });
+
+  it("ревью-фикс: синхронный двойной клик (без ожидания перерисовки) шлёт один PUT", async () => {
+    // `saveMutation.isPending` — стейт React Query, React выставляет его
+    // АСИНХРОННО; настоящий dblclick браузера шлёт оба `click` в одном
+    // событийном цикле, до того как кнопка успевает перерисоваться в
+    // `disabled`. В отличие от критерия 21 выше (там `waitFor` перед вторым
+    // кликом специально ждёт перерисовки — эту гонку он не ловит), здесь
+    // второй клик идёт СРАЗУ, как в QA-сценарии 3.11.
+    authRepository.replaceFoodieProfile = vi.fn(() => new Promise<FoodieProfile>(() => {}));
+    renderFoodie();
+    await screen.findByText("Выбрано 0 из 5");
+    fireEvent.click(screen.getByRole("button", { name: "Итальянская" }));
+
+    const save = screen.getByRole("button", { name: "Сохранить изменения" });
+    fireEvent.click(save);
+    fireEvent.click(save);
+
+    await waitFor(() => expect(authRepository.replaceFoodieProfile).toHaveBeenCalled());
+    expect(authRepository.replaceFoodieProfile).toHaveBeenCalledTimes(1);
   });
 
   it("ревью-фикс: во время PUT плитки/чипы/бюджет заблокированы — правка не теряется молча под «Сохранено»", async () => {

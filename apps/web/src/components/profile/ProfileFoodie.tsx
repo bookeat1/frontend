@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type {
   FoodieBudgetOption,
   FoodieOption,
@@ -170,6 +170,15 @@ function FoodieForm({ profile, options }: { profile: FoodieProfile; options: Foo
   const [limitHintVisible, setLimitHintVisible] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const saveMutation = useSaveFoodieProfile();
+  /**
+   * `saveMutation.isPending` — стейт React Query, а React выставляет его
+   * АСИНХРОННО относительно клика: два синхронных клика по кнопке в одном
+   * событийном цикле (двойной клик, сценарий 3.11) оба видят `isPending ===
+   * false`, потому что React ещё не перерисовал кнопку в `disabled` после
+   * первого клика. Ref читается и пишется синхронно ПРЯМО в обработчике —
+   * второй клик той же серии всегда видит уже выставленный флаг.
+   */
+  const isSavingRef = useRef(false);
 
   const pristine = isPristine(draft, baseline);
 
@@ -199,17 +208,21 @@ function FoodieForm({ profile, options }: { profile: FoodieProfile; options: Foo
   }
 
   function handleSave() {
-    if (saveMutation.isPending) return;
+    if (isSavingRef.current || saveMutation.isPending) return;
     if (pristine) {
       setJustSaved(true);
       return;
     }
+    isSavingRef.current = true;
     saveMutation.mutate(toWireProfile(draft), {
       onSuccess: (saved) => {
         const next = buildDraft(saved, options);
         setDraft(next);
         setBaseline(next);
         setJustSaved(true);
+      },
+      onSettled: () => {
+        isSavingRef.current = false;
       },
     });
   }
@@ -347,7 +360,6 @@ function CuisineTile({
         "relative flex h-foodie-tile w-full items-end overflow-hidden rounded-lg text-left",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "disabled:cursor-not-allowed disabled:opacity-60",
-        selected ? "ring-2 ring-inset ring-brand" : null,
       )}
     >
       <RemoteImage src={photoUrl} alt="" sizes="164px" className="absolute inset-0" />
@@ -358,6 +370,17 @@ function CuisineTile({
         aria-hidden="true"
         className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent"
       />
+      {/* Рамка выбора — ОТДЕЛЬНЫЙ слой поверх фото и градиента (критерий 13).
+       * `ring`/`box-shadow` на самой кнопке рисуется в фазе фона/рамки, ДО
+       * абсолютно спозиционированных потомков (спека рисования CSS), поэтому
+       * висела бы под непрозрачным `<img>` и была видна только по кускам на
+       * краях — так и было до этого фикса. */}
+      {selected ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 rounded-lg ring-2 ring-inset ring-brand"
+        />
+      ) : null}
       <span className="relative z-10 flex items-center gap-1 px-3 py-2 text-[14px] font-medium leading-5 text-white">
         {selected ? (
           <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -462,7 +485,11 @@ function BudgetCard({
               disabled={disabled}
               onClick={() => onToggle(option.code)}
               className={cx(
-                "flex h-foodie-budget items-center justify-between gap-3 rounded-lg border px-4 text-left",
+                // Название сверху, цена крупнее и жирнее строкой ниже (Figma
+                // 5312:22289, замер `design-specs/web/shots/
+                // 5312-22289-foodie-budget@2x.png`) — раньше обе строки стояли
+                // в один ряд, цена мелким серым текстом справа.
+                "flex h-foodie-budget flex-col justify-center gap-1 rounded-lg border px-4 text-left",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 "disabled:cursor-not-allowed disabled:opacity-60",
                 isSelected ? "border-brand bg-brand-subtle" : "border-line-control bg-canvas",
@@ -485,8 +512,17 @@ function BudgetCard({
                   {option.name}
                 </span>
               </span>
+              {/* 20/28 Bold — та же ступень, что цена в `BookingSummary`
+               * («0 ₸», узел 3525:14967), не отдельный токен ради одного места. */}
               {option.priceLabel ? (
-                <span className="shrink-0 text-[14px] text-ink-secondary">{option.priceLabel}</span>
+                <span
+                  className={cx(
+                    "truncate text-[20px] font-bold leading-7",
+                    isSelected ? "text-brand-text" : "text-ink",
+                  )}
+                >
+                  {option.priceLabel}
+                </span>
               ) : null}
             </button>
           );
