@@ -80,11 +80,14 @@ function PaymentMethodsForm({
   const [notice, setNotice] = useState<string | null>(null);
 
   // Поля следуют за сохранённым на сервере, а не за выбранным.
+  // Зависим только от сохранённых полей: обновление `kaspi_account_bound` (после
+  // смены компании в «Приёме оплаты») не должно затирать несохранённый выбор.
+  const savedMethods = settings.methods.join(",");
   useEffect(() => {
     setEnabled(settings.payments_enabled);
-    setKaspi(settings.methods.includes("kaspi"));
-    setCard(settings.methods.includes("card"));
-  }, [settings]);
+    setKaspi(savedMethods.split(",").includes("kaspi"));
+    setCard(savedMethods.split(",").includes("card"));
+  }, [settings.payments_enabled, savedMethods]);
 
   const save = useMutation({
     mutationFn: (input: PaymentMethodsInput) => client.setPaymentMethods(restaurantId, input),

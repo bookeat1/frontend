@@ -67,7 +67,7 @@ vi.mock("@/lib/api", () => ({
       payments_enabled: null,
       payments_enabled_global: true,
       methods: ["kaspi"],
-      kaspi_account_bound: true,
+      kaspi_account_bound: storedAccount.connected,
     })),
     setPaymentMethods: vi.fn(async () => ({
       payments_enabled: null,
@@ -162,7 +162,7 @@ describe("VenueFormModal — провайдерские карточки не с
 
     // Трогаем карточку, НЕ нажимая её собственную кнопку.
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), { target: { value: "2" } });
-    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности/i);
 
     const cancelButton = screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement;
     const saveButtons = screen.getAllByRole("button", { name: "Сохранить" }) as HTMLButtonElement[];
@@ -194,11 +194,16 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     await screen.findByText("Приём оплаты");
-    await screen.findByText("Способы оплаты");
+    const methodsHeading = await screen.findByText("Способы оплаты");
+    // Один порядок в форме: «Приём оплаты», затем «Способы оплаты».
+    expect(
+      screen.getByText("Приём оплаты").compareDocumentPosition(methodsHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     // Включаем «Карту», не нажимая собственную кнопку карточки.
     fireEvent.click(await screen.findByLabelText(/^Карта \(FreedomPay/));
-    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности/i);
     const cancelButton = screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement;
     expect(cancelButton.disabled).toBe(true);
     fireEvent.click(cancelButton);
@@ -209,6 +214,23 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.click(screen.getByLabelText(/^Карта \(FreedomPay/));
     await waitFor(() => {
       expect((screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
+  it("после привязки Kaspi в «Приёме оплаты» подсказка «Kaspi не привязан» в «Способах оплаты» исчезает", async () => {
+    renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await screen.findByText(/Kaspi включён, но заведение не привязано/);
+
+    fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), { target: { value: "2" } });
+    const saveButtons = screen.getAllByRole("button", { name: "Сохранить" }) as HTMLButtonElement[];
+    fireEvent.click(saveButtons.find((b) => !b.disabled)!);
+
+    await screen.findByText("Привязка сохранена");
+    await waitFor(() => {
+      expect(screen.queryByText(/Kaspi включён, но заведение не привязано/)).toBeNull();
     });
   });
 
@@ -265,7 +287,7 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), {
       target: { value: "2" },
     });
-    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности/i);
 
     fireEvent.click(retryButton);
 
@@ -277,7 +299,7 @@ describe("VenueFormModal — провайдерские карточки не с
     });
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i)).toBeTruthy();
+    expect(screen.getByText(/несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности/i)).toBeTruthy();
   });
 
   it("гонка (4-й круг ревью): смена карточки оплаты, ПОКА ответ «Сохранить» ещё в пути, не должна закрыть форму молча", async () => {
@@ -307,7 +329,7 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.change(await screen.findByLabelText(/Компания в Kaspi/), {
       target: { value: "2" },
     });
-    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
+    await screen.findByText(/несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности/i);
 
     // Теперь отпускаем ответ «Сохранить».
     resolveSave!(newVenue({ id: "v-existing" }));
@@ -315,7 +337,7 @@ describe("VenueFormModal — провайдерские карточки не с
     // Форма обязана остаться открытой: правка карточки случилась уже после
     // клика, но до того, как сервер ответил.
     await waitFor(() => {
-      expect(screen.getByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i)).toBeTruthy();
+      expect(screen.getByText(/несохранённая правка в приёме оплаты, способах оплаты, Kwaaka или лояльности/i)).toBeTruthy();
     });
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
