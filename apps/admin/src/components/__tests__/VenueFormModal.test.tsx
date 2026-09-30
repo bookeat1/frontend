@@ -63,6 +63,18 @@ vi.mock("@/lib/api", () => ({
         return {};
       },
     ),
+    getPaymentMethods: vi.fn(async () => ({
+      payments_enabled: null,
+      payments_enabled_global: true,
+      methods: ["kaspi"],
+      kaspi_account_bound: true,
+    })),
+    setPaymentMethods: vi.fn(async () => ({
+      payments_enabled: null,
+      payments_enabled_global: true,
+      methods: ["kaspi"],
+      kaspi_account_bound: true,
+    })),
     getRestaurantSocialLinks: vi.fn(async () => []),
     getCatalogVenue: vi.fn(async (id: string) => newVenue({ id })),
     getRestaurantCuisines: vi.fn(async () => []),
@@ -174,6 +186,30 @@ describe("VenueFormModal — провайдерские карточки не с
     fireEvent.click(screen.getByRole("button", { name: "Отмена" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("«Способы оплаты» стоят рядом с «Приёмом оплаты», и их несохранённая правка тоже блокирует закрытие формы", async () => {
+    const { onSaved, onClose } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await screen.findByText("Приём оплаты");
+    await screen.findByText("Способы оплаты");
+
+    // Включаем «Карту», не нажимая собственную кнопку карточки.
+    fireEvent.click(await screen.findByLabelText(/^Карта \(FreedomPay/));
+    await screen.findByText(/несохранённая правка в приёме оплаты, Kwaaka или лояльности/i);
+    const cancelButton = screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement;
+    expect(cancelButton.disabled).toBe(true);
+    fireEvent.click(cancelButton);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+
+    // Возврат прежнего значения снимает блокировку.
+    fireEvent.click(screen.getByLabelText(/^Карта \(FreedomPay/));
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "Отмена" }) as HTMLButtonElement).disabled).toBe(false);
+    });
   });
 
   it("у нового заведения успешный «Повторить бесплатную отмену» тоже не закрывает форму (2-й круг ревью)", async () => {
