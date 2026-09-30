@@ -6,6 +6,7 @@ import {
   computePaymentBreakdown,
   guestPreorderEditAction,
   isCancellableBookingStatus,
+  venueOffersPreorderPayment,
   type Booking,
   type BookingStatus,
   type Restaurant,
@@ -296,7 +297,7 @@ function PreorderPayEntry({ booking, venue }: { booking: Booking; venue: Restaur
   const gate = preorderPaymentGate({
     bookingIsLive: isCancellableBookingStatus(booking.status),
     preorderItemsCount: preorder.data?.items.length ?? 0,
-    venueAcceptsOnlinePayment: venue?.acceptsOnlinePayment === true,
+    venueAcceptsOnlinePayment: venueOffersPreorderPayment(venue),
     existingPayment: livePayment,
   });
   const now = useTickingNow(gate.payable && livePayment?.status === "created");

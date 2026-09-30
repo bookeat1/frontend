@@ -1,5 +1,5 @@
 import type { BookingConflictKind } from "@bookeat/api";
-import { RepositoryError, formatServiceFeePercent, hasVisibleServiceFee } from "@bookeat/api";
+import { RepositoryError, formatServiceFeePercent, hasVisibleServiceFee, venueOffersPreorderPayment } from "@bookeat/api";
 import { colors, controlHeight, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -197,7 +197,7 @@ export default function ConfirmBookingScreen() {
           // «Оплата предзаказа» поверх брони (Figma 5387:7782). Со страницы
           // брони блок оплаты убран (макет 3073:11428), так что это единственный
           // путь к оплате; закрыв шторку, гость остаётся на брони.
-          if (draft.preorder.length > 0 && !preorderFailed && restaurant?.acceptsOnlinePayment === true) {
+          if (draft.preorder.length > 0 && !preorderFailed && venueOffersPreorderPayment(restaurant)) {
             router.push({ pathname: "/booking/[id]/payment", params: { id: booking.id } });
           }
         },

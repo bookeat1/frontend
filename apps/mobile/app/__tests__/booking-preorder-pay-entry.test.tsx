@@ -145,6 +145,13 @@ describe("экран брони: оплата предзаказа", () => {
     expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
   });
 
+  it("preorder_payment_required = false — входа нет, платить нечего", async () => {
+    restaurant = { ...RESTAURANT, preorderPaymentRequired: false };
+    renderScreen();
+    await waitFor(() => expect(screen.getByText(t.booking.status.pending)).toBeTruthy());
+    expect(screen.queryByTestId("preorder-pay-entry")).toBeNull();
+  });
+
   it("оплачено — блок «Предзаказ» с разбивкой суммы, входа на оплату нет", async () => {
     payment = livePayment({ status: "captured", baseAmountMinor: 350_000, feeMinor: 12_695 });
     renderScreen();

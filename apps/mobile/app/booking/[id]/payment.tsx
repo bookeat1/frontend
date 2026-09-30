@@ -1,4 +1,10 @@
-import { computePaymentBreakdown, isCancellableBookingStatus, RepositoryError, type PaymentMethod } from "@bookeat/api";
+import {
+  computePaymentBreakdown,
+  isCancellableBookingStatus,
+  RepositoryError,
+  venueOffersPreorderPayment,
+  type PaymentMethod,
+} from "@bookeat/api";
 import { colors, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -58,7 +64,7 @@ export default function PaymentScreen() {
   const paymentGate = preorderPaymentGate({
     bookingIsLive: booking.data ? isCancellableBookingStatus(booking.data.status) : false,
     preorderItemsCount,
-    venueAcceptsOnlinePayment: restaurant.data?.acceptsOnlinePayment === true,
+    venueAcceptsOnlinePayment: venueOffersPreorderPayment(restaurant.data),
     existingPayment: payment.isError ? null : payment.data,
   });
 
@@ -141,6 +147,21 @@ export default function PaymentScreen() {
 
   const [showAll, setShowAll] = React.useState(false);
 
+  // Заведение само сказало «оплата предзаказа не нужна»: платить здесь нечего,
+  // ошибку гостю не показываем — закрываем шторку и остаёмся на брони. Если
+  // 422 «requires no payment» всё-таки пришёл (старый бэкенд без поля),
+  // остаёмся и показываем спокойное объяснение (`createFailureMessage`).
+  const paymentNotRequired = restaurant.data != null && !venueOffersPreorderPayment(restaurant.data);
+  const leavingRef = React.useRef(false);
+  const leavingNotRequired = paymentNotRequired && phase !== "settling" && phase !== "paid";
+  React.useEffect(() => {
+    // Один раз: эффект перезапускается при смене `leave`/`phase`, а второй
+    // `router.back()` увёл бы гостя ещё на экран назад.
+    if (!leavingNotRequired || leavingRef.current) return;
+    leavingRef.current = true;
+    leave();
+  }, [leavingNotRequired, leave]);
+
   // Шторка (Figma 5387:7782): весь экран — прозрачный маршрут, панель снизу.
   // Состояния загрузки/ошибки/«платить нечего» рисуются ВНУТРИ той же панели,
   // а не отдельным экраном: гость видит один и тот же слой поверх брони.
@@ -163,6 +184,17 @@ export default function PaymentScreen() {
             description={t.search.errorDescription}
             action={{ label: t.common.retry, onPress: () => void booking.refetch(), variant: "button" }}
           />
+        </View>
+      </RouteSheet>
+    );
+  }
+
+  // Уходим на бронь — нейтральная загрузка, без мигания «платить нечего».
+  if (leavingNotRequired) {
+    return (
+      <RouteSheet onClose={leave} closeLabel={t.common.close}>
+        <View style={styles.stateBody}>
+          <LoadingState title={t.booking.bookingLoading} />
         </View>
       </RouteSheet>
     );
@@ -347,6 +379,7 @@ function createFailureMessage(error: unknown): string | null {
   if (error instanceof RepositoryError) {
     if (error.isOffline) return t.booking.paymentErrorOffline;
     if (error.status === 409) return t.booking.paymentErrorAlreadyActive;
+    if (error.isPaymentNotRequired) return t.booking.paymentErrorNotRequired;
     if (error.status === 422) return t.booking.paymentErrorUnavailable;
   }
   return t.booking.paymentErrorServer;

@@ -663,3 +663,11 @@ describe("гастропрогулки", () => {
     expect(routes.map((r) => r.slug)).toEqual(["ok"]);
   });
 });
+
+describe("preorder_payment_required (backend #163)", () => {
+  it("keeps false and true; a missing key is null, not false", () => {
+    expect(mapRestaurantDetail(apiRestaurant({ preorder_payment_required: false })).preorderPaymentRequired).toBe(false);
+    expect(mapRestaurantDetail(apiRestaurant({ preorder_payment_required: true })).preorderPaymentRequired).toBe(true);
+    expect(mapRestaurantDetail(apiRestaurant()).preorderPaymentRequired).toBeNull();
+  });
+});

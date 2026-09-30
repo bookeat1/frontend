@@ -352,6 +352,24 @@ describe("отказы создания счёта", () => {
     expect(screen.queryByText(/connection refused/)).toBeNull();
   });
 
+  it("422 «requires no payment» — спокойное объяснение вместо общей ошибки", async () => {
+    const { RepositoryError } = await import("@bookeat/api");
+    flowState.error = new RepositoryError("x", undefined, 422, "validation failed", "payment_not_required");
+
+    render(<PaymentScreen />);
+    await waitFor(() => expect(screen.getByText(t.booking.paymentErrorNotRequired)).toBeTruthy());
+    expect(screen.queryByText(t.booking.paymentErrorServer)).toBeNull();
+  });
+
+  it("preorder_payment_required = false — шторка закрывается на бронь, платёж не создаётся", async () => {
+    restaurant = { ...RESTAURANT, preorderPaymentRequired: false };
+    render(<PaymentScreen />);
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith({ pathname: "/booking/[id]", params: { id: "b-1" } }),
+    );
+    expect(pay).not.toHaveBeenCalled();
+  });
+
   it("создание счёта идёт — кнопка заблокирована", async () => {
     flowState.creating = true;
 

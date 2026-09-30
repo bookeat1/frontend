@@ -2364,6 +2364,7 @@ export const en: LocaleOverride<Dictionary> = {
     paymentErrorOffline: "No connection to the server. Check the internet and try again.",
     paymentErrorServer: "Could not create the invoice. Try again a bit later.",
     paymentErrorUnavailable: "Payment is not available right now. Try again later or contact the venue.",
+    paymentErrorNotRequired: "Online payment is not needed for this booking. Pay for the pre-order at the venue.",
     paymentErrorAlreadyActive: "This booking already has a payment. Refresh the screen.",
     paymentErrorCannotOpen:
       "Could not open Kaspi. Install the Kaspi.kz app or open the link in a browser.",
@@ -3468,6 +3469,7 @@ export const en: LocaleOverride<Dictionary> = {
         errorOffline: "No connection to the server. Check the internet and try again.",
         errorServer: "Could not create the invoice. Try again a bit later.",
         errorUnavailable: "Payment is not available right now. Try again later or contact the venue.",
+        errorNotRequired: "Online payment is not needed for this booking. Pay for the pre-order at the venue.",
         errorAlreadyActive: "This booking already has a payment. Refresh the page.",
       },
       paymentScreen: {
