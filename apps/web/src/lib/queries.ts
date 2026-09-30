@@ -22,6 +22,8 @@ import type {
   DayAvailability,
   EventPage,
   EventSummary,
+  FoodieProfile,
+  FoodieProfileOptions,
   GuideCategory,
   GuideCollection,
   GuideCollectionDetail,
@@ -47,7 +49,15 @@ import { RepositoryError } from "@bookeat/api/client";
 import { authRepository, isApiConfigured, repository } from "@web/lib/api";
 import { isNotFound } from "@web/lib/not-found";
 import { useAuth } from "@web/lib/auth";
-import { BOOKING_KEY, BOOKING_PAYMENT_KEY, FAVORITES_KEY, MY_BOOKINGS_KEY, PREORDER_KEY } from "@web/lib/query-keys";
+import {
+  BOOKING_KEY,
+  BOOKING_PAYMENT_KEY,
+  FAVORITES_KEY,
+  FOODIE_PROFILE_KEY,
+  MY_BOOKINGS_KEY,
+  PREORDER_KEY,
+  invalidatePersonalizedRowQueries,
+} from "@web/lib/query-keys";
 import { useLocale } from "@web/lib/locale";
 import type { PreorderFailedReason } from "@web/lib/preorder-failed-flag";
 
@@ -897,5 +907,63 @@ export function useCancelBooking() {
 export function useUpdateProfile() {
   return useMutation<AuthUser, unknown, ProfileUpdate>({
     mutationFn: (input) => authRepository.updateMe(input),
+  });
+}
+
+/**
+ * Раздел «Фуди-профиль» — спека `foodie-profile-web-desktop-20260930.md`.
+ *
+ * `GET /users/me/foodie-profile` (Auth), НИКОГДА не 404: гость, который
+ * никогда не открывал ни визард приложения, ни этот раздел, читает
+ * `{cuisines: [], diets: [], allergies: [], budget: null}`. Ключ БЕЗ локали
+ * (`FOODIE_PROFILE_KEY`, тот же, что у визарда приложения) — коды не
+ * переводятся, перевод только у справочника вариантов ниже. Привязан к
+ * сессии: чистится в `query-keys.ts` (аллергии — данные о здоровье).
+ */
+export function useFoodieProfile(): UseQueryResult<FoodieProfile> {
+  const { signedIn, isLoading } = useAuth();
+  return useQuery({
+    queryKey: FOODIE_PROFILE_KEY,
+    queryFn: () => authRepository.getFoodieProfile(),
+    enabled: isApiConfigured && signedIn && !isLoading,
+  });
+}
+
+/**
+ * `GET /foodie-profile/options` — публичный живой справочник плиток кухонь,
+ * диет, аллергий и ярусов бюджета (спека `foodie-profile-admin-
+ * dictionaries-20260916`). Названия резолвит сервер по `Accept-Language`,
+ * поэтому локаль — часть ключа (переключение языка перезапрашивает список, а
+ * не показывает старый перевод из кэша); коды в выборе от локали не зависят.
+ * `staleTime` 5 минут — тот же режим, что `useFoodieOptions()` приложения:
+ * справочник правится руками и редко.
+ */
+export function useFoodieOptions(): UseQueryResult<FoodieProfileOptions> {
+  const { locale } = useLocale();
+  return useQuery({
+    queryKey: [locale, "foodie-options"],
+    queryFn: () => repository.getFoodieProfileOptions(),
+    enabled: isApiConfigured,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * «Сохранить изменения» — `PUT /users/me/foodie-profile`, REPLACE целиком
+ * (критерий 19 спеки: все четыре ключа уходят каждый раз, пустой массив
+ * значит «очищено», а не «не трогать»). При успехе:
+ *   1) кэш черновика получает ответ сервера — следующее открытие раздела
+ *      снова покажет только что сохранённое, без лишнего перезапроса;
+ *   2) персонализированные ряды главной («Для вас», афиша, акции) обязаны
+ *      пересчитаться СРАЗУ (критерий 22), а не досидеть на `staleTime`.
+ */
+export function useSaveFoodieProfile() {
+  const client = useQueryClient();
+  return useMutation<FoodieProfile, unknown, FoodieProfile>({
+    mutationFn: (input) => authRepository.replaceFoodieProfile(input),
+    onSuccess: (saved) => {
+      client.setQueryData(FOODIE_PROFILE_KEY, saved);
+      invalidatePersonalizedRowQueries(client);
+    },
   });
 }

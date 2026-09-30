@@ -17,17 +17,30 @@ import { useT } from "@web/lib/locale";
  * радиус 12 без заливки. Ширина 252 — только с `lg`; ниже меню растягивается
  * на всю колонку, как список «Профиля» в приложении.
  *
- * Три пункта — ССЫЛКИ на разделы одной страницы (`/profile?section=…`):
+ * Четыре пункта — ССЫЛКИ на разделы одной страницы (`/profile?section=…`):
  * адрес раздела можно открыть в новой вкладке и вернуться назад кнопкой
  * браузера. «Выйти» — ДЕЙСТВИЕ, поэтому это `<button>`, а не ссылка на
  * несуществующий адрес.
  *
  * Значки нарисованы здесь как inline-SVG по описанию макета (24 px, контур
  * 1.5, как у значков шапки): выгрузки контуров из Figma в `design-specs` нет.
+ * «Фуди-профиль» — колпак шефа по тому же принципу (узел `5312:22332`,
+ * спека `foodie-profile-web-desktop-20260930.md`, критерий 1): и
+ * `/v1/files/:key/nodes`, и `/v1/images` этого файла отвечали 429 на момент
+ * реализации (30.09.2026) — контур нарисован по описанию, не снят с вектора;
+ * сверить с узлом, когда лимит отпустит.
+ *
+ * «Достижения» и «Друзья» из кадра `5312:22289` сюда сознательно не попали —
+ * разделов за ними на вебе нет (спека, §2 «вне скоупа»).
  */
-export type ProfileSection = "bookings" | "favorites" | "settings";
+export type ProfileSection = "bookings" | "favorites" | "foodie" | "settings";
 
-export const PROFILE_SECTIONS: readonly ProfileSection[] = ["bookings", "favorites", "settings"];
+export const PROFILE_SECTIONS: readonly ProfileSection[] = [
+  "bookings",
+  "favorites",
+  "foodie",
+  "settings",
+];
 
 export const SECTION_PARAM = "section";
 
@@ -54,6 +67,7 @@ const ICON_SIZE = webProfile.nav.item.iconSize;
 const ICONS: Record<ProfileSection, ReactNode> = {
   bookings: <ClipboardCheckIcon />,
   favorites: <HeartIcon filled={false} size={ICON_SIZE} />,
+  foodie: <ChefHatIcon />,
   settings: <SettingsIcon />,
 };
 
@@ -122,6 +136,20 @@ function ClipboardCheckIcon() {
       <rect x="4.8" y="4.8" width="14.4" height="14.4" rx="3" />
       <path d="M9.6 4.8h4.8v3.2H9.6z" />
       <path d="M8.8 12.8l2 2 4.4-4.4" />
+    </svg>
+  );
+}
+
+/** Колпак шефа — пункт «Фуди-профиль» (узел 5312:22332, файл
+ * `qmMsg4jO1ggmyEHNIAD2ll`). */
+function ChefHatIcon() {
+  return (
+    <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...strokeProps}>
+      <path d="M7 11.2c-2.3-.4-4-2.2-4-4.4 0-2.5 2.1-4.5 4.7-4.5.8 0 1.6.2 2.3.6C10.7 1.7 11.8 1.2 13 1.2s2.3.5 3 1.7c.7-.4 1.5-.6 2.3-.6 2.6 0 4.7 2 4.7 4.5 0 2.2-1.7 4-4 4.4" />
+      <path d="M7 11.2V17h10v-5.8" />
+      <path d="M6 20.8h12" />
+      <path d="M7 17v3.8" />
+      <path d="M17 17v3.8" />
     </svg>
   );
 }

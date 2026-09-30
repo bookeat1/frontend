@@ -3514,6 +3514,7 @@ export const en: LocaleOverride<Dictionary> = {
         label: "Profile sections",
         bookings: "My bookings",
         favorites: "Favorites",
+        foodie: "Foodie profile",
         settings: "Settings",
         signOut: "Sign out",
       },
@@ -3561,6 +3562,32 @@ export const en: LocaleOverride<Dictionary> = {
         empty: "Nothing saved yet. Tap the heart on a venue card and it will appear here.",
         browse: "Browse venues",
         book: "Book a table",
+      },
+      foodie: {
+        title: "Foodie profile",
+        subtitle: "Tell us about your taste — we'll match venues you'll like.",
+        cuisine: {
+          title: "Favourite cuisine",
+          subtitle: "Choose up to 5 cuisines and directions",
+          counter: (n: number) => `Selected ${n} of 5`,
+          limitHint: "Remove one of the selected cuisines first",
+        },
+        diet: {
+          title: "Dietary preferences",
+          subtitle: "We'll take this into account when matching restaurants",
+        },
+        allergies: {
+          title: "Allergies",
+          subtitle: "Mark anything you can't have",
+        },
+        budget: {
+          title: "Your budget",
+          subtitle: "Average check per guest · optional",
+        },
+        save: "Save changes",
+        hint: "You can change your preferences at any time",
+        saved: "Saved",
+        failed: "Could not save. Check your connection and try again.",
       },
       settings: {
         title: "Profile settings",
