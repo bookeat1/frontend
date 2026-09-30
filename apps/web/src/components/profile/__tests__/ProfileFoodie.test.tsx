@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { FoodieProfile, FoodieProfileOptions } from "@bookeat/api/client";
 
 import {
@@ -124,6 +124,34 @@ describe("ProfileFoodie — черновик переживает фоновый
     await waitFor(() => expect(screen.getByText("Выбрано 1 из 5")).toBeTruthy());
     expect(screen.getByRole("button", { name: "Итальянская" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: "Казахская" }).getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+describe("ProfileFoodie — смена локали", () => {
+  it("критерий 10: новые названия из справочника перерисовываются, выбранные коды остаются", async () => {
+    const { client } = renderFoodie();
+    await screen.findByText("Выбрано 0 из 5");
+
+    fireEvent.click(screen.getByRole("button", { name: "Итальянская" }));
+    expect(await screen.findByText("Выбрано 1 из 5")).toBeTruthy();
+
+    // Смена языка перезапрашивает `[locale, "foodie-options"]` с новыми
+    // названиями (сервер переводит по `Accept-Language`) — коды в справочнике
+    // те же, черновик хранит только коды.
+    client.setQueryData(
+      ["ru", "foodie-options"],
+      foodieProfileOptions({
+        cuisines: [
+          foodieOption({ id: "c-kazakh", code: "kazakh", name: "Kazakh (EN)", displayOrder: 0 }),
+          foodieOption({ id: "c-italian", code: "italian", name: "Italian (EN)", displayOrder: 1 }),
+          foodieOption({ id: "c-japanese", code: "japanese", name: "Japanese (EN)", displayOrder: 2 }),
+        ],
+      }),
+    );
+
+    expect(await screen.findByText("Выбрано 1 из 5")).toBeTruthy();
+    const renamed = await screen.findByRole("button", { name: "Italian (EN)" });
+    expect(renamed.getAttribute("aria-pressed")).toBe("true");
   });
 });
 
