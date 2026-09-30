@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { FoodieProfile, FoodieProfileOptions } from "@bookeat/api/client";
@@ -12,7 +12,7 @@ import {
   repositoryStub,
 } from "@web/test/harness";
 import { CityProvider } from "@web/lib/city";
-import { LocaleProvider } from "@web/lib/locale";
+import { LocaleProvider, useLocale, type WebLocale } from "@web/lib/locale";
 
 /**
  * Раздел «Фуди-профиль» (`ProfileFoodie.tsx`) — спека
@@ -43,6 +43,18 @@ vi.mock("@web/lib/auth", () => ({
 }));
 
 const { ProfileFoodie } = await import("@web/components/profile/ProfileFoodie");
+
+/** Кнопка, которая дёргает РЕАЛЬНЫЙ `setLocale` из `lib/locale` — критерий
+ * 10 проверяет настоящую смену языка (ключ `useFoodieOptions` меняется), а
+ * не подмену `queryData` под тем же ключом. */
+function LocaleSwitchButton({ to }: { to: WebLocale }) {
+  const { setLocale } = useLocale();
+  return (
+    <button type="button" onClick={() => setLocale(to)}>
+      switch-locale-{to}
+    </button>
+  );
+}
 
 function renderFoodie(ui: ReactElement = <ProfileFoodie />) {
   const client = new QueryClient({
@@ -128,30 +140,59 @@ describe("ProfileFoodie — черновик переживает фоновый
 });
 
 describe("ProfileFoodie — смена локали", () => {
-  it("критерий 10: новые названия из справочника перерисовываются, выбранные коды остаются", async () => {
-    const { client } = renderFoodie();
+  // `setLocale` пишет в `window.localStorage` по-настоящему (`STORAGE_KEY` в
+  // `lib/locale.tsx`) — `LocaleProvider` следующего теста иначе стартовал бы
+  // не с "ru", а с "kk", оставшегося от этого теста.
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("критерий 10: реальное переключение языка (setLocale) не роняет несохранённый выбор", async () => {
+    // Справочник переводится сервером по `Accept-Language` — коды одни и те
+    // же, названия разные. Первый вызов (локаль "ru", дефолт `LocaleProvider`)
+    // отдаёт русские названия из `foodieProfileOptions()`, второй (после
+    // переключения на "kk") — казахские; ключ запроса `[locale, "foodie-
+    // options"]` при этом реально меняется, как в проде.
+    let calls = 0;
+    repository.getFoodieProfileOptions = vi.fn(async () => {
+      calls += 1;
+      return calls === 1
+        ? foodieProfileOptions()
+        : foodieProfileOptions({
+            cuisines: [
+              foodieOption({ id: "c-kazakh", code: "kazakh", name: "Қазақ асханасы", displayOrder: 0 }),
+              foodieOption({ id: "c-italian", code: "italian", name: "Итальян асханасы", displayOrder: 1 }),
+              foodieOption({ id: "c-japanese", code: "japanese", name: "Жапон асханасы", displayOrder: 2 }),
+            ],
+          });
+    });
+
+    renderFoodie(
+      <>
+        <LocaleSwitchButton to="kk" />
+        <ProfileFoodie />
+      </>,
+    );
     await screen.findByText("Выбрано 0 из 5");
 
     fireEvent.click(screen.getByRole("button", { name: "Итальянская" }));
     expect(await screen.findByText("Выбрано 1 из 5")).toBeTruthy();
 
-    // Смена языка перезапрашивает `[locale, "foodie-options"]` с новыми
-    // названиями (сервер переводит по `Accept-Language`) — коды в справочнике
-    // те же, черновик хранит только коды.
-    client.setQueryData(
-      ["ru", "foodie-options"],
-      foodieProfileOptions({
-        cuisines: [
-          foodieOption({ id: "c-kazakh", code: "kazakh", name: "Kazakh (EN)", displayOrder: 0 }),
-          foodieOption({ id: "c-italian", code: "italian", name: "Italian (EN)", displayOrder: 1 }),
-          foodieOption({ id: "c-japanese", code: "japanese", name: "Japanese (EN)", displayOrder: 2 }),
-        ],
-      }),
-    );
+    // Настоящее переключение локали — тот же `setLocale`, что подвал сайта и
+    // «Настройки» → «Язык и город» дёргают в проде, а не подмена кэша под
+    // старым ключом.
+    fireEvent.click(screen.getByRole("button", { name: "switch-locale-kk" }));
 
-    expect(await screen.findByText("Выбрано 1 из 5")).toBeTruthy();
-    const renamed = await screen.findByRole("button", { name: "Italian (EN)" });
+    // Заголовок раздела перерисовался по-казахски — подтверждение, что
+    // локаль реально сменилась, а не осталась "ru".
+    expect(await screen.findByText("Сүйікті асхана")).toBeTruthy();
+
+    // Выбор (код "italian") пережил смену справочника и языка формы —
+    // именно это стирала смена локали до фикса (`AsyncBlock` размонтировал
+    // форму на время `isPending`, черновик в `useState` пропадал).
+    const renamed = await screen.findByRole("button", { name: "Итальян асханасы" });
     expect(renamed.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("5-тен 1 таңдалды")).toBeTruthy();
   });
 });
 
@@ -255,6 +296,36 @@ describe("ProfileFoodie — сохранение", () => {
 
     resolveSave(foodieProfile({ cuisines: ["italian"] }));
     await waitFor(() => expect(save.hasAttribute("disabled")).toBe(false));
+  });
+
+  it("ревью-фикс: во время PUT плитки/чипы/бюджет заблокированы — правка не теряется молча под «Сохранено»", async () => {
+    let resolveSave: (value: FoodieProfile) => void = () => {};
+    authRepository.replaceFoodieProfile = vi.fn(
+      () => new Promise<FoodieProfile>((resolve) => (resolveSave = resolve)),
+    );
+    renderFoodie();
+    await screen.findByText("Выбрано 0 из 5");
+
+    const italian = screen.getByRole("button", { name: "Итальянская" });
+    fireEvent.click(italian);
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить изменения" }));
+    await waitFor(() => expect(italian.hasAttribute("disabled")).toBe(true));
+
+    // Гость успевает кликнуть аллергию, пока PUT ещё летит — плитка/чип
+    // должны быть заблокированы, клик не должен применяться (иначе он
+    // потеряется молча в onSuccess ниже, см. критерий 22 спеки).
+    const nuts = screen.getByRole("button", { name: "Орехи" });
+    expect(nuts.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(nuts);
+    expect(nuts.getAttribute("aria-pressed")).toBe("false");
+
+    resolveSave(foodieProfile({ cuisines: ["italian"] }));
+    await screen.findByText("Сохранено");
+
+    // После ответа сервера поля снова активны, а аллергия (заблокированный
+    // клик выше) осталась НЕ выбрана — честно, а не тихо стёрта.
+    expect(screen.getByRole("button", { name: "Орехи" }).hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Орехи" }).getAttribute("aria-pressed")).toBe("false");
   });
 
   it("критерий 22: при успехе инвалидируются picks/events/promotions", async () => {

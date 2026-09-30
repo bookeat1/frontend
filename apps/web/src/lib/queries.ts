@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQueries,
@@ -937,6 +938,14 @@ export function useFoodieProfile(): UseQueryResult<FoodieProfile> {
  * не показывает старый перевод из кэша); коды в выборе от локали не зависят.
  * `staleTime` 5 минут — тот же режим, что `useFoodieOptions()` приложения:
  * справочник правится руками и редко.
+ *
+ * `placeholderData: keepPreviousData` — смена локали меняет ключ запроса, и
+ * без этого `AsyncBlock` уходит в `isPending` и размонтирует форму на время
+ * перезапроса (черновик живёт в `useState` внутри неё — потеряется).
+ * Безопасно показать старые ПОДПИСИ на секунду: коды вариантов от локали не
+ * зависят (см. комментарий выше), так что `buildDraft`/выбор гостя не
+ * съезжают — просто пара названий на миг остаётся на предыдущем языке, пока
+ * не придёт перевод.
  */
 export function useFoodieOptions(): UseQueryResult<FoodieProfileOptions> {
   const { locale } = useLocale();
@@ -945,6 +954,7 @@ export function useFoodieOptions(): UseQueryResult<FoodieProfileOptions> {
     queryFn: () => repository.getFoodieProfileOptions(),
     enabled: isApiConfigured,
     staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
   });
 }
 

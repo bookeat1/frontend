@@ -84,11 +84,22 @@ export function ProfileFoodie() {
   );
 }
 
+/**
+ * Высоты скелетов — реальные высоты карточек, а не произвольное число:
+ * замерено по `design-specs/web/shots/5312-22289-foodie-{cuisine,diet,
+ * budget}@2x.png` (2x-экспорт Figma, REST на узел был недоступен, см.
+ * комментарий у `webTokens.foodie` в `packages/design-tokens/src/web.ts`) —
+ * карточка кухонь ≈482px (широкая, 5 колонок плиток), карточки
+ * диет/аллергий/бюджета ≈218px. Раньше все четыре были одинаковой h-40
+ * (160px) — страница «прыгала» при появлении формы, особенно на карточке
+ * кухонь (482 vs 160).
+ */
 function FoodieSkeleton() {
+  const heights = ["h-[482px]", "h-[218px]", "h-[218px]", "h-[218px]"];
   return (
     <div className="flex flex-col gap-foodie-col-gap">
-      {["cuisine", "diet", "allergies", "budget"].map((key) => (
-        <Skeleton key={key} className="h-40 w-full rounded-xl" />
+      {["cuisine", "diet", "allergies", "budget"].map((key, i) => (
+        <Skeleton key={key} className={cx("w-full rounded-xl", heights[i])} />
       ))}
     </div>
   );
@@ -203,12 +214,20 @@ function FoodieForm({ profile, options }: { profile: FoodieProfile; options: Foo
     });
   }
 
+  // Пока летит `PUT` (критерий 22 спеки), все поля выбора заблокированы —
+  // иначе гость может кликнуть новую плитку МЕЖДУ отправкой запроса и его
+  // ответом; `onSuccess` заменит черновик снимком сервера и эта правка молча
+  // потеряется, при этом UI покажет «Сохранено» (для аллергий это данные о
+  // здоровье, тут особенно нельзя).
+  const formDisabled = saveMutation.isPending;
+
   return (
     <>
       <CuisineCard
         options={options.cuisines}
         selected={draft.cuisines}
         limitHintVisible={limitHintVisible}
+        disabled={formDisabled}
         onToggle={handleToggleCuisine}
       />
       <ChipCard
@@ -217,6 +236,7 @@ function FoodieForm({ profile, options }: { profile: FoodieProfile; options: Foo
         subtitle={texts.diet.subtitle}
         options={options.diets}
         selected={draft.diets}
+        disabled={formDisabled}
         onToggle={handleToggleDiet}
       />
       <ChipCard
@@ -225,9 +245,15 @@ function FoodieForm({ profile, options }: { profile: FoodieProfile; options: Foo
         subtitle={texts.allergies.subtitle}
         options={options.allergies}
         selected={draft.allergies}
+        disabled={formDisabled}
         onToggle={handleToggleAllergy}
       />
-      <BudgetCard options={options.budgets} selected={draft.budget} onToggle={handleToggleBudget} />
+      <BudgetCard
+        options={options.budgets}
+        selected={draft.budget}
+        disabled={formDisabled}
+        onToggle={handleToggleBudget}
+      />
       <div className="flex flex-wrap items-center gap-foodie-save-gap">
         <Button variant="primary" size="l" loading={saveMutation.isPending} onClick={handleSave}>
           {texts.save}
@@ -252,11 +278,13 @@ function CuisineCard({
   options,
   selected,
   limitHintVisible,
+  disabled,
   onToggle,
 }: {
   options: readonly FoodieOption[];
   selected: readonly string[];
   limitHintVisible: boolean;
+  disabled: boolean;
   onToggle: (code: string) => void;
 }) {
   const { t } = useLocale();
@@ -267,10 +295,10 @@ function CuisineCard({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h3 className="text-h3 text-ink">{texts.title}</h3>
-          <p className="text-bodyM text-ink-secondary">{texts.subtitle}</p>
+          <p className="text-bodyM text-ink-secondary">{texts.subtitle(CUISINE_SELECTION_LIMIT)}</p>
         </div>
         <span className="whitespace-nowrap text-bodyM font-semibold text-brand-text">
-          {texts.counter(selected.length)}
+          {texts.counter(selected.length, CUISINE_SELECTION_LIMIT)}
         </span>
       </div>
       {limitHintVisible ? (
@@ -286,6 +314,7 @@ function CuisineCard({
               key={option.code}
               option={option}
               selected={isSelected}
+              disabled={disabled}
               onClick={() => onToggle(option.code)}
             />
           );
@@ -298,10 +327,12 @@ function CuisineCard({
 function CuisineTile({
   option,
   selected,
+  disabled,
   onClick,
 }: {
   option: FoodieOption;
   selected: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   const photoUrl = option.imageUrl?.trim() ? option.imageUrl : cuisinePhoto(option.code);
@@ -310,10 +341,12 @@ function CuisineTile({
       type="button"
       aria-pressed={selected}
       aria-label={option.name}
+      disabled={disabled}
       onClick={onClick}
       className={cx(
         "relative flex h-foodie-tile w-full items-end overflow-hidden rounded-lg text-left",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "disabled:cursor-not-allowed disabled:opacity-60",
         selected ? "ring-2 ring-inset ring-brand" : null,
       )}
     >
@@ -343,6 +376,7 @@ function ChipCard({
   subtitle,
   options,
   selected,
+  disabled,
   onToggle,
 }: {
   titleId: string;
@@ -350,6 +384,7 @@ function ChipCard({
   subtitle: string;
   options: readonly FoodieOption[];
   selected: readonly string[];
+  disabled: boolean;
   onToggle: (code: string) => void;
 }) {
   return (
@@ -368,6 +403,7 @@ function ChipCard({
               key={option.code}
               size="m"
               state={isSelected ? "selected" : "default"}
+              disabled={disabled}
               onClick={() => onToggle(option.code)}
             >
               {/* `aria-hidden` — доступное имя чипа остаётся названием
@@ -390,10 +426,12 @@ function ChipCard({
 function BudgetCard({
   options,
   selected,
+  disabled,
   onToggle,
 }: {
   options: readonly FoodieBudgetOption[];
   selected: string | null;
+  disabled: boolean;
   onToggle: (code: string) => void;
 }) {
   const { t } = useLocale();
@@ -421,10 +459,12 @@ function BudgetCard({
               type="button"
               aria-pressed={isSelected}
               aria-label={option.priceLabel ? `${option.name}, ${option.priceLabel}` : option.name}
+              disabled={disabled}
               onClick={() => onToggle(option.code)}
               className={cx(
                 "flex h-foodie-budget items-center justify-between gap-3 rounded-lg border px-4 text-left",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                "disabled:cursor-not-allowed disabled:opacity-60",
                 isSelected ? "border-brand bg-brand-subtle" : "border-line-control bg-canvas",
               )}
             >
@@ -455,7 +495,3 @@ function BudgetCard({
     </Card>
   );
 }
-
-/** Экспорт лимита — только для тестов, чтобы не дублировать «5» магическим
- * числом в описаниях сценариев. */
-export const FOODIE_CUISINE_LIMIT = CUISINE_SELECTION_LIMIT;

@@ -3567,8 +3567,8 @@ export const kk: LocaleOverride<Dictionary> = {
         subtitle: "Дәм таңдауларыңыз туралы айтыңыз — сізге ұнайтын мекемелерді таңдаймыз.",
         cuisine: {
           title: "Сүйікті асхана",
-          subtitle: "5-ке дейін асхана мен бағыт таңдаңыз",
-          counter: (n: number) => `5-тен ${n} таңдалды`,
+          subtitle: (limit: number) => `${limit}-ке дейін асхана мен бағыт таңдаңыз`,
+          counter: (n: number, limit: number) => `${limit}-тен ${n} таңдалды`,
           limitHint: "Алдымен таңдалған асханалардың бірін алып тастаңыз",
         },
         diet: {

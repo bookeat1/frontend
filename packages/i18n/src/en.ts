@@ -3568,8 +3568,8 @@ export const en: LocaleOverride<Dictionary> = {
         subtitle: "Tell us about your taste — we'll match venues you'll like.",
         cuisine: {
           title: "Favourite cuisine",
-          subtitle: "Choose up to 5 cuisines and directions",
-          counter: (n: number) => `Selected ${n} of 5`,
+          subtitle: (limit: number) => `Choose up to ${limit} cuisines and directions`,
+          counter: (n: number, limit: number) => `Selected ${n} of ${limit}`,
           limitHint: "Remove one of the selected cuisines first",
         },
         diet: {
