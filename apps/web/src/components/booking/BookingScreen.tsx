@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RepositoryError, type Restaurant } from "@bookeat/api/client";
+import { RepositoryError, venueOffersPreorderPayment, type Restaurant } from "@bookeat/api/client";
 
 import {
   ContactsCard,
@@ -423,7 +423,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           });
           onSuccess(
             booking.id,
-            !preorderFailed && preorderDraft.draft.lines.length > 0 && venue.acceptsOnlinePayment === true,
+            !preorderFailed && preorderDraft.draft.lines.length > 0 && venueOffersPreorderPayment(venue),
           );
         },
         onError: (error) => {

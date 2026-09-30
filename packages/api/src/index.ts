@@ -5,6 +5,7 @@ export * from "./schedule";
 export * from "./static-map";
 export * from "./service-fee";
 export * from "./payment-fee";
+export * from "./payment-offer";
 export * from "./preorder-edit";
 export * from "./repository";
 export * from "./mock-repository";

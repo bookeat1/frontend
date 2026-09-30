@@ -2362,6 +2362,7 @@ export const kk: LocaleOverride<Dictionary> = {
     paymentErrorOffline: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
     paymentErrorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
     paymentErrorUnavailable: "Қазір төлем жасалмады. Кейінірек көріңіз немесе мекемеге хабарласыңыз.",
+    paymentErrorNotRequired: "Бұл брондау үшін онлайн төлем қажет емес. Алдын ала тапсырысты мекемеде төлейсіз.",
     paymentErrorAlreadyActive: "Бұл броньда төлем бар. Экранды жаңартыңыз.",
     paymentErrorCannotOpen:
       "Kaspi ашылмады. Kaspi.kz қосымшасын орнатыңыз немесе сілтемені браузерде ашыңыз.",
@@ -3467,6 +3468,7 @@ export const kk: LocaleOverride<Dictionary> = {
         errorOffline: "Сервермен байланыс жоқ. Интернетті тексеріп, қайталап көріңіз.",
         errorServer: "Шот жасалмады. Сәл кейінірек қайталаңыз.",
         errorUnavailable: "Қазір төлем жасалмады. Кейінірек көріңіз немесе мекемеге хабарласыңыз.",
+        errorNotRequired: "Бұл брондау үшін онлайн төлем қажет емес. Алдын ала тапсырысты мекемеде төлейсіз.",
         errorAlreadyActive: "Бұл броньда төлем бар. Бетті жаңартыңыз.",
       },
       paymentScreen: {

@@ -7,6 +7,7 @@ import {
   isRebookableBooking,
   isTerminalBookingStatus,
   RepositoryError,
+  venueOffersPreorderPayment,
 } from "@bookeat/api";
 import { colors, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
@@ -109,7 +110,7 @@ export default function ReservationScreen() {
   const payGate = preorderPaymentGate({
     bookingIsLive: cancellable,
     preorderItemsCount,
-    venueAcceptsOnlinePayment: restaurant.data?.acceptsOnlinePayment === true,
+    venueAcceptsOnlinePayment: venueOffersPreorderPayment(restaurant.data),
     existingPayment: livePayment,
   });
   const payNow = useTickingNow(payGate.payable && livePayment?.status === "created");
