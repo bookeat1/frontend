@@ -1,0 +1,3 @@
+{
+  "NSLocationWhenInUseUsageDescription": "BookEat uses your location only while the app is open, to show the venues nearest to you first. Your coordinates are not stored."
+}
