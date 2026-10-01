@@ -88,6 +88,10 @@ export function CatalogScreen() {
 
   const [requesting, setRequesting] = useState(false);
   const [notice, setNotice] = useState<"denied" | "error" | null>(null);
+  // Номер запроса позиции. Браузер может держать диалог разрешения сколько
+  // угодно (закрыли крестиком, колбэк не вызван), поэтому гость не заперт: смена
+  // сортировки отменяет запрос (номер растёт), а поздний ответ отбрасывается.
+  const requestId = useRef(0);
 
   /**
    * «Сначала ближайшие» (3.13-3.16). Вызывается ТОЛЬКО из жеста: `geo.locate()`
@@ -95,17 +99,22 @@ export function CatalogScreen() {
    */
   function chooseNearest() {
     if (requesting) return;
+    const id = ++requestId.current;
     setRequesting(true);
     setNotice(null);
-    const needsDialog = geo.permission !== "granted";
+    // Диалог возможен только при `prompt`/`unknown`. При `denied` браузер
+    // ответит отказом сразу, без окна: воронку prompt_shown это не должно раздувать.
+    const needsDialog = geo.permission === "prompt" || geo.permission === "unknown";
     if (needsDialog) trackEvent("location_prompt_shown", { surface: "web_sort" });
     void geo.locate().then((result) => {
-      setRequesting(false);
       trackEvent("location_permission_result", {
         surface: "web_sort",
         result: result.ok ? "granted" : result.reason === "denied" ? "denied" : "unavailable",
         precise: null,
       });
+      // Гость успел выбрать другую сортировку: ответ не применяем.
+      if (id !== requestId.current) return;
+      setRequesting(false);
       const { state: current, update: apply } = latest.current;
       if (result.ok) {
         apply({ ...current, sort: "nearest", page: 1 });
@@ -123,7 +132,12 @@ export function CatalogScreen() {
   const autoLocated = useRef(false);
   const locate = geo.locate;
   useEffect(() => {
-    if (!nearestSelected || geo.point) return;
+    if (!nearestSelected) return;
+    if (geo.point) {
+      // Позиция жива; когда она истечёт (10 минут), при `granted` возьмём новую молча.
+      autoLocated.current = false;
+      return;
+    }
     if (geo.permission === "denied") {
       setNotice("denied");
       latest.current.update({ ...latest.current.state, sort: "recommended", page: 1 });
@@ -211,13 +225,15 @@ export function CatalogScreen() {
               <span className="sr-only">{t.web.catalog.sort.label}</span>
               <select
                 value={requesting ? "nearest" : state.sort}
-                disabled={requesting}
                 onChange={(event) => {
                   const value = event.target.value as CatalogSort;
                   if (value === "nearest") {
                     chooseNearest();
                     return;
                   }
+                  // Выбор другой сортировки отменяет ожидающий запрос позиции.
+                  requestId.current += 1;
+                  setRequesting(false);
                   setNotice(null);
                   update({ ...state, sort: value, page: 1 });
                 }}
