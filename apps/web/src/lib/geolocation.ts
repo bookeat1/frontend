@@ -16,7 +16,10 @@ import { useCallback, useEffect, useState } from "react";
  *  - Координаты живут ТОЛЬКО в памяти вкладки (переменная модуля и состояние
  *    хука): не в URL, не в localStorage/sessionStorage, не в cookie, поэтому и
  *    не в `[Amplitude] Page Location`. Не уходят в аналитику и в логи.
- *  - Повторный вызов в пределах 10 минут отдаёт запомненную позицию.
+ *  - Повторный вызов в пределах 10 минут отдаёт запомненную позицию. Через 10
+ *    минут позиция исчезает и из состояния хука (`point` → `null`), а не только
+ *    из `locate()`; так же она забывается, когда разрешение отозвали
+ *    (`denied` или сброс в `prompt` через Permissions API).
  */
 
 export const GEO_TTL_MS = 10 * 60 * 1000;
@@ -33,6 +36,10 @@ let remembered: { point: GeoPoint; at: number } | null = null;
 
 /** Только для тестов: у модуля есть память, а тесты должны стартовать пустыми. */
 export function resetRememberedLocation(): void {
+  remembered = null;
+}
+
+function forgetRemembered(): void {
   remembered = null;
 }
 
@@ -69,13 +76,24 @@ export function useBrowserGeolocation(): {
   useEffect(() => {
     let alive = true;
     let status: PermissionStatus | null = null;
+    // Разрешение отозвали (denied или сброс в prompt): чужие координаты больше
+    // не используем. Без Permissions API (`status === null`) статус неизвестен,
+    // и позицию, полученную в этой вкладке, не трогаем.
+    const sync = (state: GeoPermissionState) => {
+      setPermission(state);
+      if (state !== "granted" && state !== "unknown") {
+        forgetRemembered();
+        setPoint(null);
+      }
+    };
     const onChange = () => {
-      if (alive && status) setPermission(status.state);
+      if (alive && status) sync(status.state);
     };
     void readPermission().then((read) => {
       if (!alive) return;
       status = read.status;
-      setPermission(read.state);
+      if (status) sync(read.state);
+      else setPermission(read.state);
       status?.addEventListener?.("change", onChange);
     });
     return () => {
@@ -83,6 +101,14 @@ export function useBrowserGeolocation(): {
       status?.removeEventListener?.("change", onChange);
     };
   }, []);
+
+  // Срок годности: по истечении 10 минут позиция уходит и из состояния.
+  useEffect(() => {
+    if (!point || !remembered) return;
+    const left = remembered.at + GEO_TTL_MS - Date.now();
+    const timer = setTimeout(() => setPoint(freshRemembered()), Math.max(left, 0) + 1);
+    return () => clearTimeout(timer);
+  }, [point]);
 
   const locate = useCallback((): Promise<GeoResult> => {
     const cached = freshRemembered();

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import type { SearchQuery } from "@bookeat/api/client";
 
@@ -114,6 +114,27 @@ describe("загрузка /venues без жеста (кр. 25)", () => {
     expect(queries().at(-1)?.near).toEqual({ lat: 43.238, lng: 76.946 });
   });
 
+  it("granted и ?sort=nearest: через 10 минут позиция истекает и берётся заново молча", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      setGeolocation("granted");
+      allow();
+      search = "sort=nearest";
+      renderScreen(<CatalogScreen />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 50);
+      });
+      expect(getCurrentPosition).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("button", { name: "Показать ближайшие" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("статус denied и ?sort=nearest: объяснение, сортировка снимается из адреса (3.14)", async () => {
     setGeolocation("denied");
     search = "sort=nearest";
@@ -136,6 +157,47 @@ describe("жест гостя", () => {
     expect(trackEvent).toHaveBeenCalledWith("location_permission_result", {
       surface: "web_sort",
       result: "granted",
+      precise: null,
+    });
+  });
+
+  it("браузер держит диалог без ответа: селект не заблокирован, смена сортировки отменяет запрос, поздний ответ отброшен", async () => {
+    let answer: (p: unknown) => void = () => {};
+    getCurrentPosition.mockImplementation((ok: (p: unknown) => void) => {
+      answer = ok;
+    });
+    renderScreen(<CatalogScreen />);
+    const select = (await screen.findByLabelText("Сортировка")) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "nearest" } });
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
+    expect(select.disabled).toBe(false);
+
+    fireEvent.change(select, { target: { value: "rating" } });
+    expect(replace).toHaveBeenCalledWith("/venues?sort=rating", { scroll: false });
+    // Роутер в тесте подменён и адрес не меняет: важно, что «ближайшие» с селекта ушли.
+    expect(select.value).not.toBe("nearest");
+    replace.mockClear();
+
+    // Диалог всё-таки закрыли «Разрешить» уже после смены сортировки.
+    await act(async () => {
+      answer({ coords: { latitude: 43.238123, longitude: 76.945678 } });
+    });
+    expect(replace).not.toHaveBeenCalled();
+    expect(select.value).not.toBe("nearest");
+  });
+
+  it("denied: диалога нет, location_prompt_shown не уходит, результат denied уходит", async () => {
+    setGeolocation("denied");
+    refuse(1);
+    renderScreen(<CatalogScreen />);
+    const select = await screen.findByLabelText("Сортировка");
+    await act(async () => {});
+    fireEvent.change(select, { target: { value: "nearest" } });
+    expect(await screen.findByText(/Браузер не дал доступ к геопозиции/)).toBeTruthy();
+    expect(trackEvent.mock.calls.some(([name]) => name === "location_prompt_shown")).toBe(false);
+    expect(trackEvent).toHaveBeenCalledWith("location_permission_result", {
+      surface: "web_sort",
+      result: "denied",
       precise: null,
     });
   });
