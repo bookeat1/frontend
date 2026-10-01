@@ -1,5 +1,5 @@
 import { EMPTY_FILTERS, type PriceLevel, type SearchFilters, type TimeOfDay } from "@bookeat/api";
-import { colors, listCard, spacing } from "@bookeat/design-tokens";
+import { colors, listCard, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import { BottomNavBar, useNavBarSpacing } from "../src/components/BottomNavBar";
@@ -24,8 +25,10 @@ import {
   type AvailabilityHalf,
 } from "../src/components/search/AvailabilityWheels";
 import { FilterButton } from "../src/components/search/FilterButton";
+import { LocationOptInCard } from "../src/components/search/LocationOptInCard";
 import { FilterSheet } from "../src/components/search/FilterSheet";
 import { usePullToRefresh } from "../src/hooks/usePullToRefresh";
+import { useLocationPrompt } from "../src/hooks/useLocationPrompt";
 import { useSearchScreen } from "../src/hooks/useSearch";
 import { dateChoices } from "../src/lib/availability-label";
 import { MAX_GUESTS } from "../src/lib/availability-options";
@@ -110,11 +113,19 @@ export default function SearchScreen() {
     activeFilterCount,
     hasActiveSearch,
     isTyping,
+    sortedByDistance,
+    applyNearPoint,
     searchQueryResult,
     cuisinesQuery,
     amenitiesQuery,
     citiesQuery,
   } = useSearchScreen({ initialCuisineIds, initialAvailability });
+
+  // Геопозиция (спека geolocation-permission.md): мягкий пре-промпт над
+  // списком, пока гость ничего не печатал, и подпись, когда список уже
+  // упорядочен по расстоянию. Оба видны только при пустом тексте.
+  const textIsEmpty = text.trim().length === 0;
+  const locationPrompt = useLocationPrompt({ active: textIsEmpty, onLocated: applyNearPoint });
 
   // Шторка фильтров ВСЕГДА открывается только по кнопке-ползункам.
   //
@@ -384,6 +395,17 @@ export default function SearchScreen() {
             // 16 между карточками (node 3452:13343: `gap-[16px]`); было 24.
             ItemSeparatorComponent={() => <View style={{ height: listCard.gap }} />}
             contentContainerStyle={[styles.listContent, { paddingBottom: navPad }]}
+            ListHeaderComponent={
+              locationPrompt.visible ? (
+                <LocationOptInCard
+                  working={locationPrompt.working}
+                  onAllow={locationPrompt.onAllow}
+                  onLater={locationPrompt.onLater}
+                />
+              ) : sortedByDistance ? (
+                <Text style={styles.sortCaption}>{t.location.nearestFirst}</Text>
+              ) : null
+            }
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -628,6 +650,11 @@ const styles = StyleSheet.create({
   stateContent: {
     // Пустое состояние занимает ленту целиком — иначе тянуть нечего.
     flexGrow: 1,
+  },
+  sortCaption: {
+    ...typography.caption,
+    color: colors.text.muted,
+    paddingBottom: spacing.md,
   },
   listContent: {
     // Боковой отступ ленты — 16 (node 3452:13343: `px-[16px]`), и он теперь

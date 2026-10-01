@@ -5,6 +5,7 @@ import React, { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmSheet } from "../../src/components/ConfirmSheet";
+import { LocationSettingsRow } from "../../src/components/settings/LocationSettingsRow";
 import { FlowHeader } from "../../src/components/FlowHeader";
 import { Bell, type IconProps, Info, SealPercent, Shield, Trash } from "../../src/components/icons";
 import { PrimaryButton } from "../../src/components/PrimaryButton";
@@ -162,6 +163,10 @@ export default function SettingsScreen() {
             disabled={promoPush.loading || promoPush.working || promoPush.unavailable}
           />
         ) : null}
+
+        {/* «Геопозиция» (спека geolocation-permission.md, M4): не рисуется, пока
+            статус читается и когда в сборке нет нативного модуля или это веб. */}
+        <LocationSettingsRow />
 
         {SETTINGS_SECURITY_ROW_ENABLED ? (
           <InfoRow icon={Shield} label={t.settings.security} hint={t.settings.comingSoon} />
