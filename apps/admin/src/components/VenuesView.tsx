@@ -357,6 +357,18 @@ export function VenueFormModal({
   // город тем и опасен, что его не замечают и сохраняют не глядя. Первый город
   // справочника подставляется ниже, только когда справочник уже ответил.
   const [city, setCity] = useState(venue?.city ?? "");
+  // Координаты — первый шаг фичи «рестораны рядом» (бэкенд уже умеет
+  // принимать/отдавать/сортировать по ним). Приходят прямо в строке листинга
+  // (`baseFromDomain` кладёт их и в `listItemToResponse`, и в
+  // `aggregateToResponse`), поэтому, в отличие от переводов и часов работы,
+  // ждать детальное чтение не нужно. Оба поля независимо nullable на бэкенде,
+  // но частично заполненная пара координат — не точка на карте, а мусор,
+  // поэтому форма требует либо обе, либо ни одной (см. `buildInput`).
+  const [latitude, setLatitude] = useState(venue?.latitude != null ? String(venue.latitude) : "");
+  const [longitude, setLongitude] = useState(
+    venue?.longitude != null ? String(venue.longitude) : "",
+  );
+  const [coordinatesError, setCoordinatesError] = useState<string | null>(null);
   const [phone, setPhone] = useState(venue?.phone ?? "");
   const [email, setEmail] = useState(venue?.email ?? "");
   const [priceCategory, setPriceCategory] = useState(venue?.price_category ?? "");
@@ -625,6 +637,30 @@ export function VenueFormModal({
     if (Number.isFinite(min) && Number.isFinite(max)) {
       input.price_min = min;
       input.price_max = max;
+    }
+    // Координаты: либо обе, либо ни одной — та же причина, что у диапазона
+    // чека. Диапазоны — паспортные (WGS-84): широта -90..90, долгота -180..180.
+    const latTrimmed = latitude.trim();
+    const lngTrimmed = longitude.trim();
+    if (!latTrimmed && !lngTrimmed) {
+      setCoordinatesError(null);
+    } else if (!latTrimmed || !lngTrimmed) {
+      setCoordinatesError("Заполните оба поля — широту и долготу — либо оставьте оба пустыми.");
+      return null;
+    } else {
+      const lat = Number(latTrimmed);
+      const lng = Number(lngTrimmed);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        setCoordinatesError("Широта — число от -90 до 90.");
+        return null;
+      }
+      if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+        setCoordinatesError("Долгота — число от -180 до 180.");
+        return null;
+      }
+      setCoordinatesError(null);
+      input.latitude = lat;
+      input.longitude = lng;
     }
     // Фото отправляем ТОЛЬКО когда оно есть: пустой массив стёр бы всю галерею
     // заведения, а не «оставил как было».
@@ -910,6 +946,39 @@ export function VenueFormModal({
           stored={detail?.address_i18n}
           disabled={busy}
         />
+
+        {/* Координаты — первый шаг «рестораны рядом» (бэкенд уже принимает,
+            отдаёт и сортирует по latitude/longitude). Необязательные, но либо
+            обе, либо ни одной — см. buildInput. */}
+        <div className="grid gap-md sm:grid-cols-2">
+          <Field label="Широта" hint="От -90 до 90, например 43.238949">
+            <TextInput
+              inputMode="decimal"
+              value={latitude}
+              onChange={(e) => {
+                setLatitude(e.target.value);
+                setCoordinatesError(null);
+              }}
+              disabled={busy}
+            />
+          </Field>
+          <Field label="Долгота" hint="От -180 до 180, например 76.889709">
+            <TextInput
+              inputMode="decimal"
+              value={longitude}
+              onChange={(e) => {
+                setLongitude(e.target.value);
+                setCoordinatesError(null);
+              }}
+              disabled={busy}
+            />
+          </Field>
+        </div>
+        {coordinatesError ? (
+          <p className="text-sm text-brand" role="alert">
+            {coordinatesError}
+          </p>
+        ) : null}
 
         <TranslatedField
           id="venue-opening-hours"
