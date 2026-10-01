@@ -1,4 +1,10 @@
-import { EMPTY_FILTERS, type PriceLevel, type SearchQuery } from "@bookeat/api/client";
+import {
+  EMPTY_FILTERS,
+  roundGeoPoint,
+  type GeoPoint,
+  type PriceLevel,
+  type SearchQuery,
+} from "@bookeat/api/client";
 
 /**
  * Состояние листинга живёт в АДРЕСНОЙ СТРОКЕ, а не в useState.
@@ -9,7 +15,7 @@ import { EMPTY_FILTERS, type PriceLevel, type SearchQuery } from "@bookeat/api/c
  * это и покрыто тестами: клик по фильтру обязан менять аргументы
  * `searchRestaurants`, а не только вид чипа.
  */
-export type CatalogSort = "recommended" | "rating" | "name";
+export type CatalogSort = "recommended" | "nearest" | "rating" | "name";
 
 export interface CatalogState {
   /** Строка поиска (`q` на сервере). */
@@ -59,7 +65,7 @@ function parsePrice(value: string | null): PriceLevel | undefined {
 }
 
 function parseSort(value: string | null): CatalogSort {
-  return value === "rating" || value === "name" ? value : "recommended";
+  return value === "rating" || value === "name" || value === "nearest" ? value : "recommended";
 }
 
 function parsePositiveInt(value: string | null): number | undefined {
@@ -111,11 +117,23 @@ export function serializeCatalogParams(state: CatalogState): string {
  * дата+гости: сервер игнорирует одно без другого, и отправить половину значило
  * бы показать «фильтр применён», когда он не применён.
  */
-export function buildSearchQuery(state: CatalogState, city: string | undefined): SearchQuery {
+export function buildSearchQuery(
+  state: CatalogState,
+  city: string | undefined,
+  /**
+   * Геопозиция гостя. Только `/venues` и только при `sort=nearest`: главная,
+   * sitemap и серверный рендер её не передают никогда (спека
+   * geolocation-permission.md, критерий 27). Без текста запроса — с текстом
+   * сервер расстояние не применяет.
+   */
+  near?: GeoPoint,
+): SearchQuery {
   const availability =
     state.date && state.guests
       ? { date: state.date, guests: state.guests, timeFrom: state.time }
       : undefined;
+
+  const rounded = state.text.trim() === "" ? roundGeoPoint(near) : undefined;
 
   return {
     text: state.text.trim(),
@@ -128,6 +146,9 @@ export function buildSearchQuery(state: CatalogState, city: string | undefined):
       openNowOnly: state.openNow,
       availability,
     },
+    // Ключ добавляется только когда он есть: запросы без геопозиции остаются
+    // ровно такими, какими были (и ключи кэша тоже).
+    ...(rounded ? { near: rounded } : {}),
   };
 }
 
@@ -191,6 +212,8 @@ export const EMPTY_CATALOG_STATE = EMPTY_STATE;
 
 /**
  * Сортировка и постраничная нарезка — НА КЛИЕНТЕ, и это осознанно.
+ * Исключение — `nearest`: порядок по расстоянию задаёт СЕРВЕР (`?lat=&lng=`),
+ * клиент выдачу не пересортировывает и оставляет как пришла.
  *
  * `searchRestaurants` спрашивает у сервера одну страницу на 100 записей, а в
  * живом каталоге заведений два десятка: вся выдача уже здесь, и резать её на

@@ -15,7 +15,7 @@ describe("location strings", () => {
   for (const key of keys) {
     it(`${key}: kk and en are filled and differ from ru`, () => {
       for (const dict of [kk, en]) {
-        const value = dict.location[key];
+        const value = dict.location?.[key];
         expect(typeof value).toBe("string");
         expect((value as string).trim().length).toBeGreaterThan(0);
         expect(value).not.toBe(ru.location[key]);
