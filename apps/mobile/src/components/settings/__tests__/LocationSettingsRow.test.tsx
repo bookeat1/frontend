@@ -13,7 +13,7 @@ vi.mock("../../../lib/geo/location-native", () => ({
 
 const openSettings = vi.fn(async () => {});
 vi.mock("react-native", async () => {
-  const actual = await vi.importActual<typeof import("react-native-web")>("react-native-web");
+  const actual = (await vi.importActual("react-native-web")) as { Linking: object };
   return { ...actual, Linking: { ...actual.Linking, openSettings } };
 });
 

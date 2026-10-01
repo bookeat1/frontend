@@ -51,6 +51,12 @@ export default defineConfig({
       { find: /^expo-updates$/, replacement: here("./test/stubs/expo-updates.ts") },
       { find: /^expo-image$/, replacement: here("./test/stubs/expo-image.tsx") },
       { find: /^expo-haptics$/, replacement: here("./test/stubs/expo-haptics.ts") },
+      // Загрузчик `expo-location` зовёт `requireOptionalNativeModule` из `expo`,
+      // а `expo` в jsdom не грузится (winter-рантайм). Заглушка = «модуля в этой
+      // сборке нет», то есть ровно поведение старого бинаря: геопозиция
+      // `unsupported`, ни карточки, ни строки. Тесты провайдера подменяют
+      // загрузчик своим `vi.mock`.
+      { find: /^(?:\.\.?\/)+(?:[\w-]+\/)*location-native$/, replacement: here("./test/stubs/location-native.ts") },
       { find: /^phosphor-react-native$/, replacement: here("./test/stubs/phosphor-react-native.tsx") },
       // The Amplitude RN SDK's default entry is untranspiled TS that links a
       // native module — unloadable in jsdom. analytics.ts is a guarded no-op
