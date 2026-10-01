@@ -1,11 +1,12 @@
-import type { SearchFilters, SearchQuery } from "@bookeat/api";
-import { EMPTY_FILTERS } from "@bookeat/api";
+import type { GeoPoint, SearchFilters, SearchQuery } from "@bookeat/api";
+import { EMPTY_FILTERS, roundGeoPoint } from "@bookeat/api";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { trackEvent } from "../lib/analytics";
 import { useRepository } from "../lib/repository";
 import { useAmenities } from "./useAmenities";
 import { useCuisines } from "./useCuisines";
+import { useSearchNear } from "./useSearchNear";
 
 const DEBOUNCE_MS = 350;
 
@@ -147,10 +148,38 @@ export function useSearchScreen(options?: {
     });
   }, [debouncedText]);
 
-  const query: SearchQuery = useMemo(
-    () => ({ text: debouncedText, filters }),
-    [debouncedText, filters],
+  // Геопозиция (спека geolocation-permission.md). НЕ фильтр: в `filters` её
+  // нет, поэтому счётчик фильтров, чипы, аналитика фильтров и `hasActiveSearch`
+  // про неё не знают. Координаты идут в запрос только при пустом тексте (3.12) и
+  // округлёнными (ключ кэша не дрожит от шума GPS в пределах 100 м).
+  const { near: guestNear, settled: nearSettled, applyPoint: applyNearPoint } = useSearchNear();
+  const textIsEmpty = debouncedText.trim().length === 0;
+  const rounded = textIsEmpty ? roundGeoPoint(guestNear) : undefined;
+  const nearLat = rounded?.lat;
+  const nearLng = rounded?.lng;
+  // По значениям, а не по ссылке на объект: ключ кэша не меняется, пока
+  // округлённые координаты те же.
+  const roundedNear = useMemo<GeoPoint | undefined>(
+    () => (nearLat !== undefined && nearLng !== undefined ? { lat: nearLat, lng: nearLng } : undefined),
+    [nearLat, nearLng],
   );
+
+  const query: SearchQuery = useMemo(
+    () =>
+      roundedNear
+        ? { text: debouncedText, filters, near: roundedNear }
+        : { text: debouncedText, filters },
+    [debouncedText, filters, roundedNear],
+  );
+
+  // `catalog_distance_sort_applied`: один раз за визит экрана, без координат.
+  const sortTracked = useRef(false);
+  const sortApplied = roundedNear !== undefined;
+  useEffect(() => {
+    if (!sortApplied || sortTracked.current) return;
+    sortTracked.current = true;
+    trackEvent("catalog_distance_sort_applied", { surface: "mobile_search_card" });
+  }, [sortApplied]);
 
   /**
    * Есть ли у гостя активный запрос — нужно только для копирайта пустого
@@ -175,6 +204,8 @@ export function useSearchScreen(options?: {
   const searchQueryResult = useQuery({
     queryKey: ["search", query],
     queryFn: () => repository.searchRestaurants(query),
+    // Первый запрос ждёт решения «с координатами или без» (до 1,5 с, 3.8).
+    enabled: nearSettled,
   });
 
   // Тот же справочник и тот же кэш, что у ряда кухонь на главной: гость
@@ -201,6 +232,9 @@ export function useSearchScreen(options?: {
     activeFilterCount: countActiveFilters(filters),
     hasActiveSearch,
     isTyping: text !== debouncedText,
+    /** Список сейчас упорядочен по расстоянию (для подписи «Сначала ближайшие»). */
+    sortedByDistance: sortApplied,
+    applyNearPoint,
     searchQueryResult,
     cuisinesQuery,
     amenitiesQuery,

@@ -25,6 +25,18 @@
           "photosPermission": "BookEat покажет вашу галерею, чтобы вы выбрали фотографию профиля.",
           "cameraPermission": "BookEat откроет камеру, чтобы вы сняли фотографию профиля."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "BookEat использует геопозицию, только пока приложение открыто, чтобы показать сначала ближайшие к вам заведения. Координаты не сохраняются.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": "BookEat не использует данные о движении и физической активности и не запрашивает к ним доступ.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
       ]
     ],
     "ios": {
@@ -59,7 +71,15 @@
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
+    },
+    "locales": {
+      "kk": "./locales/kk.json",
+      "en": "./locales/en.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",

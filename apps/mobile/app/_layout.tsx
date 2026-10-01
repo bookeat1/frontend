@@ -25,6 +25,7 @@ import { AuthProvider } from "../src/lib/auth";
 import { isDetourConfigured } from "../src/lib/detour";
 import { DetourLinkRouter } from "../src/lib/detour-link-router";
 import { DetourProviderGate } from "../src/lib/detour-provider-gate";
+import { GuestLocationProvider } from "../src/lib/geo/guest-location";
 import { bootstrapLocale, LocaleProvider } from "../src/lib/locale";
 import { PushProvider } from "../src/lib/push";
 import { RepositoryProvider } from "../src/lib/repository";
@@ -115,6 +116,11 @@ export default function RootLayout() {
                   identity in sync (identify on sign-in, reset on sign-out). It
                   renders nothing and no-ops entirely when no key is configured. */}
               <AnalyticsProvider>
+              {/* GuestLocationProvider (спека geolocation-permission.md): при
+                  старте только ЧИТАЕТ статус геопозиции, системный диалог не
+                  вызывает никогда. На вебе и в сборке без нативного модуля
+                  отдаёт `unsupported`. */}
+              <GuestLocationProvider>
               {/* PushProvider needs BOTH the session (whose account the token is
                   registered against) and the router (a tapped notification opens
                   the booking), so it sits inside AuthProvider and around the
@@ -168,6 +174,7 @@ export default function RootLayout() {
                     нечего, рисует null. */}
                 <AppUpdateGate />
               </PushProvider>
+              </GuestLocationProvider>
               </AnalyticsProvider>
               </AuthProvider>
             </RepositoryProvider>
