@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { AcquirerAccount, CatalogVenue, KaspiCompany } from "@bookeat/api/admin";
+import type { AcquirerAccount, CatalogVenue, CatalogVenueInput, KaspiCompany } from "@bookeat/api/admin";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -109,7 +109,7 @@ function renderModal(overrides: Partial<Parameters<typeof VenueFormModal>[0]> = 
   });
   const onClose = vi.fn();
   const onSaved = vi.fn();
-  const saveVenue = vi.fn(async () => newVenue());
+  const saveVenue = vi.fn(async (_input: CatalogVenueInput, _id: string | null) => newVenue());
   const saveCuisines = vi.fn(async () => undefined);
   const saveFeatures = vi.fn(async () => undefined);
   const utils = render(
@@ -387,5 +387,77 @@ describe("VenueFormModal — провайдерские карточки не с
     });
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("VenueFormModal — координаты заведения (широта/долгота)", () => {
+  it("у существующего заведения поля подставляются из venue.latitude/longitude", async () => {
+    const existingVenue = newVenue({ id: "v-existing", latitude: 43.238949, longitude: 76.889709 });
+    renderModal({ venue: existingVenue });
+
+    expect((screen.getByLabelText(/^Широта/) as HTMLInputElement).value).toBe("43.238949");
+    expect((screen.getByLabelText(/^Долгота/) as HTMLInputElement).value).toBe("76.889709");
+  });
+
+  it("обе пустые — сохраняется без latitude/longitude в патче", async () => {
+    const { saveVenue } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(saveVenue).toHaveBeenCalled());
+    const input = saveVenue.mock.calls[0][0];
+    expect(input.latitude).toBeUndefined();
+    expect(input.longitude).toBeUndefined();
+  });
+
+  it("заполнена только широта — «Сохранить» не уходит, форма просит заполнить обе", async () => {
+    const { saveVenue, onSaved } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.change(screen.getByLabelText(/^Широта/), { target: { value: "43.24" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await screen.findByText(/Заполните оба поля/);
+    expect(saveVenue).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("широта вне диапазона -90..90 — сохранение блокируется с понятной ошибкой", async () => {
+    const { saveVenue } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.change(screen.getByLabelText(/^Широта/), { target: { value: "91" } });
+    fireEvent.change(screen.getByLabelText(/^Долгота/), { target: { value: "76.88" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await screen.findByText(/Широта — число от -90 до 90/);
+    expect(saveVenue).not.toHaveBeenCalled();
+  });
+
+  it("долгота вне диапазона -180..180 — сохранение блокируется с понятной ошибкой", async () => {
+    const { saveVenue } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.change(screen.getByLabelText(/^Широта/), { target: { value: "43.24" } });
+    fireEvent.change(screen.getByLabelText(/^Долгота/), { target: { value: "-181" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await screen.findByText(/Долгота — число от -180 до 180/);
+    expect(saveVenue).not.toHaveBeenCalled();
+  });
+
+  it("обе координаты валидны — уходят в патч числами", async () => {
+    const { saveVenue } = renderModal();
+
+    fireEvent.change(screen.getByLabelText(/^Название/), { target: { value: "Юрта" } });
+    fireEvent.change(screen.getByLabelText(/^Широта/), { target: { value: "43.238949" } });
+    fireEvent.change(screen.getByLabelText(/^Долгота/), { target: { value: "76.889709" } });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => expect(saveVenue).toHaveBeenCalled());
+    const input = saveVenue.mock.calls[0][0];
+    expect(input.latitude).toBe(43.238949);
+    expect(input.longitude).toBe(76.889709);
   });
 });
