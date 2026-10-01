@@ -1,3 +1,4 @@
+import type { GeoPoint } from "./geo";
 import type { TimeOfDay } from "./time-of-day";
 
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -580,6 +581,13 @@ export interface RescheduleBookingInput {
 export interface SearchQuery {
   text: string;
   filters: SearchFilters;
+  /**
+   * Где гость находится. Необязательно и НЕ фильтр: сервер лишь ставит
+   * ближайшие заведения первыми. Уходит только при пустом `text` и округлённым
+   * до 3 знаков (см. `geo.ts`). Намеренно не лежит в `SearchFilters`:
+   * `countActiveFilters`, `describeFilters` и `hasActiveSearch` его не видят.
+   */
+  near?: GeoPoint;
 }
 
 export interface SearchResult {

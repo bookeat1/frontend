@@ -343,6 +343,23 @@ export const en: LocaleOverride<Dictionary> = {
         ? "Notifications"
         : `Notifications, ${unread} unread`,
   },
+  location: {
+    promptTitle: "Show the nearest first?",
+    promptBody:
+      "Allow location access and venues near you will appear at the top of the list. Your coordinates are used only for sorting and are never stored.",
+    allow: "Allow",
+    notNow: "Not now",
+    nearestFirst: "Nearest first",
+    settingsRow: "Location",
+    settingsHintUndetermined: "To show the nearest venues first",
+    settingsOn: "On",
+    settingsOff: "Off. Turn it on in your phone settings",
+    settingsServicesOff: "Location services are off on your phone",
+    webDenied:
+      "Your browser blocked location access. Allow it in the site settings and choose this sort again.",
+    webError: "Couldn't get your location. Showing the usual order.",
+    webShowNearest: "Show nearest",
+  },
   search: {
     placeholder: "Restaurant, cuisine, or dish",
     availabilityAny: "Any day",
