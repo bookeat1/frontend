@@ -25,7 +25,7 @@ type Phase = "checking" | "shown" | "working" | "hidden";
  *
  * Карточка видна, когда ОДНОВРЕМЕННО: «Поиск» без текста (`active`), статус ОС
  * `undetermined`, на неё ещё не отвечали и показов меньше трёх. Число показов
- * растёт в момент показа, не ответа, поэтому игнорируемая карточка замолкает
+ * растёт в момент ОТРИСОВКИ карточки (`onShown`), не ответа, поэтому игнорируемая карточка замолкает
  * после третьего визита (3.3). Любая кнопка ставит `answered`.
  *
  * `onLocated` вызывается сразу после выданного разрешения: единственный случай,
@@ -42,10 +42,14 @@ export function useLocationPrompt({
   working: boolean;
   onAllow: () => void;
   onLater: () => void;
+  /** Карточка отрисована: засчитать показ (счётчик и событие). */
+  onShown: () => void;
 } {
   const geo = useGuestLocation();
   const [phase, setPhase] = useState<Phase>("checking");
   const decided = useRef(false);
+  const autoShows = useRef(0);
+  const shownRecorded = useRef(false);
   // Ref, а не только `phase`: два тапа в одном кадре видят одно и то же старое
   // состояние, и без синхронного замка диалог был бы вызван дважды.
   const busy = useRef(false);
@@ -73,11 +77,21 @@ export function useLocationPrompt({
         setPhase("hidden");
         return;
       }
+      autoShows.current = flags.autoShows;
       setPhase("shown");
-      void recordGeoPromptShown(flags.autoShows);
-      trackEvent("location_prompt_shown", { surface: "mobile_search_card" });
     });
   }, [permission]);
+
+  // Показ засчитывается, когда карточку РЕАЛЬНО отрисовали (её mount зовёт
+  // `onShown`), а не когда принято решение «показывать»: карточка живёт в
+  // шапке списка и не рисуется при загрузке, ошибке, пустой выдаче и наборе
+  // текста (кр. 13). Один раз за визит.
+  const onShown = useCallback(() => {
+    if (shownRecorded.current) return;
+    shownRecorded.current = true;
+    void recordGeoPromptShown(autoShows.current);
+    trackEvent("location_prompt_shown", { surface: "mobile_search_card" });
+  }, []);
 
   const onAllow = useCallback(() => {
     // Двойной тап безвреден: пока идёт запрос, фаза `working`, второй `request()`
@@ -117,5 +131,6 @@ export function useLocationPrompt({
     working: phase === "working",
     onAllow,
     onLater,
+    onShown,
   };
 }

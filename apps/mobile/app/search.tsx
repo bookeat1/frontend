@@ -401,6 +401,7 @@ export default function SearchScreen() {
                   working={locationPrompt.working}
                   onAllow={locationPrompt.onAllow}
                   onLater={locationPrompt.onLater}
+                  onShown={locationPrompt.onShown}
                 />
               ) : sortedByDistance ? (
                 <Text style={styles.sortCaption}>{t.location.nearestFirst}</Text>

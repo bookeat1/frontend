@@ -38,9 +38,11 @@ export function LocationSettingsRow() {
       ? geo.servicesOff
         ? t.location.settingsServicesOff
         : t.location.settingsOn
-      : geo.permission === "denied"
+      : geo.permission === "denied" && !geo.canAskAgain
         ? t.location.settingsOff
-        : t.location.settingsHintUndetermined;
+        : // undetermined или «отказали, но спросить можно» (Android): тап покажет
+          // системный диалог, поэтому текст не отправляет гостя в настройки.
+          t.location.settingsHintUndetermined;
 
   const onPress = () => {
     if (working) return;

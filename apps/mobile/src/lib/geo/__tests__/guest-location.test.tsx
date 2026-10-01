@@ -51,8 +51,9 @@ vi.mock("react-native", () => ({
   },
 }));
 
-const { GuestLocationProvider, useGuestLocation, LOCATION_TTL_MS, LOCATION_TIMEOUT_MS } =
+const { GuestLocationProvider, useGuestLocation, LOCATION_TTL_MS, LOCATION_TIMEOUT_MS, STATUS_TIMEOUT_MS } =
   await import("../guest-location");
+const { useSearchNear, NEAR_WAIT_MS } = await import("../../../hooks/useSearchNear");
 
 const position = (lat: number, lng: number) => ({ coords: { latitude: lat, longitude: lng } });
 
@@ -276,5 +277,74 @@ describe("возврат из фона (кр. 16)", () => {
       rn.appStateHandler?.("background");
     });
     expect(native.location.getForegroundPermissionsAsync.mock.calls.length).toBe(before);
+  });
+});
+
+/**
+ * Сломанная геопозиция = обычный порядок (главное правило спеки). Раньше ошибка
+ * или зависание чтения статуса при старте оставляли `permission = pending`
+ * навсегда, `settled = false`, и «Поиск» вечно показывал загрузку.
+ */
+describe("статус при старте не прочитался", () => {
+  function setupWithSearch() {
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <GuestLocationProvider>{children}</GuestLocationProvider>
+    );
+    return renderHook(() => ({ geo: useGuestLocation(), near: useSearchNear() }), { wrapper });
+  }
+
+  it("чтение бросает: unsupported, «Поиск» отпущен без координат", async () => {
+    native.location.getForegroundPermissionsAsync.mockRejectedValue(new Error("native failure"));
+    const { result } = setupWithSearch();
+    await waitFor(() => expect(result.current.geo.permission).toBe("unsupported"));
+    expect(result.current.near.settled).toBe(true);
+    expect(result.current.near.near).toBeUndefined();
+  });
+
+  it("чтение никогда не отвечает: по таймауту unsupported, «Поиск» отпущен", async () => {
+    vi.useFakeTimers();
+    native.location.getForegroundPermissionsAsync.mockReturnValue(new Promise(() => {}));
+    const { result } = setupWithSearch();
+    expect(result.current.near.settled).toBe(false);
+    // «Поиск» ждёт не дольше NEAR_WAIT_MS, не дожидаясь таймаута провайдера.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(NEAR_WAIT_MS + 5);
+    });
+    expect(result.current.near.settled).toBe(true);
+    expect(result.current.geo.permission).toBe("pending");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(STATUS_TIMEOUT_MS);
+    });
+    expect(result.current.geo.permission).toBe("unsupported");
+  });
+
+  it("нативный вызов бросает синхронно: unsupported, «Поиск» отпущен", async () => {
+    native.location.getForegroundPermissionsAsync.mockImplementation(() => {
+      throw new Error("sync native failure");
+    });
+    const { result } = setupWithSearch();
+    await waitFor(() => expect(result.current.near.settled).toBe(true));
+    expect(result.current.geo.permission).toBe("unsupported");
+  });
+
+  it("возврат из фона после сбоя: следующее чтение выводит из unsupported", async () => {
+    native.location.getForegroundPermissionsAsync.mockRejectedValueOnce(new Error("boom"));
+    const { result } = setup();
+    await waitFor(() => expect(result.current.permission).toBe("unsupported"));
+    await act(async () => {
+      rn.appStateHandler?.("active");
+    });
+    await waitFor(() => expect(result.current.permission).toBe("undetermined"));
+  });
+
+  it("сбой перечитывания при уже известном статусе статус не стирает", async () => {
+    native.perm = { status: "granted", granted: true, canAskAgain: true };
+    const { result } = setup();
+    await waitFor(() => expect(result.current.permission).toBe("granted"));
+    native.location.getForegroundPermissionsAsync.mockRejectedValue(new Error("boom"));
+    await act(async () => {
+      rn.appStateHandler?.("active");
+    });
+    expect(result.current.permission).toBe("granted");
   });
 });

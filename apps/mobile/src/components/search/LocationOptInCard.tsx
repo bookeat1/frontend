@@ -17,12 +17,20 @@ export function LocationOptInCard({
   working,
   onAllow,
   onLater,
+  onShown,
 }: {
   working: boolean;
   onAllow: () => void;
   onLater: () => void;
+  /** Зовётся при появлении карточки на экране: показ засчитывается здесь. */
+  onShown?: () => void;
 }) {
   const { dictionary: t } = useLocale();
+  const onShownRef = React.useRef(onShown);
+  onShownRef.current = onShown;
+  React.useEffect(() => {
+    onShownRef.current?.();
+  }, []);
   return (
     <View style={styles.wrap}>
       <BookingCard title={t.location.promptTitle}>

@@ -1,6 +1,7 @@
 import type { GeoPoint } from "@bookeat/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGuestLocation } from "../lib/geo/guest-location";
+import { useScreenFocusCount } from "../lib/screen-focus";
 
 /** Сколько «Поиск» ждёт позицию, прежде чем уйти первым запросом без неё (3.8). */
 export const NEAR_WAIT_MS = 1500;
@@ -9,8 +10,11 @@ export const NEAR_WAIT_MS = 1500;
  * Откуда экран «Поиск» берёт `near` для запроса каталога (спека
  * geolocation-permission.md, сценарии 3.1, 3.8, 3.9, критерии 14, 16, 18).
  *
- * Правила за визит (визит = жизнь экрана):
- *  - статус ещё читается → ждём; разрешения нет → `settled`, `near` пуст;
+ * Правила за визит (визит = фокус экрана: первый при монтировании, следующие при
+ * возврате с экрана заведения или из системных настроек, спека 3.8):
+ *  - статус ещё читается → ждём не дольше {@link NEAR_WAIT_MS}, затем запрос уходит
+ *    без координат (провайдер при ошибке чтения сам уходит в `unsupported`);
+ *    разрешения нет → `settled`, `near` пуст;
  *  - свежая позиция в памяти (до 10 минут) → берём сразу, запрос уходит с ней;
  *  - иначе ждём не дольше {@link NEAR_WAIT_MS}. Успели → запрос с координатами.
  *    Не успели → первый запрос уходит БЕЗ них и список в этом визите больше не
@@ -42,6 +46,31 @@ export function useSearchNear(): {
 
   const { permission, peekFresh, locate } = geo;
 
+  // Новый фокус = новый визит: решение «с координатами или без» принимается
+  // заново (координаты, опоздавшие в прошлый раз, или разрешение, выданное в
+  // Настройках). `settled` при этом остаётся `true`: каталог уже загружен.
+  // Хук фокуса отдаёт 0 до первого фокуса и 1 после него: это один и тот же
+  // (первый) визит, поэтому считаем с единицы.
+  const focusCount = Math.max(useScreenFocusCount(), 1);
+  const lastFocus = useRef(focusCount);
+  if (lastFocus.current !== focusCount) {
+    lastFocus.current = focusCount;
+    decided.current = false;
+  }
+
+  // Статус разрешения ещё читается: дольше NEAR_WAIT_MS не ждём (3.8). Первый
+  // запрос уходит без координат, а опоздавший статус в этом визите ничего не
+  // перестраивает (как и опоздавшая позиция).
+  useEffect(() => {
+    if (permission !== "pending" || decided.current) return;
+    const timer = setTimeout(() => {
+      if (decided.current || !alive.current) return;
+      decided.current = true;
+      setSettled(true);
+    }, NEAR_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [permission, focusCount]);
+
   useEffect(() => {
     if (permission === "pending") return;
     if (permission !== "granted") {
@@ -71,7 +100,7 @@ export function useSearchNear(): {
       if (point) setNear(point);
       setSettled(true);
     });
-  }, [permission, peekFresh, locate]);
+  }, [permission, peekFresh, locate, focusCount]);
 
   const applyPoint = useCallback((point: GeoPoint) => setNear(point), []);
 

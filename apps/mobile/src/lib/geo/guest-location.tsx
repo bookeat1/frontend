@@ -31,13 +31,19 @@ import { hasLocationModule, importLocation, type LocationModule } from "./locati
 export const LOCATION_TTL_MS = 10 * 60 * 1000;
 /** Сколько ждём `getCurrentPositionAsync`, прежде чем сдаться. */
 export const LOCATION_TIMEOUT_MS = 8000;
+/** Сколько ждём ответ ОС на «какой статус разрешения»; дольше — считаем геопозицию сломанной. */
+export const STATUS_TIMEOUT_MS = 3000;
 /** «Последняя известная позиция» годится, если не старше 10 минут и точнее 5 км. */
 const LAST_KNOWN = { maxAge: LOCATION_TTL_MS, requiredAccuracy: 5000 } as const;
 
 export type GeoPermission =
   /** Статус ещё читается (первые миллисекунды после старта). */
   | "pending"
-  /** Веб или бинарь без нативного модуля — терминальное состояние. */
+  /**
+   * Веб, бинарь без нативного модуля или статус при старте не прочитался (ошибка
+   * или таймаут): терминальное состояние, приложение работает как без геопозиции.
+   * Следующее успешное чтение (возврат из фона) выводит из него.
+   */
   | "unsupported"
   | "undetermined"
   | "granted"
@@ -131,6 +137,10 @@ export function GuestLocationProvider({ children }: { children: React.ReactNode 
   const [supported] = useState(() => Platform.OS !== "web" && hasLocationModule());
   const [snapshot, setSnapshot] = useState<PermissionSnapshot | null>(null);
   const [servicesOff, setServicesOff] = useState(false);
+  // Статус при старте не прочитался: «Поиск» не должен вечно ждать (главное
+  // правило спеки: сломанная геопозиция = обычный порядок).
+  const [statusFailed, setStatusFailed] = useState(false);
+  const hasSnapshot = useRef(false);
 
   // Позиция — ТОЛЬКО здесь, в ref: не в state (перерисовывать нечего), не на
   // диск и не в кэш запросов.
@@ -156,6 +166,8 @@ export function GuestLocationProvider({ children }: { children: React.ReactNode 
 
   const apply = useCallback((next: PermissionSnapshot) => {
     permissionRef.current = next.permission;
+    hasSnapshot.current = true;
+    setStatusFailed(false);
     if (next.permission !== "granted") {
       // Разрешение отозвали: чужие координаты больше не используем.
       pointRef.current = null;
@@ -219,16 +231,25 @@ export function GuestLocationProvider({ children }: { children: React.ReactNode 
   const refresh = useCallback(async (): Promise<void> => {
     if (!supported) return;
     try {
-      const location = await load();
-      if (!location) return;
-      const next = toSnapshot(await location.getForegroundPermissionsAsync());
+      // Таймаут на ВСЁ чтение (подгрузка пакета и ответ ОС): зависший нативный
+      // вызов не должен держать «Поиск» в ожидании.
+      const { location, next } = await withTimeout(
+        (async () => {
+          const loaded = await load();
+          if (!loaded) throw new Error("expo-location is not loadable");
+          return { location: loaded, next: toSnapshot(await loaded.getForegroundPermissionsAsync()) };
+        })(),
+        STATUS_TIMEOUT_MS,
+      );
       apply(next);
       if (next.permission === "granted") {
         // Разрешение есть, а геолокацию на телефоне могли выключить (3.7).
         setServicesOff(!(await location.hasServicesEnabledAsync()));
       }
     } catch {
-      // Не смогли прочитать — оставляем прежнее значение.
+      // Не смогли прочитать. Прежнее значение остаётся; если его ещё нет (старт),
+      // уходим в терминальное `unsupported`, а не висим в `pending`.
+      if (!hasSnapshot.current) setStatusFailed(true);
     }
   }, [supported, load, apply]);
 
@@ -268,7 +289,7 @@ export function GuestLocationProvider({ children }: { children: React.ReactNode 
   const value = useMemo<GuestLocation>(() => {
     if (!supported) return UNSUPPORTED;
     return {
-      permission: snapshot ? snapshot.permission : "pending",
+      permission: snapshot ? snapshot.permission : statusFailed ? "unsupported" : "pending",
       canAskAgain: snapshot?.canAskAgain ?? false,
       servicesOff,
       precise: snapshot?.precise ?? null,
@@ -277,7 +298,7 @@ export function GuestLocationProvider({ children }: { children: React.ReactNode 
       request,
       refresh,
     };
-  }, [supported, snapshot, servicesOff, peekFresh, locate, request, refresh]);
+  }, [supported, snapshot, statusFailed, servicesOff, peekFresh, locate, request, refresh]);
 
   return <GuestLocationContext.Provider value={value}>{children}</GuestLocationContext.Provider>;
 }

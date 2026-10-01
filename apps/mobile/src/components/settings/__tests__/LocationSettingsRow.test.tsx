@@ -87,6 +87,16 @@ describe("LocationSettingsRow", () => {
     expect(loc.request).not.toHaveBeenCalled();
   });
 
+  it("denied, но canAskAgain (Android): текст не про настройки, тап = системный диалог", async () => {
+    const loc = makeLocation({ permission: "denied", canAskAgain: true });
+    renderRow(loc);
+    expect(screen.queryByText(t.location.settingsOff)).toBeNull();
+    expect(screen.getByText(t.location.settingsHintUndetermined)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(loc.request).toHaveBeenCalledTimes(1));
+    expect(openSettings).not.toHaveBeenCalled();
+  });
+
   it("granted, но геолокация на телефоне выключена: своя подсказка", () => {
     renderRow(makeLocation({ permission: "granted", servicesOff: true }));
     expect(screen.getByText(t.location.settingsServicesOff)).toBeTruthy();

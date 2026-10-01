@@ -49,17 +49,24 @@ function render(loc = makeLocation(), active = true, onLocated = vi.fn()) {
 }
 
 describe("когда карточка видна (кр. 11)", () => {
-  it("undetermined, не отвечали, показов 0: видна, событие shown ушло", async () => {
+  it("undetermined, не отвечали, показов 0: видна; показ засчитан, когда карточку отрисовали", async () => {
     const { result } = render();
     await waitFor(() => expect(result.current.visible).toBe(true));
+    // Решение «показывать» ещё не показ: экран карточку мог не нарисовать.
+    expect(trackEvent).not.toHaveBeenCalled();
+    expect(store.__store.get(GEO_PROMPT_AUTO_SHOWS_KEY)).toBeUndefined();
+    act(() => result.current.onShown());
     expect(trackEvent).toHaveBeenCalledWith("location_prompt_shown", { surface: "mobile_search_card" });
     expect(store.__store.get(GEO_PROMPT_AUTO_SHOWS_KEY)).toBe("1");
   });
 
   it("при тексте в строке поиска её нет", async () => {
     const { result } = render(makeLocation(), false);
-    await waitFor(() => expect(store.__store.get(GEO_PROMPT_AUTO_SHOWS_KEY)).toBe("1"));
+    await act(async () => {});
     expect(result.current.visible).toBe(false);
+    // Карточка не нарисована: показ не засчитан (кр. 13).
+    expect(store.__store.get(GEO_PROMPT_AUTO_SHOWS_KEY)).toBeUndefined();
+    expect(trackEvent).not.toHaveBeenCalled();
   });
 
   it.each(["granted", "denied", "unsupported"] as const)("статус %s: карточки нет", async (permission) => {
@@ -87,6 +94,7 @@ describe("когда карточка видна (кр. 11)", () => {
     for (let visit = 1; visit <= 3; visit += 1) {
       const { result, unmount } = render();
       await waitFor(() => expect(result.current.visible).toBe(true));
+      act(() => result.current.onShown());
       await waitFor(() => expect(store.__store.get(GEO_PROMPT_AUTO_SHOWS_KEY)).toBe(String(visit)));
       unmount();
     }
@@ -103,8 +111,10 @@ describe("когда карточка видна (кр. 11)", () => {
       { wrapper: locationWrapper(ref), initialProps: { active: true } },
     );
     await waitFor(() => expect(result.current.visible).toBe(true));
+    act(() => result.current.onShown());
     rerender({ active: false });
     rerender({ active: true });
+    act(() => result.current.onShown());
     await act(async () => {});
     expect(result.current.visible).toBe(true);
     expect(store.__store.get(GEO_PROMPT_AUTO_SHOWS_KEY)).toBe("1");
