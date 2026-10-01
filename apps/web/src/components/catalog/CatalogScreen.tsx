@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { FiltersRail, FiltersSheetButton } from "@web/components/catalog/FiltersRail";
 import { Pagination } from "@web/components/catalog/Pagination";
@@ -29,7 +29,9 @@ import {
   type CatalogSort,
   type CatalogState,
 } from "@web/lib/catalog-params";
+import { trackEvent } from "@web/lib/analytics";
 import { INTL_TAG, searchDateLabel } from "@web/lib/format";
+import { useBrowserGeolocation } from "@web/lib/geolocation";
 import { useLocale, useT } from "@web/lib/locale";
 import { useAmenities, useCatalog, useCuisines } from "@web/lib/queries";
 
@@ -61,7 +63,12 @@ export function CatalogScreen() {
     [params],
   );
 
-  const query = useCatalog(buildSearchQuery(state, city));
+  // Геопозиция (спека geolocation-permission.md, W1): только когда выбрана
+  // сортировка «Сначала ближайшие». Координаты лежат в памяти вкладки и в
+  // адрес не попадают — там только `sort=nearest`.
+  const geo = useBrowserGeolocation();
+  const nearestSelected = state.sort === "nearest";
+  const query = useCatalog(buildSearchQuery(state, city, nearestSelected ? geo.point ?? undefined : undefined));
   // Одна подписка на избранное на весь экран, а не по одной на карточку.
   const favoriteProps = useFavoriteControl();
   const cuisines = useCuisines();
@@ -73,6 +80,73 @@ export function CatalogScreen() {
     // кнопку «назад» в двадцать шагов обратно по собственным фильтрам.
     router.replace(search ? `/venues?${search}` : "/venues", { scroll: false });
   }
+
+  // Асинхронные ветки геопозиции (ответ браузера приходит позже клика) работают
+  // с последним состоянием, а не с тем, что было в замыкании при клике.
+  const latest = useRef({ state, update });
+  latest.current = { state, update };
+
+  const [requesting, setRequesting] = useState(false);
+  const [notice, setNotice] = useState<"denied" | "error" | null>(null);
+
+  /**
+   * «Сначала ближайшие» (3.13-3.16). Вызывается ТОЛЬКО из жеста: `geo.locate()`
+   * здесь стоит до любого `await`, иначе браузер не покажет запрос разрешения.
+   */
+  function chooseNearest() {
+    if (requesting) return;
+    setRequesting(true);
+    setNotice(null);
+    const needsDialog = geo.permission !== "granted";
+    if (needsDialog) trackEvent("location_prompt_shown", { surface: "web_sort" });
+    void geo.locate().then((result) => {
+      setRequesting(false);
+      trackEvent("location_permission_result", {
+        surface: "web_sort",
+        result: result.ok ? "granted" : result.reason === "denied" ? "denied" : "unavailable",
+        precise: null,
+      });
+      const { state: current, update: apply } = latest.current;
+      if (result.ok) {
+        apply({ ...current, sort: "nearest", page: 1 });
+        return;
+      }
+      setNotice(result.reason === "denied" ? "denied" : "error");
+      // Порядок возвращается на «Рекомендуемые», `sort=nearest` уходит из адреса.
+      if (current.sort === "nearest") apply({ ...current, sort: "recommended", page: 1 });
+    });
+  }
+
+  // Ссылка с `?sort=nearest` (3.15). Диалога на загрузке НЕ будет: при `granted`
+  // позиция берётся молча, при `prompt` ниже рисуется кнопка «Показать
+  // ближайшие», при `denied` — объяснение, и сортировка снимается.
+  const autoLocated = useRef(false);
+  const locate = geo.locate;
+  useEffect(() => {
+    if (!nearestSelected || geo.point) return;
+    if (geo.permission === "denied") {
+      setNotice("denied");
+      latest.current.update({ ...latest.current.state, sort: "recommended", page: 1 });
+      return;
+    }
+    if (geo.permission !== "granted" || autoLocated.current) return;
+    autoLocated.current = true;
+    void locate().then((result) => {
+      if (result.ok) return;
+      setNotice(result.reason === "denied" ? "denied" : "error");
+      const { state: current, update: apply } = latest.current;
+      if (current.sort === "nearest") apply({ ...current, sort: "recommended", page: 1 });
+    });
+  }, [nearestSelected, geo.permission, geo.point, locate]);
+
+  // `catalog_distance_sort_applied` — раз за визит и без координат.
+  const sortTracked = useRef(false);
+  const sortApplied = nearestSelected && geo.point !== null && state.text.trim() === "";
+  useEffect(() => {
+    if (!sortApplied || sortTracked.current) return;
+    sortTracked.current = true;
+    trackEvent("catalog_distance_sort_applied", { surface: "web_sort" });
+  }, [sortApplied]);
 
   const sorted = useMemo(
     () => (query.data ? sortVenues(query.data.items, state.sort, INTL_TAG[locale]) : []),
@@ -136,13 +210,21 @@ export function CatalogScreen() {
             <label className="relative inline-flex items-center">
               <span className="sr-only">{t.web.catalog.sort.label}</span>
               <select
-                value={state.sort}
-                onChange={(event) =>
-                  update({ ...state, sort: event.target.value as CatalogSort, page: 1 })
-                }
+                value={requesting ? "nearest" : state.sort}
+                disabled={requesting}
+                onChange={(event) => {
+                  const value = event.target.value as CatalogSort;
+                  if (value === "nearest") {
+                    chooseNearest();
+                    return;
+                  }
+                  setNotice(null);
+                  update({ ...state, sort: value, page: 1 });
+                }}
                 className="h-sort-select cursor-pointer appearance-none rounded-md border border-transparent bg-canvas pl-sort-select-l pr-sort-select-text-r text-[14px] font-medium leading-5 text-ink shadow-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <option value="recommended">{t.web.catalog.sort.recommended}</option>
+                <option value="nearest">{t.location.nearestFirst}</option>
                 <option value="rating">{t.web.catalog.sort.rating}</option>
                 <option value="name">{t.web.catalog.sort.name}</option>
               </select>
@@ -159,6 +241,22 @@ export function CatalogScreen() {
               </svg>
             </label>
           </div>
+
+          {/* Геопозиция: объяснение, если браузер не дал её или не определил, и
+              кнопка для ссылки `?sort=nearest` при статусе `prompt` — запрос
+              разрешения только по жесту, поэтому сам он на загрузке не идёт. */}
+          {notice ? (
+            <p role="status" className="text-bodyM text-ink-secondary">
+              {notice === "denied" ? t.location.webDenied : t.location.webError}
+            </p>
+          ) : null}
+          {nearestSelected && !geo.point && !notice && geo.permission !== "unknown" && geo.permission !== "granted" ? (
+            <div>
+              <Button size="m" variant="secondary" onClick={chooseNearest} disabled={requesting}>
+                {t.location.webShowNearest}
+              </Button>
+            </div>
+          ) : null}
 
           {/* Ряд «кнопка фильтров + чипы выбранного» — как `filterRow` в
               мобильном `search.tsx`. Кнопка есть только ниже `lg`, чипы — на

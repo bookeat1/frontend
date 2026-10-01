@@ -5,6 +5,7 @@ import {
   type TokenProvider,
   type UnauthorizedHandler,
 } from "./http-client";
+import { GEO_PRECISION_DIGITS, roundGeoPoint } from "./geo";
 import { timeOfDayWindow } from "./time-of-day";
 import {
   mapAppUpdateDecision,
@@ -369,8 +370,17 @@ export class HttpRestaurantRepository implements RestaurantRepository {
     const period = query.filters.availability?.timeOfDay;
     const timeWindow = period ? timeOfDayWindow(period) : undefined;
 
+    // Геопозиция: только при пустом тексте (в текстовом поиске сервер порядок
+    // по расстоянию всё равно не применяет, а лишние координаты слать незачем)
+    // и только округлённая. Запрос, как и раньше, без токена: координаты не
+    // привязываются к аккаунту.
+    const hasText = query.text.trim().length > 0;
+    const near = hasText ? undefined : roundGeoPoint(query.near);
+
     const page = await this.client.get<ApiPage<ApiRestaurant>>("/restaurants/search", {
       q: query.text.trim() || undefined,
+      lat: near?.lat.toFixed(GEO_PRECISION_DIGITS),
+      lng: near?.lng.toFixed(GEO_PRECISION_DIGITS),
       cuisine: cuisines.length > 0 ? cuisines.join(",") : undefined,
       features: amenities.length > 0 ? amenities.join(",") : undefined,
       city: query.filters.city,
