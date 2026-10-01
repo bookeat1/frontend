@@ -30,9 +30,9 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "BookEat использует геопозицию, только пока приложение открыто, чтобы показать сначала ближайшие к вам заведения. Координаты не сохраняются.",
-          "locationAlwaysAndWhenInUsePermission": "BookEat использует геопозицию, только пока приложение открыто, чтобы показать сначала ближайшие к вам заведения. Координаты не сохраняются.",
-          "locationAlwaysPermission": "BookEat использует геопозицию, только пока приложение открыто, чтобы показать сначала ближайшие к вам заведения. Координаты не сохраняются.",
-          "motionUsagePermission": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": "BookEat не использует данные о движении и физической активности и не запрашивает к ним доступ.",
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false
