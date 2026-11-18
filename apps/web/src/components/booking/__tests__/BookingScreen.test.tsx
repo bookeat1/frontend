@@ -204,19 +204,22 @@ describe("страница бронирования — имя и телефон
     expect(screen.queryByRole("textbox", { name: /E-mail/i })).toBeNull();
   });
 
-  it("ИНОСТРАННЫЙ НОМЕР В ПРОФИЛЕ — поле пустое и с ошибкой, а не фальшивый «+7…» на сервер", async () => {
-    // Аккаунт заведён из приложения с выбором страны. Раньше `nationalDigits`
-    // брал первые десять цифр, и бронь уходила с `phone: "+74915112345"`.
+  it("ИНОСТРАННЫЙ НОМЕР В ПРОФИЛЕ — подставляется со своей страной и уходит на сервер цифра в цифру", async () => {
+    // Раньше поле понимало только «+7»: первые десять цифр чужого номера
+    // уходили как `phone: "+74915112345"`, потом поле оставляли пустым.
+    // Теперь страна выбирается, и номер профиля — законное значение поля.
     signIn(guest({ phone: "+4915112345678" }));
     renderBooking();
     await chooseSlot();
 
-    expect(phoneField().value).toBe("");
+    expect(phoneField().value).toBe("15112345678");
+    expect(screen.getByRole("button", { name: /Код страны: Германия, \+49/ })).toBeTruthy();
     fireEvent.click(submitButton());
 
-    await waitFor(() => expect(phoneField().getAttribute("aria-invalid")).toBe("true"));
-    expect(repository.createBooking).not.toHaveBeenCalled();
-    expect(nameField().value).toBe("Дамир");
+    await waitFor(() => expect(repository.createBooking).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(repository.createBooking).mock.calls[0][0]).toEqual(
+      expect.objectContaining({ phone: "+4915112345678" }),
+    );
   });
 
   it("ПУСТОЕ ИМЯ В ПРОФИЛЕ — ошибка видна, названа, получает фокус, а запрос не уходит", async () => {
@@ -253,7 +256,7 @@ describe("страница бронирования — имя и телефон
     fireEvent.click(submitButton());
 
     expect(await screen.findByText("Без имени заведение не поймёт, кого ждать.")).toBeTruthy();
-    expect(screen.getByText(/Нужен казахстанский номер из 10 цифр/)).toBeTruthy();
+    expect(screen.getByText(/Введите номер полностью/)).toBeTruthy();
     expect(repository.createBooking).not.toHaveBeenCalled();
   });
 

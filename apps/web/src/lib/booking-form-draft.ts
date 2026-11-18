@@ -22,9 +22,9 @@
 
 export interface BookingFormDraft {
   name: string;
-  /** Национальные цифры номера, как их держит поле (см. `lib/phone.ts`), —
-   * не E.164: в поле гость видит и правит именно их. */
-  phoneDigits: string;
+  /** Номер в E.164 («+77012345678») или "", как его отдаёт `ui/PhoneField`:
+   * вместе с цифрами в нём лежит и выбранная гостем страна. */
+  phone: string;
   notes: string;
   /** Идентификаторы нажатых чипов быстрых пожеланий. */
   wishes: string[];
@@ -54,6 +54,11 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.slice(0, MAX_TEXT) : "";
 }
 
+function e164(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 15);
+  return digits ? `+${digits}` : "";
+}
+
 export function readBookingFormDraft(venueId: string): BookingFormDraft | null {
   const raw = storage()?.getItem(key(venueId));
   if (!raw) return null;
@@ -66,12 +71,11 @@ export function readBookingFormDraft(venueId: string): BookingFormDraft | null {
   }
   if (typeof parsed !== "object" || parsed === null) return null;
 
-  const { name, phoneDigits, notes, wishes } = parsed as Record<string, unknown>;
+  const { name, phone, notes, wishes } = parsed as Record<string, unknown>;
   return {
     name: text(name),
-    // Только цифры: в поле всё равно попадут они, а буквы из чужой записи
-    // сломали бы маску.
-    phoneDigits: text(phoneDigits).replace(/\D/g, ""),
+    // Только «+» и цифры: буквы из чужой записи сломали бы маску.
+    phone: e164(text(phone)),
     notes: text(notes),
     wishes: Array.isArray(wishes)
       ? wishes.filter((item): item is string => typeof item === "string").slice(0, 20)

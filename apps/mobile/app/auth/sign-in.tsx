@@ -456,9 +456,9 @@ export default function SignInScreen() {
                   "why you're here" line (завершить бронирование / избранное). */}
               {reason ? <Text style={styles.subtitle}>{subtitleFor(reason)}</Text> : null}
 
-              {/* Clean +7 field, no flag/dropdown/label — the account is still
-                  created by whatever leaves in E.164, the country is just pinned
-                  to Kazakhstan to match the registration design. */}
+              {/* Clean field, no flag/label. The dial code is a button that
+                  opens the country list; an empty field starts on the country
+                  guessed from the guest's IP (Kazakhstan when unknown). */}
               <AuthPhoneField
                 value={phone}
                 onChange={({ e164, complete }) => {

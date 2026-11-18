@@ -1,11 +1,12 @@
 import { colors, hitSlop, radius, spacing, typography } from "@bookeat/design-tokens";
 import { getDictionary } from "@bookeat/i18n";
-import React, { useCallback, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   COUNTRIES,
   DEFAULT_COUNTRY,
   flagEmoji,
+  guessCountryByIp,
   nationalLength,
   type Country,
 } from "../lib/countries";
@@ -83,6 +84,22 @@ export function PhoneField({
   const [phone, setPhone] = useState<PhoneValue>(() => phoneFromE164(value) ?? emptyPhone());
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  // The country of an EMPTY field is a guess from the guest's IP. It never
+  // overrides a seeded number, a country the guest picked, or digits already
+  // typed — and when the lookup fails the default (Kazakhstan) simply stays.
+  const decided = useRef(phone.national !== "");
+  useEffect(() => {
+    if (decided.current) return;
+    let alive = true;
+    void guessCountryByIp().then((country) => {
+      if (!alive || !country || decided.current) return;
+      setPhone((current) => (current.national === "" ? emptyPhone(country) : current));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // What is actually rendered in the input right now. Kept in a ref because the
   // deletion rule below has to know what the guest was looking at when they hit
   // backspace, and a re-render must not be needed to find out.
@@ -97,11 +114,15 @@ export function PhoneField({
   if (value !== lastEmitted.current) {
     lastEmitted.current = value;
     const seeded = phoneFromE164(value) ?? emptyPhone(phone.country);
-    if (toE164(seeded) !== toE164(phone)) setPhone(seeded);
+    if (toE164(seeded) !== toE164(phone)) {
+      if (seeded.national !== "") decided.current = true;
+      setPhone(seeded);
+    }
   }
 
   const commit = useCallback(
     (next: PhoneValue) => {
+      decided.current = true;
       setPhone(next);
       const e164 = toE164(next);
       lastEmitted.current = e164;
@@ -232,10 +253,11 @@ export function PhoneField({
  * and mounting them all to show eight would cost a visible freeze on the cheap
  * Android the app has to run on.
  *
- * Search matches the Russian name AND the dial code, because both are things a
+ * Rows are in alphabetical order of the country name (`COUNTRIES`), nothing
+ * pinned on top. Search matches the Russian name AND the dial code, because both are things a
  * guest knows about their own country — «Герм» and «49» must both find Germany.
  */
-function CountryPicker({
+export function CountryPicker({
   visible,
   selected,
   onSelect,

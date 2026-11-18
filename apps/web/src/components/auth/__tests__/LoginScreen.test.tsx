@@ -119,7 +119,7 @@ describe("вход по номеру телефона", () => {
     fireEvent.click(screen.getByRole("button", { name: "Получить код" }));
 
     expect(authRepository.requestOtp).not.toHaveBeenCalled();
-    expect(screen.getByText("Введите 10 цифр номера")).toBeTruthy();
+    expect(screen.getByText("Введите номер полностью")).toBeTruthy();
   });
 
   it("полный номер уходит в E.164 и открывает шаг кода", async () => {

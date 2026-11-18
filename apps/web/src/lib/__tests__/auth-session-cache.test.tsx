@@ -63,7 +63,7 @@ function Probe() {
 }
 
 const BOOKING_ID = "a1b2c3d4-0000-4000-8000-000000000001";
-const DRAFT = { name: "Гость А", phoneDigits: "7010000000", email: "a@example.kz", notes: "", wishes: [] };
+const DRAFT = { name: "Гость А", phone: "+77010000000", email: "a@example.kz", notes: "", wishes: [] };
 
 function renderProbe() {
   const client = new QueryClient({
@@ -175,7 +175,7 @@ describe("кэш и смена сессии", () => {
 
   it("выход и вход стирают черновики формы брони ВСЕХ заведений", async () => {
     renderProbe();
-    expect(readBookingFormDraft("venue-1")?.phoneDigits).toBe("7010000000");
+    expect(readBookingFormDraft("venue-1")?.phone).toBe("+77010000000");
 
     fireEvent.click(screen.getByRole("button", { name: "выйти" }));
     await waitFor(() => expect(readBookingFormDraft("venue-1")).toBeNull());
