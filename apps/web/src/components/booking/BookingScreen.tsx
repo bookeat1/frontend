@@ -42,7 +42,7 @@ import {
 import { readCampaignAttribution } from "@web/lib/campaign-attribution";
 import { bookingDateLabel, slotDateIso, slotTimeLabel, todayIso } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
-import { isComplete, kzNationalDigits, toE164 } from "@web/lib/phone";
+import { isE164Complete } from "@web/lib/phone";
 import { draftToPreorderInput } from "@web/lib/preorder-draft";
 import { markPreorderFailed } from "@web/lib/preorder-failed-flag";
 import { useAvailability, useCreateBooking, useRescheduleBooking, useVenue } from "@web/lib/queries";
@@ -144,7 +144,7 @@ function PageSkeleton() {
   );
 }
 
-const EMPTY_CONTACTS: ContactsValue = { name: "", phoneDigits: "", offer: true };
+const EMPTY_CONTACTS: ContactsValue = { name: "", phone: "", offer: true };
 
 function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingIntent }) {
   const { t, locale } = useLocale();
@@ -201,7 +201,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
       setContacts((current) => ({
         ...current,
         name: draft.name,
-        phoneDigits: draft.phoneDigits,
+        phone: draft.phone,
       }));
       setNotes(draft.notes);
       setWishes(new Set(draft.wishes.filter(isWishKey)));
@@ -220,14 +220,13 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   useEffect(() => {
     if (!user) return;
     const profileName = user.fullName.trim();
-    // Только казахстанский номер: иностранный (аккаунт из приложения, где
-    // есть выбор страны) оставляет поле ПУСТЫМ — иначе `nationalDigits`
-    // сделал бы из него десять первых цифр, а `toE164` приклеил бы «+7».
-    const profileDigits = user.phone ? (kzNationalDigits(user.phone) ?? "") : "";
+    // Номер профиля уже в E.164 — поле само разберёт его на страну и цифры,
+    // в том числе иностранный (аккаунт с номером другой страны).
+    const profilePhone = user.phone ?? "";
     setContacts((current) => ({
       ...current,
       name: current.name || profileName,
-      phoneDigits: current.phoneDigits || profileDigits,
+      phone: current.phone || profilePhone,
     }));
   }, [user]);
 
@@ -248,7 +247,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
     if (today === null) return;
     writeBookingFormDraft(venue.id, {
       name: contacts.name,
-      phoneDigits: contacts.phoneDigits,
+      phone: contacts.phone,
       notes,
       wishes: Array.from(wishes),
     });
@@ -335,7 +334,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
   /** Все ошибки формы. Что из них ПОКАЗЫВАТЬ — решает `visibleErrors`. */
   const errors: ContactsErrors = {
     name: contacts.name.trim() ? undefined : t.web.booking.contacts.errors.name,
-    phone: isComplete(contacts.phoneDigits) ? undefined : t.web.booking.contacts.errors.phone,
+    phone: isE164Complete(contacts.phone) ? undefined : t.web.booking.contacts.errors.phone,
     offer: contacts.offer ? undefined : t.web.booking.contacts.errors.offer,
   };
   const formValid = !errors.name && !errors.phone && !errors.offer;
@@ -390,7 +389,7 @@ function BookingForm({ venue, intent }: { venue: Restaurant; intent: BookingInte
           startsAt: chosen.startsAt,
           guests,
           name: contacts.name.trim(),
-          phone: toE164(contacts.phoneDigits),
+          phone: contacts.phone,
           notes: composedNotes || undefined,
           // «Марафон Алматы» и следующие QR-акции: та же метка, что осела в
           // sessionStorage при заходе по `?promo=` (см. `campaign-attribution.ts`

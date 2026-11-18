@@ -6,6 +6,7 @@ import type { AvailabilitySlot, DayAvailability } from "@bookeat/api/client";
 
 import { AsyncBlock, Skeleton, StateMessage } from "@web/components/state/AsyncBlock";
 import { Chip } from "@web/components/ui/Chip";
+import { PhoneField } from "@web/components/ui/PhoneField";
 import { TextField } from "@web/components/ui/TextField";
 import { TimeSlot } from "@web/components/ui/TimeSlot";
 import { InlineDateField } from "@web/components/venue/BookingFields";
@@ -14,7 +15,6 @@ import { GUEST_OPTIONS } from "@web/lib/booking-options";
 import { availableCount, emptyKind, groupSlots, slotAriaLabel } from "@web/lib/booking-slots";
 import { cx } from "@web/lib/cx";
 import { bookingDateLabel, slotTimeLabel } from "@web/lib/format";
-import { formatNational, nationalDigits } from "@web/lib/phone";
 import { useLocale } from "@web/lib/locale";
 
 /**
@@ -309,8 +309,8 @@ function StepperButton({
 
 export interface ContactsValue {
   name: string;
-  /** Национальные цифры, см. `lib/phone.ts`. */
-  phoneDigits: string;
+  /** E.164 или "", как отдаёт `ui/PhoneField`. */
+  phone: string;
   offer: boolean;
 }
 
@@ -356,17 +356,13 @@ export function ContactsCard({
               onChange={(event) => onChange({ name: event.target.value })}
               onBlur={() => onBlur("name")}
             />
-            <TextField
+            <PhoneField
               label={texts.phoneLabel}
               placeholder={texts.phonePlaceholder}
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel-national"
-              leadingSlot={<PhonePrefix />}
-              value={formatNational(value.phoneDigits)}
+              value={value.phone}
               error={errors.phone}
               disabled={disabled}
-              onChange={(event) => onChange({ phoneDigits: nationalDigits(event.target.value) })}
+              onChange={({ e164 }) => onChange({ phone: e164 })}
               onBlur={() => onBlur("phone")}
             />
           </div>
@@ -409,13 +405,6 @@ export function ContactsCard({
         </div>
       </div>
     </FormCard>
-  );
-}
-
-/** «+7» перед номером: страна на сайте одна (см. `lib/phone.ts`). */
-function PhonePrefix() {
-  return (
-    <span className="shrink-0 text-[15px] font-medium leading-[22px] text-ink">+7</span>
   );
 }
 

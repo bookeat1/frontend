@@ -144,6 +144,9 @@ describe("поле телефона", () => {
     expect(countryLabel()).toBe("Код страны: Казахстан, +7. Открыть список");
 
     fireEvent.click(countryButton());
+    // Список — по алфавиту названий, «США» далеко за первым экраном
+    // виртуализированного списка: гость находит её поиском.
+    fireEvent.change(screen.getByLabelText("Страна или код"), { target: { value: "США" } });
     fireEvent.click(screen.getByRole("button", { name: "Код страны: США, +1" }));
 
     expect(countryLabel()).toBe("Код страны: США, +1. Открыть список");

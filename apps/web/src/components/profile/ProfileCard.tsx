@@ -6,7 +6,7 @@ import { Skeleton } from "@web/components/state/AsyncBlock";
 import { cx } from "@web/lib/cx";
 import { membershipMonthYear } from "@web/lib/format";
 import { useLocale } from "@web/lib/locale";
-import { formatForDisplay, kzNationalDigits } from "@web/lib/phone";
+import { formatStoredPhone } from "@web/lib/phone";
 
 /**
  * Карточка гостя — узел 3525:15156: белая подложка радиуса 20 с тенью
@@ -54,8 +54,7 @@ export function ProfileCard({ user, fallbackName, stats, className }: ProfileCar
 
   const contacts: string[] = [];
   if (user?.phone) {
-    const national = kzNationalDigits(user.phone);
-    contacts.push(national ? formatForDisplay(national) : user.phone);
+    contacts.push(formatStoredPhone(user.phone));
   }
   if (user?.email) contacts.push(user.email);
   const since = membershipMonthYear(user?.createdAt ?? null, locale);

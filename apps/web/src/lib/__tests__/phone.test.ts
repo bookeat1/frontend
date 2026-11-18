@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatForDisplay,
+  DEFAULT_COUNTRY,
   formatNational,
-  isComplete,
-  kzNationalDigits,
-  nationalDigits,
+  formatStoredPhone,
+  isE164Complete,
+  parsePhoneInput,
   toE164,
 } from "@web/lib/phone";
 
 /**
- * Разбор номера — единственное место, где гость может «правильно набрать» и
- * получить отказ сервера. Поэтому проверяются именно те формы, которые люди
- * вставляют из буфера, а не только идеальные десять цифр.
+ * Сам разбор номера проверяется в `packages/phone`. Здесь — только то, что
+ * у сайта своё: маска без скобок и то, что чужой номер не перекрашивается
+ * в казахстанский.
  */
-describe("номер телефона (веб, только KZ)", () => {
+describe("номер телефона (веб)", () => {
   it("вынимает национальные цифры из любой человеческой записи", () => {
     for (const raw of [
       "7018692233",
@@ -23,57 +23,32 @@ describe("номер телефона (веб, только KZ)", () => {
       "8 (701) 869 22 33",
       "7 701 869 22 33",
     ]) {
-      expect(nationalDigits(raw)).toBe("7018692233");
+      const value = parsePhoneInput(raw, DEFAULT_COUNTRY);
+      expect(value.national).toBe("7018692233");
+      expect(toE164(value)).toBe("+77018692233");
     }
   });
 
-  /** Ведущая «8» — часть номера, пока цифр не больше десяти: иначе номер,
-   * начинающийся на 8, терял бы первую цифру прямо во время набора. */
-  it("не срезает ведущую восьмёрку, пока номер ещё короткий", () => {
-    expect(nationalDigits("8")).toBe("8");
-    expect(nationalDigits("87")).toBe("87");
-  });
-
-  it("не пускает больше десяти цифр", () => {
-    expect(nationalDigits("70186922339999")).toHaveLength(10);
-  });
-
   it("маска из макета — «777 123-45-67», и она не дорисовывает лишнего", () => {
-    expect(formatNational("")).toBe("");
-    expect(formatNational("777")).toBe("777");
-    expect(formatNational("777123")).toBe("777 123");
-    expect(formatNational("7771234567")).toBe("777 123-45-67");
+    expect(formatNational("", DEFAULT_COUNTRY)).toBe("");
+    expect(formatNational("777", DEFAULT_COUNTRY)).toBe("777");
+    expect(formatNational("777123", DEFAULT_COUNTRY)).toBe("777 123");
+    expect(formatNational("7771234567", DEFAULT_COUNTRY)).toBe("777 123-45-67");
   });
 
-  it("на сервер уходит E.164", () => {
-    expect(toE164("7018692233")).toBe("+77018692233");
-    expect(formatForDisplay("7018692233")).toBe("+7 701 869-22-33");
+  it("сохранённый номер показывается в маске сайта", () => {
+    expect(formatStoredPhone("+77018692233")).toBe("+7 701 869-22-33");
+    expect(formatStoredPhone("+12125551234")).toBe("+1 212 555-1234");
   });
 
-  it("полным считается ровно десятизначный номер", () => {
-    expect(isComplete("701869223")).toBe(false);
-    expect(isComplete("7018692233")).toBe(true);
+  it("номер страны с неизвестным форматом не перекрашивается в «+7…»", () => {
+    expect(formatStoredPhone("+4915112345678")).toBe("+4915112345678");
   });
 
-  /** Обратный разбор — для номера, который уже ХРАНИТСЯ (профиль, бронь). */
-  describe("kzNationalDigits: из E.164 обратно в поле", () => {
-    it("казахстанский номер отдаёт десять национальных цифр", () => {
-      expect(kzNationalDigits("+77018692233")).toBe("7018692233");
-      expect(kzNationalDigits("+7 701 869-22-33")).toBe("7018692233");
-    });
-
-    it("ИНОСТРАННЫЙ номер — null, а не первые десять цифр с приклеенным «+7»", () => {
-      // Аккаунт из мобильного приложения с выбором страны. Раньше
-      // `nationalDigits` делал из него «4915112345», и бронь уходила с
-      // фальшивым «+74915112345».
-      expect(kzNationalDigits("+4915112345678")).toBeNull();
-      expect(nationalDigits("+4915112345678")).toBe("4915112345");
-    });
-
-    it("неполный, пустой и слишком длинный — тоже null", () => {
-      expect(kzNationalDigits("")).toBeNull();
-      expect(kzNationalDigits("+7701869223")).toBeNull();
-      expect(kzNationalDigits("+770186922334")).toBeNull();
-    });
+  it("полнота номера считается по стране, а не по десяти цифрам", () => {
+    expect(isE164Complete("+77018692233")).toBe(true);
+    expect(isE164Complete("+7701869")).toBe(false);
+    expect(isE164Complete("+4915112345678")).toBe(true);
+    expect(isE164Complete("")).toBe(false);
   });
 });

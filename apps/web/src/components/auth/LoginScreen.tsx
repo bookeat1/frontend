@@ -16,12 +16,12 @@ import { RepositoryError } from "@bookeat/api/client";
 import type { Dictionary } from "@bookeat/i18n";
 
 import { Button } from "@web/components/ui/Button";
-import { TextField } from "@web/components/ui/TextField";
+import { PhoneField } from "@web/components/ui/PhoneField";
 import { authRepository } from "@web/lib/api";
 import { assetUrl } from "@web/lib/asset";
 import { useAuth } from "@web/lib/auth";
 import { cx } from "@web/lib/cx";
-import { formatForDisplay, formatNational, isComplete, nationalDigits, toE164 } from "@web/lib/phone";
+import { formatStoredPhone } from "@web/lib/phone";
 import { RETURN_PARAM, safeReturnPath } from "@web/lib/return-to";
 import { useT } from "@web/lib/locale";
 
@@ -44,9 +44,9 @@ import { useT } from "@web/lib/locale";
  * 2. Кнопки «Продолжить с Google» нет. Ручки входа через Google у бэкенда не
  *    существует (`/auth/*` знает пароль, OTP, refresh, logout и Telegram
  *    mini app) — кнопка была бы декорацией, которая никуда не ведёт.
- * 3. Выбора страны у номера нет: код страны зафиксирован на «KZ +7», как и
- *    нарисовано. Гость с иностранным номером на сайте войти не сможет —
- *    см. lib/phone.ts.
+ * 3. Код страны ВЫБИРАЕТСЯ (в макете нарисован только «KZ +7 ▾»): список
+ *    стран по алфавиту, страна по умолчанию — догадка по IP, иначе
+ *    Казахстан. См. `ui/PhoneField.tsx`.
  *
  * Подложка — РОДНАЯ фотография макета: заливка кадра 3272:2
  * (`imageRef c42841878fce…`, 941×1672), выгружена 31.08.2026 и лежит в
@@ -73,7 +73,9 @@ export function LoginScreen() {
   const returnTo = safeReturnPath(params.get(RETURN_PARAM));
 
   const [step, setStep] = useState<"phone" | "code">("phone");
-  const [digits, setDigits] = useState("");
+  /** E.164 или "" — то, что отдаёт `PhoneField`. */
+  const [phone, setPhone] = useState("");
+  const [phoneComplete, setPhoneComplete] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +90,11 @@ export function LoginScreen() {
   }, [cooldown]);
 
   const requestCode = useCallback(
-    async (phoneDigits: string) => {
+    async (e164: string) => {
       setBusy(true);
       setError(null);
       try {
-        await authRepository.requestOtp(toE164(phoneDigits));
+        await authRepository.requestOtp(e164);
         setStep("code");
         setCode("");
         setCooldown(RESEND_SECONDS);
@@ -108,11 +110,11 @@ export function LoginScreen() {
   async function submitPhone(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
-    if (!isComplete(digits)) {
+    if (!phoneComplete) {
       setError(t.web.auth.phoneIncomplete);
       return;
     }
-    await requestCode(digits);
+    await requestCode(phone);
   }
 
   async function submitCode(event: FormEvent<HTMLFormElement>) {
@@ -121,7 +123,7 @@ export function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
-      const session = await authRepository.verifyOtp({ phone: toE164(digits), code });
+      const session = await authRepository.verifyOtp({ phone, code });
       await completeSignIn(session);
       // `replace`, а не `push`: «назад» с главной не должен возвращать на
       // экран входа, который для вошедшего гостя уже бессмыслен.
@@ -170,21 +172,18 @@ export function LoginScreen() {
               <p className="text-bodyM text-ink-secondary">{t.web.auth.subtitle}</p>
             </div>
 
-            <TextField
+            <PhoneField
               label={t.web.auth.phoneLabel}
               size="l"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
               autoFocus
-              value={formatNational(digits)}
-              onChange={(event) => {
-                setDigits(nationalDigits(event.target.value));
+              value={phone}
+              onChange={({ e164, complete }) => {
+                setPhone(e164);
+                setPhoneComplete(complete);
                 setError(null);
               }}
               placeholder={t.web.auth.phonePlaceholder}
               error={error ?? undefined}
-              leadingSlot={<CountryPrefix />}
             />
 
             <Button type="submit" size="submit" block loading={busy}>
@@ -222,7 +221,7 @@ export function LoginScreen() {
             <div className="flex flex-col gap-2">
               <h1 className="text-h3 text-ink">{t.web.auth.codeTitle}</h1>
               <p className="text-bodyM text-ink-secondary">
-                {t.web.auth.codeSentTo(formatForDisplay(digits))}
+                {t.web.auth.codeSentTo(formatStoredPhone(phone))}
               </p>
             </div>
 
@@ -246,7 +245,7 @@ export function LoginScreen() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => void requestCode(digits)}
+                  onClick={() => void requestCode(phone)}
                   disabled={busy}
                   className="text-[13px] font-semibold leading-[18px] text-brand-text disabled:text-ink-disabled focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
@@ -283,33 +282,6 @@ function BrandMark() {
     >
       {t.web.header.brand}
     </Link>
-  );
-}
-
-/**
- * Блок кода страны слева в поле — узлы 3272:14 (сам блок), 3272:15 («KZ  +7»,
- * 16/24 SemiBold цветом text/primary) и 3272:17 (разделитель).
- *
- * Разделитель в макете — ПРЯМОУГОЛЬНИК 1×24, а не рамка во всю высоту поля:
- * раньше здесь стоял `border-r` на самом блоке, и линия шла от края до края
- * внутренней области. Просвет 12 с обеих сторон даёт сам ряд поля
- * (`gap-login-field-gap`), поэтому оба узла отданы одним фрагментом.
- *
- * Стрелка «▾» (узел 3272:16) НЕ нарисована здесь намеренно: выбора страны у
- * сайта нет — `lib/phone.ts` понимает только казахстанский номер, — а
- * стрелка, которая ничего не раскрывает, обещает несуществующий список.
- * Расхождение названо в отчёте, а не спрятано.
- */
-function CountryPrefix() {
-  const t = useT();
-  return (
-    <>
-      <span className="flex shrink-0 items-center gap-1.5 text-[16px] font-semibold leading-6 text-ink">
-        {t.web.auth.country}
-        <span>+7</span>
-      </span>
-      <span aria-hidden="true" className="h-login-divider w-px shrink-0 bg-line-strong" />
-    </>
   );
 }
 
